@@ -89,7 +89,8 @@ const splitSuffix = (href: string): [string, string] => {
 };
 
 const resolvePageTarget = (snapshot: SiteSnapshot, page: SnapshotPage, href: string): SnapshotPage | undefined => {
-  const [raw] = splitSuffix(href);
+  const [raw, suffix] = splitSuffix(href);
+  const languageCode = new URLSearchParams(suffix.split('#')[0]?.replaceAll('&amp;', '&')).get('lang') ?? page.languageCode;
   const current = page.path.split('/').slice(0, -1);
   const normalized = path.posix
     .normalize(raw.startsWith('/') ? raw : [...current, raw].join('/'))
@@ -100,7 +101,7 @@ const resolvePageTarget = (snapshot: SiteSnapshot, page: SnapshotPage, href: str
     (candidate) =>
       candidate.kind === 'PAGE' &&
       candidate.versionId === page.versionId &&
-      candidate.languageCode === page.languageCode &&
+      candidate.languageCode === languageCode &&
       candidate.path.replace(/^\/+|\/+$/g, '') === normalized,
   );
 };
@@ -115,7 +116,7 @@ const rewriteUrl = (
   assets: ExportAsset[],
   kind: 'link' | 'image',
 ): string => {
-  const url = rawUrl.trim();
+  const url = rawUrl.trim().replaceAll('&amp;', '&');
   if (!url || url.startsWith('#')) return url;
   if (/^(?:javascript|data:text\/html|vbscript):/i.test(url)) return '#';
   const asset = assets.find((candidate) => url === candidate.url || url === `/${candidate.key}` || url.includes(candidate.key));

@@ -1460,6 +1460,7 @@
   "settings_import_summaryhint": "تُضاف الصفحات أو تُحدَّث في هذا المشروع — لا يُحذف أي شيء، وإعادة تشغيل الاستيراد آمنة.",
   "settings_import_run": "استيراد",
   "settings_import_running": "جارٍ الاستيراد…",
+  "settings_import_runninghint": "قد تستغرق المواقع الكبيرة بضع دقائق. يمكنك مغادرة هذه الصفحة — سيصلك إشعار عند انتهاء الاستيراد.",
   "settings_import_success": "اكتمل الاستيراد",
   "settings_import_error": "فشل الاستيراد",
   "settings_import_result": "تم استيراد {imported} جديدة وتحديث {updated} وتخطي {skipped}.",

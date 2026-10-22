@@ -1439,6 +1439,7 @@
   "settings_import_summaryhint": "Se agregan o actualizan páginas en este proyecto: no se elimina nada y volver a ejecutar la importación es seguro.",
   "settings_import_run": "Importar",
   "settings_import_running": "Importando…",
+  "settings_import_runninghint": "Los sitios grandes pueden tardar unos minutos. Puede salir de esta página: recibirá una notificación cuando termine la importación.",
   "settings_import_success": "Importación finalizada",
   "settings_import_error": "Importación fallida",
   "settings_import_result": "Importado {imported} nuevo, actualizado {updated}, omitido {skipped}.",

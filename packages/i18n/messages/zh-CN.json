@@ -1439,6 +1439,7 @@
   "settings_import_summaryhint": "在此项目中添加或更新页面 - 不会删除任何内容，并且重新运行导入是安全的。",
   "settings_import_run": "进口",
   "settings_import_running": "正在导入...",
+  "settings_import_runninghint": "大型站点可能需要几分钟。你可以离开此页面——导入完成后你会收到通知。",
   "settings_import_success": "导入完成",
   "settings_import_error": "导入失败",
   "settings_import_result": "导入了新的 {imported}，更新了 {updated}，跳过了 {skipped}。",

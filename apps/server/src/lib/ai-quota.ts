@@ -1,7 +1,8 @@
+import { keys as bullmqKeys } from '@nibleaf/bullmq/keys';
+import { Redis } from 'ioredis';
 import { env } from '@/env';
 import { AppError } from '@/errors';
 import { envExtras } from './env-extras';
-import { getRedis } from './redis';
 
 /**
  * Per-workspace daily quota for the AI draft endpoint — the only place the
@@ -10,6 +11,28 @@ import { getRedis } from './redis';
  * when OPENROUTER_API_KEY is configured: the deterministic offline fallback is
  * free and stays unlimited.
  */
+
+let client: Redis | null = null;
+
+const getRedis = (): Redis => {
+  if (!client) {
+    const redisEnv = bullmqKeys();
+    client = new Redis({
+      host: redisEnv.REDIS_HOST,
+      port: redisEnv.REDIS_PORT,
+      db: redisEnv.REDIS_DB,
+      ...(redisEnv.REDIS_PASSWORD ? { password: redisEnv.REDIS_PASSWORD } : {}),
+      protocol: 2,
+      // Quota checks must fail fast, not queue up while redis is down.
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 1,
+      retryStrategy: (times) => Math.min(times * 100, 2000),
+    });
+    // Swallow connection errors — the quota check degrades to fail-open below.
+    client.on('error', () => undefined);
+  }
+  return client;
+};
 
 const DAY_SECONDS = 24 * 60 * 60;
 

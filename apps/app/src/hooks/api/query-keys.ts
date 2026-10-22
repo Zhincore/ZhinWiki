@@ -72,6 +72,9 @@ export const queryKeys = {
     runs: (projectId: string) => ['projects', projectId, 'exports', 'runs'] as const,
     schedules: (projectId: string) => ['projects', projectId, 'exports', 'schedules'] as const,
   },
+  imports: {
+    latestRun: (projectId: string) => ['projects', projectId, 'imports', 'latest-run'] as const,
+  },
   gitWorkflow: {
     detail: (projectId: string) => ['git-workflow', projectId] as const,
   },

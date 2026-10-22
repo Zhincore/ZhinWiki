@@ -1439,6 +1439,7 @@
   "settings_import_summaryhint": "Страницы в этом проекте добавляются или обновляются — ничего не удаляется, и повторный запуск импорта безопасен.",
   "settings_import_run": "Импорт",
   "settings_import_running": "Импорт…",
+  "settings_import_runninghint": "Импорт больших сайтов может занять несколько минут. Можно покинуть эту страницу — вы получите уведомление, когда импорт завершится.",
   "settings_import_success": "Импорт завершен",
   "settings_import_error": "Импорт не удался",
   "settings_import_result": "Импортирован новый {imported}, обновлен {updated}, пропущен {skipped}.",

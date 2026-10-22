@@ -7,6 +7,7 @@ import { createNotificationsForOrgMembers } from '@/actions/notifications';
 import { badRequest } from '@/errors';
 import { getContextOrganizationIdOrThrow, getContextUserOrThrow, type HonoEnv } from '@/lib/hono/context';
 import { validator } from '@/lib/hono/validate';
+import { withProjectImportLock } from '@/lib/import-lock';
 import importsRoutes from './routes';
 
 /** Ghost exports ship the whole site in one JSON document — allow up to 15 MB. */
@@ -25,7 +26,11 @@ const notifyImportCompleted = (projectId: string, actorUserId: string, source: s
     actorUserId,
   ).catch(() => undefined);
 
-const trackedImport = async <T extends ImportSummary>(projectId: string, sourceType: 'ghost' | 'mintlify', run: () => Promise<T>): Promise<T> => {
+/** One import per project at a time, with started/completed/failed analytics around it. */
+const trackedImport = <T extends ImportSummary>(projectId: string, sourceType: 'ghost' | 'mintlify', run: () => Promise<T>): Promise<T> =>
+  withProjectImportLock(projectId, () => trackImportRun(projectId, sourceType, run));
+
+const trackImportRun = async <T extends ImportSummary>(projectId: string, sourceType: 'ghost' | 'mintlify', run: () => Promise<T>): Promise<T> => {
   const started = performance.now();
   const operationId = `${sourceType}-${crypto.randomUUID()}`;
   await trackProjectEvent(projectId, { name: 'import_started', sourceType, operationId }, { source: 'dashboard' }).catch(() => undefined);

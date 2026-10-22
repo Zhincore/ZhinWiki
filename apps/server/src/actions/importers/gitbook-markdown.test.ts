@@ -1,5 +1,12 @@
+import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { convertGitBookMarkdown, expandGitBookIncludes, extractGitBookTitle, parseGitBookFrontmatter } from './gitbook-markdown';
+import {
+  convertGitBookMarkdown,
+  expandGitBookIncludes,
+  extractGitBookTitle,
+  findGitBookSpaceLinks,
+  parseGitBookFrontmatter,
+} from './gitbook-markdown';
 
 const convert = (source: string, resolveFile: (reference: string) => string | undefined = () => undefined) =>
   convertGitBookMarkdown(source, { resolveFile });
@@ -57,7 +64,7 @@ describe('convertGitBookMarkdown', () => {
         '{% endhint %}',
       ].join('\n'),
     );
-    expect(content).toBe(['<Check>', 'Done.', '<Danger>', 'Careful.', '</Danger>', '</Check>', '<Info>', 'FYI', '</Info>'].join('\n'));
+    expect(content).toBe(['<Check>', 'Done.', '<Danger>', 'Careful.', '</Danger>', '</Check>', '<Info>', 'FYI', '</Info>'].join('\n\n'));
   });
 
   it('converts tabs and moves code titles onto the fence', () => {
@@ -74,17 +81,17 @@ describe('convertGitBookMarkdown', () => {
         '{% endtabs %}',
       ].join('\n'),
     );
-    expect(content).toBe(['<Tabs>', '<Tab title="Node">', '```javascript title="index.js"', 'run();', '```', '</Tab>', '</Tabs>'].join('\n'));
+    expect(content).toBe('<Tabs>\n\n<Tab title="Node">\n\n```javascript title="index.js"\nrun();\n```\n\n\n</Tab>\n\n</Tabs>');
   });
 
   it('lifts step headings into Step titles', () => {
     const { content } = convert(['{% stepper %}', '{% step %}', '### Install', 'Run it.', '{% endstep %}', '{% endstepper %}'].join('\n'));
-    expect(content).toBe(['<Steps>', '<Step title="Install">', '', 'Run it.', '', '</Step>', '</Steps>'].join('\n'));
+    expect(content).toBe(['<Steps>', '<Step title="Install">', 'Run it.', '</Step>', '</Steps>'].join('\n\n'));
   });
 
   it('keeps percentage attributes on columns intact', () => {
     const { content, warnings } = convert('{% columns %}\n{% column width="50%" %}\nLeft\n{% endcolumn %}\n{% endcolumns %}');
-    expect(content).toBe('<Columns>\n<Column>\nLeft\n</Column>\n</Columns>');
+    expect(content).toBe(['<Columns>', '<Column>', 'Left', '</Column>', '</Columns>'].join('\n\n'));
     expect(warnings).toEqual([]);
   });
 
@@ -179,6 +186,47 @@ describe('convertGitBookMarkdown', () => {
     expect(content).toContain('<Card title="GET /pets" href="https://x.dev/spec.yaml" icon="code">');
     expect(warnings).toHaveLength(2);
   });
+
+  it('rebases relative links and images in included content onto the including page', async () => {
+    const media = new Map([
+      [
+        '.gitbook/includes/media.md',
+        '![a](../assets/a.png "t") [s](<../../guides/setup page.md#x>) <img src="../assets/b.png"> [ext](https://x.dev) [top](#a)\n\n```\n![c](../keep.png)\n```',
+      ],
+    ]);
+    const resolveRelative = (reference: string, sourceFile: string) => {
+      const path = posix.normalize(posix.join(posix.dirname(sourceFile), reference));
+      return media.has(path) ? path : undefined;
+    };
+    const warnings: string[] = [];
+    expect(
+      await expandGitBookIncludes(
+        '{% include "../.gitbook/includes/media.md" %}',
+        'guides/p.md',
+        resolveRelative,
+        async (path) => media.get(path) ?? null,
+        warnings,
+      ),
+    ).toBe(
+      '![a](../.gitbook/assets/a.png "t") [s](<setup page.md#x>) <img src="../.gitbook/assets/b.png"> [ext](https://x.dev) [top](#a)\n\n```\n![c](../keep.png)\n```',
+    );
+    expect(warnings).toEqual([]);
+  });
+});
+
+describe('findGitBookSpaceLinks', () => {
+  it('lists distinct links into GitBook spaces outside code', () => {
+    const content = [
+      '<Card title="Guides" href="https://app.gitbook.com/s/4gzcGtLrr90pVjAWVdTc/modding-guides"></Card>',
+      'See [this](https://app.gitbook.com/o/org1/s/fwsaoju1TBAUvMpI6NIw/) and [again](https://app.gitbook.com/s/4gzcGtLrr90pVjAWVdTc/modding-guides).',
+      '`https://app.gitbook.com/s/inCode/x`',
+      '[site](https://docs.gitbook.com/s/not-a-space)',
+    ].join('\n\n');
+    expect(findGitBookSpaceLinks(content)).toEqual([
+      'https://app.gitbook.com/s/4gzcGtLrr90pVjAWVdTc/modding-guides',
+      'https://app.gitbook.com/o/org1/s/fwsaoju1TBAUvMpI6NIw/',
+    ]);
+  });
 });
 
 describe('expandGitBookIncludes', () => {
@@ -208,5 +256,31 @@ describe('expandGitBookIncludes', () => {
       await expandGitBookIncludes('{% include ".gitbook/includes/loop.md" %}{% include "missing.md" %}', 'page.md', resolve, load, warnings),
     ).toBe('');
     expect(warnings).toHaveLength(2);
+  });
+
+  it('rebases relative links and images in included content onto the including page', async () => {
+    const media = new Map([
+      [
+        '.gitbook/includes/media.md',
+        '![a](../assets/a.png "t") [s](<../../guides/setup page.md#x>) <img src="../assets/b.png"> [ext](https://x.dev) [top](#a)\n\n```\n![c](../keep.png)\n```',
+      ],
+    ]);
+    const resolveRelative = (reference: string, sourceFile: string) => {
+      const path = posix.normalize(posix.join(posix.dirname(sourceFile), reference));
+      return media.has(path) ? path : undefined;
+    };
+    const warnings: string[] = [];
+    expect(
+      await expandGitBookIncludes(
+        '{% include "../.gitbook/includes/media.md" %}',
+        'guides/p.md',
+        resolveRelative,
+        async (path) => media.get(path) ?? null,
+        warnings,
+      ),
+    ).toBe(
+      '![a](../.gitbook/assets/a.png "t") [s](<setup page.md#x>) <img src="../.gitbook/assets/b.png"> [ext](https://x.dev) [top](#a)\n\n```\n![c](../keep.png)\n```',
+    );
+    expect(warnings).toEqual([]);
   });
 });

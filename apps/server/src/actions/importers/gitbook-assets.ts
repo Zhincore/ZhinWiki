@@ -1,18 +1,12 @@
 import { posix } from 'node:path';
 import { protectMarkdownCode } from '@nibleaf/shared/markdown-code';
+import { safeDecodeUri } from './gitbook-markdown';
 
 /** `![alt](<path with spaces>)`, `![alt](path "title")`, and one level of
  * balanced parentheses in bare destinations (`image (1).png` after encoding). */
 const MARKDOWN_IMAGE = /(!\[(?:\\.|[^\]\\])*\]\()(?:<([^>\n]+)>|((?:[^\s()]|\([^\s()]*\))+))((?:\s+["'][^"'\n]*["'])?\))/g;
 
-const cleanReference = (value: string): string => {
-  const withoutSuffix = value.split(/[?#]/, 1)[0] ?? value;
-  try {
-    return decodeURIComponent(withoutSuffix);
-  } catch {
-    return withoutSuffix;
-  }
-};
+const cleanReference = (value: string): string => safeDecodeUri(value.split(/[?#]/, 1)[0] ?? value);
 
 /**
  * Resolve a GitBook asset/include reference to a repository path. References

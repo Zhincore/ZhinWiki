@@ -1,5 +1,6 @@
 import { posix } from 'node:path';
 import { slugify } from '@nibleaf/shared';
+import { closesMarkdownFence, type MarkdownFence, openingMarkdownFence } from '@nibleaf/shared/markdown-code';
 import { parse as parseYaml } from 'yaml';
 import { humanize, stableHash } from './content';
 import { safeDecodeUri } from './gitbook-markdown';
@@ -92,7 +93,9 @@ export const parseGitBookConfig = (
   const structure = data.structure && typeof data.structure === 'object' ? (data.structure as Record<string, unknown>) : {};
   const relative = (value: string | undefined, fallback: string) => {
     const path = value ? joinInside(value) : fallback;
-    return path === undefined || path === '' ? fallback : path;
+    if (path !== undefined && path !== '') return path;
+    warnings.push(`${configPath ?? '.gitbook.yaml'} sets a structure path "${value}" outside the space root — "${fallback}" was used.`);
+    return fallback;
   };
   const redirects: GitBookSpaceConfig['redirects'] = [];
   if (data.redirects && typeof data.redirects === 'object' && !Array.isArray(data.redirects)) {
@@ -139,10 +142,14 @@ export const parseGitBookSummary = (markdown: string, summaryPath = 'SUMMARY.md'
   const summaryDirectory = directoryOf(summaryPath);
   let stack: Array<{ indent: number; children: GitBookNavNode[] }> = [];
   let sawContent = false;
-  let fence = false;
+  let fence: MarkdownFence | undefined;
 
   for (const line of markdown.replace(/\r\n/g, '\n').split('\n')) {
-    if (/^\s*(```|~~~)/.test(line)) fence = !fence;
+    if (fence) {
+      if (closesMarkdownFence(line, fence, Number.POSITIVE_INFINITY)) fence = undefined;
+      continue;
+    }
+    fence = openingMarkdownFence(line, Number.POSITIVE_INFINITY);
     if (fence || !line.trim()) continue;
     const heading = line.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/);
     if (heading) {

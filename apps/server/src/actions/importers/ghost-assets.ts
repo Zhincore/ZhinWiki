@@ -125,7 +125,7 @@ export class RemoteAssetMigrator {
   }
 
   async rewrite(markdown: string): Promise<string> {
-    const protectedCode = protectMarkdownCode(markdown, { maxFenceIndent: this.namespace === 'mintlify' ? Number.POSITIVE_INFINITY : 3 });
+    const protectedCode = protectMarkdownCode(markdown, { maxFenceIndent: this.namespace === 'ghost' ? 3 : Number.POSITIVE_INFINITY });
     const sources = remoteImageSources(protectedCode.content);
     if (sources.length === 0) return markdown;
     const replacements = new Map(await Promise.all(sources.map(async (source) => [source, await this.migrate(source)] as const)));

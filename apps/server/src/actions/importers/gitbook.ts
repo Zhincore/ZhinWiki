@@ -19,7 +19,13 @@ import {
   parseGitBookSummary,
   planGitBookNavigation,
 } from './gitbook-mapping';
-import { convertGitBookMarkdown, expandGitBookIncludes, extractGitBookTitle, parseGitBookFrontmatter } from './gitbook-markdown';
+import {
+  convertGitBookMarkdown,
+  expandGitBookIncludes,
+  extractGitBookTitle,
+  findGitBookSpaceLinks,
+  parseGitBookFrontmatter,
+} from './gitbook-markdown';
 import { getGitHubDefaultBranch, getGitHubTextFile, githubRawUrl, listGitHubFiles } from './github';
 import { rewriteMintlifyInternalLinks } from './mintlify-links';
 import { defaultImportTarget, ensureGroupPage, type ImportTarget, removeImportPlaceholders, upsertPage } from './persistence';
@@ -92,8 +98,10 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
           : 'No .gitbook.yaml, SUMMARY.md, or Markdown pages found — is this a GitBook Git Sync repository?',
       );
     }
-    const { nodes, routes, warnings: planWarnings } = planGitBookNavigation(sections, config.readme);
+    const { nodes: planned, routes: plannedRoutes, warnings: planWarnings } = planGitBookNavigation(sections, config.readme);
     summary.warnings.push(...planWarnings);
+    const nodes = await loadNodes(planned, { repoPath, loadText, summary, state: { pages: 0, capWarned: false } });
+    const routes = importedRoutes(plannedRoutes, nodes);
 
     const replacementBranch = await createImportReplacementBranch(projectId, 'gitbook', input.replaceExisting !== true);
     try {
@@ -108,12 +116,10 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
         repo: { owner, name, branch, loadText },
         blobs,
         root: config.root,
-        repoPath,
         routes,
         labelsFromSummary: rawSummary !== null,
         assets,
         summary,
-        state: { pages: 0, capWarned: false },
       };
       await importNodes(nodes, null, target, context);
 
@@ -164,34 +170,36 @@ interface ImportContext {
   blobs: ReadonlySet<string>;
   /** Space root directory in the repository ('' = repo root). */
   root: string;
-  repoPath(rootRelative: string): string;
   routes: ReadonlyMap<string, string>;
   /** False when navigation was inferred: generated titles must not become sidebar labels. */
   labelsFromSummary: boolean;
   assets: RemoteAssetMigrator;
   summary: ImportSummary;
+}
+
+interface LoadContext {
+  repoPath(rootRelative: string): string;
+  loadText(filePath: string): Promise<string | null>;
+  summary: ImportSummary;
   state: { pages: number; capWarned: boolean };
 }
 
-/** SUMMARY.md entries whose file is absent are skipped; their children move up. */
-const dropMissing = (nodes: readonly GitBookNavNode[], files: ReadonlySet<string>, summary: ImportSummary): GitBookNavNode[] =>
-  nodes.flatMap((node) => {
-    const children = dropMissing(node.children, files, summary);
-    if (node.kind === 'group' || files.has(node.path)) return [{ ...node, children }];
-    summary.warnings.push(`SUMMARY.md page "${node.path}" was not found in the repository.`);
-    summary.skipped++;
-    return children;
-  });
+/** A planned node that will be created; pages carry their downloaded source. */
+interface LoadedGitBookNode {
+  node: PlannedGitBookNode;
+  page?: { path: string; filePath: string; raw: string };
+  children: LoadedGitBookNode[];
+}
 
-/** Depth-first import of the planned tree; the array index is the sibling position. */
-const importNodes = async (
-  nodes: readonly PlannedGitBookNode[],
-  parentId: string | null,
-  target: ImportTarget,
-  context: ImportContext,
-): Promise<void> => {
+/**
+ * Depth-first download of the planned tree in import order. Pages that fail to
+ * download (with their children) and nodes past the cap are dropped here, so
+ * routes, links, and redirects only ever target pages that get imported.
+ */
+const loadNodes = async (nodes: readonly PlannedGitBookNode[], context: LoadContext): Promise<LoadedGitBookNode[]> => {
   const { summary, state } = context;
-  for (const [position, node] of nodes.entries()) {
+  const loaded: LoadedGitBookNode[] = [];
+  for (const node of nodes) {
     // The cap bounds every CREATED node — groups included.
     if (state.pages >= MAX_IMPORT_FILES) {
       if (!state.capWarned) {
@@ -204,20 +212,62 @@ const importNodes = async (
 
     if (node.kind === 'group' || !node.path) {
       state.pages++;
-      const groupId = await ensureGroupPage(target, { parentId, title: node.title.slice(0, 200), slug: node.slug, position });
-      await importNodes(node.children, groupId, target, context);
+      loaded.push({ node, children: await loadNodes(node.children, context) });
       continue;
     }
 
     const filePath = context.repoPath(node.path);
-    const raw = await context.repo.loadText(filePath);
+    const raw = await context.loadText(filePath);
     if (raw === null) {
       summary.warnings.push(`Could not download "${filePath}" — the page and its children were skipped.`);
       summary.skipped++;
       continue;
     }
     state.pages++;
+    loaded.push({ node, page: { path: node.path, filePath, raw }, children: await loadNodes(node.children, context) });
+  }
+  return loaded;
+};
 
+/** Planned routes narrowed to the pages that will be imported. */
+const importedRoutes = (routes: ReadonlyMap<string, string>, nodes: readonly LoadedGitBookNode[]): Map<string, string> => {
+  const kept = new Set<string>();
+  const visit = (items: readonly LoadedGitBookNode[]) => {
+    for (const item of items) {
+      if (item.page) kept.add(item.node.route);
+      visit(item.children);
+    }
+  };
+  visit(nodes);
+  return new Map([...routes].filter(([, route]) => kept.has(route)));
+};
+
+/** SUMMARY.md entries whose file is absent are skipped; their children move up. */
+const dropMissing = (nodes: readonly GitBookNavNode[], files: ReadonlySet<string>, summary: ImportSummary): GitBookNavNode[] =>
+  nodes.flatMap((node) => {
+    const children = dropMissing(node.children, files, summary);
+    if (node.kind === 'group' || files.has(node.path)) return [{ ...node, children }];
+    summary.warnings.push(`SUMMARY.md page "${node.path}" was not found in the repository.`);
+    summary.skipped++;
+    return children;
+  });
+
+/** Depth-first import of the loaded tree; the array index is the sibling position. */
+const importNodes = async (
+  nodes: readonly LoadedGitBookNode[],
+  parentId: string | null,
+  target: ImportTarget,
+  context: ImportContext,
+): Promise<void> => {
+  const { summary } = context;
+  for (const [position, { node, page, children }] of nodes.entries()) {
+    if (!page) {
+      const groupId = await ensureGroupPage(target, { parentId, title: node.title.slice(0, 200), slug: node.slug, position });
+      await importNodes(children, groupId, target, context);
+      continue;
+    }
+
+    const { path, filePath, raw } = page;
     const { meta, body: rawBody } = parseGitBookFrontmatter(raw);
     const { title: heading, body } = extractGitBookTitle(rawBody);
     const resolve = (reference: string, sourceFile: string) => resolveGitBookRepoPath(reference, sourceFile, context.blobs, context.root);
@@ -225,20 +275,26 @@ const importNodes = async (
     const expanded = await expandGitBookIncludes(body, filePath, resolve, context.repo.loadText, includeWarnings);
     summary.warnings.push(...includeWarnings);
 
-    const rawUrl = (path: string) => githubRawUrl(context.repo.owner, context.repo.name, context.repo.branch, path);
+    const rawUrl = (repoFile: string) => githubRawUrl(context.repo.owner, context.repo.name, context.repo.branch, repoFile);
     const converted = convertGitBookMarkdown(expanded, {
       resolveFile: (reference) => {
         if (/^https?:\/\//i.test(reference)) return reference;
-        const path = resolve(reference, filePath);
-        return path ? encodeMarkdownUrl(rawUrl(path)) : undefined;
+        const resolved = resolve(reference, filePath);
+        return resolved ? encodeMarkdownUrl(rawUrl(resolved)) : undefined;
       },
     });
-    summary.warnings.push(...converted.warnings.map((warning) => `${node.path}: ${warning}`));
-    const linked = rewriteMintlifyInternalLinks(converted.content, node.path, context.routes);
+    summary.warnings.push(...converted.warnings.map((warning) => `${path}: ${warning}`));
+    const linked = rewriteMintlifyInternalLinks(converted.content, path, context.routes);
+    const spaceLinks = findGitBookSpaceLinks(linked);
+    if (spaceLinks.length > 0) {
+      summary.warnings.push(
+        `Page "${path}" links to another GitBook space (${spaceLinks.length} link${spaceLinks.length === 1 ? '' : 's'}) — kept as-is, point ${spaceLinks.length === 1 ? 'it' : 'them'} at the published page: ${spaceLinks.slice(0, 3).join(', ')}.`,
+      );
+    }
     const images = rewriteGitBookImages(linked, filePath, context.blobs, context.root, rawUrl);
     if (images.missing.length > 0) {
       summary.warnings.push(
-        `Page "${node.path}" references ${images.missing.length} image${images.missing.length === 1 ? '' : 's'} not found in the repository: ${images.missing.slice(0, 3).join(', ')}.`,
+        `Page "${path}" references ${images.missing.length} image${images.missing.length === 1 ? '' : 's'} not found in the repository: ${images.missing.slice(0, 3).join(', ')}.`,
       );
     }
     const content = await context.assets.rewrite(images.content);
@@ -261,10 +317,10 @@ const importNodes = async (
       ...(meta.description ? { description: meta.description.slice(0, 500) } : {}),
       ...(meta.icon ? { icon: meta.icon.slice(0, 64) } : {}),
       ...(Object.keys(config).length > 0 ? { config } : {}),
-      ...(meta.hidden ? { hidden: true } : {}),
+      hidden: meta.hidden === true,
       position,
     });
     summary[outcome === 'imported' ? 'imported' : 'updated']++;
-    await importNodes(node.children, id, target, context);
+    await importNodes(children, id, target, context);
   }
 };

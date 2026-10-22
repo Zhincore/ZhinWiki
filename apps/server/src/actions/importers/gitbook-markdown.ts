@@ -231,33 +231,37 @@ export const convertGitBookMarkdown = (source: string, context: GitBookConversio
   const optionalBody = (name: string) => `(?:((?:(?!\\{%)[\\s\\S])*?)${tag(name)})?`;
   const re = (pattern: string, flags = 'g') => new RegExp(pattern, flags);
 
+  // Component tags sit on their own blank-line-separated lines so the Markdown
+  // between them is parsed as Markdown, not as raw HTML block content.
+  const block = (jsx: string) => `\n\n${jsx}\n\n`;
+
   // Hints → callouts. A stack pairs each `endhint` with its own opener so
   // nested hints of different styles close with the right component.
   const hintStack: string[] = [];
   content = content.replace(re(`${tag('hint')}|${tag('endhint')}`), (match, attributes: string | undefined) => {
-    if (/^\{%-?\s*endhint/.test(match)) return hintStack.length > 0 ? `</${hintStack.pop()}>` : '';
+    if (/^\{%-?\s*endhint/.test(match)) return hintStack.length > 0 ? block(`</${hintStack.pop()}>`) : '';
     const style = tagAttributes(attributes ?? '').style?.toLowerCase() ?? 'info';
     const component = HINT_COMPONENT[style] ?? 'Info';
     hintStack.push(component);
-    return `<${component}>`;
+    return block(`<${component}>`);
   });
-  while (hintStack.length > 0) content += `\n\n</${hintStack.pop()}>`;
+  while (hintStack.length > 0) content += block(`</${hintStack.pop()}>`);
 
   // Tabs, columns.
   content = content
-    .replace(re(tag('tabs')), '<Tabs>')
-    .replace(re(tag('endtabs')), '</Tabs>')
-    .replace(re(tag('tab')), (_match, attributes: string) => `<Tab title="${attr(tagAttributes(attributes).title ?? 'Tab')}">`)
-    .replace(re(tag('endtab')), '</Tab>')
-    .replace(re(tag('columns')), '<Columns>')
-    .replace(re(tag('endcolumns')), '</Columns>')
-    .replace(re(tag('column')), '<Column>')
-    .replace(re(tag('endcolumn')), '</Column>');
+    .replace(re(tag('tabs')), block('<Tabs>'))
+    .replace(re(tag('endtabs')), block('</Tabs>'))
+    .replace(re(tag('tab')), (_match, attributes: string) => block(`<Tab title="${attr(tagAttributes(attributes).title ?? 'Tab')}">`))
+    .replace(re(tag('endtab')), block('</Tab>'))
+    .replace(re(tag('columns')), block('<Columns>'))
+    .replace(re(tag('endcolumns')), block('</Columns>'))
+    .replace(re(tag('column')), block('<Column>'))
+    .replace(re(tag('endcolumn')), block('</Column>'));
 
   // Stepper → Steps; each step's leading heading is its title.
   content = content
-    .replace(re(tag('stepper')), '<Steps>')
-    .replace(re(tag('endstepper')), '</Steps>')
+    .replace(re(tag('stepper')), block('<Steps>'))
+    .replace(re(tag('endstepper')), block('</Steps>'))
     .replace(re(`${tag('step')}([\\s\\S]*?)${tag('endstep')}`), (_match, _attributes: string, inner: string) => {
       const { title, body } = liftHeading(inner);
       return `<Step${title ? ` title="${attr(title)}"` : ''}>\n\n${body.trim()}\n\n</Step>`;
@@ -370,13 +374,52 @@ export const convertGitBookMarkdown = (source: string, context: GitBookConversio
   return { content: protectedCode.restore(content).trim(), warnings: [...warnings] };
 };
 
+const GITBOOK_SPACE_LINK = /https?:\/\/app\.gitbook\.com\/(?:o\/[^/\s"'()<>]+\/)?s\/[A-Za-z0-9]+[^\s"'()<>]*/g;
+
+/** Links into a GitBook space (`app.gitbook.com/s/<id>/…`), outside code. The
+ * space id alone does not say which published site or page they mean. */
+export const findGitBookSpaceLinks = (content: string): string[] => {
+  const prose = protectMarkdownCode(content, { maxFenceIndent: Number.POSITIVE_INFINITY }).content;
+  return [...new Set(prose.match(GITBOOK_SPACE_LINK) ?? [])];
+};
+
 const INCLUDE = /\{%-?\s*include\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s*-?%\}/g;
 const MAX_INCLUDE_DEPTH = 5;
+const REFERENCE_DESTINATION = /(\]\()(<[^>\n]+>|(?:[^\s()]|\([^\s()]*\))+)/g;
+const REFERENCE_ATTRIBUTE = /(\b(?:src|href|url)\s*=\s*)(["'])([^"'\n]*)\2/gi;
+
+/** Re-point a relative reference written in `fromDirectory` so it resolves the same from `toDirectory`. */
+const rebaseReference = (reference: string, fromDirectory: string, toDirectory: string): string => {
+  if (/^(?:[a-z][a-z0-9+.-]*:|[#/])/i.test(reference)) return reference;
+  const index = reference.search(/[?#]/);
+  const path = index === -1 ? reference : reference.slice(0, index);
+  if (!path) return reference;
+  const rebased = posix.relative(toDirectory, posix.join(fromDirectory, path)) || '.';
+  return index === -1 ? rebased : `${rebased}${reference.slice(index)}`;
+};
+
+/** Markdown destinations and `src`/`href`/`url` attributes outside code, rebased between directories. */
+const rebaseGitBookReferences = (content: string, fromDirectory: string, toDirectory: string): string => {
+  if (fromDirectory === toDirectory) return content;
+  const rebase = (reference: string) => rebaseReference(reference, fromDirectory, toDirectory);
+  const protectedCode = protectMarkdownCode(content, { maxFenceIndent: Number.POSITIVE_INFINITY });
+  return protectedCode.restore(
+    protectedCode.content
+      .replace(
+        REFERENCE_DESTINATION,
+        (_match, before: string, destination: string) =>
+          `${before}${destination.startsWith('<') ? `<${rebase(destination.slice(1, -1))}>` : rebase(destination)}`,
+      )
+      .replace(REFERENCE_ATTRIBUTE, (_match, before: string, quote: string, reference: string) => `${before}${quote}${rebase(reference)}${quote}`),
+  );
+};
 
 /**
  * Inline GitBook reusable content (`{% include ".gitbook/includes/x.md" %}`).
  * Paths resolve relative to the including file; nested includes are expanded up
- * to a fixed depth and cycles are cut. `resolve` maps a reference to a repo path.
+ * to a fixed depth and cycles (including back to the page itself) are cut.
+ * Relative links and images inside included content are rebased onto the
+ * including file. `resolve` maps a reference to a repo path.
  */
 export const expandGitBookIncludes = async (
   content: string,
@@ -384,7 +427,7 @@ export const expandGitBookIncludes = async (
   resolve: (reference: string, sourceFile: string) => string | undefined,
   load: (path: string) => Promise<string | null>,
   warnings: string[],
-  stack: readonly string[] = [],
+  stack: readonly string[] = [sourceFile],
 ): Promise<string> => {
   const protectedCode = protectMarkdownCode(content, { maxFenceIndent: Number.POSITIVE_INFINITY });
   const matches = [...protectedCode.content.matchAll(INCLUDE)];
@@ -397,14 +440,15 @@ export const expandGitBookIncludes = async (
         warnings.push(`Reusable content "${reference}" referenced from ${sourceFile} was not found.`);
         return '';
       }
-      if (stack.includes(path) || stack.length >= MAX_INCLUDE_DEPTH) {
+      if (stack.includes(path) || stack.length > MAX_INCLUDE_DEPTH) {
         warnings.push(`Reusable content "${path}" includes itself or nests too deeply — the nested include was skipped.`);
         return '';
       }
       const raw = await load(path);
       if (raw === null) return '';
       const { body } = parseGitBookFrontmatter(raw);
-      return expandGitBookIncludes(body.trim(), path, resolve, load, warnings, [...stack, path]);
+      const expanded = await expandGitBookIncludes(body.trim(), path, resolve, load, warnings, [...stack, path]);
+      return rebaseGitBookReferences(expanded, posix.dirname(path), posix.dirname(sourceFile));
     }),
   );
   let index = 0;

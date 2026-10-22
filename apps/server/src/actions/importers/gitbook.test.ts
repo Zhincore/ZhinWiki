@@ -23,10 +23,12 @@ const mem = vi.hoisted(() => ({
   }>,
   nextId: 1,
   repoFiles: new Map<string, string>(),
+  failing: new Set<string>(),
   reset() {
     this.rows.length = 0;
     this.nextId = 1;
     this.repoFiles.clear();
+    this.failing.clear();
   },
 }));
 
@@ -40,7 +42,8 @@ vi.mock('../assets', () => ({ findImportedAsset: vi.fn(async () => ({ url: 'http
 vi.mock('./github', () => ({
   getGitHubDefaultBranch: async () => 'main',
   listGitHubFiles: async () => [...mem.repoFiles.keys()].map((path) => ({ path, type: 'blob' as const })),
-  getGitHubTextFile: async (_owner: string, _name: string, _branch: string, path: string) => mem.repoFiles.get(path) ?? null,
+  getGitHubTextFile: async (_owner: string, _name: string, _branch: string, path: string) =>
+    mem.failing.has(path) ? null : (mem.repoFiles.get(path) ?? null),
   githubRawUrl: (_owner: string, _name: string, _branch: string, path: string) =>
     `https://raw.githubusercontent.com/acme/docs/main/${path.split('/').map(encodeURIComponent).join('/')}`,
 }));
@@ -117,7 +120,7 @@ describe('gitbook importer', () => {
       config: { sidebarTitle: 'Set up', mode: 'wide' },
     });
     expect(setup?.content).toBe(
-      '<Warning>\nBack up first.\n</Warning>\n\n<Frame caption="The screen">\n\n![Screen](https://cdn.example/stored.png)\n\n</Frame>\n\nContact support.',
+      '<Warning>\n\nBack up first.\n\n</Warning>\n\n<Frame caption="The screen">\n\n![Screen](https://cdn.example/stored.png)\n\n</Frame>\n\nContact support.',
     );
 
     expect(promoteImportReplacementBranch).toHaveBeenCalledWith('project', 'import-branch', {
@@ -134,6 +137,21 @@ describe('gitbook importer', () => {
     const group = mem.rows.find((row) => row.kind === 'GROUP');
     expect(group).toMatchObject({ slug: 'reference', title: 'Reference' });
     expect(page('api')).toMatchObject({ parentId: group?.id, title: 'API' });
+  });
+
+  it('keeps links and redirects off pages that could not be downloaded', async () => {
+    mem.repoFiles.set('.gitbook.yaml', 'redirects:\n  old: broken.md\n');
+    mem.repoFiles.set('SUMMARY.md', '* [Home](README.md)\n* [Broken](broken.md)\n');
+    mem.repoFiles.set('README.md', '# Home\n\nSee [broken](broken.md).\n');
+    mem.repoFiles.set('broken.md', '# Broken\n');
+    mem.failing.add('broken.md');
+
+    const summary = await runImport();
+
+    expect(summary).toMatchObject({ imported: 1, skipped: 1 });
+    expect(summary.warnings).toContain('Could not download "broken.md" — the page and its children were skipped.');
+    expect(page('home')?.content).toBe('See [broken](broken.md).');
+    expect(promoteImportReplacementBranch).toHaveBeenCalledWith('project', 'import-branch', undefined);
   });
 
   it('rejects repositories without any GitBook content', async () => {

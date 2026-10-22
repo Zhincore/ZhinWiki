@@ -175,6 +175,10 @@ export const parseGitBookSummary = (markdown: string, summaryPath = 'SUMMARY.md'
       warnings.push(`SUMMARY.md entry "${title}" does not point to a Markdown page and was skipped.`);
       continue;
     }
+    if (seen.has(path) && target.includes('#')) {
+      warnings.push(`SUMMARY.md shortcut "${title}" links to a section of "${path}" — section shortcuts are not imported as sidebar entries.`);
+      continue;
+    }
     if (seen.has(path)) {
       warnings.push(`SUMMARY.md lists "${path}" more than once — only the first entry was imported.`);
       continue;

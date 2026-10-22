@@ -56,6 +56,7 @@ describe('parseGitBookSummary', () => {
         '  * [Configure](guides/configure.md)',
         '* [GitHub](https://github.com/acme)',
         '* [Twice](guides/configure.md)',
+        '* [Configure options](guides/configure.md#options)',
       ].join('\n'),
     );
     expect(sections).toEqual([
@@ -81,7 +82,8 @@ describe('parseGitBookSummary', () => {
         ],
       },
     ]);
-    expect(warnings).toHaveLength(2);
+    expect(warnings).toHaveLength(3);
+    expect(warnings[2]).toMatch(/section shortcuts are not imported/);
   });
 });
 

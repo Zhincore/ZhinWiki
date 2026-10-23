@@ -88,3 +88,41 @@ describe('RemoteAssetMigrator content types', () => {
     expect([...assets.failures]).toEqual(['unsupported image type']);
   });
 });
+
+describe('RemoteAssetMigrator download cap', () => {
+  const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+
+  beforeEach(() => {
+    remote.got.mockResolvedValue({ statusCode: 200, ok: true, headers: { 'content-type': 'image/png' }, rawBody: Buffer.from(png) });
+    vi.mocked(storeAsset).mockImplementation(async ({ importId }) => ({ url: `https://storage.example.com/${importId}.png` }) as never);
+  });
+
+  it('reuses stored images without spending the download cap on them', async () => {
+    vi.mocked(findImportedAsset).mockImplementation(async (_project, _importId, filename) =>
+      filename.startsWith('stored') ? ({ url: `https://storage.example.com/${filename}` } as never) : null,
+    );
+    const assets = new RemoteAssetMigrator('synthetic', 'gitbook', 1);
+    const page = ['stored-1.png', 'stored-2.png', 'stored-3.png', 'new-1.png', 'new-2.png']
+      .map((name) => `![](https://cdn.example.com/${name})`)
+      .join('\n');
+
+    const result = await assets.rewrite(page);
+
+    expect(result).toContain('https://storage.example.com/stored-3.png');
+    expect(assets.migrated).toBe(1);
+    expect(assets.skipped).toBe(1);
+    expect(remote.got).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports the download cap first among failure reasons', async () => {
+    vi.mocked(findImportedAsset).mockResolvedValue(null as never);
+    remote.got
+      .mockResolvedValueOnce({ statusCode: 404, ok: false, headers: {}, rawBody: Buffer.alloc(0) })
+      .mockResolvedValueOnce({ statusCode: 403, ok: false, headers: {}, rawBody: Buffer.alloc(0) })
+      .mockResolvedValueOnce({ statusCode: 400, ok: false, headers: {}, rawBody: Buffer.alloc(0) });
+    const assets = new RemoteAssetMigrator('synthetic', 'gitbook', 3);
+    for (const name of ['a', 'b', 'c', 'd']) await assets.rewrite(`![](https://cdn.example.com/${name}.png)`);
+
+    expect(assets.failureReasons()).toBe('Asset migration was capped at 3 downloaded images.; remote response 404; remote response 403');
+  });
+});

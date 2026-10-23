@@ -97,32 +97,45 @@ const fetchPublicImage = async (source: string): Promise<{ bytes: Uint8Array; co
 
 /** Per-import remote-image cache. The same Ghost image may appear in multiple
  * localized pages; one promise per source URL guarantees it is fetched and
- * stored only once while allowing images within a page to migrate in parallel. */
+ * stored only once while allowing images within a page to migrate in parallel.
+ * The cap bounds downloads only: images a previous import stored are reused. */
 export class RemoteAssetMigrator {
   readonly failures = new Set<string>();
   migrated = 0;
   skipped = 0;
+  private downloads = 0;
   private readonly cache = new Map<string, Promise<string>>();
+  private readonly capMessage: string;
 
   constructor(
     private readonly projectId: string,
     private readonly namespace = 'ghost',
-  ) {}
+    private readonly maxDownloads = MAX_REMOTE_ASSETS,
+  ) {
+    this.capMessage = `Asset migration was capped at ${maxDownloads} downloaded images.`;
+  }
+
+  /** Up to `limit` distinct failure reasons, the download cap first when it was hit. */
+  failureReasons(limit = 3): string {
+    const reasons = [...this.failures].sort((a, b) => Number(b === this.capMessage) - Number(a === this.capMessage));
+    return reasons.slice(0, limit).join('; ');
+  }
 
   private migrate(source: string): Promise<string> {
     const cached = this.cache.get(source);
     if (cached) return cached;
-    if (this.cache.size >= MAX_REMOTE_ASSETS) {
-      this.skipped++;
-      this.failures.add(`Asset migration was capped at ${MAX_REMOTE_ASSETS} unique images.`);
-      return Promise.resolve(source);
-    }
     const pending = (async () => {
       try {
         const filename = filenameFromUrl(new URL(source));
         const importId = importIdForSource(this.namespace, source);
         const existing = await findImportedAsset(this.projectId, importId, filename);
         if (existing) return existing.url;
+        if (this.downloads >= this.maxDownloads) {
+          this.skipped++;
+          this.failures.add(this.capMessage);
+          return source;
+        }
+        this.downloads++;
         const image = await fetchPublicImage(source);
         const asset = await storeAsset({ projectId: this.projectId, importId, ...image });
         this.migrated++;

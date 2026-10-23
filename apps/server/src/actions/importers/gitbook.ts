@@ -126,7 +126,7 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
       summary.assetsImported = assets.migrated;
       summary.assetsSkipped = assets.skipped;
       if (assets.skipped > 0) {
-        const reasons = [...assets.failures].slice(0, 3).join('; ');
+        const reasons = assets.failureReasons();
         summary.warnings.push(
           `${assets.skipped} GitBook image(s) could not be copied into project storage${reasons ? ` (${reasons})` : ''}. Their source references were preserved.`,
         );

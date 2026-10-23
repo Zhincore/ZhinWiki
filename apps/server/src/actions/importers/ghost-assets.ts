@@ -51,6 +51,18 @@ const publicHttpUrl = async (value: string): Promise<URL> => {
 const importIdForSource = (namespace: string, source: string): string =>
   `${namespace}-${createHash('sha256').update(source).digest('hex').slice(0, 24)}`;
 
+/** Image type from magic bytes. GitBook stores many uploads without an
+ * extension, which raw.githubusercontent.com serves as application/octet-stream. */
+const sniffImageType = (bytes: Uint8Array): string => {
+  const ascii = (start: number, end: number) => String.fromCharCode(...bytes.subarray(start, end));
+  if (bytes[0] === 0x89 && ascii(1, 4) === 'PNG') return 'image/png';
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
+  if (ascii(0, 6) === 'GIF87a' || ascii(0, 6) === 'GIF89a') return 'image/gif';
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'image/webp';
+  if (ascii(4, 8) === 'ftyp' && ['avif', 'avis'].includes(ascii(8, 12))) return 'image/avif';
+  return '';
+};
+
 const fetchPublicImage = async (source: string): Promise<{ bytes: Uint8Array; contentType: string; filename: string }> => {
   let url = await publicHttpUrl(source);
   for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect++) {
@@ -71,12 +83,13 @@ const fetchPublicImage = async (source: string): Promise<{ bytes: Uint8Array; co
 
     const announcedSize = Number(response.headers['content-length'] ?? 0);
     if (announcedSize > MAX_REMOTE_ASSET_BYTES) throw new Error('image exceeds 50 MiB');
-    const filename = filenameFromUrl(url);
-    const contentType = normalizeAssetContentType(response.headers['content-type'] ?? '') || inferSafeInlineAssetContentType(filename) || '';
-    if (!isSafeInlineAssetContentType(contentType)) throw new Error('unsupported image type');
-
     const bytes = new Uint8Array(response.rawBody);
     if (bytes.byteLength === 0 || bytes.byteLength > MAX_REMOTE_ASSET_BYTES) throw new Error('invalid image size');
+
+    const filename = filenameFromUrl(url);
+    const announced = normalizeAssetContentType(response.headers['content-type'] ?? '') || inferSafeInlineAssetContentType(filename) || '';
+    const contentType = isSafeInlineAssetContentType(announced) ? announced : sniffImageType(bytes);
+    if (!isSafeInlineAssetContentType(contentType)) throw new Error('unsupported image type');
     return { bytes, contentType, filename };
   }
   throw new Error('too many redirects');

@@ -10,6 +10,7 @@ import {
   createProjectBody,
   gitConfigSchema,
   inferSafeInlineAssetContentType,
+  inferUploadableAssetContentType,
   inviteMemberBody,
   inviteReaderBody,
   jwtAccessConfigBody,
@@ -317,14 +318,21 @@ describe('presignAssetBody', () => {
     expect(presignAssetBody.safeParse({ filename: 'a.png', contentType: 'image/png', size: 51 * 1024 * 1024 }).success).toBe(false);
   });
 
-  it('accepts only inert raster image types and normalizes parameters', () => {
+  it('accepts only raster image types and sanitized SVG, and normalizes parameters', () => {
     const png = presignAssetBody.safeParse({ filename: 'a.png', contentType: 'IMAGE/PNG; charset=binary', size: 1024 });
     expect(png.success && png.data.contentType).toBe('image/png');
     expect(presignAssetBody.safeParse({ filename: 'payload.html', contentType: 'text/html', size: 1024 }).success).toBe(false);
-    expect(presignAssetBody.safeParse({ filename: 'payload.svg', contentType: 'image/svg+xml', size: 1024 }).success).toBe(false);
     expect(confirmAssetBody.safeParse({ key: 'projects/a/assets/file', contentType: 'application/xhtml+xml', size: 1024 }).success).toBe(false);
     expect(inferSafeInlineAssetContentType('fallback.JPEG')).toBe('image/jpeg');
     expect(inferSafeInlineAssetContentType('payload.svg')).toBeUndefined();
+  });
+
+  it('allows SVG uploads up to 5 MB', () => {
+    expect(presignAssetBody.safeParse({ filename: 'logo.svg', contentType: 'image/svg+xml', size: 1024 }).success).toBe(true);
+    expect(presignAssetBody.safeParse({ filename: 'logo.svg', contentType: 'image/svg+xml', size: 6 * 1024 * 1024 }).success).toBe(false);
+    expect(confirmAssetBody.safeParse({ key: 'projects/a/assets/logo.svg', contentType: 'image/svg+xml', size: 1024 }).success).toBe(true);
+    expect(inferUploadableAssetContentType('LOGO.SVG')).toBe('image/svg+xml');
+    expect(inferUploadableAssetContentType('shot.png')).toBe('image/png');
   });
 });
 

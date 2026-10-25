@@ -13,14 +13,17 @@ describe('publicAssetResponseHeaders', () => {
     },
   );
 
-  it.each(['text/html', 'application/xhtml+xml', 'image/svg+xml', 'text/plain', undefined])(
-    'forces unsafe stored content to download: %s',
-    (contentType) => {
-      expect(publicAssetResponseHeaders(contentType)).toEqual({
-        contentType: 'application/octet-stream',
-        contentDisposition: 'attachment',
-        contentSecurityPolicy: 'sandbox',
-      });
-    },
-  );
+  it.each(['image/svg+xml', 'IMAGE/SVG+XML; charset=utf-8'])('renders SVG inline under a script-free CSP sandbox: %s', (contentType) => {
+    const headers = publicAssetResponseHeaders(contentType);
+    expect(headers).toMatchObject({ contentType: 'image/svg+xml', contentDisposition: undefined });
+    expect(headers.contentSecurityPolicy).toBe("default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox");
+  });
+
+  it.each(['text/html', 'application/xhtml+xml', 'text/plain', undefined])('forces unsafe stored content to download: %s', (contentType) => {
+    expect(publicAssetResponseHeaders(contentType)).toEqual({
+      contentType: 'application/octet-stream',
+      contentDisposition: 'attachment',
+      contentSecurityPolicy: 'sandbox',
+    });
+  });
 });

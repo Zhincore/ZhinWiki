@@ -2,7 +2,7 @@ import { MCP_SCOPES } from '@nibleaf/shared/mcp';
 import { MAX_REDIRECT_RULES, validateRedirectGraph } from '@nibleaf/shared/redirects';
 import { z } from 'zod';
 
-import { isSafeInlineAssetContentType, normalizeAssetContentType } from './assets';
+import { isUploadableAssetContentType, MAX_SVG_BYTES, normalizeAssetContentType, SVG_CONTENT_TYPE } from './assets';
 import { themeConfigSchema } from './themes';
 
 export {
@@ -28,9 +28,13 @@ export {
 } from './addons';
 export {
   inferSafeInlineAssetContentType,
+  inferUploadableAssetContentType,
   isSafeInlineAssetContentType,
+  isUploadableAssetContentType,
+  MAX_SVG_BYTES,
   normalizeAssetContentType,
   SAFE_INLINE_ASSET_CONTENT_TYPES,
+  SVG_CONTENT_TYPE,
   safeInlineAssetContentType,
 } from './assets';
 export {
@@ -717,23 +721,30 @@ export type RotateApiKeyBody = z.infer<typeof rotateApiKeyBody>;
 
 // ─── Assets ──────────────────────────────────────────────────────────────—
 
-export const presignAssetBody = z.object({
-  filename: z.string().min(1).max(255),
-  // Assets are served from the dashboard's own origin. Keep the upload surface
-  // deliberately small: HTML/SVG served inline here would become stored XSS.
-  contentType: z
-    .string()
-    .trim()
-    .min(1)
-    .max(150)
-    .transform((value) => normalizeAssetContentType(value))
-    .refine((value) => isSafeInlineAssetContentType(value), { message: 'Only PNG, JPEG, GIF, WebP, AVIF, and ICO images can be uploaded.' }),
-  size: z
-    .number()
-    .int()
-    .min(1)
-    .max(50 * 1024 * 1024),
-});
+export const presignAssetBody = z
+  .object({
+    filename: z.string().min(1).max(255),
+    // Assets are served from the dashboard's own origin. Keep the upload surface
+    // deliberately small: HTML served inline here would become stored XSS. SVG is
+    // allowed only because the server sanitizes it on confirm and serves it under
+    // a script-free CSP sandbox.
+    contentType: z
+      .string()
+      .trim()
+      .min(1)
+      .max(150)
+      .transform((value) => normalizeAssetContentType(value))
+      .refine((value) => isUploadableAssetContentType(value), { message: 'Only PNG, JPEG, GIF, WebP, AVIF, ICO, and SVG images can be uploaded.' }),
+    size: z
+      .number()
+      .int()
+      .min(1)
+      .max(50 * 1024 * 1024),
+  })
+  .refine((body) => body.contentType !== SVG_CONTENT_TYPE || body.size <= MAX_SVG_BYTES, {
+    message: 'SVG images can be at most 5 MB.',
+    path: ['size'],
+  });
 export type PresignAssetBody = z.infer<typeof presignAssetBody>;
 
 export const confirmAssetBody = z.object({
@@ -744,7 +755,7 @@ export const confirmAssetBody = z.object({
     .min(1)
     .max(150)
     .transform((value) => normalizeAssetContentType(value))
-    .refine((value) => isSafeInlineAssetContentType(value), { message: 'Only PNG, JPEG, GIF, WebP, AVIF, and ICO images can be uploaded.' }),
+    .refine((value) => isUploadableAssetContentType(value), { message: 'Only PNG, JPEG, GIF, WebP, AVIF, ICO, and SVG images can be uploaded.' }),
   size: z.number().int().min(1),
 });
 export type ConfirmAssetBody = z.infer<typeof confirmAssetBody>;

@@ -1,6 +1,6 @@
 import { BrandProvider } from '@nibleaf/design-system/brand';
 import { ThemeProvider } from '@nibleaf/design-system/theme';
-import { DEFAULT_BRAND } from '@nibleaf/shared/brand';
+import { BRAND_ASSETS_PATH, DEFAULT_BRAND } from '@nibleaf/shared/brand';
 import { createRootRoute, HeadContent, Outlet, Scripts, useRouter, useRouterState } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { RootMarketingAnalytics } from '@/components/root-marketing-analytics';
@@ -28,7 +28,7 @@ export const Route = createRootRoute({
         { rel: 'icon', href: `${brand.iconBase}/favicon.svg`, type: 'image/svg+xml' },
         { rel: 'icon', href: `${brand.iconBase}/favicon-32x32.png`, type: 'image/png', sizes: '32x32' },
         { rel: 'apple-touch-icon', href: `${brand.iconBase}/apple-touch-icon.png` },
-        { rel: 'manifest', href: `${brand.iconBase}/site.webmanifest` },
+        { rel: 'manifest', href: `${BRAND_ASSETS_PATH}/site.webmanifest` },
       ],
     };
   },

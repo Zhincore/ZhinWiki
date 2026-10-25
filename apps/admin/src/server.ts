@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { brandAssetResponse } from '@nibleaf/shared/brand/server';
+import { brandAssetResponse, instanceBrand } from '@nibleaf/shared/brand/server';
 import type { Register } from '@tanstack/react-router';
 import { createStartHandler, defaultStreamHandler, type RequestHandler } from '@tanstack/react-start/server';
 import { createServerEntry } from '@tanstack/react-start/server-entry';
@@ -12,11 +12,16 @@ const appOrigin = serverEnv.VITE_APP_URL ?? (serverEnv.NODE_ENV === 'production'
 const revision = process.env.NIBLEAF_REVISION ?? 'development';
 const drainFile = process.env.NIBLEAF_DRAIN_FILE ?? '/tmp/nibleaf-draining';
 
+/** Fail fast at boot on an invalid brand env. */
+instanceBrand();
+
+const adminManifest = { label: 'Admin', description: 'Administration console' };
+
 const startHandler = createServerEntry({ fetch: createStartHandler(defaultStreamHandler) }).fetch;
 
 const handleRequest: RequestHandler<Register> = async (request, ...rest) => {
   const { pathname } = new URL(request.url);
-  const brandAsset = request.method === 'GET' || request.method === 'HEAD' ? brandAssetResponse(pathname) : null;
+  const brandAsset = brandAssetResponse(request, adminManifest);
   if (brandAsset) return brandAsset;
   if (pathname === '/health') {
     const draining = existsSync(drainFile);

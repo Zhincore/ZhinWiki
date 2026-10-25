@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { translateFn } from '@nibleaf/i18n';
-import { brandAssetResponse } from '@nibleaf/shared/brand/server';
+import { brandAssetResponse, instanceBrand } from '@nibleaf/shared/brand/server';
 import {
   canonicalPathFromMarkdownAlias,
   decodePublishedPathname,
@@ -94,6 +94,9 @@ const CONFIGURED_HOST = serverEnv.APP_URL.replace(/^https?:\/\//, '')
 const IS_CLOUD_MARKETING = CONFIGURED_HOST === MARKETING_HOST;
 const REVISION = process.env.NIBLEAF_REVISION ?? 'development';
 const DRAIN_FILE = process.env.NIBLEAF_DRAIN_FILE ?? '/tmp/nibleaf-draining';
+
+/** Fail fast at boot on an invalid brand env. */
+instanceBrand();
 
 /** Compatibility copies of the public self-hosting artifacts. The documented
  * command uses versioned GitHub release assets and verifies their committed
@@ -944,7 +947,7 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
   }
   const isGetLike = request.method === 'GET' || request.method === 'HEAD';
   // Instance brand assets (BRAND_ASSETS_DIR) on every host, before any site rewrite.
-  const brandAsset = isGetLike ? brandAssetResponse(url.pathname) : null;
+  const brandAsset = brandAssetResponse(request);
   if (brandAsset) return brandAsset;
   // Normalize trailing slashes permanently (/pricing/ → /pricing) — the router
   // would otherwise answer with a temporary 307, which never consolidates link

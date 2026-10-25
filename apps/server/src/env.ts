@@ -3,7 +3,7 @@ import { keys as bullmq } from '@nibleaf/bullmq/keys';
 import { keys as database } from '@nibleaf/database/keys';
 import { keys as qdrant } from '@nibleaf/qdrant/keys';
 import { keys as search } from '@nibleaf/search/keys';
-import { DEFAULT_BRAND } from '@nibleaf/shared/brand';
+import { DEFAULT_BRAND, readBrand } from '@nibleaf/shared/brand';
 import { keys as storage } from '@nibleaf/storage/keys';
 import { createEnv } from '@t3-oss/env-core';
 import { z } from 'zod';
@@ -87,3 +87,6 @@ export const env = createEnv({
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
 });
+
+/** Fail fast at boot on an invalid brand env. */
+readBrand(process.env);

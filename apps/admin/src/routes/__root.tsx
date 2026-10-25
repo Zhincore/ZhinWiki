@@ -4,7 +4,7 @@ import { Toaster } from '@nibleaf/design-system/components/ui/sonner';
 import { ThemeProvider } from '@nibleaf/design-system/theme';
 import { isRtl, translateFn } from '@nibleaf/i18n';
 import { useLocale } from '@nibleaf/i18n/react';
-import { DEFAULT_BRAND } from '@nibleaf/shared/brand';
+import { BRAND_ASSETS_PATH, DEFAULT_BRAND } from '@nibleaf/shared/brand';
 import type { QueryClient } from '@tanstack/react-query';
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
@@ -36,7 +36,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         { rel: 'icon', href: `${iconBase}/favicon.svg`, type: 'image/svg+xml' },
         { rel: 'icon', href: `${iconBase}/favicon-32x32.png`, type: 'image/png', sizes: '32x32' },
         { rel: 'apple-touch-icon', href: `${iconBase}/apple-touch-icon.png` },
-        { rel: 'manifest', href: `${iconBase}/site.webmanifest` },
+        { rel: 'manifest', href: `${BRAND_ASSETS_PATH}/site.webmanifest` },
       ],
     };
   },

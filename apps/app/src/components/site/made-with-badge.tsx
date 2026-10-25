@@ -22,7 +22,7 @@ export function MadeWithBadge({ lang }: { lang?: string }) {
         </span>
       </a>
       <span aria-hidden>·</span>
-      <a href={`mailto:${brand.supportEmail}`} className="transition-colors hover:text-foreground">
+      <a href={`mailto:${brand.abuseEmail}`} className="transition-colors hover:text-foreground">
         {t('reportAbuse')}
       </a>
     </div>

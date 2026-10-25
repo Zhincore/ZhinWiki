@@ -2,7 +2,7 @@
 
 This repository is a fork of [Nibleaf](https://github.com/lord007tn/nibleaf).
 Nibleaf's code is AGPL-3.0, but its name and logo are trademarks
-([TRADEMARK.md](TRADEMARK.md)): the fork may not ship under them. The rules
+([their trademark policy](https://github.com/lord007tn/nibleaf/blob/main/TRADEMARK.md)): the fork may not ship under them. The rules
 below keep the rebrand small, so upstream changes keep merging cleanly.
 
 `‹Brand›` is a placeholder until the user-facing name is chosen.
@@ -29,6 +29,12 @@ below keep the rebrand small, so upstream changes keep merging cleanly.
 Never rename an existing `nibleaf` identifier just to rebrand.
 
 ## Attribution and notices
+
+- `TRADEMARK.md` on `main` is the fork's own short note: ‹Brand› marks belong
+  to ‹owner›; "Nibleaf" and its logo are the Nibleaf project's, used only to
+  say this is a fork, linking their policy. `upstream` keeps Nibleaf's file.
+- No Nibleaf logo anywhere users see it on `main` (favicons, app, emails,
+  default docs theme): their policy forbids using or modifying it.
 
 - Keep `LICENSE` and the upstream copyright in `NOTICE`; add the fork's own
   copyright line below it.

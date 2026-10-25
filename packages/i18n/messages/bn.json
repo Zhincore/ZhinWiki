@@ -1443,6 +1443,7 @@
   "settings_import_summaryhint": "এই প্রকল্পে পৃষ্ঠাগুলি যুক্ত বা আপডেট করা হয়েছে — কিছুই মুছে ফেলা হয় না এবং আমদানি পুনরায় চালানো নিরাপদ।",
   "settings_import_run": "আমদানি",
   "settings_import_running": "আমদানি করা হচ্ছে...",
+  "settings_import_runninghint": "বড় সাইটে কয়েক মিনিট লাগতে পারে। আপনি এই পৃষ্ঠা ছেড়ে যেতে পারেন — আমদানি শেষ হলে আপনি একটি বিজ্ঞপ্তি পাবেন।",
   "settings_import_success": "আমদানি শেষ",
   "settings_import_error": "আমদানি ব্যর্থ হয়েছে৷",
   "settings_import_result": "আমদানি করা {imported} নতুন, আপডেট করা হয়েছে {updated}, এড়িয়ে যাওয়া {skipped}।",

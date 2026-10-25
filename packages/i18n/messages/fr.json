@@ -1443,6 +1443,7 @@
   "settings_import_summaryhint": "Des pages sont ajoutées ou mises à jour dans ce projet : rien n'est supprimé et la réexécution de l'importation est sécurisée.",
   "settings_import_run": "Importer",
   "settings_import_running": "Importation…",
+  "settings_import_runninghint": "Les grands sites peuvent prendre quelques minutes. Vous pouvez quitter cette page : vous recevrez une notification à la fin de l'importation.",
   "settings_import_success": "Importation terminée",
   "settings_import_error": "Échec de l'importation",
   "settings_import_result": "{imported} nouveau importé, {updated} mis à jour, ignoré {skipped}.",

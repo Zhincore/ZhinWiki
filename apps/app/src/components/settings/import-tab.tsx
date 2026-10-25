@@ -7,10 +7,18 @@ import { cn } from '@nibleaf/design-system/lib/utils';
 import { useT } from '@nibleaf/i18n/react';
 import { ghostImportBody } from '@nibleaf/validators';
 import { useNavigate } from '@tanstack/react-router';
-import { ArrowUpRight, BookOpen, ChevronDown, DownloadCloud, Ghost, GitBranch, Leaf, Loader2, Upload } from 'lucide-react';
-import { type ReactNode, useRef, useState } from 'react';
+import { ArrowUpRight, BookOpen, ChevronDown, CircleAlert, DownloadCloud, Ghost, GitBranch, Leaf, Loader2, Upload } from 'lucide-react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { type ContentImportSummary, useImportFromGhost, useImportFromGitbook, useImportFromMintlify } from '@/hooks/api';
+import {
+  type ContentImportSummary,
+  type ImportRun,
+  isImportRunActive,
+  useImportFromGhost,
+  useImportFromGitbook,
+  useImportFromMintlify,
+  useLatestImportRun,
+} from '@/hooks/api';
 import { ApiResponseError } from '@/hooks/api/client-helpers';
 import { SettingsSection } from './section';
 
@@ -118,6 +126,32 @@ function ImportResult({ summary, projectId }: { summary: ContentImportSummary; p
   );
 }
 
+function ImportRunning() {
+  const t = useT();
+  return (
+    <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl bg-muted/25 p-5 text-center text-sm">
+      <Loader2 className="mb-3 size-7 animate-spin text-muted-foreground" />
+      <p className="font-medium">{t('settings.import.running')}</p>
+      <p className="mt-1 max-w-sm text-muted-foreground text-xs leading-relaxed">{t('settings.import.runningHint')}</p>
+    </div>
+  );
+}
+
+function ImportFailed({ error }: { error: string | null }) {
+  const t = useT();
+  return (
+    <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl bg-muted/25 p-5 text-center text-sm">
+      <CircleAlert className="mb-3 size-7 text-destructive" />
+      <p className="font-medium">{t('settings.import.error')}</p>
+      {error ? (
+        <p className="mt-1 max-w-sm text-muted-foreground text-xs leading-relaxed" dir="auto">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function SourceChip({ active, icon, label, onClick }: { active?: boolean; icon: ReactNode; label: string; onClick: () => void }) {
   return (
     <Button
@@ -148,19 +182,28 @@ export function ImportTab({ projectId }: { projectId?: string }) {
   const [replaceExisting, setReplaceExisting] = useState(false);
   const [ghostUrl, setGhostUrl] = useState('');
   const [ghostFile, setGhostFile] = useState<File | null>(null);
-  const [result, setResult] = useState<ContentImportSummary | null>(null);
+  const { data: latestRun } = useLatestImportRun(projectId ?? '');
+  const [dismissedRunId, setDismissedRunId] = useState<string | null>(null);
 
-  const pending = mintlify.isPending || gitbook.isPending || ghost.isPending;
+  const active = isImportRunActive(latestRun);
+  const finishedRun: ImportRun | null = latestRun && !active && latestRun.id !== dismissedRunId ? latestRun : null;
+  const pending = mintlify.isPending || gitbook.isPending || ghost.isPending || active;
   const chooseSource = (next: ImportSource) => {
     setSource(next);
-    setResult(null);
+    if (finishedRun) setDismissedRunId(finishedRun.id);
   };
+
+  // Announce the outcome of a run this tab watched finish.
+  const watchedRun = useRef<ImportRun | null | undefined>(undefined);
+  useEffect(() => {
+    const before = watchedRun.current;
+    watchedRun.current = latestRun;
+    if (!(isImportRunActive(before) && before?.id === latestRun?.id)) return;
+    if (latestRun?.status === 'SUCCEEDED') toast.success(t('settings.import.success'));
+    if (latestRun?.status === 'FAILED') toast.error(latestRun.error ?? t('settings.import.error'));
+  }, [latestRun, t]);
   const openGitSettings = () =>
     navigate({ to: '/app/projects/$projectId/settings', params: { projectId: projectId ?? '' }, search: { section: 'git' } });
-  const handleSuccess = (summary: ContentImportSummary) => {
-    setResult(summary);
-    toast.success(t('settings.import.success'));
-  };
   const handleError = (error: unknown) => {
     if (error instanceof ApiResponseError && error.code === 'import:invalid_document') {
       toast.error(source === 'ghost' ? t('settings.import.ghost.invalidJson') : t('settings.import.error'));
@@ -182,7 +225,7 @@ export function ImportTab({ projectId }: { projectId?: string }) {
       }
       const trimmedBranch = branch.trim();
       const body = { repo: normalizedRepo, ...(trimmedBranch ? { branch: trimmedBranch } : {}), replaceExisting };
-      const callbacks = { onSuccess: handleSuccess, onError: handleError };
+      const callbacks = { onError: handleError };
       if (source === 'mintlify') {
         mintlify.mutate(body, callbacks);
         return;
@@ -212,7 +255,7 @@ export function ImportTab({ projectId }: { projectId?: string }) {
       toast.error(t('settings.import.ghost.invalidJson'));
       return;
     }
-    ghost.mutate({ ...document.data, __nibleafImport: { ghostUrl: ghostUrl.trim() } }, { onSuccess: handleSuccess, onError: handleError });
+    ghost.mutate({ ...document.data, __nibleafImport: { ghostUrl: ghostUrl.trim() } }, { onError: handleError });
   };
 
   const canImport =
@@ -229,8 +272,12 @@ export function ImportTab({ projectId }: { projectId?: string }) {
         </div>
 
         <div className="rounded-[20px] border border-border bg-card p-2 shadow-sm">
-          {result ? (
-            <ImportResult projectId={projectId} summary={result} />
+          {active ? (
+            <ImportRunning />
+          ) : finishedRun?.status === 'SUCCEEDED' && finishedRun.summary ? (
+            <ImportResult projectId={projectId} summary={finishedRun.summary} />
+          ) : finishedRun?.status === 'FAILED' ? (
+            <ImportFailed error={finishedRun.error} />
           ) : (
             <div className="min-h-[220px] rounded-2xl bg-muted/20 p-4 sm:p-5">
               {!source ? (
@@ -364,18 +411,18 @@ export function ImportTab({ projectId }: { projectId?: string }) {
           <div className="flex flex-wrap items-center gap-2 px-1 pt-2">
             {IMPORT_SOURCE_TABS.map((tab) => (
               <SourceChip
-                active={tab.id !== 'git' && source === tab.id && !result}
+                active={tab.id !== 'git' && source === tab.id && !finishedRun && !active}
                 icon={<tab.icon className="size-3.5" />}
                 key={tab.id}
                 label={t(tab.label)}
                 onClick={() => (tab.id === 'git' ? openGitSettings() : chooseSource(tab.id))}
               />
             ))}
-            {result ? (
-              <Button className="ms-auto" onClick={() => setResult(null)} size="sm" type="button" variant="outline">
+            {finishedRun ? (
+              <Button className="ms-auto" onClick={() => setDismissedRunId(finishedRun.id)} size="sm" type="button" variant="outline">
                 {t('settings.import.again')}
               </Button>
-            ) : source ? (
+            ) : source || active ? (
               <Button className="ms-auto" disabled={!canImport} onClick={runImport} size="sm" type="button">
                 {pending ? <Loader2 className="size-3.5 animate-spin" /> : <DownloadCloud className="size-3.5" />}
                 {pending ? t('settings.import.running') : t('settings.import.run')}

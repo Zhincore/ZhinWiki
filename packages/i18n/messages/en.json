@@ -1464,6 +1464,7 @@
   "settings_import_summaryhint": "Pages are added or updated in this project — nothing is deleted, and re-running the import is safe.",
   "settings_import_run": "Import",
   "settings_import_running": "Importing…",
+  "settings_import_runninghint": "Large sites can take a few minutes. You can leave this page — you'll get a notification when the import finishes.",
   "settings_import_success": "Import finished",
   "settings_import_error": "Import failed",
   "settings_import_result": "Imported {imported} new, updated {updated}, skipped {skipped}.",

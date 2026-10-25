@@ -1443,6 +1443,7 @@
   "settings_import_summaryhint": "In diesem Projekt werden Seiten hinzugefügt oder aktualisiert – nichts wird gelöscht und eine erneute Ausführung des Imports ist sicher.",
   "settings_import_run": "Importieren",
   "settings_import_running": "Importieren…",
+  "settings_import_runninghint": "Große Websites können einige Minuten dauern. Sie können diese Seite verlassen – Sie werden benachrichtigt, sobald der Import abgeschlossen ist.",
   "settings_import_success": "Import abgeschlossen",
   "settings_import_error": "Der Import ist fehlgeschlagen",
   "settings_import_result": "{imported} neu importiert, {updated} aktualisiert, {skipped} übersprungen.",

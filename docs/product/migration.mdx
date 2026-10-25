@@ -78,6 +78,10 @@ resolve every skipped page, asset, duplicated slug, and unsupported setting.
 Nibleaf may retain a source URL when an asset cannot be copied; that is not a
 durable migration if the source will be removed.
 
+Imports run in the background, one at a time per project, and a large source
+can take a few minutes. You can leave the page: a notification arrives when the
+import finishes, and its summary stays in the project's import settings.
+
 Search the imported source for old hostnames, `/docs` prefixes, source-specific
 component tags, embedded credentials, and absolute asset URLs.
 

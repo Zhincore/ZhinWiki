@@ -91,6 +91,35 @@ describe('markdown round-trip stability', () => {
   });
 });
 
+describe('block boundaries after images', () => {
+  const cards = [
+    '<CardGroup cols="2">',
+    '<Card title="One" href="/one">',
+    '![One](https://example.com/one.png)',
+    '</Card>',
+    '<Card title="Two" href="/two">',
+    '![Two](https://example.com/two.png)',
+    '</Card>',
+    '</CardGroup>',
+  ].join('\n\n');
+
+  it('keeps a closing tag after a trailing image on its own line', () => {
+    const output = expectStable(cards);
+    expect(output).toContain('![One](https://example.com/one.png)\n\n</Card>\n\n<Card title="Two" href="/two">');
+    expect(output).toContain('![Two](https://example.com/two.png)\n\n</Card>\n\n</CardGroup>');
+  });
+
+  it('keeps an opening tag after an image on its own line', () => {
+    const output = expectStable('![](https://example.com/banner.png)\n\n<Check>\n\n**Done**\n\n</Check>');
+    expect(output).toContain('![](https://example.com/banner.png)\n\n<Check>\n\n**Done**\n\n</Check>');
+  });
+
+  it('keeps a paragraph after an image separate', () => {
+    const output = expectStable('![](https://example.com/a.png)\n\nNext paragraph.');
+    expect(output).toBe('![](https://example.com/a.png)\n\nNext paragraph.');
+  });
+});
+
 describe('text alignment (why the align buttons were removed)', () => {
   it('drops textAlign on serialization — alignment cannot survive Markdown', () => {
     const aligned = new Editor({

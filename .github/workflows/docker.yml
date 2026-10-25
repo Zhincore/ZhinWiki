@@ -78,7 +78,6 @@ jobs:
             exit 1
           fi
 
-
       # QEMU emulates arm64 so the published image runs on Graviton/Ampere/
       # Raspberry Pi hosts as well as amd64.
       - name: Set up QEMU

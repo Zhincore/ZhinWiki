@@ -1,16 +1,14 @@
 import { useRouter } from '@tanstack/react-router';
 import { useEffect } from 'react';
-import { isAppOwnedPath } from '@/lib/request-negotiation';
+import { isAppOwnedPath, isDocumentPath } from '@/lib/request-negotiation';
 import { isCustomDomainSite } from '@/lib/site-paths';
-
-/** Last path segment with an extension (`.md`, `.pdf`, `.xml`): a file, not a page. */
-const FILE_PATH = /\.[a-z0-9]+$/i;
 
 /**
  * The router href for a click on a link to another page of this published
  * site, or null when the browser should handle the click itself: modified or
- * non-primary clicks, `target`/`download` links, other origins, files and
- * server-owned paths, and in-page `#fragment` jumps.
+ * non-primary clicks, `target`/`download` links, other origins, non-document
+ * paths (files such as `.md` or `sitemap.xml`, exactly as the server classifies
+ * them; page slugs never contain a dot), and in-page `#fragment` jumps.
  */
 export function siteNavigationHref(
   event: MouseEvent,
@@ -22,7 +20,7 @@ export function siteNavigationHref(
   if (!(anchor instanceof HTMLAnchorElement) || (anchor.target && anchor.target !== '_self') || anchor.hasAttribute('download')) return null;
 
   const url = new URL(anchor.href, location.href);
-  if (url.origin !== location.origin || FILE_PATH.test(url.pathname)) return null;
+  if (url.origin !== location.origin || !isDocumentPath(url.pathname)) return null;
   if (url.hash && url.pathname === location.pathname && url.search === location.search) return null;
 
   const sitePrefix = `/sites/${projectId}`;

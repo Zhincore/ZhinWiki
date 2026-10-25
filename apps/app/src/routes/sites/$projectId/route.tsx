@@ -24,6 +24,7 @@ import type { ProjectConfig } from '@/hooks/api/types';
 import { QueryProvider } from '@/integrations/tanstack-query/root-provider';
 import { useSearchShortcutLabel } from '@/lib/shortcut';
 import { publishedSiteLogo } from '@/lib/site-branding';
+import { useSiteLinkNavigation } from '@/lib/site-link-navigation';
 import { customDomainOrigin } from '@/lib/site-origin';
 import { siteHref, siteLanguageParam } from '@/lib/site-paths';
 import { siteHead } from '@/lib/site-seo';
@@ -91,6 +92,7 @@ function SiteChrome() {
   const { lang } = Route.useSearch();
   const { site } = Route.useLoaderData();
   const navigate = useNavigate({ from: Route.fullPath });
+  useSiteLinkNavigation(projectId);
   const [searchOpen, setSearchOpen] = useState(false);
   const [pageAlternates, setPageAlternates] = useState<SiteLanguageAlternate[]>([]);
   const [measuredHeaderHeight, setMeasuredHeaderHeight] = useState<number>();
@@ -296,7 +298,7 @@ function SiteChrome() {
     const targetLanguage = siteLanguageParam(code, defaultLanguage);
     const alternate = pageAlternates.find((item) => item.code === code && item.path);
     if (!isChangelog && alternate?.path) {
-      window.location.assign(siteHref(projectId, alternate.path, { lang: targetLanguage, version: activeVersionPrefix }));
+      navigate({ href: siteHref(projectId, alternate.path, { lang: targetLanguage, version: activeVersionPrefix }) });
       return;
     }
     navigate({ search: (prev) => ({ ...prev, lang: targetLanguage }) });
@@ -305,7 +307,7 @@ function SiteChrome() {
     const defaultVersion = versions.find((item) => item.isDefault);
     const targetPrefix = defaultVersion?.slug === slug ? '' : slug;
     const targetPath = [targetPrefix, isChangelog ? '' : contentPath].filter(Boolean).join('/');
-    window.location.assign(siteHref(projectId, targetPath, { lang: navigationLanguage }));
+    navigate({ href: siteHref(projectId, targetPath, { lang: navigationLanguage }) });
   };
   const activeVersion = site?.activeVersion ?? versions.find((item) => item.isDefault)?.slug ?? '';
   const sitePath = (path = '') => siteHref(projectId, path, { lang: navigationLanguage, version: activeVersionPrefix });

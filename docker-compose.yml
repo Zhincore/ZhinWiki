@@ -190,6 +190,7 @@ services:
 
   migrate:
     image: nibleaf:latest
+    pull_policy: never
     command: ["migrate"]
     environment: *service-env
     depends_on:
@@ -199,6 +200,7 @@ services:
 
   analytics-migrate:
     image: nibleaf:latest
+    pull_policy: never
     command: ["clickhouse-migrate"]
     environment: *service-env
     depends_on:
@@ -233,6 +235,7 @@ services:
 
   worker:
     image: nibleaf:latest
+    pull_policy: never
     command: ["worker"]
     init: true
     environment: *service-env
@@ -255,6 +258,7 @@ services:
 
   app:
     image: nibleaf:latest
+    pull_policy: never
     command: ["app"]
     init: true
     environment:

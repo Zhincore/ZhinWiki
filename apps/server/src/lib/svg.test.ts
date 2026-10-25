@@ -25,6 +25,14 @@ describe('sanitizeSvg', () => {
     expect(output).toContain('A &amp; B');
   });
 
+  it('keeps visual animations but drops attribute-rewriting ones', () => {
+    const output = clean(`<svg xmlns="http://www.w3.org/2000/svg"><a href="#x"><rect>
+<set attributeName="href" to="javascript:alert(1)"/>
+<animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="2s"/></rect></a></svg>`);
+    expect(output).not.toMatch(/<set|javascript:/);
+    expect(output).toContain('<animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="2s"/>');
+  });
+
   it('produces a well-formed SVG document', () => {
     type ParsedXml = { querySelector(selector: string): unknown; documentElement: { localName: string } };
     const { window } = new JSDOM('') as unknown as { window: { DOMParser: new () => { parseFromString(text: string, type: string): ParsedXml } } };

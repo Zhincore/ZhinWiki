@@ -20,15 +20,19 @@ purify.addHook('uponSanitizeAttribute', (node, data) => {
 
 /**
  * Sanitize an untrusted SVG document with DOMPurify's SVG profile: scripts,
- * event handlers, `javascript:` URLs, foreign content, and animations that can
- * rewrite links are removed. Returns null when the input is not an SVG or is
- * too large to parse safely. Serving still applies a script-free CSP.
+ * event handlers, `javascript:` URLs, foreign content, and `<animate>`/`<set>`
+ * (which can rewrite any attribute, links included) are removed. Visual
+ * animations (`animateTransform`, `animateMotion`, CSS) keep their timing
+ * attributes. Returns null when the input is not an SVG or is too large to
+ * parse safely. Serving still applies a script-free CSP.
  */
 export const sanitizeSvg = (bytes: Uint8Array): Uint8Array | null => {
   if (bytes.byteLength === 0 || bytes.byteLength > MAX_SVG_BYTES) return null;
   const fragment = purify.sanitize(new TextDecoder().decode(bytes), {
     USE_PROFILES: { svg: true, svgFilters: true },
     ADD_TAGS: ['use'],
+    // Only meaningful on the remaining visual animations: `<animate>` and `<set>` are always stripped.
+    ADD_ATTR: ['from', 'to', 'by'],
     RETURN_DOM_FRAGMENT: true,
   }) as unknown as SanitizedFragment;
   const svg = fragment.firstElementChild;

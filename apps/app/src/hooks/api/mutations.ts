@@ -24,7 +24,7 @@ import type {
   UpdateWorkspaceSettingsBody,
   UpsertOpenApiBody,
 } from '@nibleaf/validators';
-import { inferSafeInlineAssetContentType } from '@nibleaf/validators';
+import { inferUploadableAssetContentType } from '@nibleaf/validators';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { FirstPublishAttribution } from '@/lib/first-publish-activation';
 import { api } from '@/services/api';
@@ -318,7 +318,7 @@ export const useDeleteDomain = (projectId: string) => {
 };
 
 /** Browsers occasionally omit File.type for valid images; never infer an active type. */
-const uploadContentType = (file: File): string => file.type.trim() || inferSafeInlineAssetContentType(file.name) || 'application/octet-stream';
+const uploadContentType = (file: File): string => file.type.trim() || inferUploadableAssetContentType(file.name) || 'application/octet-stream';
 
 /** Presign → PUT bytes → confirm. Returns the recorded asset. */
 export const useUploadAsset = (projectId: string) => {

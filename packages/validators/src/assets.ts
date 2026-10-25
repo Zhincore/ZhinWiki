@@ -24,6 +24,13 @@ const contentTypeByExtension: Record<string, (typeof SAFE_INLINE_ASSET_CONTENT_T
   webp: 'image/webp',
 };
 
+/** SVG is stored only after server-side sanitizing and is always served under a
+ * script-free CSP sandbox, so it may be uploaded although it is not "safe inline". */
+export const SVG_CONTENT_TYPE = 'image/svg+xml';
+
+/** SVGs are parsed in memory to sanitize them, so they get a tighter size cap. */
+export const MAX_SVG_BYTES = 5 * 1024 * 1024;
+
 /** Strip parameters and normalize a media type before it is stored or compared. */
 export const normalizeAssetContentType = (value: string): string => value.split(';', 1)[0]?.trim().toLowerCase() ?? '';
 
@@ -34,6 +41,13 @@ export const inferSafeInlineAssetContentType = (filename: string): string | unde
   const extension = filename.trim().toLowerCase().split('.').pop();
   return extension ? contentTypeByExtension[extension] : undefined;
 };
+
+/** Types a browser upload or an importer may store: the raster allowlist plus SVG. */
+export const isUploadableAssetContentType = (value: string): boolean => isSafeInlineAssetContentType(value) || value === SVG_CONTENT_TYPE;
+
+/** Like inferSafeInlineAssetContentType, but also recognises `.svg` for uploads. */
+export const inferUploadableAssetContentType = (filename: string): string | undefined =>
+  inferSafeInlineAssetContentType(filename) ?? (filename.trim().toLowerCase().endsWith('.svg') ? SVG_CONTENT_TYPE : undefined);
 
 /** Return a canonical safe type, or undefined when an object must download. */
 export const safeInlineAssetContentType = (value: string | null | undefined): string | undefined => {

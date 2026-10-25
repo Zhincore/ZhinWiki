@@ -531,6 +531,9 @@ importers:
       diff:
         specifier: ^9.0.0
         version: 9.0.0
+      dompurify:
+        specifier: 3.4.16
+        version: 3.4.16
       fflate:
         specifier: ^0.8.2
         version: 0.8.3
@@ -549,6 +552,9 @@ importers:
       jose:
         specifier: ^6.2.10
         version: 6.2.10
+      jsdom:
+        specifier: 30.0.1
+        version: 30.0.1(@noble/hashes@2.4.0)
       octokit:
         specifier: 5.0.5
         version: 5.0.5

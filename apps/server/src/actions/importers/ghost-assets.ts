@@ -1,7 +1,13 @@
 import { createHash } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { protectMarkdownCode } from '@nibleaf/shared/markdown-code';
-import { inferSafeInlineAssetContentType, isSafeInlineAssetContentType, normalizeAssetContentType } from '@nibleaf/validators';
+import {
+  inferUploadableAssetContentType,
+  isUploadableAssetContentType,
+  MAX_SVG_BYTES,
+  normalizeAssetContentType,
+  SVG_CONTENT_TYPE,
+} from '@nibleaf/validators';
 import got from 'got';
 import { isPrivateIp } from '@/lib/client-ip';
 import { findImportedAsset, storeAsset } from '../assets';
@@ -72,11 +78,12 @@ const fetchPublicImage = async (source: string): Promise<{ bytes: Uint8Array; co
     const announcedSize = Number(response.headers['content-length'] ?? 0);
     if (announcedSize > MAX_REMOTE_ASSET_BYTES) throw new Error('image exceeds 50 MiB');
     const filename = filenameFromUrl(url);
-    const contentType = normalizeAssetContentType(response.headers['content-type'] ?? '') || inferSafeInlineAssetContentType(filename) || '';
-    if (!isSafeInlineAssetContentType(contentType)) throw new Error('unsupported image type');
+    const contentType = normalizeAssetContentType(response.headers['content-type'] ?? '') || inferUploadableAssetContentType(filename) || '';
+    if (!isUploadableAssetContentType(contentType)) throw new Error('unsupported image type');
 
     const bytes = new Uint8Array(response.rawBody);
     if (bytes.byteLength === 0 || bytes.byteLength > MAX_REMOTE_ASSET_BYTES) throw new Error('invalid image size');
+    if (contentType === SVG_CONTENT_TYPE && bytes.byteLength > MAX_SVG_BYTES) throw new Error('SVG exceeds 5 MiB');
     return { bytes, contentType, filename };
   }
   throw new Error('too many redirects');

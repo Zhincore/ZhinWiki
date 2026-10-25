@@ -1,8 +1,9 @@
-import { NibleafMark } from '@nibleaf/design-system/brand';
 import { useT } from '@nibleaf/i18n/react';
 import { Cloud, Globe2, Languages, ShieldCheck } from 'lucide-react';
 import type { ComponentType, ReactNode, SVGProps } from 'react';
+import { InstanceMark, InstanceName } from '@/components/instance-brand';
 import { InterfaceLanguageButton } from '@/components/interface-language-dialog';
+import { useBrand } from '@/lib/brand';
 
 /**
  * Auth chrome — a premium split: a dark, brand-led panel (value props +
@@ -19,6 +20,7 @@ const BRAND_POINTS: { icon: ComponentType<SVGProps<SVGSVGElement>>; key: 'auth.b
 
 export function AuthLayout({ children, subtitle }: { children: ReactNode; subtitle?: string }) {
   const t = useT();
+  const brand = useBrand();
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
       {/* Brand panel */}
@@ -38,8 +40,8 @@ export function AuthLayout({ children, subtitle }: { children: ReactNode; subtit
           style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.35) 1px, transparent 1px)', backgroundSize: '22px 22px' }}
         />
         <div className="relative flex items-center gap-2.5">
-          <NibleafMark className="size-8 text-white" variant="bare" />
-          <span className="font-semibold text-lg tracking-tight">Nibleaf</span>
+          <InstanceMark className="size-8 text-white" variant="bare" />
+          <InstanceName className="font-semibold text-lg tracking-tight" />
         </div>
         <div className="relative">
           <h2 className="font-semibold text-[2rem] leading-[1.15] tracking-tight">{t('auth.brand.heading')}</h2>
@@ -58,9 +60,14 @@ export function AuthLayout({ children, subtitle }: { children: ReactNode; subtit
         <div className="relative flex items-center gap-2 text-white/55 text-xs">
           <span className="size-1.5 rounded-full bg-emerald-400" />
           {t('auth.brand.status')}
-          <span className="ms-auto inline-flex items-center gap-1 font-mono text-white/40">
+          <a
+            className="ms-auto inline-flex items-center gap-1 font-mono text-white/40 hover:text-white/70"
+            href={brand.sourceUrl}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
             <ShieldCheck className="size-3" /> {t('auth.brand.openSource')}
-          </span>
+          </a>
         </div>
       </div>
 
@@ -70,8 +77,8 @@ export function AuthLayout({ children, subtitle }: { children: ReactNode; subtit
         <div className="w-full max-w-sm">
           <div className="mb-8 flex flex-col items-center gap-3 text-center lg:hidden">
             <div className="inline-flex items-center gap-2">
-              <NibleafMark className="size-7" />
-              <span className="font-semibold text-2xl tracking-tight">Nibleaf</span>
+              <InstanceMark className="size-7" />
+              <InstanceName className="font-semibold text-2xl tracking-tight" />
             </div>
           </div>
           {subtitle ? <h1 className="mb-6 text-center font-semibold text-2xl tracking-tight lg:text-start">{subtitle}</h1> : null}

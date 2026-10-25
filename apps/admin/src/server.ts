@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
+import { brandAssetResponse } from '@nibleaf/shared/brand/server';
 import type { Register } from '@tanstack/react-router';
 import { createStartHandler, defaultStreamHandler, type RequestHandler } from '@tanstack/react-start/server';
 import { createServerEntry } from '@tanstack/react-start/server-entry';
@@ -14,7 +15,10 @@ const drainFile = process.env.NIBLEAF_DRAIN_FILE ?? '/tmp/nibleaf-draining';
 const startHandler = createServerEntry({ fetch: createStartHandler(defaultStreamHandler) }).fetch;
 
 const handleRequest: RequestHandler<Register> = async (request, ...rest) => {
-  if (new URL(request.url).pathname === '/health') {
+  const { pathname } = new URL(request.url);
+  const brandAsset = request.method === 'GET' || request.method === 'HEAD' ? brandAssetResponse(pathname) : null;
+  if (brandAsset) return brandAsset;
+  if (pathname === '/health') {
     const draining = existsSync(drainFile);
     return Response.json(
       { status: draining ? 'shutting_down' : 'ok', service: 'admin', revision },

@@ -12,13 +12,14 @@ import { GoogleIcon } from '@/components/icons/brand';
 import { useGetPublicMeta } from '@/hooks/api/public';
 import { AuthLayout } from '@/layouts/auth';
 import { authEmailErrorMessage } from '@/lib/auth-errors';
+import { brandedTitle } from '@/lib/brand';
 import { readPendingInvitation } from '@/lib/invitations';
 import { authClient, signIn } from '@/services/auth-client';
 
 export const Route = createFileRoute('/(auth)/sign-in')({
   validateSearch: (search) =>
     z.object({ invite: z.string().optional().catch(undefined), email: z.string().optional().catch(undefined) }).parse(search),
-  head: () => ({ meta: [{ title: 'Log in — Nibleaf' }, { name: 'robots', content: 'noindex, nofollow' }] }),
+  head: ({ matches }) => ({ meta: [{ title: brandedTitle(matches, 'Log in') }, { name: 'robots', content: 'noindex, nofollow' }] }),
   component: SignInPage,
 });
 

@@ -29,6 +29,30 @@ export function NibleafMark({
   );
 }
 
+/** The instance mark: its custom image when the brand has one, otherwise the built-in mark. */
+export function BrandMark({ name, src, className, variant }: { name: string; src?: string | null; className?: string; variant?: 'tile' | 'bare' }) {
+  return src ? (
+    <img alt={name} className={cn('object-contain', className)} src={src} />
+  ) : (
+    <NibleafMark className={className} title={name} variant={variant} />
+  );
+}
+
+/** The instance name set as a wordmark, always in its Latin form. */
+export function BrandWordmark({ name, className, ...props }: ComponentProps<'span'> & { name: string }) {
+  return (
+    <span
+      aria-label={name}
+      className={cn('inline-block select-none font-extrabold leading-none tracking-normal', className)}
+      dir="ltr"
+      role="img"
+      {...props}
+    >
+      {name}
+    </span>
+  );
+}
+
 export function NibleafWordmark({ className, title = 'Nibleaf', ...props }: ComponentProps<'span'> & { title?: string }) {
   // The brand name is always set in Latin script "Nibleaf", including in
   // Arabic-locale UI (same as how "Mintlify" stays Latin in Arabic copy).

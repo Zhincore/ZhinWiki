@@ -1,4 +1,3 @@
-import { NibleafMark } from '@nibleaf/design-system/brand';
 import { Button } from '@nibleaf/design-system/components/ui/button';
 import { Input } from '@nibleaf/design-system/components/ui/input';
 import { Skeleton } from '@nibleaf/design-system/components/ui/skeleton';
@@ -7,6 +6,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ArrowUpRight, FileText, Plus, Search } from 'lucide-react';
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { NewProjectDialog } from '@/components/app/new-project-dialog';
+import { InstanceMark } from '@/components/instance-brand';
 import { QueryErrorState } from '@/components/query-error-state';
 import { useProjects } from '@/hooks/api';
 import { useFormatters } from '@/lib/format';
@@ -79,7 +79,7 @@ function SitesPage() {
             >
               <div className="flex items-start gap-3">
                 <span className="grid size-11 place-items-center rounded-xl border border-border bg-muted/50">
-                  <NibleafMark className="size-7" />
+                  <InstanceMark className="size-7" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{project.name}</span>
@@ -96,7 +96,7 @@ function SitesPage() {
       ) : (
         <div className="grid min-h-64 place-items-center rounded-xl border border-dashed border-border text-center">
           <div>
-            <NibleafMark className="mx-auto size-9" />
+            <InstanceMark className="mx-auto size-9" />
             {query.trim() ? (
               <>
                 <p className="mt-3 font-medium">{t('dashboard.search.noResults')}</p>

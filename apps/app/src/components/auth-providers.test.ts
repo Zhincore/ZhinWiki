@@ -17,10 +17,10 @@ describe('authDocumentTitle', () => {
     ['/forgot-password', 'Nibleaf پاس ورڈ کے بغیر ہے۔ — Nibleaf'],
     ['/reset-password', 'Nibleaf پاس ورڈ کے بغیر ہے۔ — Nibleaf'],
   ])('localizes %s', (pathname, expected) => {
-    expect(authDocumentTitle(pathname, translate)).toBe(expected);
+    expect(authDocumentTitle(pathname, translate, 'Nibleaf')).toBe(expected);
   });
 
   it('leaves unrelated routes to their own head metadata', () => {
-    expect(authDocumentTitle('/pricing', translate)).toBeNull();
+    expect(authDocumentTitle('/pricing', translate, 'Nibleaf')).toBeNull();
   });
 });

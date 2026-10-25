@@ -5,10 +5,11 @@ import { Eye, FileText, GitPullRequest } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Markdown } from '@/components/markdown';
 import { getGitPreviewFn } from '@/functions/site';
+import { brandedTitle } from '@/lib/brand';
 
 export const Route = createFileRoute('/git-preview/$token')({
   loader: async ({ params }) => JSON.parse(await getGitPreviewFn({ data: { token: params.token } })) as { snapshot: SiteSnapshot },
-  head: () => ({ meta: [{ title: 'Pull request preview · Nibleaf' }, { name: 'robots', content: 'noindex,nofollow' }] }),
+  head: ({ matches }) => ({ meta: [{ title: brandedTitle(matches, 'Pull request preview', '·') }, { name: 'robots', content: 'noindex,nofollow' }] }),
   component: GitPreviewPage,
 });
 

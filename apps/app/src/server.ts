@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { translateFn } from '@nibleaf/i18n';
+import { brandAssetResponse } from '@nibleaf/shared/brand/server';
 import {
   canonicalPathFromMarkdownAlias,
   decodePublishedPathname,
@@ -942,6 +943,9 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
     return Response.redirect(`https://${MARKETING_HOST}${url.pathname}${url.search}`, 301);
   }
   const isGetLike = request.method === 'GET' || request.method === 'HEAD';
+  // Instance brand assets (BRAND_ASSETS_DIR) on every host, before any site rewrite.
+  const brandAsset = isGetLike ? brandAssetResponse(url.pathname) : null;
+  if (brandAsset) return brandAsset;
   // Normalize trailing slashes permanently (/pricing/ → /pricing) — the router
   // would otherwise answer with a temporary 307, which never consolidates link
   // equity. Root '/' and the machine files are unaffected; 308 preserves method.

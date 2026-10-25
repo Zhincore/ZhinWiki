@@ -1,2 +1,2 @@
 export { BrandProvider, useBrand } from './brand-context';
-export { BrandMark, BrandWordmark, NibleafMark, NibleafWordmark } from './nibleaf-brand';
+export { BrandMark, type BrandMarkProps, BrandWordmark, NibleafMark, NibleafWordmark } from './nibleaf-brand';

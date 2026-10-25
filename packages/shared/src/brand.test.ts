@@ -14,7 +14,12 @@ describe('readBrand', () => {
   it('reads every user-facing value from env', () => {
     expect(
       readBrand(
-        { APP_NAME: 'Acme Docs', BRAND_URL: 'https://acme.test', BRAND_SUPPORT_EMAIL: 'help@acme.test', BRAND_SOURCE_URL: 'https://git.acme.test/docs' },
+        {
+          APP_NAME: 'Acme Docs',
+          BRAND_URL: 'https://acme.test',
+          BRAND_SUPPORT_EMAIL: 'help@acme.test',
+          BRAND_SOURCE_URL: 'https://git.acme.test/docs',
+        },
         { icons: true, mark: true },
       ),
     ).toEqual({
@@ -55,8 +60,13 @@ describe('brandAssetResponse', () => {
   it('serves only listed files from the asset directory', () => {
     expect(brandAssetResponse('/brand-assets/secret.txt')).toBeNull();
     expect(brandAssetResponse('/brand-assets/../secret.txt')).toBeNull();
-    expect(brandAssetResponse('/brand-assets/favicon.svg')).toBeNull();
     expect(brandAssetResponse('/favicon.svg')).toBeNull();
+  });
+
+  it('falls back to the bundled icon for files the directory lacks', () => {
+    const response = brandAssetResponse('/brand-assets/favicon-32x32.png');
+    expect(response?.status).toBe(302);
+    expect(response?.headers.get('location')).toBe('/favicon-32x32.png');
   });
 
   it('serves nothing without BRAND_ASSETS_DIR', () => {

@@ -30,12 +30,21 @@ export function NibleafMark({
 }
 
 /** The instance mark: its custom image when the brand has one, otherwise the built-in mark. */
-export function BrandMark({ name, src, className, variant }: { name: string; src?: string | null; className?: string; variant?: 'tile' | 'bare' }) {
+export function BrandMark({ name, src, className, variant, decorative }: BrandMarkProps) {
   return src ? (
-    <img alt={name} className={cn('object-contain', className)} src={src} />
+    <img alt={decorative ? '' : name} aria-hidden={decorative} className={cn('object-contain', className)} src={src} />
   ) : (
-    <NibleafMark className={className} title={name} variant={variant} />
+    <NibleafMark aria-hidden={decorative} className={className} title={name} variant={variant} />
   );
+}
+
+/** `decorative`: hide the mark from assistive tech when adjacent text already names the brand. */
+export interface BrandMarkProps {
+  name: string;
+  src?: string | null;
+  className?: string;
+  variant?: 'tile' | 'bare';
+  decorative?: boolean;
 }
 
 /** The instance name set as a wordmark, always in its Latin form. */

@@ -29,37 +29,6 @@ on:
         required: true
         default: false
         type: boolean
-      deploy:
-        description: Trigger Coolify after a successful publish
-        required: true
-        default: false
-        type: boolean
-      compose_replacement_ack:
-        description: Acknowledge that the current Coolify Compose deployment can interrupt traffic
-        required: true
-        default: false
-        type: boolean
-      migration_mode:
-        description: Compatibility of migrations in this release
-        required: true
-        default: none
-        type: choice
-        options:
-          - none
-          - expand-contract
-          - restore-required
-      migration_evidence:
-        description: Privacy-safe migration inventory/dry-run evidence reference (required to deploy)
-        required: false
-        type: string
-      backup_reference:
-        description: Verified pre-deploy backup and restore-test reference (required to deploy)
-        required: false
-        type: string
-      rollback_image_tag:
-        description: Currently deployed immutable sha-<40 hex> tag (required to deploy)
-        required: false
-        type: string
 
 permissions:
   attestations: write
@@ -68,9 +37,7 @@ permissions:
   packages: write
 
 concurrency:
-  # Every production dispatch shares one lock even when refs differ. A second
-  # release waits; it never cancels a migration or compensation in flight.
-  group: ${{ inputs.deploy && 'nibleaf-production-release' || format('{0}-{1}', github.workflow, inputs.ref) }}
+  group: ${{ github.workflow }}-${{ inputs.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -98,16 +65,8 @@ jobs:
 
       - name: Validate dispatch
         env:
-          DEPLOY: ${{ inputs.deploy }}
-          PUBLISH: ${{ inputs.publish }}
-          REF: ${{ inputs.ref }}
           TAG: ${{ inputs.image_tag }}
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
-          COMPOSE_REPLACEMENT_ACK: ${{ inputs.compose_replacement_ack }}
-          MIGRATION_MODE: ${{ inputs.migration_mode }}
-          MIGRATION_EVIDENCE: ${{ inputs.migration_evidence }}
-          BACKUP_REFERENCE: ${{ inputs.backup_reference }}
-          ROLLBACK_IMAGE_TAG: ${{ inputs.rollback_image_tag }}
         run: |
           if [[ ! "$TAG" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$ ]]; then
             echo "Invalid Docker tag: $TAG"
@@ -119,39 +78,6 @@ jobs:
             exit 1
           fi
 
-          if [[ "$DEPLOY" == "true" && "$PUBLISH" != "true" ]]; then
-            echo "Coolify deployment requires publishing the image"
-            exit 1
-          fi
-
-          if [[ "$DEPLOY" == "true" && ( "$REF" != "main" || "$GITHUB_REF" != "refs/heads/main" ) ]]; then
-            echo "Coolify deployment is allowed only for a main-branch workflow building main"
-            exit 1
-          fi
-
-          if [[ "$DEPLOY" == "true" ]]; then
-            remote_main=$(git ls-remote origin refs/heads/main | cut -f1)
-            if [[ "$SOURCE_SHA" != "$remote_main" ]]; then
-              echo "::error::Checked-out revision $SOURCE_SHA is no longer current main ($remote_main)"
-              exit 1
-            fi
-            if [[ "$COMPOSE_REPLACEMENT_ACK" != "true" ]]; then
-              echo "::error::Coolify Docker Compose does not provide application-level rolling updates; acknowledge the replacement window"
-              exit 1
-            fi
-            if [[ "$MIGRATION_MODE" == "restore-required" ]]; then
-              echo "::error::Restore-required migrations cannot use the automatic deployment path"
-              exit 1
-            fi
-            if [[ -z "$MIGRATION_EVIDENCE" || -z "$BACKUP_REFERENCE" ]]; then
-              echo "::error::Deployment requires migration inventory/dry-run evidence and a verified backup/restore reference"
-              exit 1
-            fi
-            if [[ ! "$ROLLBACK_IMAGE_TAG" =~ ^sha-[0-9a-f]{40}$ ]]; then
-              echo "::error::Rollback must name the currently deployed immutable sha-<40 hex> image tag"
-              exit 1
-            fi
-          fi
 
       # QEMU emulates arm64 so the published image runs on Graviton/Ampere/
       # Raspberry Pi hosts as well as amd64.
@@ -229,26 +155,3 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
-      # Deployment requires an explicit publish + deploy choice and is limited
-      # to a workflow dispatched on main that also builds the main ref.
-      - name: Deploy exact image with Coolify, verify production, and compensate on failure
-        if: inputs.publish && inputs.deploy && inputs.ref == 'main' && github.ref == 'refs/heads/main'
-        # This dedicated token must have exactly deploy, read, write, and
-        # read:sensitive: the controller verifies the current image pin before
-        # replacing it, updates that one variable, and triggers deployment.
-        env:
-          COOLIFY_NIBLEAF_DEPLOY_WEBHOOK: ${{ secrets.COOLIFY_NIBLEAF_DEPLOY_WEBHOOK }}
-          COOLIFY_NIBLEAF_API_TOKEN: ${{ secrets.COOLIFY_NIBLEAF_API_TOKEN }}
-          COOLIFY_CF_ACCESS_CLIENT_ID: ${{ secrets.COOLIFY_CF_ACCESS_CLIENT_ID }}
-          COOLIFY_CF_ACCESS_CLIENT_SECRET: ${{ secrets.COOLIFY_CF_ACCESS_CLIENT_SECRET }}
-          NIBLEAF_BACKUP_REFERENCE: ${{ inputs.backup_reference }}
-          NIBLEAF_MIGRATION_EVIDENCE: ${{ inputs.migration_evidence }}
-          NIBLEAF_MIGRATION_MODE: ${{ inputs.migration_mode }}
-          NIBLEAF_ROLLBACK_IMAGE_TAG: ${{ inputs.rollback_image_tag }}
-          NIBLEAF_SOURCE_SHA: ${{ steps.source.outputs.sha }}
-        run: |
-          if [[ -z "$COOLIFY_NIBLEAF_DEPLOY_WEBHOOK" || -z "$COOLIFY_NIBLEAF_API_TOKEN" || -z "$COOLIFY_CF_ACCESS_CLIENT_ID" || -z "$COOLIFY_CF_ACCESS_CLIENT_SECRET" ]]; then
-            echo "::error::Missing a Coolify deployment or Cloudflare Access secret"
-            exit 1
-          fi
-          node scripts/coolify-release.mjs

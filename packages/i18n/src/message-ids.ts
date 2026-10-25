@@ -1591,6 +1591,7 @@ export const MESSAGE_IDS = {
   'settings.import.summaryHint': 'settings_import_summaryhint',
   'settings.import.run': 'settings_import_run',
   'settings.import.running': 'settings_import_running',
+  'settings.import.runningHint': 'settings_import_runninghint',
   'settings.import.success': 'settings_import_success',
   'settings.import.error': 'settings_import_error',
   'settings.import.result': 'settings_import_result',

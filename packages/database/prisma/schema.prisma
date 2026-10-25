@@ -41,6 +41,7 @@ model User {
   invitations     Invitation[]
   comments        Comment[]
   exportJobs      ExportJob[]      @relation("ExportJobCreator")
+  importRuns      ImportRun[]      @relation("ImportRunCreator")
   exportSchedules ExportSchedule[] @relation("ExportScheduleCreator")
   apiKeysCreated  ApiKey[]         @relation("ApiKeyCreator")
 
@@ -342,6 +343,13 @@ enum ExportFormat {
   STATIC_HTML
 }
 
+enum ImportRunStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
 enum ExportJobStatus {
   PENDING
   RUNNING
@@ -414,6 +422,7 @@ model Project {
   gitConnection   GitConnection?
   gitPreviews     GitPreview[]
   searchIndexRuns SearchIndexRun[]
+  importRuns      ImportRun[]
   usageIngestCheckpoints UsageIngestCheckpoint[]
   addons          ProjectAddon[]
   addonAuditEvents ProjectAddonAuditEvent[]
@@ -1223,6 +1232,31 @@ model ExportJob {
   @@index([scheduleId, createdAt])
   @@index([status, createdAt])
   @@map("export_job")
+}
+
+/// One content import (Mintlify, GitBook, Ghost), run in the background by the
+/// API. At most one PENDING/RUNNING run per project (partial unique index in
+/// the migration); a RUNNING run refreshes `updatedAt` as its heartbeat.
+model ImportRun {
+  id          String          @id @default(cuid())
+  projectId   String
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// Importer id (`mintlify`, `gitbook`, `ghost`); a string so new importers need no migration.
+  source      String
+  status      ImportRunStatus @default(PENDING)
+  /// ImportSummary of a SUCCEEDED run.
+  summary     Json?
+  error       String?
+  createdById String?
+  createdBy   User?           @relation("ImportRunCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([projectId, createdAt])
+  @@index([status, updatedAt])
+  @@map("import_run")
 }
 
 model ExportArtifact {

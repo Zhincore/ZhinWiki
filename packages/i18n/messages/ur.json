@@ -1443,6 +1443,7 @@
   "settings_import_summaryhint": "اس پروجیکٹ میں صفحات کو شامل یا اپ ڈیٹ کیا جاتا ہے — کچھ بھی حذف نہیں ہوتا ہے، اور درآمد کو دوبارہ چلانا محفوظ ہے۔",
   "settings_import_run": "درآمد کریں۔",
   "settings_import_running": "درآمد ہو رہا ہے…",
+  "settings_import_runninghint": "بڑی سائٹس میں چند منٹ لگ سکتے ہیں۔ آپ یہ صفحہ چھوڑ سکتے ہیں — درآمد مکمل ہونے پر آپ کو اطلاع ملے گی۔",
   "settings_import_success": "درآمد ختم",
   "settings_import_error": "درآمد ناکام ہو گیا۔",
   "settings_import_result": "درآمد شدہ {imported} نیا، اپ ڈیٹ کیا گیا {updated}، چھوڑ دیا گیا {skipped}۔",

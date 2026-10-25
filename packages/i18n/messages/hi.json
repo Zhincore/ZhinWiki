@@ -1443,6 +1443,7 @@
   "settings_import_summaryhint": "इस प्रोजेक्ट में पेज जोड़े या अपडेट किए जाते हैं - कुछ भी हटाया नहीं जाता है, और आयात को फिर से चलाना सुरक्षित है।",
   "settings_import_run": "आयात करें",
   "settings_import_running": "आयात किया जा रहा है...",
+  "settings_import_runninghint": "बड़ी साइटों में कुछ मिनट लग सकते हैं। आप यह पेज छोड़ सकते हैं — आयात पूरा होने पर आपको सूचना मिलेगी।",
   "settings_import_success": "आयात समाप्त",
   "settings_import_error": "आयात विफल",
   "settings_import_result": "आयातित {imported} नया, अद्यतन {updated}, छोड़ दिया गया {skipped}।",

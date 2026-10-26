@@ -209,7 +209,7 @@ A [Turborepo](https://turbo.build) + [pnpm](https://pnpm.io) monorepo:
 
 ```
 apps/
-  app      Marketing + dashboard + docs TanStack Start + Query/Form   :4310
+  app      Dashboard + published sites  TanStack Start + Query/Form   :4310
   server   API                          Hono + better-auth            :4311
   worker   Background jobs              BullMQ                         :4312
   admin    Platform admin panel        TanStack Start                 :4315

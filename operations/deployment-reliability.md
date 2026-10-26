@@ -69,7 +69,7 @@ The release order is:
 3. roll API, then dashboard/docs, then admin, proving the new revision after
    each resource while the old resource still serves traffic;
 4. roll workers last, with concurrency and repeatable-job ownership unchanged;
-5. continuously request representative signed-out EN/AR marketing and docs
+5. continuously request representative signed-out EN/AR docs
    pages during the transition, then run the complete post-deploy gate; and
 6. contract old schema only in a later release after the rollback window closes.
 
@@ -94,7 +94,7 @@ After the final default-branch deployment independently verify:
 
 - exact revision headers and API readiness body;
 - app, admin, docs, API health, and both sitemaps over public HTTPS;
-- signed-out English/LTR and Arabic/RTL marketing and docs, including canonical
+- signed-out English/LTR and Arabic/RTL docs, including canonical
   and hreflang relationships and zero literal `/sites/$projectId` placeholders;
 - desktop and mobile rendering, hydration, console, and horizontal overflow;
 - tenant-isolated authenticated publish/search behavior and preserved queue

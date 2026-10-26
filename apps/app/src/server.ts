@@ -18,6 +18,7 @@ import { serverEnv } from '@/env.server';
 import { BLOG_ENTRIES } from '@/lib/blog';
 import { nibleafPricing, nibleafProductLimitations } from '@/lib/comparison-data';
 import { contentSecurityPolicy } from '@/lib/content-security-policy';
+import { isDashboardPath, parseHomepage } from '@/lib/homepage';
 import { agentFriendlyNotFoundMarkdown, marketingMarkdownResponse } from '@/lib/marketing-markdown';
 import { marketingMarkdownSourceUrls, marketingSitemap, marketingSitemapEntries } from '@/lib/marketing-sitemap';
 import { nibleafPublicOpenApi } from '@/lib/nibleaf-openapi';
@@ -33,6 +34,7 @@ import {
   preferredRepresentation,
 } from '@/lib/request-negotiation';
 import { renderSelfHostInstaller } from '@/lib/self-host-release';
+import { HOME_SITE_HEADER } from '@/lib/site-origin';
 import { ssrNonce } from '@/lib/ssr-nonce.server';
 import { apiOrigin } from '@/services/api-origin';
 import PRODUCTION_COMPOSE from '../../../docker-compose.prod.yml?raw';
@@ -91,6 +93,9 @@ const CONFIGURED_HOST = serverEnv.APP_URL.replace(/^https?:\/\//, '')
   .split('/')[0]
   ?.toLowerCase();
 const IS_CLOUD_MARKETING = CONFIGURED_HOST === MARKETING_HOST;
+/** What the app origin serves at its root; fails fast on an invalid value. */
+const HOMEPAGE = parseHomepage(process.env.HOMEPAGE);
+
 const REVISION = process.env.NIBLEAF_REVISION ?? 'development';
 const DRAIN_FILE = process.env.NIBLEAF_DRAIN_FILE ?? '/tmp/nibleaf-draining';
 
@@ -559,7 +564,16 @@ async function serveAppOriginSeo(pathname: string): Promise<Response | null> {
 /** Minimal robots.txt for a self-hosted dashboard: no Sitemap line, no marketing
  *  docs, just keep crawlers out of the app/auth/api surfaces. (`/app$` catches the
  *  bare dashboard path without also matching e.g. /apple-touch-icon.png.) */
-const SELF_HOST_ROBOTS = 'User-agent: *\nDisallow: /app/\nDisallow: /app$\nDisallow: /sign-in\nDisallow: /sign-up\nDisallow: /api/\n';
+const DASHBOARD_DISALLOWS = ['Disallow: /app/', 'Disallow: /app$', 'Disallow: /sign-in', 'Disallow: /sign-up', 'Disallow: /api/'];
+const SELF_HOST_ROBOTS = `User-agent: *\n${DASHBOARD_DISALLOWS.join('\n')}\n`;
+
+/** A home site's robots.txt with the dashboard rules added to every user-agent group. */
+async function withDashboardDisallows(robots: Response): Promise<Response> {
+  const lines = (await robots.text()).split('\n');
+  const isAgent = (line = '') => /^user-agent:/i.test(line.trim());
+  const body = lines.flatMap((line, index) => (isAgent(line) && !isAgent(lines[index + 1]) ? [line, ...DASHBOARD_DISALLOWS] : [line])).join('\n');
+  return new Response(body, { status: robots.status, headers: robots.headers });
+}
 
 /** Full marketing robots.txt: allow crawling, disallow the app/auth/api
  *  surfaces (incl. token-bearing auth utility pages), and point at the sitemap. */
@@ -922,16 +936,17 @@ function withoutHeadBody(response: Response, method: string): Response {
   return method === 'HEAD' ? new Response(null, { status: response.status, headers: response.headers }) : response;
 }
 
-/** Drop any client-sent `x-nibleaf-site-origin`; only the custom-domain rewrite may set it. */
-function withoutClientSiteOrigin(request: Request): Request {
-  if (!request.headers.has('x-nibleaf-site-origin')) return request;
+/** Drop client-sent `x-nibleaf-site-origin` and home-site markers; only this entry sets them. Clones only when present. */
+function withoutServerHeaders(request: Request): Request {
+  const spoofed = ['x-nibleaf-site-origin', HOME_SITE_HEADER].filter((name) => request.headers.has(name));
+  if (spoofed.length === 0) return request;
   const sanitized = new Request(request.url, request);
-  sanitized.headers.delete('x-nibleaf-site-origin');
+  for (const name of spoofed) sanitized.headers.delete(name);
   return sanitized;
 }
 
 const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) => {
-  const request = withoutClientSiteOrigin(incoming);
+  const request = withoutServerHeaders(incoming);
   const url = new URL(request.url);
   const host = effectiveRequestHost(request, url);
   const bare = host.split(':')[0] ?? '';
@@ -1053,6 +1068,24 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
 
   const serve = async (): Promise<Response> => {
     if (!isCustomDomain) {
+      // Home wiki: the configured site is served at the app root like a custom
+      // domain, around the dashboard paths and the app's security.txt.
+      if (HOMEPAGE.mode === 'site' && !isDashboardPath(url.pathname) && url.pathname !== '/.well-known/security.txt') {
+        const origin = `${request.headers.get('x-forwarded-proto') || url.protocol.slice(0, -1)}://${host}`;
+        if (isGetLike && DOMAIN_SEO_FILE.test(url.pathname)) {
+          const seo = await serveDomainSeo(url.pathname, HOMEPAGE.projectId, origin);
+          return withoutHeadBody(url.pathname === '/robots.txt' ? await withDashboardDisallows(seo) : seo, request.method);
+        }
+        url.pathname = `/sites/${HOMEPAGE.projectId}${url.pathname === '/' ? '' : url.pathname}`;
+        const rewritten = new Request(url, routedRequest);
+        rewritten.headers.set('x-nibleaf-site-origin', origin);
+        rewritten.headers.set(HOME_SITE_HEADER, HOMEPAGE.projectId);
+        return renderHtml(rewritten);
+      }
+      // Marketing pages 404 through the router's homepage rewrite, on server and client alike.
+      if (HOMEPAGE.mode === 'app' && url.pathname === '/') {
+        return new Response(null, { status: 302, headers: { location: `/app${url.search}` } });
+      }
       if (isGetLike) {
         const artifact = serveSelfHostingArtifact(url.pathname, bare);
         if (artifact) {

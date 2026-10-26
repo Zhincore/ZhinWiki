@@ -14,7 +14,7 @@ describe('localized transactional email rendering', () => {
   it('renders Arabic email chrome with RTL direction', async () => {
     const email = await renderNewSignInEmail({ language: 'ar' });
 
-    expect(email.subject).toBe('تسجيل دخول جديد إلى حسابك في نيبليف');
+    expect(email.subject).toBe('تسجيل دخول جديد إلى حسابك في Nibleaf');
     expect(email.html).toContain('dir="rtl"');
     expect(email.html).toContain('lang="ar"');
     expect(email.text).toContain('رصدنا تسجيل دخول');

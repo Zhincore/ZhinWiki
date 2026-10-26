@@ -1,6 +1,7 @@
 import { BrandProvider } from '@nibleaf/design-system/brand';
 import { ThemeProvider } from '@nibleaf/design-system/theme';
-import { BRAND_ASSETS_PATH, DEFAULT_BRAND } from '@nibleaf/shared/brand';
+import { setMessageBrand } from '@nibleaf/i18n';
+import { brandIconLinks, DEFAULT_BRAND } from '@nibleaf/shared/brand';
 import { createRootRoute, HeadContent, Outlet, Scripts, useRouter, useRouterState } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { RootMarketingAnalytics } from '@/components/root-marketing-analytics';
@@ -23,13 +24,7 @@ export const Route = createRootRoute({
         { name: 'application-name', content: brand.name },
         { name: 'theme-color', content: '#181612' },
       ],
-      links: [
-        { rel: 'stylesheet', href: appCss },
-        { rel: 'icon', href: `${brand.iconBase}/favicon.svg`, type: 'image/svg+xml' },
-        { rel: 'icon', href: `${brand.iconBase}/favicon-32x32.png`, type: 'image/png', sizes: '32x32' },
-        { rel: 'apple-touch-icon', href: `${brand.iconBase}/apple-touch-icon.png` },
-        { rel: 'manifest', href: `${BRAND_ASSETS_PATH}/site.webmanifest` },
-      ],
+      links: [{ rel: 'stylesheet', href: appCss }, ...brandIconLinks(brand.iconBase)],
     };
   },
   component: RootComponent,
@@ -37,6 +32,8 @@ export const Route = createRootRoute({
 
 function RootComponent() {
   const { brand } = Route.useLoaderData();
+  // One brand per process/page: messages read it during this render's children.
+  setMessageBrand(brand);
   return (
     <BrandProvider brand={brand}>
       <RootDocument>

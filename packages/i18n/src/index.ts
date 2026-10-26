@@ -1,3 +1,4 @@
+export { setMessageBrand } from './brand';
 export * from './locales';
 export type { MessageKey } from './message-ids';
 export type { MessageFn, MessageVariables } from './message-types';

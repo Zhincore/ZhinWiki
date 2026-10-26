@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { translateFn } from '@nibleaf/i18n';
+import { setMessageBrand } from '@nibleaf/i18n/brand';
 import { brandAssetResponse, instanceBrand } from '@nibleaf/shared/brand/server';
 import {
   canonicalPathFromMarkdownAlias,
@@ -92,6 +93,8 @@ const CONFIGURED_HOST = serverEnv.APP_URL.replace(/^https?:\/\//, '')
   .split('/')[0]
   ?.toLowerCase();
 const IS_CLOUD_MARKETING = CONFIGURED_HOST === MARKETING_HOST;
+setMessageBrand(instanceBrand());
+
 const REVISION = process.env.NIBLEAF_REVISION ?? 'development';
 const DRAIN_FILE = process.env.NIBLEAF_DRAIN_FILE ?? '/tmp/nibleaf-draining';
 

@@ -1,3 +1,4 @@
+import { withBrand } from './brand';
 import type { Locale } from './locales';
 import type { MessageFn, MessageVariables } from './message-types';
 import {
@@ -124,4 +125,4 @@ export type EmailMessageKey = keyof typeof emailMessages;
 export const emailT =
   (locale: Locale) =>
   (key: EmailMessageKey, variables?: MessageVariables): string =>
-    (emailMessages[key] as unknown as MessageFn)(variables, { locale });
+    (emailMessages[key] as unknown as MessageFn)(withBrand(variables), { locale });

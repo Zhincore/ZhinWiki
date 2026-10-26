@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'react';
 import { cn } from '../lib/utils';
+import { useBrand } from './brand-context';
 
 export function NibleafMark({
   className,
@@ -29,51 +30,45 @@ export function NibleafMark({
   );
 }
 
-/** The instance mark: its custom image when the brand has one, otherwise the built-in mark. */
+/** The instance mark: its custom image when the brand has one, otherwise the built-in mark. Defaults to the provided brand. */
 export function BrandMark({ name, src, className, variant, decorative }: BrandMarkProps) {
-  return src ? (
-    <img alt={decorative ? '' : name} aria-hidden={decorative} className={cn('object-contain', className)} src={src} />
+  const brand = useBrand();
+  const label = name ?? brand.name;
+  const image = src === undefined ? brand.markUrl : src;
+  return image ? (
+    <img alt={decorative ? '' : label} aria-hidden={decorative} className={cn('object-contain', className)} src={image} />
   ) : (
-    <NibleafMark aria-hidden={decorative} className={className} title={name} variant={variant} />
+    <NibleafMark aria-hidden={decorative} className={className} title={label} variant={variant} />
   );
 }
 
 /** `decorative`: hide the mark from assistive tech when adjacent text already names the brand. */
 export interface BrandMarkProps {
-  name: string;
+  name?: string;
   src?: string | null;
   className?: string;
   variant?: 'tile' | 'bare';
   decorative?: boolean;
 }
 
-/** The instance name set as a wordmark, always in its Latin form. */
-export function BrandWordmark({ name, className, ...props }: ComponentProps<'span'> & { name: string }) {
+/** The instance name set as a wordmark, always in its Latin form. Defaults to the provided brand. */
+export function BrandWordmark({ name, className, ...props }: ComponentProps<'span'> & { name?: string }) {
+  const brand = useBrand();
+  const label = name ?? brand.name;
   return (
     <span
-      aria-label={name}
+      aria-label={label}
       className={cn('inline-block select-none font-extrabold leading-none tracking-normal', className)}
       dir="ltr"
       role="img"
       {...props}
     >
-      {name}
+      {label}
     </span>
   );
 }
 
-export function NibleafWordmark({ className, title = 'Nibleaf', ...props }: ComponentProps<'span'> & { title?: string }) {
-  // The brand name is always set in Latin script "Nibleaf", including in
-  // Arabic-locale UI (same as how "Mintlify" stays Latin in Arabic copy).
-  return (
-    <span
-      aria-label={title}
-      className={cn('inline-block select-none font-extrabold leading-none tracking-normal', className)}
-      dir="ltr"
-      role="img"
-      {...props}
-    >
-      Nibleaf
-    </span>
-  );
+/** The built-in "Nibleaf" wordmark. */
+export function NibleafWordmark({ title = 'Nibleaf', ...props }: ComponentProps<'span'> & { title?: string }) {
+  return <BrandWordmark name={title} {...props} />;
 }

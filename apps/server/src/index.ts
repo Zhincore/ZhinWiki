@@ -3,12 +3,16 @@ import './lib/serialize-bigint';
 import { type ServerType, serve } from '@hono/node-server';
 import { closeQueues, scheduleAnalyticsRollup } from '@nibleaf/bullmq';
 import { clickHouseHealth, closeClickHouseClients, initializeClickHouseFn } from '@nibleaf/clickhouse';
+import { setMessageBrand } from '@nibleaf/i18n/brand';
 import { logger } from '@nibleaf/logger';
+import { readBrand } from '@nibleaf/shared/brand';
 import { configureUploadCors, ensureBucket } from '@nibleaf/storage';
 import { Scalar } from '@scalar/hono-api-reference';
 import { openAPIRouteHandler } from 'hono-openapi';
 import { env } from './env';
 import app from './routes';
+
+setMessageBrand(readBrand(process.env));
 
 // Fail fast on unhandled async/sync errors rather than running in an undefined state.
 process.on('unhandledRejection', (reason) => {

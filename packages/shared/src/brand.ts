@@ -42,6 +42,14 @@ export const DEFAULT_BRAND: Brand = {
   markUrl: null,
 };
 
+/** `<head>` icon and manifest links for a brand's icon set. */
+export const brandIconLinks = (iconBase: string) => [
+  { rel: 'icon', href: `${iconBase}/favicon.svg`, type: 'image/svg+xml' },
+  { rel: 'icon', href: `${iconBase}/favicon-32x32.png`, type: 'image/png', sizes: '32x32' },
+  { rel: 'apple-touch-icon', href: `${iconBase}/apple-touch-icon.png` },
+  { rel: 'manifest', href: `${BRAND_ASSETS_PATH}/site.webmanifest` },
+];
+
 type Env = Record<string, string | undefined>;
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

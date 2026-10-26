@@ -1,5 +1,5 @@
 import type { Locale } from '@nibleaf/i18n/locales';
-import { settings_integrations_testmessage } from '@nibleaf/i18n/messages';
+import { translateFn } from '@nibleaf/i18n/translate';
 import { createLogger } from '@nibleaf/logger';
 import { IncomingWebhook } from '@slack/webhook';
 import got from 'got';
@@ -24,7 +24,7 @@ const providerFailure = (providerId: WebhookProviderId, error: unknown) => {
 export const verifyWebhookProvider = async (providerId: WebhookProviderId, webhookUrl: string, locale: Locale) => {
   try {
     if (providerId === 'slack') {
-      const result = await new IncomingWebhook(webhookUrl).send({ text: settings_integrations_testmessage(undefined, { locale }) });
+      const result = await new IncomingWebhook(webhookUrl).send({ text: translateFn('settings.integrations.testMessage', undefined, locale) });
       return { responseStatus: result.text === 'ok' ? 200 : null };
     }
     if (providerId === 'discord') {

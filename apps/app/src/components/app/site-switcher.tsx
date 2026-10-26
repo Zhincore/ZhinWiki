@@ -1,3 +1,4 @@
+import { BrandMark } from '@nibleaf/design-system/brand';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +12,6 @@ import { useT } from '@nibleaf/i18n/react';
 import { useNavigate } from '@tanstack/react-router';
 import { Check, ChevronsUpDown, LayoutGrid, Plus } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
-import { InstanceMark } from '@/components/instance-brand';
 import { useProjects } from '@/hooks/api';
 
 const subscribeToHydration = () => () => undefined;
@@ -36,7 +36,7 @@ export function SiteSwitcher({ projectId }: { projectId?: string }) {
             }
           >
             <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-sidebar-border bg-sidebar-primary/10">
-              {selected ? <InstanceMark className="size-5.5" /> : <LayoutGrid className="size-4.5 text-sidebar-primary" />}
+              {selected ? <BrandMark className="size-5.5" /> : <LayoutGrid className="size-4.5 text-sidebar-primary" />}
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate font-semibold text-sm" dir="auto">
@@ -56,7 +56,7 @@ export function SiteSwitcher({ projectId }: { projectId?: string }) {
             {(projects ?? []).length > 0 ? <DropdownMenuSeparator /> : null}
             {(projects ?? []).map((site) => (
               <DropdownMenuItem key={site.id} onClick={() => navigate({ to: '/app/projects/$projectId', params: { projectId: site.id } })}>
-                <InstanceMark className="size-4.5" />
+                <BrandMark className="size-4.5" />
                 <span className="flex-1 truncate" dir="auto">
                   {site.name}
                 </span>

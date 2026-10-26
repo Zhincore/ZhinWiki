@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "sideEffects": [
+    "./src/paraglide/runtime.js"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./locales": "./src/locales.ts",

@@ -19,9 +19,10 @@ export function parseHomepage(value?: string): Homepage {
 export const formatHomepage = (homepage: Homepage): string =>
   homepage.mode === 'site' ? `site:${homepage.projectId}` : homepage.mode === 'app' ? 'app' : '';
 
-const DASHBOARD_PATH = /^\/(?:app|sign-in|sign-up|forgot-password|reset-password|verify-email|accept-invite|git-preview|brand-assets|health)(?:\/|$)/;
+const DASHBOARD_PATH =
+  /^\/(?:app|sign-in|sign-up|forgot-password|reset-password|verify-email|accept-invite|git-preview|brand-assets|health|terms|privacy)(?:\/|$)/;
 
-/** Dashboard, auth and runtime paths the app owns at its root; never part of a home wiki. */
+/** Dashboard, auth, legal and runtime paths the app owns at its root; never part of a home wiki. */
 export const isDashboardPath = (pathname: string): boolean => DASHBOARD_PATH.test(pathname) || isAppOwnedPath(pathname);
 
 /** Whether the hydrating document is a home-site page rather than a dashboard page or a `/sites/*` preview. */

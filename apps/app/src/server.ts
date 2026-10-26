@@ -540,6 +540,13 @@ function serveRootSeo(pathname: string): Response | null {
   return new Response('Not found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
 }
 
+/** Where `/terms` or `/privacy` redirect when `BRAND_TERMS_URL` / `BRAND_PRIVACY_URL` replace the built-in page; null otherwise. */
+function legalPageRedirect(pathname: string): string | null {
+  const brand = instanceBrand();
+  const target = pathname === '/terms' ? brand.termsUrl : pathname === '/privacy' ? brand.privacyUrl : null;
+  return target && target !== pathname ? target : null;
+}
+
 const APP_SECURITY_HEADERS = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
@@ -678,6 +685,10 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
 
   const serve = async (): Promise<Response> => {
     if (!isCustomDomain) {
+      const legalRedirect = isGetLike ? legalPageRedirect(url.pathname) : null;
+      if (legalRedirect) {
+        return new Response(null, { status: 302, headers: { location: legalRedirect } });
+      }
       // Home wiki: the configured site is served at the app root like a custom
       // domain, around the dashboard paths and the app's security.txt.
       if (HOMEPAGE.mode === 'site' && !isDashboardPath(url.pathname) && url.pathname !== '/.well-known/security.txt') {

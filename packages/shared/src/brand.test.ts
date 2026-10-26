@@ -5,7 +5,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_BRAND, readBrand } from './brand';
 import { brandAssetResponse, brandManifest } from './brand.server';
 
-const BRAND_ENV = ['APP_NAME', 'BRAND_URL', 'BRAND_SUPPORT_EMAIL', 'BRAND_ABUSE_EMAIL', 'BRAND_SOURCE_URL', 'BRAND_ASSETS_DIR'] as const;
+const BRAND_ENV = [
+  'APP_NAME',
+  'BRAND_URL',
+  'BRAND_SUPPORT_EMAIL',
+  'BRAND_ABUSE_EMAIL',
+  'BRAND_SOURCE_URL',
+  'BRAND_TERMS_URL',
+  'BRAND_PRIVACY_URL',
+  'BRAND_ASSETS_DIR',
+] as const;
 
 const get = (path: string, method = 'GET') => new Request(`http://localhost${path}`, { method });
 
@@ -24,6 +33,8 @@ describe('readBrand', () => {
           BRAND_SUPPORT_EMAIL: 'help@acme.test',
           BRAND_ABUSE_EMAIL: 'abuse@acme.test',
           BRAND_SOURCE_URL: 'https://git.acme.test/docs',
+          BRAND_TERMS_URL: 'https://acme.test/legal/terms',
+          BRAND_PRIVACY_URL: 'https://acme.test/legal/privacy',
         },
         { icons: true, mark: true },
       ),
@@ -33,6 +44,8 @@ describe('readBrand', () => {
       supportEmail: 'help@acme.test',
       abuseEmail: 'abuse@acme.test',
       sourceUrl: 'https://git.acme.test/docs',
+      termsUrl: 'https://acme.test/legal/terms',
+      privacyUrl: 'https://acme.test/legal/privacy',
       iconBase: '/brand-assets',
       markUrl: '/brand-assets/mark.svg',
     });
@@ -44,10 +57,20 @@ describe('readBrand', () => {
     expect(readBrand({}).abuseEmail).toBe(DEFAULT_BRAND.abuseEmail);
   });
 
+  it('links the built-in legal pages unless external ones are set', () => {
+    expect(readBrand({})).toMatchObject({ termsUrl: '/terms', privacyUrl: '/privacy' });
+    expect(readBrand({ BRAND_TERMS_URL: ' https://acme.test/tos ', BRAND_PRIVACY_URL: '' })).toMatchObject({
+      termsUrl: 'https://acme.test/tos',
+      privacyUrl: '/privacy',
+    });
+  });
+
   it('rejects brand URLs that are not absolute http(s)', () => {
     expect(() => readBrand({ BRAND_URL: 'acme.test' })).toThrow(/BRAND_URL/);
     expect(() => readBrand({ BRAND_URL: 'javascript:alert(1)' })).toThrow(/BRAND_URL/);
     expect(() => readBrand({ BRAND_SOURCE_URL: 'ftp://git.acme.test' })).toThrow(/BRAND_SOURCE_URL/);
+    expect(() => readBrand({ BRAND_TERMS_URL: '/legal/terms' })).toThrow(/BRAND_TERMS_URL/);
+    expect(() => readBrand({ BRAND_PRIVACY_URL: 'javascript:alert(1)' })).toThrow(/BRAND_PRIVACY_URL/);
     expect(readBrand({ BRAND_URL: 'http://acme.test' }).url).toBe('http://acme.test');
   });
 

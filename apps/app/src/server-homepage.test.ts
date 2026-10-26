@@ -111,6 +111,27 @@ describe('HOMEPAGE server entry', () => {
     expect(await rendered[1]?.text()).toBe('{"a":1}');
   });
 
+  it('serves the built-in legal pages from the app, also in site mode', async () => {
+    const server = await serverWith('site:home');
+    await server.fetch(new Request('http://localhost:4310/terms', { headers: { accept: 'text/html' } }));
+    await server.fetch(new Request('http://localhost:4310/privacy', { headers: { accept: 'text/html' } }));
+
+    expect(rendered.map((request) => new URL(request.url).pathname)).toEqual(['/terms', '/privacy']);
+    expect(rendered[0]?.headers.has('x-nibleaf-home-site')).toBe(false);
+  });
+
+  it('redirects the legal pages to the operator URLs when set', async () => {
+    vi.stubEnv('BRAND_TERMS_URL', 'https://acme.test/tos');
+    vi.stubEnv('BRAND_PRIVACY_URL', 'https://acme.test/privacy');
+    const server = await serverWith('site:home');
+    const terms = await server.fetch(new Request('http://localhost:4310/terms'));
+    const privacy = await server.fetch(new Request('http://localhost:4310/privacy'));
+
+    expect([terms.status, terms.headers.get('location')]).toEqual([302, 'https://acme.test/tos']);
+    expect([privacy.status, privacy.headers.get('location')]).toEqual([302, 'https://acme.test/privacy']);
+    expect(mocks.startHandler).not.toHaveBeenCalled();
+  });
+
   it('keeps security.txt with the app and dashboard paths out of every robots group', async () => {
     const server = await serverWith('site:home');
     const security = await server.fetch(new Request('http://localhost:4310/.well-known/security.txt'));

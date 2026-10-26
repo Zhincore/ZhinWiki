@@ -1,4 +1,5 @@
 import { type McpServer, ResourceTemplate } from '@modelcontextprotocol/server';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import type { Context } from 'hono';
 import { z } from 'zod';
 import { AppError } from '@/errors';
@@ -14,14 +15,14 @@ export const registerContentSurface = (server: McpServer, ctx: Context<HonoEnv>,
   if (principal.apiKey.scopes.includes('projects:read')) {
     server.registerTool(
       'get_project',
-      { title: 'Get project', description: 'Get a safe summary of the bound Nibleaf project.', annotations: readOnly },
+      { title: 'Get project', description: `Get a safe summary of the bound ${instanceBrand().name} project.`, annotations: readOnly },
       () =>
         runMcpReadTool(ctx, principal, 'get_project', 'projects:read', () => getProjectDto(principal.project.organizationId, principal.project.id)),
     );
     server.registerResource(
       'project',
       `nibleaf://projects/${principal.project.id}`,
-      { title: 'Bound Nibleaf project', mimeType: 'application/json' },
+      { title: `Bound ${instanceBrand().name} project`, mimeType: 'application/json' },
       (uri) =>
         runMcpResource(ctx, principal, 'project', 'projects:read', uri, () => getProjectDto(principal.project.organizationId, principal.project.id)),
     );
@@ -52,13 +53,13 @@ export const registerContentSurface = (server: McpServer, ctx: Context<HonoEnv>,
     server.registerResource(
       'pages',
       `nibleaf://projects/${principal.project.id}/pages`,
-      { title: 'Nibleaf page index', mimeType: 'application/json' },
+      { title: `${instanceBrand().name} page index`, mimeType: 'application/json' },
       (uri) => runMcpResource(ctx, principal, 'pages', 'pages:read', uri, () => listPageDtos(principal.project.id)),
     );
     server.registerResource(
       'page',
       new ResourceTemplate('nibleaf://projects/{projectId}/pages/{pageId}', { list: undefined }),
-      { title: 'Nibleaf page', description: 'One authored page within the bound project.', mimeType: 'application/json' },
+      { title: `${instanceBrand().name} page`, description: 'One authored page within the bound project.', mimeType: 'application/json' },
       (uri, variables) =>
         runMcpResource(ctx, principal, 'page', 'pages:read', uri, () => {
           const parsed = pageResourceVariables.safeParse(variables);
@@ -79,7 +80,7 @@ export const registerContentSurface = (server: McpServer, ctx: Context<HonoEnv>,
     server.registerResource(
       'languages',
       `nibleaf://projects/${principal.project.id}/languages`,
-      { title: 'Nibleaf project languages', mimeType: 'application/json' },
+      { title: `${instanceBrand().name} project languages`, mimeType: 'application/json' },
       (uri) => runMcpResource(ctx, principal, 'languages', 'languages:read', uri, () => listLanguageDtos(principal.project.id)),
     );
   }
@@ -93,7 +94,7 @@ export const registerContentSurface = (server: McpServer, ctx: Context<HonoEnv>,
     server.registerResource(
       'versions',
       `nibleaf://projects/${principal.project.id}/versions`,
-      { title: 'Nibleaf project versions', mimeType: 'application/json' },
+      { title: `${instanceBrand().name} project versions`, mimeType: 'application/json' },
       (uri) => runMcpResource(ctx, principal, 'versions', 'versions:read', uri, () => listVersionDtos(principal.project.id)),
     );
   }

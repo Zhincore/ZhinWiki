@@ -3,6 +3,7 @@ import { prisma } from '@nibleaf/database';
 import type { SearchHit, SearchScope } from '@nibleaf/search';
 import { searchDocs } from '@nibleaf/search';
 import { type AddonDeliveryPlanAssignment, projectAddonRowsForDelivery, projectConfigWithAddons } from '@nibleaf/shared/addons';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { isPublicMarkdownPage } from '@nibleaf/shared/public-markdown';
 import {
   buildNavTree,
@@ -631,7 +632,7 @@ export const answerSite = async (identifier: string, query: string, lang?: strin
   const { snapshot, deploymentId, viewer } = await getPublished(identifier);
   const request = resolvePublishedSearchContext(snapshot, { language: lang, version });
   if (!request.configuration.aiAnswers || !answerSearchAvailable()) {
-    throw new AppError({ code: 'search:unavailable', message: 'AI answers are not configured for this Nibleaf instance.' });
+    throw new AppError({ code: 'search:unavailable', message: `AI answers are not configured for this ${instanceBrand().name} instance.` });
   }
   const activeLanguage = request.language;
   const docsVersion = request.version;

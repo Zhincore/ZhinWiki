@@ -2,6 +2,7 @@ import { createJob, QueueNames } from '@nibleaf/bullmq';
 import type { PublishDeploymentJobData } from '@nibleaf/bullmq/jobs/publish';
 import { Prisma, prisma } from '@nibleaf/database';
 import { projectAddonRowsForDelivery } from '@nibleaf/shared/addons';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { type RedirectValidationIssue, summarizeRedirectIssues, validateSnapshotRedirects } from '@nibleaf/shared/redirects';
 import { buildSnapshot, type SiteSnapshot, type SnapshotPage } from '@nibleaf/shared/site';
 import type { CreateDeploymentBody } from '@nibleaf/validators';
@@ -439,7 +440,9 @@ export interface PublishDeploymentBody extends CreateDeploymentBody {
 export const createDeployment = async (organizationId: string, projectId: string, userId: string, body: PublishDeploymentBody, locale?: string) => {
   const project = await assertProjectInOrg(organizationId, projectId);
   if (project.takedownAt) {
-    throw badRequest('This site has been taken down by the platform moderators and cannot be published. Contact support@nibleaf.com.', { projectId });
+    throw badRequest(`This site has been taken down by the platform moderators and cannot be published. Contact ${instanceBrand().supportEmail}.`, {
+      projectId,
+    });
   }
   // Fail before allocating a version or enqueueing work. The worker repeats
   // this against its fresh read to close the edit-between-preflight-and-build
@@ -476,7 +479,9 @@ export const createDeployment = async (organizationId: string, projectId: string
 export const rollbackDeployment = async (organizationId: string, projectId: string, deploymentId: string, userId: string) => {
   const project = await assertProjectInOrg(organizationId, projectId);
   if (project.takedownAt) {
-    throw badRequest('This site has been taken down by the platform moderators and cannot be published. Contact support@nibleaf.com.', { projectId });
+    throw badRequest(`This site has been taken down by the platform moderators and cannot be published. Contact ${instanceBrand().supportEmail}.`, {
+      projectId,
+    });
   }
   const target = await prisma.deployment.findFirst({ where: { id: deploymentId, projectId } });
   if (!target) {

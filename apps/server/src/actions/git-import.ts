@@ -6,6 +6,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { prisma } from '@nibleaf/database';
 import { slugify } from '@nibleaf/shared';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import type { GitConfig } from '@nibleaf/validators';
 import got from 'got';
 import { z } from 'zod';
@@ -210,7 +211,7 @@ const listGenericGitFiles = async (cloneUrl: string, branch: string, basePath: s
     return loaded.map((file) => ({ path: file.path, read: async () => file.content }));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      throw badRequest('Git is not installed in this Nibleaf runtime.');
+      throw badRequest(`Git is not installed in this ${instanceBrand().name} runtime.`);
     }
     throw badRequest('Could not clone the public Git repository. Check the URL, branch, and path.');
   } finally {

@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/server';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import type { Context } from 'hono';
 import { z } from 'zod';
 import type { HonoEnv } from '@/lib/hono/context';
@@ -48,7 +49,7 @@ export const registerOperationSurface = (server: McpServer, ctx: Context<HonoEnv
       'latest-deployment',
       `nibleaf://projects/${principal.project.id}/deployments/latest`,
       {
-        title: 'Latest Nibleaf deployment',
+        title: `Latest ${instanceBrand().name} deployment`,
         description: 'Latest READY deployment summary without its content snapshot.',
         mimeType: 'application/json',
       },

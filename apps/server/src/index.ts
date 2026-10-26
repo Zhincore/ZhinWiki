@@ -5,14 +5,14 @@ import { closeQueues, scheduleAnalyticsRollup } from '@nibleaf/bullmq';
 import { clickHouseHealth, closeClickHouseClients, initializeClickHouseFn } from '@nibleaf/clickhouse';
 import { setMessageBrand } from '@nibleaf/i18n/brand';
 import { logger } from '@nibleaf/logger';
-import { readBrand } from '@nibleaf/shared/brand';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { configureUploadCors, ensureBucket } from '@nibleaf/storage';
 import { Scalar } from '@scalar/hono-api-reference';
 import { openAPIRouteHandler } from 'hono-openapi';
 import { env } from './env';
 import app from './routes';
 
-setMessageBrand(readBrand(process.env));
+setMessageBrand(instanceBrand());
 
 // Fail fast on unhandled async/sync errors rather than running in an undefined state.
 process.on('unhandledRejection', (reason) => {
@@ -32,13 +32,13 @@ app.get(
   '/openapi.json',
   openAPIRouteHandler(app, {
     documentation: {
-      info: { title: 'Nibleaf API', version: '0.1.1', description: 'Open-source documentation platform.' },
-      servers: [{ url: env.API_URL, description: 'Nibleaf API' }],
+      info: { title: `${instanceBrand().name} API`, version: '0.1.1', description: 'Open-source documentation platform.' },
+      servers: [{ url: env.API_URL, description: `${instanceBrand().name} API` }],
     },
   }),
 );
 
-app.get('/docs', Scalar({ theme: 'default', sources: [{ url: '/openapi.json', title: 'Nibleaf API' }] }));
+app.get('/docs', Scalar({ theme: 'default', sources: [{ url: '/openapi.json', title: `${instanceBrand().name} API` }] }));
 
 app.get('/health', async (ctx) => {
   const analytics = await clickHouseHealth();
@@ -52,7 +52,7 @@ app.get('/health', async (ctx) => {
 async function main() {
   await initializeClickHouseFn({ roles: ['reader'] });
   server = serve({ port: env.API_PORT, fetch: app.fetch }, (info) => {
-    logger.info(`Nibleaf API on http://localhost:${info.port}`);
+    logger.info(`${instanceBrand().name} API on http://localhost:${info.port}`);
     logger.info(`  docs   → http://localhost:${info.port}/docs`);
     logger.info(`  health → http://localhost:${info.port}/health`);
   });

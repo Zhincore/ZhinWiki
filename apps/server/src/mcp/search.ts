@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/server';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { searchConfigurationResultSchema, searchIndexDiagnosticsQuery } from '@nibleaf/validators';
 import type { Context } from 'hono';
 import { getProjectSearchConfiguration, getProjectSearchIndexDiagnostics } from '@/actions/search';
@@ -60,7 +61,7 @@ export const registerSearchSurface = (server: McpServer, ctx: Context<HonoEnv>, 
   server.registerResource(
     'search-configuration',
     `nibleaf://projects/${principal.project.id}/search/configuration`,
-    { title: 'Nibleaf search configuration', mimeType: 'application/json' },
+    { title: `${instanceBrand().name} search configuration`, mimeType: 'application/json' },
     (uri) => runMcpResource(ctx, principal, 'search-configuration', 'search:read', uri, () => getSearchConfigurationDto(ctx, principal.project.id)),
   );
 };

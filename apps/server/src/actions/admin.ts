@@ -1,6 +1,7 @@
 import { assignDefaultUsagePlan, type Prisma, prisma } from '@nibleaf/database';
 import { slugify } from '@nibleaf/shared';
 import { addonDefinitions, defaultProjectAddonProvisioning, projectConfigWithAddons } from '@nibleaf/shared/addons';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { env } from '@/env';
 import { AppError, notFound } from '@/errors';
 import { inviteMember } from './members';
@@ -722,7 +723,7 @@ export async function suspendUser(userId: string) {
   }
   await prisma.user.update({
     where: { id: userId },
-    data: { suspendedAt: new Date(), banned: true, banReason: 'Suspended by a Nibleaf operator', banExpires: null },
+    data: { suspendedAt: new Date(), banned: true, banReason: `Suspended by a ${instanceBrand().name} operator`, banExpires: null },
   });
   // Sessions are DB-backed (better-auth Prisma adapter), so deleting the rows
   // signs the user out everywhere on their next request.

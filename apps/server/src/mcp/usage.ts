@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/server';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { capabilityKeySchema } from '@nibleaf/usage';
 import type { Context } from 'hono';
 import { z } from 'zod';
@@ -75,7 +76,7 @@ export const registerUsageSurface = (server: McpServer, ctx: Context<HonoEnv>, p
     server.registerResource(
       'usage',
       `nibleaf://projects/${principal.project.id}/usage`,
-      { title: 'Nibleaf project usage', description: 'Current UTC-month aggregate usage summary.', mimeType: 'application/json' },
+      { title: `${instanceBrand().name} project usage`, description: 'Current UTC-month aggregate usage summary.', mimeType: 'application/json' },
       (uri) => runMcpResource(ctx, principal, 'usage', 'usage:read', uri, () => usageSummaryDto(ctx, principal.project.id)),
     );
   }
@@ -102,7 +103,7 @@ export const registerUsageSurface = (server: McpServer, ctx: Context<HonoEnv>, p
     server.registerResource(
       'entitlements',
       `nibleaf://projects/${principal.project.id}/entitlements`,
-      { title: 'Nibleaf project entitlements', mimeType: 'application/json' },
+      { title: `${instanceBrand().name} project entitlements`, mimeType: 'application/json' },
       (uri) => runMcpResource(ctx, principal, 'entitlements', 'entitlements:read', uri, () => entitlementsDto(ctx, principal.project.id)),
     );
   }

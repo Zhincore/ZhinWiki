@@ -127,5 +127,15 @@ export const excerpt = (markdown: string, max = 160): string => {
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 };
 
+/** Plain text as literal Markdown/MDX inline text: one line, with markup, JSX, and expression characters backslash-escaped. */
+export const markdownText = (value: string): string => value.replace(/\s+/g, ' ').replace(/[\\`*_{}[\]<>()#!|~&]/g, '\\$&');
+
+/** A URL as a Markdown link destination: whitespace, brackets, braces, quotes, and backslashes are percent-encoded. */
+export const markdownUrl = (value: string): string =>
+  value.trim().replace(/[\s()<>[\]{}\\`"']/gu, (character) => {
+    const code = character.charCodeAt(0);
+    return code < 0x80 ? `%${code.toString(16).toUpperCase().padStart(2, '0')}` : encodeURIComponent(character);
+  });
+
 /** Pluralise a noun against a count. */
 export const plural = (count: number, noun: string, suffix = 's'): string => `${count} ${noun}${count === 1 ? '' : suffix}`;

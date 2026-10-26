@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { createJob, QUEUE_CONFIGS, QueueNames } from '@nibleaf/bullmq';
 import { type Prisma, prisma } from '@nibleaf/database';
 import { slugify } from '@nibleaf/shared';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import {
   buildThemeRepository,
   type ThemeRepositoryOwnership,
@@ -147,7 +148,7 @@ const authoringContext = async (connection: { projectId: string; importBranchId:
       ? prisma.language.findFirst({ where: { id: connection.importLanguageId, projectId: connection.projectId } })
       : getDefaultLanguage(connection.projectId),
   ]);
-  if (!(branch && language)) throw badRequest('The configured Nibleaf branch or language no longer exists.');
+  if (!(branch && language)) throw badRequest(`The configured ${instanceBrand().name} branch or language no longer exists.`);
   return { branch, language };
 };
 
@@ -169,7 +170,7 @@ const localFiles = async (connection: { projectId: string; contentPath: string; 
     const page = pageById.get(pageId);
     if (page) files.set(path, { page, content: serializeGitPage(page), ownership: 'SHARED' });
   }
-  for (const file of buildThemeRepository(snapshot, { contentPath: connection.contentPath })) {
+  for (const file of buildThemeRepository(snapshot, { contentPath: connection.contentPath, brand: instanceBrand() })) {
     files.set(file.path, { page: null, content: file.content, ownership: file.ownership });
   }
   return { files, snapshot, pageIdByPath };
@@ -216,6 +217,7 @@ const remoteThemeRepositoryIssues = (files: RemoteFile[], snapshot: Awaited<Retu
     snapshot,
     contentPath,
     themeRepositoryTemplateId(snapshot),
+    instanceBrand(),
   );
 };
 
@@ -522,12 +524,12 @@ const upsertPullRequest = async (
   const request = (operation.request ?? {}) as unknown as QueueGitInput;
   if (request.createPullRequest !== true) return null;
   const body = [
-    request.pullRequestBody?.trim() || 'Draft documentation changes authored in Nibleaf.',
+    request.pullRequestBody?.trim() || `Draft documentation changes authored in ${instanceBrand().name}.`,
     '',
     '### Changed files',
     ...changes.map((file) => `- \`${file.path}\` — ${file.status}`),
     '',
-    `_Idempotent Nibleaf operation: ${operation.id}_`,
+    `_Idempotent ${instanceBrand().name} operation: ${operation.id}_`,
   ].join('\n');
   const remote = await provider.upsertDraftPullRequest({
     repository: connection.repository,
@@ -832,14 +834,14 @@ export const processGitOperation = async (operationId: string): Promise<void> =>
         headBranch: operation.headBranch,
         title: requestBody.pullRequestTitle?.trim() || operation.commitMessage || 'Update documentation',
         body: [
-          requestBody.pullRequestBody?.trim() || 'Draft documentation changes authored in Nibleaf.',
+          requestBody.pullRequestBody?.trim() || `Draft documentation changes authored in ${instanceBrand().name}.`,
           '',
           `Preview: ${previewUrl}`,
           '',
           '### Changed files',
           ...changes.map((file) => `- \`${file.path}\` — ${file.status}`),
           '',
-          `_Idempotent Nibleaf operation: ${operation.id}_`,
+          `_Idempotent ${instanceBrand().name} operation: ${operation.id}_`,
         ].join('\n'),
       });
     }

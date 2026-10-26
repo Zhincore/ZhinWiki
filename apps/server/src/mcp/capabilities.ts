@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/server';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import type { McpScope } from '@nibleaf/shared/mcp';
 import type { Context } from 'hono';
 import { env } from '@/env';
@@ -77,7 +78,7 @@ export const registerCapabilitySurface = (server: McpServer, ctx: Context<HonoEn
   server.registerTool(
     'get_capabilities',
     {
-      title: 'Get Nibleaf MCP capabilities',
+      title: `Get ${instanceBrand().name} MCP capabilities`,
       description: 'List only the tools and resources available to this project-bound API key, plus intentionally unavailable domains.',
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
@@ -86,7 +87,11 @@ export const registerCapabilitySurface = (server: McpServer, ctx: Context<HonoEn
   server.registerResource(
     'capabilities',
     'nibleaf://capabilities',
-    { title: 'Nibleaf MCP capabilities', description: 'Truthful capability discovery for the bound project.', mimeType: 'application/json' },
+    {
+      title: `${instanceBrand().name} MCP capabilities`,
+      description: 'Truthful capability discovery for the bound project.',
+      mimeType: 'application/json',
+    },
     (uri) => runMcpResource(ctx, principal, 'capabilities', 'mcp:connect', uri, async () => getCapabilityDto(principal)),
   );
 };

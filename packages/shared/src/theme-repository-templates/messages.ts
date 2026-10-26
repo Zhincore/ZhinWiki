@@ -6,9 +6,12 @@ const THEME_LABELS = {
   signal: { en: 'Signal', ar: 'سيغنال' },
 } as const;
 
+/** Literal text for an inlang message-format pattern: `\`, `{` and `}` are backslash-escaped. */
+const messageLiteral = (value: string): string => value.replace(/[\\{}]/g, '\\$&');
+
 /** Paraglide chrome strings. Every visible label in the generated app is read
  * through these catalogs so Arabic readers get Arabic chrome. */
-export const messagesTemplate = ({ templateId }: ThemeRepositoryTemplateOptions): { en: string; ar: string } => ({
+export const messagesTemplate = ({ templateId, brand }: ThemeRepositoryTemplateOptions): { en: string; ar: string } => ({
   en: json({
     themeLabel: THEME_LABELS[templateId].en,
     skipToContent: 'Skip to content',
@@ -29,7 +32,7 @@ export const messagesTemplate = ({ templateId }: ThemeRepositoryTemplateOptions)
     notFoundTitle: 'Page not found',
     notFoundBody: 'This page does not exist in the selected language or version.',
     backToStart: 'Back to the first page',
-    builtWith: 'Built with Nibleaf',
+    builtWith: `Built with ${messageLiteral(brand.name)}`,
   }),
   ar: json({
     themeLabel: THEME_LABELS[templateId].ar,
@@ -51,6 +54,6 @@ export const messagesTemplate = ({ templateId }: ThemeRepositoryTemplateOptions)
     notFoundTitle: 'الصفحة غير موجودة',
     notFoundBody: 'هذه الصفحة غير موجودة في اللغة أو الإصدار المحدد.',
     backToStart: 'العودة إلى الصفحة الأولى',
-    builtWith: 'مبني باستخدام Nibleaf',
+    builtWith: `مبني باستخدام ${messageLiteral(brand.name)}`,
   }),
 });

@@ -85,7 +85,7 @@ export const themeRepositoryTemplateFiles = (options: ThemeRepositoryTemplateOpt
     { path: 'src/components/mobile-menu.tsx', content: mobileMenuTemplate() },
     { path: 'src/components/not-found.tsx', content: notFoundTemplate() },
     { path: 'src/components/docs-page.tsx', content: docsPageTemplate() },
-    { path: 'src/components/layout/shared.tsx', content: layoutSharedTemplate() },
+    { path: 'src/components/layout/shared.tsx', content: layoutSharedTemplate(options) },
     { path: 'src/components/layout/HarborLayout.tsx', content: harborLayoutTemplate() },
     { path: 'src/components/layout/ManuscriptLayout.tsx', content: manuscriptLayoutTemplate() },
     { path: 'src/components/layout/SignalLayout.tsx', content: signalLayoutTemplate() },

@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/server';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import type { IntegrationCatalogEntry, IntegrationConnectionSummary } from '@nibleaf/shared/integrations';
 import { integrationProviderIdSchema } from '@nibleaf/validators';
 import type { Context } from 'hono';
@@ -121,7 +122,7 @@ export const registerIntegrationSurface = (server: McpServer, ctx: Context<HonoE
   server.registerResource(
     'integrations',
     `nibleaf://projects/${principal.project.id}/integrations`,
-    { title: 'Nibleaf project integrations', mimeType: 'application/json' },
+    { title: `${instanceBrand().name} project integrations`, mimeType: 'application/json' },
     (uri) => runMcpResource(ctx, principal, 'integrations', 'integrations:read', uri, () => listIntegrationsDto(ctx, principal.project.id)),
   );
   server.registerTool(

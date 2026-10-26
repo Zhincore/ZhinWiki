@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/server';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import type { Context } from 'hono';
 import type { HonoEnv } from '@/lib/hono/context';
 import { registerAddonSurface } from './addons';
@@ -16,8 +17,7 @@ export const createNibleafMcpServer = (ctx: Context<HonoEnv>, principal: McpPrin
   const server = new McpServer(
     { name: 'nibleaf', version: '0.1.0' },
     {
-      instructions:
-        'This server is bound to one Nibleaf project. Discover capabilities before use. It exposes read-only actions plus non-writing theme preview; unavailable domains and mutations are intentionally omitted.',
+      instructions: `This server is bound to one ${instanceBrand().name} project. Discover capabilities before use. It exposes read-only actions plus non-writing theme preview; unavailable domains and mutations are intentionally omitted.`,
     },
   );
   registerCapabilitySurface(server, ctx, principal);

@@ -1,7 +1,9 @@
+import type { ThemeRepositoryTemplateOptions } from './types';
+
 /** `src/components/layout/*`: the three Nibleaf shells rebuilt with Tailwind
  * utilities and the docs.json theme tokens. Logical utilities (ms-/pe-/start-)
  * keep every shell RTL-correct without a second stylesheet. */
-export const layoutSharedTemplate = (): string => `import { ChevronLeft, ChevronRight } from 'lucide-react';
+export const layoutSharedTemplate = ({ brand }: ThemeRepositoryTemplateOptions): string => `import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { chromeLocale, type Heading, type NavItem, siblings, site, type SiteLanguage, type SitePage, type SiteVersion } from '../../lib/site';
 import * as m from '../../paraglide/messages.js';
@@ -91,7 +93,7 @@ export function PrevNext({ locale, page }: { locale: Locale; page: SitePage }) {
 export function SiteFooter({ locale }: { locale: Locale }) {
   return (
     <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-      <a className="hover:text-foreground" href="https://nibleaf.com" rel="noreferrer">
+      <a className="hover:text-foreground" href={${JSON.stringify(brand.url)}} rel="noreferrer">
         {m.builtWith({}, { locale })}
       </a>
     </footer>

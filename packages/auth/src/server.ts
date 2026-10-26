@@ -12,8 +12,9 @@ import {
 } from '@nibleaf/email';
 import { resolveRequestLocale } from '@nibleaf/i18n/locales';
 import { createLogger } from '@nibleaf/logger';
-import { joinPath, slugify } from '@nibleaf/shared';
+import { joinPath, markdownText, markdownUrl, slugify } from '@nibleaf/shared';
 import { addonDefinitions, defaultProjectAddonProvisioning, projectConfigWithAddons } from '@nibleaf/shared/addons';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { THEME_PRESETS, THEME_SCHEMA_VERSION } from '@nibleaf/shared/themes';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
@@ -455,10 +456,9 @@ instructions.
 
 <Accordion title="Where does this starter content come from?">
 
-Your docs run on Nibleaf, an open-source, self-hostable documentation
-platform — an alternative to Mintlify and GitBook. Source at
-[github.com/lord007tn/nibleaf](https://github.com/lord007tn/nibleaf), hosted
-cloud at [nibleaf.com](https://nibleaf.com).
+Your docs run on [${markdownText(instanceBrand().name)}](${markdownUrl(instanceBrand().url)}), an open-source,
+self-hostable documentation platform. Source at
+[${markdownText(instanceBrand().sourceUrl)}](${markdownUrl(instanceBrand().sourceUrl)}).
 
 </Accordion>
 
@@ -873,7 +873,7 @@ const authInstance = betterAuth({
           const target = await prisma.user.findUnique({ where: { id: session.userId }, select: { suspendedAt: true } });
           if (target?.suspendedAt) {
             throw new APIError('FORBIDDEN', {
-              message: 'This account has been suspended. Contact support@nibleaf.com if you believe this is a mistake.',
+              message: `This account has been suspended. Contact ${instanceBrand().supportEmail} if you believe this is a mistake.`,
             });
           }
           return { data: session };

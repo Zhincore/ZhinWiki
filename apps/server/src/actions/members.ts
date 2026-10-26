@@ -1,6 +1,7 @@
 import { createJob, QueueNames } from '@nibleaf/bullmq';
 import { prisma } from '@nibleaf/database';
 import { type EmailLanguage, renderMemberInvitationEmail } from '@nibleaf/email';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { MemberRole } from '@nibleaf/shared/constants';
 import { canAssignRole, canManageMember, planOwnershipTransfer } from '@nibleaf/shared/rbac';
 import type { UpdateMemberRoleBody } from '@nibleaf/validators';
@@ -98,7 +99,7 @@ export const inviteMember = async (
     return invitation;
   }
   const acceptUrl = `${env.APP_URL}/accept-invite/${invitation.id}`;
-  const siteName = org?.name ?? 'a Nibleaf workspace';
+  const siteName = org?.name ?? `a ${instanceBrand().name} workspace`;
   const inviterName = inviter?.name || inviter?.email || 'A teammate';
   const message = await renderMemberInvitationEmail({
     acceptUrl,

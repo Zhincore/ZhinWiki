@@ -2,7 +2,7 @@ import { createFileRoute, Navigate, Outlet, redirect } from '@tanstack/react-rou
 import { SupportAccessBanner } from '@/components/app/support-access-banner';
 import { AppProviders } from '@/components/app-providers';
 import { PageLoader } from '@/components/page-loader';
-import { getSessionFn } from '@/functions/session';
+import { getSessionFn, getSupportAdminUrlFn, isSupportSession } from '@/functions/session';
 import { QueryProvider } from '@/integrations/tanstack-query/root-provider';
 import { useSession } from '@/services/auth-client';
 import { ProjectProvider } from '@/stores/active-project';
@@ -13,7 +13,9 @@ export const Route = createFileRoute('/app')({
     if (!routeSession) {
       throw redirect({ to: '/sign-in' });
     }
-    return { routeSession };
+    // Only support sessions learn the operator console origin, to link back after stopping.
+    const supportAdminUrl = isSupportSession(routeSession) ? await getSupportAdminUrlFn() : null;
+    return { routeSession, supportAdminUrl };
   },
   head: () => ({
     meta: [{ name: 'robots', content: 'noindex' }],
@@ -33,7 +35,7 @@ function AppRoute() {
 }
 
 function AppGuard() {
-  const { routeSession } = Route.useRouteContext();
+  const { routeSession, supportAdminUrl } = Route.useRouteContext();
   const { data: session, isPending } = useSession();
   const resolvedSession = session ?? (isPending ? routeSession : null);
 
@@ -52,7 +54,11 @@ function AppGuard() {
         <Outlet />
       </ProjectProvider>
       {impersonatedBy && supportSession.user?.id ? (
-        <SupportAccessBanner customerId={supportSession.user.id} customerName={supportSession.user.name || supportSession.user.email} />
+        <SupportAccessBanner
+          adminUrl={supportAdminUrl}
+          customerId={supportSession.user.id}
+          customerName={supportSession.user.name || supportSession.user.email}
+        />
       ) : null}
     </div>
   );

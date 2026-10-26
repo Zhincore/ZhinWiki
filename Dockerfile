@@ -23,13 +23,9 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 # Generate the Prisma client (musl engine for this Alpine image).
 RUN pnpm --filter @nibleaf/database generate
 # Bake the in-cluster API URL so the app's Nitro /api proxy targets the server
-# service. The browser only ever sees the public app origin.
-ARG VITE_APP_URL=https://nibleaf.com
-ARG VITE_SITE_BASE_DOMAIN=nibleaf.com
+# service. Public URLs (APP_URL, ADMIN_URL, SITE_BASE_DOMAIN) are runtime env.
 ARG VITE_API_URL=http://server:4311
 ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_APP_URL=$VITE_APP_URL
-ENV VITE_SITE_BASE_DOMAIN=$VITE_SITE_BASE_DOMAIN
 # The app build exceeds a 4 GiB V8 heap as the editor, docs renderer, and SSR
 # bundles are optimized together. Keep this aligned with the 5-6 GiB build
 # requirement documented in docker-compose.yml.

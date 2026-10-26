@@ -27,20 +27,17 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { SectionCard } from '@/components/analytics/section-card';
 import { ViewsAreaChart } from '@/components/analytics/views-area-chart';
-import { env } from '@/env';
 import type { AnalyticsRange, Deployment } from '@/hooks/api';
 import { useDeployments, useDomains, usePages, useProject, useProjectMembers, usePublishAnyway } from '@/hooks/api';
 import { useProjectAnalytics } from '@/hooks/api/analytics';
 import { deploymentStatusLabel, deploymentStatusVariant } from '@/lib/deployment-status';
 import { useFormatters, viewsTrend } from '@/lib/format';
+import { publicUrls } from '@/lib/public-urls';
 
 export const Route = createFileRoute('/app/projects/$projectId/')({
   component: SiteOverviewPage,
 });
 
-// Only present a `slug.<base>` free-subdomain host when a base domain is actually
-// configured for this deployment; otherwise it 404s, so we fall back to /sites/:id.
-const siteBaseDomain = () => env.VITE_SITE_BASE_DOMAIN?.replace(/^\*\./, '').replace(/\.$/, '') || undefined;
 const siteUrl = (domain: string | null, projectId: string) => (domain ? `https://${domain}` : `/sites/${projectId}`);
 
 /** Per-site dashboard: the hub each site opens to (stats, traffic, recent pages,
@@ -65,7 +62,7 @@ function SiteOverviewPage() {
   const hasReadyDeployment = (deployments ?? []).some((deployment) => deployment.status === 'READY');
   const publishFailed = latestDeployment?.status === 'FAILED';
   const primaryDomain = domains?.find((domain) => domain.isPrimary && domain.verified) ?? domains?.find((domain) => domain.verified);
-  const baseDomain = siteBaseDomain();
+  const baseDomain = publicUrls().siteBaseDomain;
   // Prefer a verified custom domain; else a configured free-subdomain host; else
   // the always-working internal /sites/:id path (never a hardcoded fake host).
   const liveDomain = primaryDomain?.domain ?? (project && baseDomain ? `${project.slug}.${baseDomain}` : null);

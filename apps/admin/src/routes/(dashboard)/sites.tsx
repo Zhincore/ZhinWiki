@@ -28,7 +28,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { useInviteOrganization, useTakedownSite } from '@/hooks/api/mutations';
 import { type AdminSite, useAdminSites } from '@/hooks/api/queries';
 import { useFormatters } from '@/lib/format';
-import { APP_URL } from '@/lib/links';
+import { appUrl } from '@/lib/public-urls';
 
 export const Route = createFileRoute('/(dashboard)/sites')({
   component: SitesRoute,
@@ -288,7 +288,7 @@ function SitesPage() {
       return;
     }
     try {
-      await navigator.clipboard.writeText(`${APP_URL}/accept-invite/${site.ownerInvitationId}`);
+      await navigator.clipboard.writeText(`${appUrl()}/accept-invite/${site.ownerInvitationId}`);
       toast.success(t('admin.sites.invitationCopied'));
     } catch {
       toast.error(t('admin.sites.copyError'));
@@ -544,7 +544,7 @@ function SitesPage() {
                       render={
                         <a
                           aria-label={t('admin.sites.openCustomerView', { site: site.name })}
-                          href={`${APP_URL}/sites/${site.id}`}
+                          href={`${appUrl()}/sites/${site.id}`}
                           rel="noreferrer"
                           target="_blank"
                         />

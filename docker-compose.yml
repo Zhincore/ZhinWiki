@@ -20,8 +20,6 @@ x-build: &build
   target: runner
   args:
     VITE_API_URL: http://server:4311
-    VITE_APP_URL: ${APP_URL:-http://localhost:4310}
-    VITE_SITE_BASE_DOMAIN: ${SITE_BASE_DOMAIN:-docs.nibleaf.com}
 
 # Interpolation reads the canonical .env names used by `pnpm dev` and
 # .env.production.example.

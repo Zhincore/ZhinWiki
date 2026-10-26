@@ -154,8 +154,6 @@ jobs:
             VERSION=${{ steps.meta.outputs.version }}
             REVISION=${{ steps.source.outputs.sha }}
             VITE_API_URL=http://server:4311
-            VITE_APP_URL=https://nibleaf.com
-            VITE_SITE_BASE_DOMAIN=
           cache-from: |
             type=gha,scope=nibleaf-image
           cache-to: |

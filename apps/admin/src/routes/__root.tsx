@@ -9,6 +9,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { getBrandFn } from '@/functions/brand';
+import { APP_URL_META, appUrl } from '@/lib/public-urls';
 import appCss from '@/styles.css?url';
 
 export interface RouterContext {
@@ -16,8 +17,8 @@ export interface RouterContext {
 }
 
 export const Route = createRootRouteWithContext<RouterContext>()({
-  // The brand comes from runtime env; it never changes while the panel runs.
-  loader: async () => ({ brand: await getBrandFn() }),
+  // The brand and app URL come from runtime env; they never change while the panel runs.
+  loader: async () => ({ brand: await getBrandFn(), appUrl: appUrl() }),
   staleTime: Number.POSITIVE_INFINITY,
   head: ({ loaderData }) => {
     const { iconBase, name, themeColor } = loaderData?.brand ?? DEFAULT_BRAND;
@@ -53,9 +54,11 @@ function RootComponent() {
 
 function RootDocument({ children }: { children: ReactNode }) {
   const { locale } = useLocale();
+  const { appUrl } = Route.useLoaderData();
   return (
     <html lang={locale} dir={isRtl(locale) ? 'rtl' : 'ltr'} suppressHydrationWarning>
       <head>
+        <meta name={APP_URL_META} content={appUrl} />
         <HeadContent />
       </head>
       <body>

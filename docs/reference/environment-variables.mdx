@@ -19,8 +19,8 @@ actually consumes. Never commit a populated `.env`.
 | Variable | Required | Default | Purpose |
 | --- | --- | --- | --- |
 | `NIBLEAF_VERSION` | Yes in practice | `v1.0.0` in the current template | GHCR release tag. Pin an existing release; avoid floating tags. The Docker workflow rejects overwriting an existing `v*` release tag, making published version tags immutable by repository policy. |
-| `APP_URL` | Yes | None | Browser-facing dashboard and normal authentication origin, without a trailing slash. |
-| `ADMIN_URL` | Only when admin is exposed | `http://localhost:4315` | Public origin for the optional operator console. |
+| `APP_URL` | Yes | None | Browser-facing dashboard and normal authentication origin, without a trailing slash. Read at runtime by the app and admin containers, so changing it needs a restart, not an image rebuild. |
+| `ADMIN_URL` | Only when admin is exposed | `http://localhost:4315` | Public origin for the optional operator console. The dashboard returns here when support access ends. |
 | `NIBLEAF_BIND` | No | `127.0.0.1` | Host interface for the app port. Keep loopback when the proxy is local. |
 | `APP_PORT` | No | `4310` | Host port mapped to the app container. |
 | `BETTER_AUTH_URL` | No | `APP_URL` | Explicit authentication base override. |
@@ -33,7 +33,7 @@ actually consumes. Never commit a populated `.env`.
 
 | Variable | Required | Default | Purpose |
 | --- | --- | --- | --- |
-| `SITE_BASE_DOMAIN` | No | Empty | Enables `<project>.<base-domain>` publishing; requires wildcard DNS and TLS. |
+| `SITE_BASE_DOMAIN` | No | Empty | Enables `<project>.<base-domain>` publishing; requires wildcard DNS and TLS. Dashboard URL previews read the same runtime value. |
 | `CUSTOM_DOMAIN_CNAME_TARGET` | No | `SITE_BASE_DOMAIN` | Operator-controlled CNAME target shown to custom-domain owners. |
 | `CUSTOM_DOMAIN_PROVIDER` | No | `ingress` | Custom-domain automation strategy supported by the release. |
 | `CLOUDFLARE_SAAS_ZONE_ID` | For Cloudflare for SaaS | Empty | Zone identifier for managed custom hostnames. |

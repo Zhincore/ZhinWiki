@@ -1,7 +1,7 @@
 import { useT } from '@nibleaf/i18n/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { APP_URL } from '@/lib/links';
+import { appUrl } from '@/lib/public-urls';
 import { api } from '@/services/api';
 import { authClient } from '@/services/auth-client';
 
@@ -51,7 +51,7 @@ export function useStartSupportAccess() {
       return impersonation.data;
     },
     onSuccess: () => {
-      window.location.assign(`${APP_URL}/app`);
+      window.location.assign(`${appUrl()}/app`);
     },
     onError: (error) => toast.error(error instanceof AdminMutationError ? error.message : t('admin.mutation.supportStartError')),
   });

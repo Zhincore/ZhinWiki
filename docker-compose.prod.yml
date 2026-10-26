@@ -240,7 +240,6 @@ services:
     environment:
       <<: *service-env
       PORT: "4310"
-      VITE_SITE_BASE_DOMAIN: ${SITE_BASE_DOMAIN:-}
     ports:
       - "${NIBLEAF_BIND:-127.0.0.1}:${APP_PORT:-4310}:4310"
     depends_on:

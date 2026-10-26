@@ -85,8 +85,6 @@ describe('required auth email delivery feedback', () => {
 
   async function submit() {
     if (container.querySelector('#name')) await enter('#name', 'Synthetic QA');
-    const terms = container.querySelector<HTMLInputElement>('#agree-terms');
-    if (terms && !terms.checked) await act(async () => terms.click());
     const button = container.querySelector<HTMLButtonElement>('button[type="submit"]');
     expect(button?.disabled).toBe(false);
     await act(async () => button?.click());

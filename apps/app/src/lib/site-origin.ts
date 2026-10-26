@@ -5,11 +5,11 @@ import { type Homepage, parseHomepage } from '@/lib/homepage';
 /** Marker the server entry sets on a home-site request it rewrote onto `/sites/:id`. */
 export const HOME_SITE_HEADER = 'x-nibleaf-home-site';
 
-const MARKETING: Homepage = { mode: 'marketing' };
+const WELCOME: Homepage = { mode: 'welcome' };
 
 /**
  * The `HOMEPAGE` mode of the current document. The server reads the env (a
- * custom-domain request is always `marketing`), the root route mirrors a
+ * custom-domain request is always `welcome`), the root route mirrors a
  * non-default mode into a `nibleaf-homepage` meta tag, and the client reads it.
  */
 export const currentHomepage = createIsomorphicFn()
@@ -17,7 +17,7 @@ export const currentHomepage = createIsomorphicFn()
     try {
       return parseHomepage(document.querySelector<HTMLMetaElement>('meta[name="nibleaf-homepage"]')?.content);
     } catch {
-      return MARKETING;
+      return WELCOME;
     }
   })
   .server((): Homepage => {
@@ -27,7 +27,7 @@ export const currentHomepage = createIsomorphicFn()
     } catch {
       headers = undefined;
     }
-    if (headers?.has('x-nibleaf-site-origin') && !headers.has(HOME_SITE_HEADER)) return MARKETING;
+    if (headers?.has('x-nibleaf-site-origin') && !headers.has(HOME_SITE_HEADER)) return WELCOME;
     return parseHomepage(process.env.HOMEPAGE);
   });
 

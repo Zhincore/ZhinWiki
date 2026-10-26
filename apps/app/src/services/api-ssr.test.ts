@@ -17,9 +17,6 @@ vi.mock('@nibleaf/i18n', () => ({ translateFn: () => 'synthetic translation' }))
 vi.mock('@nibleaf/i18n/runtime', () => ({ getLocale: () => 'ar' }));
 vi.mock('@nibleaf/server/rpc', async () => ({ hcWithType: (await import('hono/client')).hc }));
 vi.mock('got', () => ({ default: mocks.got }));
-// Marketing article modules are unrelated to reader credential forwarding and
-// otherwise make each isolated server-entry import compile every translation.
-vi.mock('@/lib/blog', () => ({ BLOG_ENTRIES: [] }));
 vi.mock('@/env.server', () => ({
   serverEnv: {
     APP_URL: 'http://public-dashboard.example:4410',

@@ -1,9 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "ignore": [
-    "apps/docs/.source/**",
-    "apps/app/public/guides/fixtures/markdown-round-trip.mdx"
-  ],
+  "ignore": ["apps/docs/.source/**"],
   "workspaces": {
     "apps/custom-domain-edge": {
       "entry": ["src/index.ts", "cloudflare.config.ts"],

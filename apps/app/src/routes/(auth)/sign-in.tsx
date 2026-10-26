@@ -194,25 +194,12 @@ function SignInPage() {
         ) : null}
       </form>
       {!codeSent ? (
-        <>
-          <p className="mt-4 text-center text-muted-foreground text-xs leading-relaxed">
-            {t('auth.legal.socialNoticePrefix')}
-            <Link className="underline hover:text-primary" to="/terms">
-              {t('auth.legal.terms')}
-            </Link>
-            {t('auth.legal.and')}
-            <Link className="underline hover:text-primary" to="/privacy">
-              {t('auth.legal.privacy')}
-            </Link>
-            {t('auth.legal.agreeSuffix')}
-          </p>
-          <p className="mt-5 text-center text-muted-foreground text-sm">
-            {t('auth.signIn.noAccount')}{' '}
-            <Link className="text-primary hover:underline" to="/sign-up">
-              {t('auth.signIn.createOne')}
-            </Link>
-          </p>
-        </>
+        <p className="mt-5 text-center text-muted-foreground text-sm">
+          {t('auth.signIn.noAccount')}{' '}
+          <Link className="text-primary hover:underline" to="/sign-up">
+            {t('auth.signIn.createOne')}
+          </Link>
+        </p>
       ) : null}
     </AuthLayout>
   );

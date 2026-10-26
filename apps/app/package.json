@@ -9,7 +9,6 @@
     "build": "vite build",
     "bundle:check": "node ./scripts/check-bundle-budget.mjs --check",
     "bundle:report": "node ./scripts/check-bundle-budget.mjs",
-    "docs:markdown-check": "node ./scripts/check-markdown-parity.mjs",
     "start": "node .output/server/index.mjs",
     "preview": "vite preview",
     "clean": "git clean -xdf .cache .turbo .output dist node_modules",
@@ -64,7 +63,6 @@
     "lucide-react": "^1.39.0",
     "mermaid": "^11.17.2",
     "nitro": "3.0.260903-beta",
-    "octokit": "5.0.5",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-markdown": "^10.1.0",
@@ -82,8 +80,6 @@
     "sonner": "^2.0.8",
     "tiptap-markdown": "0.9.0",
     "tldts": "7.4.11",
-    "turndown": "^7.2.4",
-    "turndown-plugin-gfm": "^1.0.2",
     "zod": "^4.5.4"
   },
   "devDependencies": {
@@ -93,7 +89,6 @@
     "@types/node": "^22.20.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
-    "@types/turndown": "^5.0.6",
     "@vitejs/plugin-react": "6.1.2",
     "jsdom": "^30.0.1",
     "oxc-transform-react": "0.152.0",

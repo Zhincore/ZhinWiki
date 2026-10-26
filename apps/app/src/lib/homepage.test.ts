@@ -1,6 +1,6 @@
 import type { LocationRewriteFunction } from '@tanstack/react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { formatHomepage, type Homepage, homepageRewrite, isDashboardPath, isHomeSiteDocument, isMarketingPath, parseHomepage } from './homepage';
+import { formatHomepage, type Homepage, homepageRewrite, isDashboardPath, isHomeSiteDocument, parseHomepage } from './homepage';
 
 const apply = (rewrite: LocationRewriteFunction | undefined, path: string): string => {
   const url = new URL(path, 'https://docs.example');
@@ -9,15 +9,17 @@ const apply = (rewrite: LocationRewriteFunction | undefined, path: string): stri
 };
 
 describe('parseHomepage', () => {
-  it('reads the three modes and defaults to marketing', () => {
-    expect(parseHomepage(undefined)).toEqual({ mode: 'marketing' });
-    expect(parseHomepage(' ')).toEqual({ mode: 'marketing' });
+  it('reads the three modes and defaults to welcome', () => {
+    expect(parseHomepage(undefined)).toEqual({ mode: 'welcome' });
+    expect(parseHomepage(' ')).toEqual({ mode: 'welcome' });
     expect(parseHomepage('app')).toEqual({ mode: 'app' });
     expect(parseHomepage('site:cmvjwvut6000207p0h2sfrxuv')).toEqual({ mode: 'site', projectId: 'cmvjwvut6000207p0h2sfrxuv' });
   });
 
   it('refuses anything else', () => {
     expect(() => parseHomepage('wiki')).toThrow(/Invalid HOMEPAGE/);
+    expect(() => parseHomepage('marketing')).toThrow(/Invalid HOMEPAGE/);
+    expect(() => parseHomepage('welcome')).toThrow(/Invalid HOMEPAGE/);
     expect(() => parseHomepage('site:../x')).toThrow(/Invalid HOMEPAGE/);
   });
 });
@@ -45,19 +47,9 @@ describe('isDashboardPath', () => {
   });
 });
 
-describe('isMarketingPath', () => {
-  it('matches the upstream marketing pages only', () => {
-    expect(isMarketingPath('/')).toBe(true);
-    expect(isMarketingPath('/blog/some-post')).toBe(true);
-    expect(isMarketingPath('/compare/gitbook')).toBe(true);
-    expect(isMarketingPath('/blogroll')).toBe(false);
-    expect(isMarketingPath('/app')).toBe(false);
-  });
-});
-
 describe('formatHomepage', () => {
   it('round-trips through parseHomepage', () => {
-    for (const value of ['marketing', 'app', 'site:p1']) {
+    for (const value of ['', 'app', 'site:p1']) {
       expect(formatHomepage(parseHomepage(value))).toBe(value);
     }
   });
@@ -85,19 +77,17 @@ describe('isHomeSiteDocument', () => {
 });
 
 describe('homepageRewrite', () => {
-  it('leaves the marketing homepage alone', () => {
-    expect(homepageRewrite({ mode: 'marketing' }, false)).toBeUndefined();
+  it('leaves the welcome homepage alone', () => {
+    expect(homepageRewrite({ mode: 'welcome' }, false)).toBeUndefined();
   });
 
-  it('sends app mode root to the dashboard and marketing pages to an unmatched path, reversibly', () => {
+  it('sends the app mode root to the dashboard only', () => {
     const rewrite = homepageRewrite({ mode: 'app' }, false);
     expect(apply(rewrite?.input, '/')).toBe('/app');
     expect(apply(rewrite?.input, '/app/projects')).toBe('/app/projects');
     expect(apply(rewrite?.input, '/sign-in')).toBe('/sign-in');
-    const pricing = apply(rewrite?.input, '/pricing');
-    expect(pricing).not.toBe('/pricing');
-    expect(apply(rewrite?.output, pricing)).toBe('/pricing');
-    expect(apply(rewrite?.output, '/app')).toBe('/app');
+    expect(apply(rewrite?.input, '/pricing')).toBe('/pricing');
+    expect(rewrite?.output).toBeUndefined();
   });
 
   it('maps site mode onto the home site around the dashboard', () => {

@@ -25,7 +25,6 @@ vi.mock('@/env.server', () => ({
     },
   },
 }));
-vi.mock('@/env', () => ({ env: { VITE_APP_URL: 'https://public-dashboard.example:4410' } }));
 vi.mock('@nibleaf/i18n/runtime', () => ({ getLocale: () => mocks.locale }));
 vi.mock('@nibleaf/auth/client', () => ({ createNibleafAuthClientFn: mocks.auth }));
 vi.mock('@nibleaf/server/rpc', async () => ({ hcWithType: (await import('hono/client')).hc }));

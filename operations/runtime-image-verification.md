@@ -47,7 +47,7 @@ headroom. Use a committed source revision for the final acceptance image.
 
 ```sh
 node scripts/docker-context-smoke.mjs
-docker build --target runner --progress=plain --build-arg REVISION="$(git rev-parse HEAD)" --build-arg VITE_APP_URL=http://localhost:4410 --build-arg VITE_API_URL=http://server:4311 --tag nibleaf-runtime:local .
+docker build --target runner --progress=plain --build-arg REVISION="$(git rev-parse HEAD)" --build-arg VITE_API_URL=http://server:4311 --tag nibleaf-runtime:local .
 node scripts/runtime-image-audit.mjs nibleaf-runtime:local output/runtime-image/inventory.json
 ```
 

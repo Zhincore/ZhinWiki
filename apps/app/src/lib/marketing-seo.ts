@@ -1,5 +1,6 @@
-import { APP_URL, GITHUB_URL } from '@/lib/links';
+import { GITHUB_URL } from '@/lib/links';
 import { NIBLEAF_ORGANIZATION } from '@/lib/marketing-organization';
+import { publicUrls } from '@/lib/public-urls';
 
 /**
  * SEO helpers for the marketing + legal routes served from the cloud app
@@ -22,7 +23,7 @@ export const ENTITY_SENTENCE =
   'Nibleaf is a documentation platform with a visual Markdown editor, versioned publishing, Arabic and RTL support, custom domains, search, analytics, and a free cloud beta at nibleaf.com.';
 
 /** Absolute URL for a marketing path (https://nibleaf.com/<path> in production). */
-export const canonicalHref = (path: string) => new URL(path, APP_URL).toString();
+export const canonicalHref = (path: string) => new URL(path, publicUrls().appUrl).toString();
 
 /** Title + description + Open Graph + Twitter card meta for one marketing page. */
 export function pageMeta({

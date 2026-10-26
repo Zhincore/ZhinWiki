@@ -9,10 +9,10 @@ import { useForm } from '@tanstack/react-form';
 import { CirclePlus } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { env } from '@/env';
 import type { Language, Project } from '@/hooks/api';
 import { useLanguages, useUpdateLanguage, useUpdateProject } from '@/hooks/api';
 import { required } from '@/lib/form';
+import { publicUrls } from '@/lib/public-urls';
 import {
   FIELD_INPUT,
   FIELD_TEXTAREA,
@@ -28,10 +28,6 @@ import {
 /** A small curated set of emoji icons the project can use as its avatar glyph. */
 const ICON_CHOICES = ['📘', '📕', '📗', '🚀', '⚡', '🛠️', '🧩', '🔌', '📦', '🌐', '🔭', '✨'];
 
-// Only present a `slug.<base>` preview when a base domain is actually configured
-// for this deployment; otherwise the free-subdomain host would 404, so fall back
-// to the working /sites/:id path.
-const siteBaseDomain = env.VITE_SITE_BASE_DOMAIN?.replace(/^\*\./, '').replace(/\.$/, '') || undefined;
 const deploymentNameError = (value: string, message: string) => {
   if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(value)) {
     return message;
@@ -58,6 +54,9 @@ export function GeneralSection({ project }: { project: Project }) {
   const { data: languages } = useLanguages(project.id);
   const [icon, setIcon] = useState<string>(project.icon ?? '📘');
   const [iconOpen, setIconOpen] = useState(false);
+  // Without a configured base domain the free-subdomain host would 404, so the
+  // preview falls back to the working /sites/:id path.
+  const { siteBaseDomain } = publicUrls();
   // Localized site name/description per NON-default language (Translations
   // group below). Drafts are keyed by language id and survive switching the
   // selected language; untouched languages read straight from their stored config.

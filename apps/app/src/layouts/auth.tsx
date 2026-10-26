@@ -1,22 +1,23 @@
 import { BrandMark } from '@nibleaf/design-system/brand';
 import { useT } from '@nibleaf/i18n/react';
-import { Cloud, Globe2, Languages, ShieldCheck } from 'lucide-react';
+import { Globe2, Languages, Server, ShieldCheck } from 'lucide-react';
 import type { ComponentType, ReactNode, SVGProps } from 'react';
 import { InterfaceLanguageButton } from '@/components/interface-language-dialog';
 import { useBrand } from '@/lib/brand';
 
 /**
- * Auth chrome — a premium split: a dark, brand-led panel (value props +
- * cloud-product positioning) beside a focused form card. The brand panel is
- * decorative marketing copy (English, hidden below lg); the form heading uses
- * the localized `subtitle` each page passes.
+ * Auth chrome — a split layout: a dark, brand-led panel describing the
+ * self-hosted instance beside a focused form card. The brand panel is hidden
+ * below lg; the form heading uses the localized `subtitle` each page passes.
  */
-const BRAND_POINTS: { icon: ComponentType<SVGProps<SVGSVGElement>>; key: 'auth.brand.domains' | 'auth.brand.hosting' | 'auth.brand.multilingual' }[] =
-  [
-    { icon: Cloud, key: 'auth.brand.hosting' },
-    { icon: Globe2, key: 'auth.brand.domains' },
-    { icon: Languages, key: 'auth.brand.multilingual' },
-  ];
+const BRAND_POINTS: {
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+  key: 'auth.brand.domains' | 'auth.brand.multilingual' | 'auth.brand.selfHosted';
+}[] = [
+  { icon: Server, key: 'auth.brand.selfHosted' },
+  { icon: Globe2, key: 'auth.brand.domains' },
+  { icon: Languages, key: 'auth.brand.multilingual' },
+];
 
 export function AuthLayout({ children, subtitle }: { children: ReactNode; subtitle?: string }) {
   const t = useT();
@@ -58,8 +59,6 @@ export function AuthLayout({ children, subtitle }: { children: ReactNode; subtit
           </ul>
         </div>
         <div className="relative flex items-center gap-2 text-white/55 text-xs">
-          <span className="size-1.5 rounded-full bg-emerald-400" />
-          {t('auth.brand.status')}
           <a
             className="ms-auto inline-flex items-center gap-1 font-mono text-white/40 hover:text-white/70"
             href={brand.sourceUrl}

@@ -28,7 +28,7 @@
       "outputs": []
     },
     "test": {
-      "dependsOn": ["^setup", "^build"],
+      "dependsOn": ["setup", "^setup", "^build"],
       "outputs": ["coverage/**"]
     }
   }

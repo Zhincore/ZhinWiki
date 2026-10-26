@@ -9,6 +9,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { z } from 'zod';
 import { GoogleIcon } from '@/components/icons/brand';
+import { LegalNotice } from '@/components/legal-notice';
 import { QueryErrorState } from '@/components/query-error-state';
 import { useGetPublicMeta } from '@/hooks/api/public';
 import { AuthLayout } from '@/layouts/auth';
@@ -260,12 +261,15 @@ function SignUpPage() {
         ) : null}
       </form>
       {!codeSent ? (
-        <p className="mt-5 text-center text-muted-foreground text-sm">
-          {t('auth.signUp.haveAccount')}{' '}
-          <Link className="text-primary hover:underline" to="/sign-in">
-            {t('auth.signIn.submit')}
-          </Link>
-        </p>
+        <>
+          <LegalNotice />
+          <p className="mt-5 text-center text-muted-foreground text-sm">
+            {t('auth.signUp.haveAccount')}{' '}
+            <Link className="text-primary hover:underline" to="/sign-in">
+              {t('auth.signIn.submit')}
+            </Link>
+          </p>
+        </>
       ) : null}
     </AuthLayout>
   );

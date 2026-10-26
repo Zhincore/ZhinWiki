@@ -25,7 +25,7 @@ describe('parseHomepage', () => {
 });
 
 describe('isDashboardPath', () => {
-  it('keeps dashboard, auth and runtime paths out of the home wiki', () => {
+  it('keeps dashboard, auth, legal and runtime paths out of the home wiki', () => {
     for (const path of [
       '/app',
       '/app/projects/x',
@@ -35,13 +35,15 @@ describe('isDashboardPath', () => {
       '/sites/p1',
       '/_serverFn/x',
       '/brand-assets/mark.svg',
+      '/terms',
+      '/privacy',
     ]) {
       expect(isDashboardPath(path)).toBe(true);
     }
   });
 
   it('leaves wiki pages to the site, even ones that start like a dashboard path', () => {
-    for (const path of ['/', '/guides', '/application-notes', '/sign-installation', '/pricing']) {
+    for (const path of ['/', '/guides', '/application-notes', '/sign-installation', '/pricing', '/terms-of-use', '/privacy-guide']) {
       expect(isDashboardPath(path)).toBe(false);
     }
   });

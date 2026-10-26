@@ -9,6 +9,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { z } from 'zod';
 import { GoogleIcon } from '@/components/icons/brand';
+import { LegalNotice } from '@/components/legal-notice';
 import { useGetPublicMeta } from '@/hooks/api/public';
 import { AuthLayout } from '@/layouts/auth';
 import { authEmailErrorMessage } from '@/lib/auth-errors';
@@ -194,12 +195,15 @@ function SignInPage() {
         ) : null}
       </form>
       {!codeSent ? (
-        <p className="mt-5 text-center text-muted-foreground text-sm">
-          {t('auth.signIn.noAccount')}{' '}
-          <Link className="text-primary hover:underline" to="/sign-up">
-            {t('auth.signIn.createOne')}
-          </Link>
-        </p>
+        <>
+          <LegalNotice />
+          <p className="mt-5 text-center text-muted-foreground text-sm">
+            {t('auth.signIn.noAccount')}{' '}
+            <Link className="text-primary hover:underline" to="/sign-up">
+              {t('auth.signIn.createOne')}
+            </Link>
+          </p>
+        </>
       ) : null}
     </AuthLayout>
   );

@@ -46,6 +46,8 @@ x-service-env: &service-env
   BRAND_SUPPORT_EMAIL: ${BRAND_SUPPORT_EMAIL:-}
   BRAND_ABUSE_EMAIL: ${BRAND_ABUSE_EMAIL:-}
   BRAND_SOURCE_URL: ${BRAND_SOURCE_URL:-}
+  BRAND_TERMS_URL: ${BRAND_TERMS_URL:-}
+  BRAND_PRIVACY_URL: ${BRAND_PRIVACY_URL:-}
   BRAND_ASSETS_DIR: ${BRAND_ASSETS_DIR:-}
   # What the app root serves: marketing (default), app, or site:<projectId>.
   HOMEPAGE: ${HOMEPAGE:-}

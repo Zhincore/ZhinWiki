@@ -10,6 +10,10 @@ export interface Brand {
   abuseEmail: string;
   /** Source of the running code, linked for AGPL-3.0 §13 (`BRAND_SOURCE_URL`). */
   sourceUrl: string;
+  /** Terms of service: `BRAND_TERMS_URL`, else the built-in `/terms` page. */
+  termsUrl: string;
+  /** Privacy policy: `BRAND_PRIVACY_URL`, else the built-in `/privacy` page. */
+  privacyUrl: string;
   /** Path prefix of the favicon set: `''` = bundled, `/brand-assets` = `BRAND_ASSETS_DIR`. */
   iconBase: string;
   /** Custom mark image (`BRAND_ASSETS_DIR/mark.svg`); null = built-in mark. */
@@ -38,6 +42,8 @@ export const DEFAULT_BRAND: Brand = {
   supportEmail: 'support@zhindocs.invalid',
   abuseEmail: 'abuse@zhindocs.invalid',
   sourceUrl: 'https://github.com/Zhincore/zhindocs',
+  termsUrl: '/terms',
+  privacyUrl: '/privacy',
   iconBase: '',
   markUrl: null,
 };
@@ -84,6 +90,8 @@ export const readBrand = (env: Env, assets: { icons: boolean; mark: boolean } = 
     supportEmail: supportEmail ?? DEFAULT_BRAND.supportEmail,
     abuseEmail: email(env, 'BRAND_ABUSE_EMAIL') ?? supportEmail ?? DEFAULT_BRAND.abuseEmail,
     sourceUrl: url(env, 'BRAND_SOURCE_URL') ?? DEFAULT_BRAND.sourceUrl,
+    termsUrl: url(env, 'BRAND_TERMS_URL') ?? DEFAULT_BRAND.termsUrl,
+    privacyUrl: url(env, 'BRAND_PRIVACY_URL') ?? DEFAULT_BRAND.privacyUrl,
     iconBase: assets.icons ? BRAND_ASSETS_PATH : '',
     markUrl: assets.mark ? `${BRAND_ASSETS_PATH}/mark.svg` : null,
   };

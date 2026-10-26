@@ -19,7 +19,7 @@ export type ImportRunSource = keyof typeof importers;
 const SOURCE_LABELS: Record<ImportRunSource, string> = { ghost: 'Ghost', gitbook: 'GitBook', mintlify: 'Mintlify' };
 
 /** What the dashboard sees of a run. */
-export const toImportRunView = (run: ImportRun) => ({
+const toImportRunView = (run: ImportRun) => ({
   id: run.id,
   source: run.source,
   status: run.status,
@@ -37,7 +37,7 @@ export type ImportRunView = ReturnType<typeof toImportRunView>;
  * replacement branches they left behind. Safe because at most one run per
  * project is active, so no live import owns those branches.
  */
-export const failStaleImportRuns = async (projectId: string): Promise<void> => {
+const failStaleImportRuns = async (projectId: string): Promise<void> => {
   const cutoff = new Date(Date.now() - STALE_MS);
   const stale = await prisma.importRun.findMany({
     where: { projectId, status: { in: [...ACTIVE_STATUSES] }, updatedAt: { lt: cutoff } },

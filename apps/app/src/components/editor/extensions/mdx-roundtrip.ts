@@ -16,7 +16,7 @@ type SerializeState = {
  * trailing image is glued onto the tag (`![x](y)</Card>`), which leaves the tag
  * unclosed for the Markdown parser.
  */
-export const separateBlock = (state: SerializeState, node: PMNode): void => {
+const separateBlock = (state: SerializeState, node: PMNode): void => {
   if (state.atBlank?.() === false) state.closeBlock(node);
 };
 

@@ -140,14 +140,15 @@ jobs:
       - name: Smoke production app runtime
         shell: bash
         env:
-          APP_URL: https://nibleaf.com
+          APP_URL: https://docs.example.test
+          BETTER_AUTH_SECRET: ci-app-runtime-smoke-only-0123456789abcdef
         run: |
           pnpm --filter @nibleaf/app start > /tmp/nibleaf-app-runtime.log 2>&1 &
           app_pid=$!
           trap 'kill "$app_pid" 2>/dev/null || true' EXIT
           ready=0
           for _ in {1..30}; do
-            if curl --connect-timeout 2 --max-time 10 --fail --silent --show-error --dump-header /tmp/nibleaf-release-en.headers --header "Host: nibleaf.com" http://127.0.0.1:3000/blog/nibleaf-august-2026-source-release > /tmp/nibleaf-release-en.html; then
+            if curl --connect-timeout 2 --max-time 10 --fail --silent --show-error --dump-header /tmp/nibleaf-welcome.headers --header "Host: docs.example.test" http://127.0.0.1:3000/ > /tmp/nibleaf-welcome.html; then
               ready=1
               break
             fi
@@ -161,11 +162,11 @@ jobs:
             cat /tmp/nibleaf-app-runtime.log
             exit 1
           fi
-          curl --connect-timeout 2 --max-time 10 --fail --silent --show-error --header "Host: nibleaf.com" http://127.0.0.1:3000/blog/nibleaf-august-2026-source-release-ar > /tmp/nibleaf-release-ar.html
-          grep --fixed-strings --quiet "Nibleaf’s August 2026 source release" /tmp/nibleaf-release-en.html
-          grep --fixed-strings --quiet "إصدار مصدر Nibleaf في أغسطس 2026" /tmp/nibleaf-release-ar.html
-          node apps/app/scripts/check-ssr-nonce.mjs /tmp/nibleaf-release-en.html /tmp/nibleaf-release-en.headers
-          test "$(curl --connect-timeout 2 --max-time 10 --silent --output /dev/null --write-out '%{http_code}' --header 'Host: nibleaf.com' 'http://127.0.0.1:3000/%E0%A4%A')" = 400
+          curl --connect-timeout 2 --max-time 10 --fail --silent --show-error --header "Host: docs.example.test" http://127.0.0.1:3000/terms > /tmp/nibleaf-terms.html
+          grep --fixed-strings --quiet "ZhinDocs is running" /tmp/nibleaf-welcome.html
+          grep --fixed-strings --quiet "ZhinDocs" /tmp/nibleaf-terms.html
+          node apps/app/scripts/check-ssr-nonce.mjs /tmp/nibleaf-welcome.html /tmp/nibleaf-welcome.headers
+          test "$(curl --connect-timeout 2 --max-time 10 --silent --output /dev/null --write-out '%{http_code}' --header 'Host: docs.example.test' 'http://127.0.0.1:3000/%E0%A4%A')" = 400
 
       - name: Build production admin
         env:
@@ -197,7 +198,7 @@ jobs:
             cat /tmp/nibleaf-admin-runtime.log
             exit 1
           fi
-          grep --fixed-strings --quiet "<title>Nibleaf Admin</title>" /tmp/nibleaf-admin-sign-in.html
+          grep --fixed-strings --quiet "<title>ZhinDocs Admin</title>" /tmp/nibleaf-admin-sign-in.html
           node apps/app/scripts/check-ssr-nonce.mjs /tmp/nibleaf-admin-sign-in.html /tmp/nibleaf-admin-sign-in.headers
           test "$(curl --connect-timeout 2 --max-time 10 --silent --output /dev/null --write-out '%{http_code}' 'http://127.0.0.1:4315/%E0%A4%A')" = 400
           if grep --fixed-strings --quiet "__exportAll is not a function" /tmp/nibleaf-admin-runtime.log; then

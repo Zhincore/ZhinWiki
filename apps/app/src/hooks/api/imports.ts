@@ -15,7 +15,7 @@ export interface ContentImportSummary {
   warnings: string[];
 }
 
-export type ImportRunStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED';
+type ImportRunStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED';
 
 /** One background content import. */
 export interface ImportRun {

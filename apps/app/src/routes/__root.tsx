@@ -7,12 +7,14 @@ import type { ReactNode } from 'react';
 import { RootMarketingAnalytics } from '@/components/root-marketing-analytics';
 import { getBrandFn } from '@/functions/brand';
 import type { SiteShell } from '@/hooks/api/types';
+import { formatHomepage } from '@/lib/homepage';
+import { currentHomepage } from '@/lib/site-origin';
 import { siteThemeNoFlashScript } from '@/lib/site-theme';
 import appCss from '@/styles.css?url';
 
 export const Route = createRootRoute({
-  // The brand comes from runtime env; it never changes while the app runs.
-  loader: async () => ({ brand: await getBrandFn() }),
+  // The brand and homepage come from runtime env; they never change while the app runs.
+  loader: async () => ({ brand: await getBrandFn(), homepage: currentHomepage() }),
   staleTime: Number.POSITIVE_INFINITY,
   head: ({ loaderData }) => {
     const brand = loaderData?.brand ?? DEFAULT_BRAND;
@@ -74,11 +76,13 @@ function RootDocument({ children }: { children: ReactNode }) {
     },
   });
   const siteThemeBootstrap = siteProjectId ? siteThemeNoFlashScript(siteProjectId, siteThemeDefault ?? 'light') : null;
+  const { homepage } = Route.useLoaderData();
   return (
     <html lang={lang} dir={dir} suppressHydrationWarning>
       <head>
         {nonce ? <meta property="csp-nonce" content={nonce} /> : null}
         {siteProjectId ? <meta name="nibleaf-site-project" content={siteProjectId} /> : null}
+        {homepage.mode !== 'marketing' ? <meta name="nibleaf-homepage" content={formatHomepage(homepage)} /> : null}
         <HeadContent />
       </head>
       <body>

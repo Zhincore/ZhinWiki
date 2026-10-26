@@ -1,5 +1,35 @@
 import { createIsomorphicFn } from '@tanstack/react-start';
 import { getRequest } from '@tanstack/react-start/server';
+import { type Homepage, parseHomepage } from '@/lib/homepage';
+
+/** Marker the server entry sets on a home-site request it rewrote onto `/sites/:id`. */
+export const HOME_SITE_HEADER = 'x-nibleaf-home-site';
+
+const MARKETING: Homepage = { mode: 'marketing' };
+
+/**
+ * The `HOMEPAGE` mode of the current document. The server reads the env (a
+ * custom-domain request is always `marketing`), the root route mirrors a
+ * non-default mode into a `nibleaf-homepage` meta tag, and the client reads it.
+ */
+export const currentHomepage = createIsomorphicFn()
+  .client((): Homepage => {
+    try {
+      return parseHomepage(document.querySelector<HTMLMetaElement>('meta[name="nibleaf-homepage"]')?.content);
+    } catch {
+      return MARKETING;
+    }
+  })
+  .server((): Homepage => {
+    let headers: Headers | undefined;
+    try {
+      headers = getRequest()?.headers;
+    } catch {
+      headers = undefined;
+    }
+    if (headers?.has('x-nibleaf-site-origin') && !headers.has(HOME_SITE_HEADER)) return MARKETING;
+    return parseHomepage(process.env.HOMEPAGE);
+  });
 
 /**
  * The custom-domain origin the server entry (src/server.ts) stamped on a

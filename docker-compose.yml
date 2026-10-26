@@ -36,6 +36,8 @@ x-service-env: &service-env
   BRAND_ABUSE_EMAIL: ${BRAND_ABUSE_EMAIL:-}
   BRAND_SOURCE_URL: ${BRAND_SOURCE_URL:-}
   BRAND_ASSETS_DIR: ${BRAND_ASSETS_DIR:-}
+  # What the app root serves: marketing (default), app, or site:<projectId>.
+  HOMEPAGE: ${HOMEPAGE:-}
   POSTGRES_URL: postgresql://nibleaf:${POSTGRES_PASSWORD:-nibleaf}@postgres:5432/nibleaf
   REDIS_HOST: dragonfly
   REDIS_PORT: "6379"

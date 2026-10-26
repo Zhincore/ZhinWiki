@@ -1,3 +1,4 @@
+import { isDashboardPath } from '@/lib/homepage';
 import { customDomainOrigin } from '@/lib/site-origin';
 
 const cleanPath = (path = ''): string => path.replace(/^\/+|\/+$/g, '');
@@ -37,7 +38,7 @@ export function isCustomDomainSite(projectId?: string): boolean {
     return false;
   }
   const pathname = window.location.pathname;
-  if (/^\/(app|sign-in|sign-up|forgot-password|reset-password|verify-email|accept-invite)\b/.test(pathname)) {
+  if (isDashboardPath(pathname)) {
     return false;
   }
   return projectId ? !pathname.startsWith(`/sites/${projectId}`) : !pathname.startsWith('/sites/');

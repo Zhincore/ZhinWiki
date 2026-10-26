@@ -4,6 +4,8 @@ import { ErrorPage } from '@/components/error-page';
 import { NotFound } from '@/components/not-found';
 import { PageLoader } from '@/components/page-loader';
 import { hydratedCustomDomainProjectId, rewriteCustomDomainInput, rewriteCustomDomainOutput } from '@/lib/custom-domain-rewrite';
+import { homepageRewrite, isHomeSiteDocument } from '@/lib/homepage';
+import { currentHomepage } from '@/lib/site-origin';
 import { ssrNonce } from '@/lib/ssr-nonce.server';
 import { routeTree } from './routeTree.gen';
 
@@ -11,8 +13,21 @@ const requestNonce = createIsomorphicFn()
   .server(() => ssrNonce.getStore())
   .client(() => undefined);
 
-export function getRouter() {
+/** URL rewrite for the configured homepage, else a custom domain's mapping of every path onto `/sites/:projectId`. */
+const siteRewrite = () => {
+  const homepage = currentHomepage();
+  const homeRewrite = homepageRewrite(homepage, isHomeSiteDocument(homepage));
+  if (homeRewrite) return homeRewrite;
   const customDomainProjectId = hydratedCustomDomainProjectId();
+  return customDomainProjectId
+    ? {
+        input: ({ url }: { url: URL }) => rewriteCustomDomainInput(url, customDomainProjectId),
+        output: ({ url }: { url: URL }) => rewriteCustomDomainOutput(url, customDomainProjectId),
+      }
+    : undefined;
+};
+
+export function getRouter() {
   const router = createTanStackRouter({
     routeTree,
     // Start captures the hydration nonce before invoking the stream callback.
@@ -28,12 +43,7 @@ export function getRouter() {
     scrollRestoration: true,
     defaultPreload: 'intent',
     defaultPreloadStaleTime: 0,
-    rewrite: customDomainProjectId
-      ? {
-          input: ({ url }) => rewriteCustomDomainInput(url, customDomainProjectId),
-          output: ({ url }) => rewriteCustomDomainOutput(url, customDomainProjectId),
-        }
-      : undefined,
+    rewrite: siteRewrite(),
   });
   return router;
 }

@@ -29,6 +29,8 @@ x-service-env: &service-env
   NODE_ENV: production
   PINO_LOG_LEVEL: ${PINO_LOG_LEVEL:-info}
   PINO_LOG_FILE: ${PINO_LOG_FILE:-}
+  # What the app root serves: marketing (default), app, or site:<projectId>.
+  HOMEPAGE: ${HOMEPAGE:-}
   POSTGRES_URL: postgresql://nibleaf:${POSTGRES_PASSWORD:-nibleaf}@postgres:5432/nibleaf
   REDIS_HOST: dragonfly
   REDIS_PORT: "6379"

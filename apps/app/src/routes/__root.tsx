@@ -3,10 +3,15 @@ import { createRootRoute, HeadContent, Outlet, Scripts, useRouter, useRouterStat
 import type { ReactNode } from 'react';
 import { RootMarketingAnalytics } from '@/components/root-marketing-analytics';
 import type { SiteShell } from '@/hooks/api/types';
+import { formatHomepage } from '@/lib/homepage';
+import { currentHomepage } from '@/lib/site-origin';
 import { siteThemeNoFlashScript } from '@/lib/site-theme';
 import appCss from '@/styles.css?url';
 
 export const Route = createRootRoute({
+  // The homepage comes from runtime env; it never changes while the app runs.
+  loader: () => ({ homepage: currentHomepage() }),
+  staleTime: Number.POSITIVE_INFINITY,
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
@@ -65,11 +70,13 @@ function RootDocument({ children }: { children: ReactNode }) {
     },
   });
   const siteThemeBootstrap = siteProjectId ? siteThemeNoFlashScript(siteProjectId, siteThemeDefault ?? 'light') : null;
+  const { homepage } = Route.useLoaderData();
   return (
     <html lang={lang} dir={dir} suppressHydrationWarning>
       <head>
         {nonce ? <meta property="csp-nonce" content={nonce} /> : null}
         {siteProjectId ? <meta name="nibleaf-site-project" content={siteProjectId} /> : null}
+        {homepage.mode !== 'marketing' ? <meta name="nibleaf-homepage" content={formatHomepage(homepage)} /> : null}
         <HeadContent />
       </head>
       <body>

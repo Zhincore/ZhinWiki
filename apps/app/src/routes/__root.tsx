@@ -23,7 +23,7 @@ export const Route = createRootRoute({
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { title: `${brand.name} — documentation workspace` },
         { name: 'application-name', content: brand.name },
-        { name: 'theme-color', content: '#181612' },
+        { name: 'theme-color', content: brand.themeColor },
       ],
       links: [{ rel: 'stylesheet', href: appCss }, ...brandIconLinks(brand.iconBase)],
     };

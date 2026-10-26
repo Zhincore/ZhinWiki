@@ -20,7 +20,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   loader: async () => ({ brand: await getBrandFn() }),
   staleTime: Number.POSITIVE_INFINITY,
   head: ({ loaderData }) => {
-    const { iconBase, name } = loaderData?.brand ?? DEFAULT_BRAND;
+    const { iconBase, name, themeColor } = loaderData?.brand ?? DEFAULT_BRAND;
     const title = translateFn('admin.meta.title', { brand: name });
     return {
       meta: [
@@ -28,7 +28,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { title },
         { name: 'application-name', content: title },
-        { name: 'theme-color', content: '#181612' },
+        { name: 'theme-color', content: themeColor },
         // Internal panel — never index.
         { name: 'robots', content: 'noindex, nofollow' },
       ],

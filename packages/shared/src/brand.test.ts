@@ -13,6 +13,7 @@ const BRAND_ENV = [
   'BRAND_SOURCE_URL',
   'BRAND_TERMS_URL',
   'BRAND_PRIVACY_URL',
+  'BRAND_THEME_COLOR',
   'BRAND_ASSETS_DIR',
 ] as const;
 
@@ -35,6 +36,7 @@ describe('readBrand', () => {
           BRAND_SOURCE_URL: 'https://git.acme.test/docs',
           BRAND_TERMS_URL: 'https://acme.test/legal/terms',
           BRAND_PRIVACY_URL: 'https://acme.test/legal/privacy',
+          BRAND_THEME_COLOR: '#1a2B3c',
         },
         { icons: true, mark: true },
       ),
@@ -46,6 +48,7 @@ describe('readBrand', () => {
       sourceUrl: 'https://git.acme.test/docs',
       termsUrl: 'https://acme.test/legal/terms',
       privacyUrl: 'https://acme.test/legal/privacy',
+      themeColor: '#1a2B3c',
       iconBase: '/brand-assets',
       markUrl: '/brand-assets/mark.svg',
     });
@@ -72,6 +75,12 @@ describe('readBrand', () => {
     expect(() => readBrand({ BRAND_TERMS_URL: '/legal/terms' })).toThrow(/BRAND_TERMS_URL/);
     expect(() => readBrand({ BRAND_PRIVACY_URL: 'javascript:alert(1)' })).toThrow(/BRAND_PRIVACY_URL/);
     expect(readBrand({ BRAND_URL: 'http://acme.test' }).url).toBe('http://acme.test');
+  });
+
+  it('rejects theme colors that are not hex', () => {
+    expect(() => readBrand({ BRAND_THEME_COLOR: 'red' })).toThrow(/BRAND_THEME_COLOR/);
+    expect(() => readBrand({ BRAND_THEME_COLOR: '#000;}' })).toThrow(/BRAND_THEME_COLOR/);
+    expect(readBrand({ BRAND_THEME_COLOR: '#fff' }).themeColor).toBe('#fff');
   });
 
   it('rejects malformed emails', () => {

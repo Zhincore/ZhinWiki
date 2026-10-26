@@ -63,7 +63,7 @@ export function brandManifest(brand: Brand, { label, description }: ManifestOpti
     start_url: '/',
     scope: '/',
     display: 'standalone',
-    theme_color: '#181612',
+    theme_color: brand.themeColor,
     background_color: '#FBF7EE',
     icons: [
       icon('favicon.svg', 'image/svg+xml', 'any', 'any'),

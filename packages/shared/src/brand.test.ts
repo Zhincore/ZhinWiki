@@ -107,6 +107,14 @@ describe('brand from process env', () => {
     expect((await load()).instanceBrand()).toMatchObject({ iconBase: '/brand-assets', markUrl: null });
   });
 
+  it('switches icons for a PNG-only set', async () => {
+    writeFileSync(join(dir, 'favicon-32x32.png'), 'png');
+    process.env.BRAND_ASSETS_DIR = dir;
+    const { instanceBrand, brandAssetResponse: respond } = await load();
+    expect(instanceBrand()).toMatchObject({ iconBase: '/brand-assets' });
+    expect(respond(get('/brand-assets/favicon.svg'))?.status).toBe(302);
+  });
+
   it('detects a custom mark without switching the icon set', async () => {
     writeFileSync(join(dir, 'mark.svg'), '<svg/>');
     process.env.BRAND_ASSETS_DIR = dir;

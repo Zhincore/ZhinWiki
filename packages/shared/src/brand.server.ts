@@ -16,6 +16,9 @@ const assetsDir = (): string | undefined => process.env.BRAND_ASSETS_DIR?.trim()
 /** Whether `path` is a regular file (a directory mounted at an asset path counts as absent). */
 const isFile = (path: string): boolean => statSync(path, { throwIfNoEntry: false })?.isFile() ?? false;
 
+/** Icon files whose presence switches the favicon set to `BRAND_ASSETS_DIR`. */
+const ICON_FILES = BRAND_ASSET_FILES.filter((file) => file !== 'site.webmanifest' && file !== 'mark.svg');
+
 let cached: Brand | undefined;
 
 const assetCache = new Map<string, Buffer<ArrayBuffer> | null>();
@@ -31,7 +34,7 @@ export function instanceBrand(): Brand {
   if (!cached) {
     const dir = assetsDir();
     cached = readBrand(process.env, {
-      icons: Boolean(dir && isFile(join(dir, 'favicon.svg'))),
+      icons: Boolean(dir && ICON_FILES.some((file) => isFile(join(dir, file)))),
       mark: Boolean(dir && isFile(join(dir, 'mark.svg'))),
     });
   }

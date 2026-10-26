@@ -13,7 +13,6 @@ vi.mock('@openrouter/sdk', () => ({
 vi.mock('@/env', () => ({
   env: {
     AI_DRAFT_MODEL: 'openai/gpt-4o-mini',
-    APP_NAME: 'Nibleaf test',
     APP_URL: 'https://nibleaf.test',
     OPENROUTER_API_KEY: 'secret',
   },

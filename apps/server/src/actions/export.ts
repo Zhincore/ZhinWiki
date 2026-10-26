@@ -1,4 +1,5 @@
 import { prisma } from '@nibleaf/database';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { buildThemeRepository, themeContentPath, themeRepositoryTemplateId } from '@nibleaf/shared/theme-repository';
 import { strToU8, zipSync } from 'fflate';
 import { notFound } from '@/errors';
@@ -110,7 +111,7 @@ export const exportProjectThemeRepository = async (projectId: string): Promise<P
   const snapshot = await getCurrentSnapshot(projectId);
   const templateId = themeRepositoryTemplateId(snapshot);
   const files: Record<string, Uint8Array> = {};
-  for (const file of buildThemeRepository(snapshot)) {
+  for (const file of buildThemeRepository(snapshot, { brand: instanceBrand() })) {
     files[file.path] = strToU8(file.content);
   }
   for (const page of snapshot.pages) {

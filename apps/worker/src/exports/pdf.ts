@@ -1,3 +1,4 @@
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import type { SiteSnapshot } from '@nibleaf/shared/site';
 import { PDFDict, PDFDocument, PDFHexString, PDFName, PDFString, StandardFonts } from 'pdf-lib';
 import { chromium } from 'playwright-core';
@@ -72,10 +73,10 @@ export const renderPdf = async (
       }
     }
     document.setTitle(snapshot.project.name);
-    document.setAuthor('Nibleaf');
+    document.setAuthor(instanceBrand().name);
     document.setSubject(snapshot.project.description ?? 'Published documentation export');
-    document.setProducer('Nibleaf');
-    document.setCreator('Nibleaf export worker');
+    document.setProducer(instanceBrand().name);
+    document.setCreator(`${instanceBrand().name} export worker`);
     document.setCreationDate(new Date(snapshot.generatedAt));
     document.setKeywords(snapshot.project.languages.map((language) => language.code));
     return { bytes: await document.save(), contentType: 'application/pdf', extension: 'pdf' };

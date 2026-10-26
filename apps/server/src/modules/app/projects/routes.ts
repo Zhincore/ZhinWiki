@@ -1,3 +1,4 @@
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { MemberRole } from '@nibleaf/shared/constants';
 import { errorResponses } from '@/errors/utils';
 import { createRouteConfig } from '@/lib/hono/route-config';
@@ -40,7 +41,7 @@ const projectsRoutes = {
   themeExport: createRouteConfig({
     guard: [isAuthenticated, requireProjectMember('id')],
     tags: ['projects'],
-    description: 'Export the draft theme as a deterministic, versioned Nibleaf theme template.',
+    description: `Export the draft theme as a deterministic, versioned ${instanceBrand().name} theme template.`,
     responses: { 200: { description: 'theme template' }, ...errorResponses },
   }),
   themeCatalog: createRouteConfig({
@@ -52,7 +53,7 @@ const projectsRoutes = {
   themeImport: createRouteConfig({
     guard: [isAuthenticated, requireProjectRole(MemberRole.ADMIN, 'id')],
     tags: ['projects'],
-    description: 'Preview or apply a validated Nibleaf theme template in merge or replace mode.',
+    description: `Preview or apply a validated ${instanceBrand().name} theme template in merge or replace mode.`,
     responses: { 200: { description: 'theme import preview or result' }, ...errorResponses },
   }),
   update: createRouteConfig({

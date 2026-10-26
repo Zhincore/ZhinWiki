@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/server';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { addonIdSchema, type ListProjectAddonAuditQuery, listProjectAddonAuditQuery } from '@nibleaf/validators/addons';
 import type { Context } from 'hono';
 import { z } from 'zod';
@@ -81,7 +82,7 @@ export const registerAddonSurface = (server: McpServer, ctx: Context<HonoEnv>, p
   server.registerResource(
     'addons',
     `nibleaf://projects/${principal.project.id}/addons`,
-    { title: 'Nibleaf project add-ons', mimeType: 'application/json' },
+    { title: `${instanceBrand().name} project add-ons`, mimeType: 'application/json' },
     (uri) => runMcpResource(ctx, principal, 'addons', 'addons:read', uri, () => listAddonsDto(ctx, principal.project.id)),
   );
 };

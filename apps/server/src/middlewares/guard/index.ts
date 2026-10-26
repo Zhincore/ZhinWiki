@@ -1,4 +1,5 @@
 import { prisma } from '@nibleaf/database';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import type { MemberRole } from '@nibleaf/shared/constants';
 import { roleAtLeast } from '@nibleaf/shared/rbac';
 import type { Context, MiddlewareHandler } from 'hono';
@@ -19,7 +20,7 @@ export const isAuthenticated: MiddlewareHandler<HonoEnv> = async (ctx, next) => 
   if (record?.suspendedAt) {
     throw new AppError({
       code: 'auth:invalid_session',
-      message: 'This account has been suspended. Contact support@nibleaf.com if you believe this is a mistake.',
+      message: `This account has been suspended. Contact ${instanceBrand().supportEmail} if you believe this is a mistake.`,
     });
   }
   await next();

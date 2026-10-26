@@ -16,6 +16,7 @@ import {
   selectAnswerChunks,
   sparseVectorForQuery,
 } from '@nibleaf/search';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { z } from 'zod';
 import { env } from '@/env';
 import { TtlCache } from '@/lib/lru';
@@ -53,7 +54,7 @@ const embeddings = () => {
     dimensions: env.SEARCH_EMBEDDING_DIMENSIONS,
     timeoutMs: env.SEARCH_EMBEDDING_TIMEOUT_MS,
     siteUrl: env.APP_URL,
-    title: env.APP_NAME,
+    title: instanceBrand().name,
   });
 };
 
@@ -225,7 +226,7 @@ export const answerPublishedSearch = async (
     timeoutMs: env.SEARCH_ANSWER_TIMEOUT_MS,
     temperature: 0,
     siteUrl: env.APP_URL,
-    title: 'Nibleaf grounded documentation answers',
+    title: `${instanceBrand().name} grounded documentation answers`,
   });
   const answer = await generateGroundedAnswer(
     provider,

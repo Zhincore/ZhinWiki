@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/server';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { themeImportBodySchema } from '@nibleaf/validators';
 import type { Context } from 'hono';
 import { exportProjectTheme, getProjectThemeCatalog, importProjectTheme } from '@/actions/themes';
@@ -80,7 +81,7 @@ export const registerThemeSurface = (server: McpServer, ctx: Context<HonoEnv>, p
   server.registerResource(
     'theme-catalog',
     `nibleaf://projects/${principal.project.id}/theme-catalog`,
-    { title: 'Nibleaf theme catalog', mimeType: 'application/json' },
+    { title: `${instanceBrand().name} theme catalog`, mimeType: 'application/json' },
     (uri) =>
       runMcpResource(ctx, principal, 'theme-catalog', 'themes:read', uri, () =>
         getThemeCatalogDto(principal.project.organizationId, principal.project.id),
@@ -89,7 +90,7 @@ export const registerThemeSurface = (server: McpServer, ctx: Context<HonoEnv>, p
   server.registerResource(
     'theme-template',
     `nibleaf://projects/${principal.project.id}/theme-template`,
-    { title: 'Nibleaf theme template', mimeType: 'application/json' },
+    { title: `${instanceBrand().name} theme template`, mimeType: 'application/json' },
     (uri) =>
       runMcpResource(ctx, principal, 'theme-template', 'themes:read', uri, () =>
         getThemeTemplateDto(principal.project.organizationId, principal.project.id),

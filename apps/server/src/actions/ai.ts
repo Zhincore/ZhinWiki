@@ -1,3 +1,4 @@
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import type { AiDraftBody } from '@nibleaf/validators';
 import { OpenRouter } from '@openrouter/sdk';
 import { env } from '@/env';
@@ -39,7 +40,7 @@ const callOpenRouter = async (body: AiDraftBody) => {
   const completion = await new OpenRouter({
     apiKey: env.OPENROUTER_API_KEY,
     httpReferer: env.APP_URL,
-    appTitle: env.APP_NAME,
+    appTitle: instanceBrand().name,
   }).chat.send({
     chatRequest: {
       model: env.AI_DRAFT_MODEL,

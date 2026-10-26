@@ -1,5 +1,6 @@
 import { type Prisma, prisma } from '@nibleaf/database';
 import { slugify } from '@nibleaf/shared';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import type { MintlifyImportBody, ProjectConfig } from '@nibleaf/validators';
 import { badRequest, ImportError } from '@/errors';
 import { importDocumentSchema } from '@/validators/importers';
@@ -126,7 +127,7 @@ export const mintlifyImporter: ImporterSource<MintlifyImportBody> = {
         await importNavigation(nodes, defaultTarget, undefined, input.replaceExisting !== true, repository, baseDir, blobs, assets, summary, state);
       }
       if (state.versions.size > 0) {
-        summary.warnings.push(`Imported Mintlify versions as Nibleaf documentation versions: ${[...state.versions].join(', ')}.`);
+        summary.warnings.push(`Imported Mintlify versions as ${instanceBrand().name} documentation versions: ${[...state.versions].join(', ')}.`);
       }
       summary.assetsImported = assets.migrated;
       summary.assetsSkipped = assets.skipped;

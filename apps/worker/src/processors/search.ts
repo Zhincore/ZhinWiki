@@ -5,6 +5,7 @@ import { Prisma, prisma } from '@nibleaf/database';
 import { createLogger } from '@nibleaf/logger';
 import { getQdrantClient, type QdrantFilter, type QdrantIndexedPoint, type QdrantPoint } from '@nibleaf/qdrant';
 import { chunkSearchDocument, OpenRouterEmbeddingProvider, type SearchChunk, type SearchChunkSource, sparseVectorForChunk } from '@nibleaf/search';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { extractHeadings, type SiteSnapshot } from '@nibleaf/shared/site';
 import { buildUsageEvent, deterministicUsageEventId } from '@nibleaf/usage';
 import type { Job } from 'bullmq';
@@ -355,7 +356,7 @@ export async function handleSearchJobs(job: Job<ReindexProjectJobData>) {
       timeoutMs: env.SEARCH_EMBEDDING_TIMEOUT_MS,
       maxBatchSize: BATCH_SIZE,
       siteUrl: env.APP_URL,
-      title: 'Nibleaf',
+      title: instanceBrand().name,
     });
     if (provider.dimensions !== client.vectorSize) throw new SearchIndexFailure('vector_size_mismatch', 0, []);
 

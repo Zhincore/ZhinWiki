@@ -2,12 +2,13 @@ import { hashApiKeySecret } from '@nibleaf/shared/crypto';
 import { Hono } from 'hono';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HonoEnv } from '@/lib/hono/context';
-import { authenticateMcpRequest } from './auth';
+import { authenticateMcpRequest, mcpRealm } from './auth';
 
-const mocks = vi.hoisted(() => ({ findUnique: vi.fn(), update: vi.fn(), env: { MCP_ENABLED: true } }));
+const mocks = vi.hoisted(() => ({ findUnique: vi.fn(), update: vi.fn(), env: { MCP_ENABLED: true }, brandName: 'Nibleaf' }));
 
 vi.mock('@nibleaf/database', () => ({ prisma: { apiKey: { findUnique: mocks.findUnique, update: mocks.update } } }));
 vi.mock('@/env', () => ({ env: mocks.env }));
+vi.mock('@nibleaf/shared/brand/server', () => ({ instanceBrand: () => ({ name: mocks.brandName }) }));
 
 const secret = `plm_live_${'a'.repeat(32)}`;
 const key = (overrides: Record<string, unknown> = {}) => ({
@@ -33,6 +34,7 @@ const requestAuth = async (authorization?: string) => {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.env.MCP_ENABLED = true;
+  mocks.brandName = 'Nibleaf';
   mocks.update.mockResolvedValue({ id: 'key-1' });
 });
 
@@ -77,5 +79,21 @@ describe('MCP bearer authentication', () => {
     expect(body.project).toEqual({ id: 'project-1', name: 'Docs', organizationId: 'org-1' });
     expect(body.apiKey.scopes).toEqual(['mcp:connect', 'projects:read']);
     expect(mocks.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { hashedSecret: hashApiKeySecret(secret) } }));
+  });
+
+  it('sends a header-safe realm for any brand name', async () => {
+    mocks.brandName = 'مستندات™ "Docs" \\ 文档';
+    const response = await requestAuth();
+    expect(response.status).toBe(401);
+    expect(response.headers.get('www-authenticate')).toBe('Bearer realm="Docs MCP"');
+  });
+});
+
+describe('mcpRealm', () => {
+  it('keeps printable ASCII and drops quotes, backslashes, and non-ASCII', () => {
+    expect(mcpRealm('Nibleaf')).toBe('Nibleaf MCP');
+    expect(mcpRealm('Acme "Docs"\\')).toBe('Acme Docs MCP');
+    expect(mcpRealm('مستندات')).toBe('MCP');
+    expect(mcpRealm('')).toBe('MCP');
   });
 });

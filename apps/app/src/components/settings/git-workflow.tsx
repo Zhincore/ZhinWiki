@@ -32,6 +32,7 @@ import {
   useResolveGitConflict,
   useRotateGitWorkflowWebhookSecret,
 } from '@/hooks/api';
+import { useBrand } from '@/lib/brand';
 import { localeTag } from '@/lib/format';
 
 type GitIdentity = { login: string; name: string | null };
@@ -40,6 +41,7 @@ const statusTone = (status: string): 'default' | 'secondary' | 'destructive' | '
 
 function ConflictCard({ projectId, conflict }: { projectId: string; conflict: Conflict }) {
   const { t } = useLocale();
+  const brand = useBrand();
   const [custom, setCustom] = useState(conflict.oursContent ?? '');
   const resolve = useResolveGitConflict(projectId, conflict.id);
   const resolveConflict = (resolution: 'OURS' | 'THEIRS' | 'CUSTOM', content?: string | null) =>
@@ -57,7 +59,7 @@ function ConflictCard({ projectId, conflict }: { projectId: string; conflict: Co
         {(
           [
             [t('settings.git.workflow.conflict.base'), conflict.baseContent],
-            ['Nibleaf', conflict.oursContent],
+            [brand.name, conflict.oursContent],
             ['Git', conflict.theirsContent],
           ] as const
         ).map(([label, value]) => (
@@ -98,6 +100,7 @@ function ConflictCard({ projectId, conflict }: { projectId: string; conflict: Co
 
 export function GitWorkflow({ projectId }: { projectId: string }) {
   const { locale, t } = useLocale();
+  const brand = useBrand();
   const [repository, setRepository] = useState('');
   const [baseBranch, setBaseBranch] = useState('main');
   const [headBranch, setHeadBranch] = useState('nibleaf/docs');
@@ -105,7 +108,7 @@ export function GitWorkflow({ projectId }: { projectId: string }) {
   const [token, setToken] = useState('');
   const [authorizedAccount, setAuthorizedAccount] = useState<GitIdentity | null>(null);
   const [message, setMessage] = useState('Update documentation');
-  const [authorName, setAuthorName] = useState('Nibleaf author');
+  const [authorName, setAuthorName] = useState(`${brand.name} author`);
   const [authorEmail, setAuthorEmail] = useState('docs@example.com');
   const [prTitle, setPrTitle] = useState('Update documentation');
   const [webhookSecret, setWebhookSecret] = useState<string | null>(null);

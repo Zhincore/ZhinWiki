@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import type { AuthInfo } from '@modelcontextprotocol/server';
 import { prisma } from '@nibleaf/database';
 import { createLogger } from '@nibleaf/logger';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { hashApiKeySecret } from '@nibleaf/shared/crypto';
 import { MCP_SCOPES, type McpScope } from '@nibleaf/shared/mcp';
 import type { Context } from 'hono';
@@ -13,12 +14,19 @@ const log = createLogger({ module: 'mcp-auth' });
 const bearerPattern = /^Bearer\s+(plm_(?:live|test)_[0-9A-Za-z]{32})$/;
 const issuableScopes = new Set<string>(MCP_SCOPES);
 
+/** Bearer realm for a brand name, reduced to printable ASCII without quotes or backslashes so it is a valid header quoted-string. */
+export const mcpRealm = (brandName: string): string =>
+  `${brandName
+    .replace(/[^\x20-\x7e]|["\\]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()} MCP`.trim();
+
 const unauthorized = (code: 'auth:invalid_api_key' | 'auth:insufficient_scope', message: string, status: 401 | 403) =>
   new Response(JSON.stringify({ error: { code, message } }), {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
-      'www-authenticate': 'Bearer realm="Nibleaf MCP"',
+      'www-authenticate': `Bearer realm="${mcpRealm(instanceBrand().name)}"`,
       'cache-control': 'private, no-store',
     },
   });
@@ -31,7 +39,7 @@ const constantTimeHashMatch = (candidate: string, stored: string) => {
 
 export const authenticateMcpRequest = async (ctx: Context<HonoEnv>): Promise<McpPrincipal | Response> => {
   if (!env.MCP_ENABLED) {
-    return new Response(JSON.stringify({ error: { code: 'mcp:disabled', message: 'MCP is disabled for this Nibleaf instance.' } }), {
+    return new Response(JSON.stringify({ error: { code: 'mcp:disabled', message: `MCP is disabled for this ${instanceBrand().name} instance.` } }), {
       status: 503,
       headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'private, no-store' },
     });

@@ -2,6 +2,7 @@ import { workbench } from '@getworkbench/hono';
 import { queues } from '@nibleaf/bullmq/queues';
 import { areWorkersConnected } from '@nibleaf/bullmq/workers';
 import { clickHouseHealth } from '@nibleaf/clickhouse';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { Hono } from 'hono';
 import { env } from '../../env';
 import { resolveEmailDelivery } from '../../processors/email-delivery';
@@ -47,7 +48,7 @@ const app = new Hono()
     '/jobs',
     workbench({
       queues: Object.values(queues),
-      title: 'Nibleaf Queues',
+      title: `${instanceBrand().name} Queues`,
       // Workbench's optional alert manager creates its own Redis connection at
       // module load. Nibleaf deliberately disables Redis offline queuing, so
       // that eager startup can reject before Redis is ready and restart the

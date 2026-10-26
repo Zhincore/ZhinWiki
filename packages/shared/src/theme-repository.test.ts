@@ -355,5 +355,27 @@ describe('Git-native repository contract v2', () => {
     expect(validateThemeRepositoryManifest(manifest, 'another_project')).toEqual([
       expect.objectContaining({ code: 'MANIFEST_INVALID', message: expect.stringContaining('different Nibleaf project') }),
     ]);
+    expect(validateThemeRepositoryManifest(manifest, 'another_project', undefined, { name: 'Acme Docs' })).toEqual([
+      expect.objectContaining({ message: 'The theme repository belongs to a different Acme Docs project.' }),
+    ]);
+  });
+
+  it('names the instance brand in import issues', () => {
+    const files = new Map(buildThemeRepository(snapshot).map((file) => [file.path, file.content]));
+    files.set('.nibleaf/extra.json', '{}\n');
+    expect(validateThemeRepositoryImport(files, snapshot, 'content', undefined, { name: 'Acme Docs' })).toContainEqual(
+      expect.objectContaining({ message: '.nibleaf/extra.json is outside the generated Acme Docs platform surface.' }),
+    );
+  });
+
+  it('embeds the brand safely in generated messages, footer, and README', () => {
+    const brand = { name: 'Acme {Docs} | [x] \\', url: 'https://acme.test/a b"c' };
+    const byPath = new Map(buildThemeRepository(snapshot, { brand }).map((file) => [file.path, file.content]));
+    const en = JSON.parse(byPath.get('messages/en.json') ?? '{}') as Record<string, string>;
+    expect(en.builtWith).toBe('Built with Acme \\{Docs\\} | [x] \\\\');
+    expect(byPath.get('src/components/layout/shared.tsx')).toContain('href={"https://acme.test/a b\\"c"}');
+    const readme = byPath.get('README.md') ?? '';
+    expect(readme).toContain('[Acme \\{Docs\\} \\| \\[x\\] \\\\](https://acme.test/a%20b%22c)');
+    expect(readme).not.toContain(brand.name);
   });
 });

@@ -4,13 +4,13 @@ import { bootWorkers, closeQueueEvents, closeQueues, closeWorkers } from '@nible
 import { closeClickHouseClients, initializeClickHouseFn } from '@nibleaf/clickhouse';
 import { setMessageBrand } from '@nibleaf/i18n/brand';
 import { logger } from '@nibleaf/logger';
-import { readBrand } from '@nibleaf/shared/brand';
+import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { env } from './env';
 import systemApp, { setWorkerReady } from './modules/system/handlers';
 import { processors } from './processors';
 import { startDeploymentReaper } from './reaper';
 
-setMessageBrand(readBrand(process.env));
+setMessageBrand(instanceBrand());
 
 process.on('unhandledRejection', (reason) => {
   logger.error({ err: reason instanceof Error ? reason : new Error(String(reason)) }, 'unhandled rejection');

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { excerpt, joinPath, plural, slugify, slugifyUnicode, stripMarkdownLinks } from './utils';
+import { excerpt, joinPath, markdownText, markdownUrl, plural, slugify, slugifyUnicode, stripMarkdownLinks } from './utils';
 
 describe('slugify', () => {
   it('lowercases and dashes non-alphanumerics', () => {
@@ -122,6 +122,20 @@ describe('excerpt', () => {
     const out = excerpt('a '.repeat(200), 20);
     expect(out.length).toBeLessThanOrEqual(20);
     expect(out.endsWith('…')).toBe(true);
+  });
+});
+
+describe('markdownText', () => {
+  it('escapes markup, JSX, and expression characters onto one line', () => {
+    expect(markdownText('Nibleaf')).toBe('Nibleaf');
+    expect(markdownText('<Acme> {docs}\n[x](y) *_|')).toBe('\\<Acme\\> \\{docs\\} \\[x\\]\\(y\\) \\*\\_\\|');
+  });
+});
+
+describe('markdownUrl', () => {
+  it('percent-encodes characters that end or break a link destination', () => {
+    expect(markdownUrl('https://nibleaf.com')).toBe('https://nibleaf.com');
+    expect(markdownUrl(' https://a.test/x (y)<z>{w}\\ ')).toBe('https://a.test/x%20%28y%29%3Cz%3E%7Bw%7D%5C');
   });
 });
 

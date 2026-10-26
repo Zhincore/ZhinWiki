@@ -76,6 +76,11 @@ the canonical site.
 - **i18n is first-class.** New user-facing strings must be added to *both* the
   English and Arabic Paraglide catalogs (`packages/i18n/messages/*.json`), and
   the UI must work in RTL. Use logical CSS properties (`ms-*`/`me-*`, `start`/`end`).
+- **Packages declare `sideEffects`** in `package.json` so client bundles drop
+  unused exports. A module that does work at import time (globals, env checks,
+  registrations) must be listed there, and must be imported directly from its
+  own path: a side-effect-free barrel that re-exports it is dropped when none
+  of its exports are used.
 - **Commits**: short, imperative, scoped (e.g. `editor: fix slash menu in RTL`).
 - **Tests**: add or update tests for behavior changes. Pure logic lives in
   `packages/*` and is the easiest to cover.

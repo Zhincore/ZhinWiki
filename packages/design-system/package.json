@@ -4,6 +4,9 @@
   "version": "0.1.2",
   "private": true,
   "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
   "exports": {
     "./globals.css": "./src/styles/globals.css",
     "./brand": "./src/brand/index.ts",

@@ -1,5 +1,5 @@
+import { BrandMark } from '@nibleaf/design-system/brand';
 import { siteT } from '@nibleaf/i18n/site';
-import { InstanceMark } from '@/components/instance-brand';
 import { useBrand } from '@/lib/brand';
 
 /**
@@ -16,7 +16,7 @@ export function MadeWithBadge({ lang }: { lang?: string }) {
   return (
     <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground/80">
       <a href={brand.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground">
-        <InstanceMark className="size-3.5" decorative />
+        <BrandMark className="size-3.5" decorative />
         <span>
           {t('madeWith')} <span className="font-semibold">{brand.name}</span>
         </span>

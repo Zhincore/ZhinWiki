@@ -1,4 +1,4 @@
-import { BrandMark, BrandWordmark, useBrand } from '@nibleaf/design-system/brand';
+import { BrandMark, BrandWordmark } from '@nibleaf/design-system/brand';
 import {
   Sidebar,
   SidebarContent,
@@ -29,14 +29,13 @@ export function AdminSidebar() {
   const { data: session } = useSession();
   const user = session?.user;
   const initial = (user?.name ?? user?.email ?? 'A').slice(0, 1).toUpperCase();
-  const brand = useBrand();
 
   return (
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center gap-2.5 px-2 py-1.5">
-          <BrandMark className="size-7" name={brand.name} src={brand.markUrl} />
-          <BrandWordmark className="font-semibold tracking-tight" name={brand.name} />
+          <BrandMark className="size-7" />
+          <BrandWordmark className="font-semibold tracking-tight" />
           <span className="ms-auto rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">{t('admin.label')}</span>
         </div>
       </SidebarHeader>

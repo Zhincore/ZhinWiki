@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
+import { setMessageBrand } from '@nibleaf/i18n/brand';
 import { brandAssetResponse, instanceBrand } from '@nibleaf/shared/brand/server';
 import type { Register } from '@tanstack/react-router';
 import { createStartHandler, defaultStreamHandler, type RequestHandler } from '@tanstack/react-start/server';
@@ -9,6 +10,8 @@ import { adminContentSecurityPolicy } from '@/lib/content-security-policy';
 import { ssrNonce } from '@/lib/ssr-nonce.server';
 
 const appOrigin = serverEnv.VITE_APP_URL ?? (serverEnv.NODE_ENV === 'production' ? 'https://nibleaf.com' : 'http://localhost:4310');
+setMessageBrand(instanceBrand());
+
 const revision = process.env.NIBLEAF_REVISION ?? 'development';
 const drainFile = process.env.NIBLEAF_DRAIN_FILE ?? '/tmp/nibleaf-draining';
 

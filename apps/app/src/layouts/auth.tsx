@@ -1,7 +1,7 @@
+import { BrandMark } from '@nibleaf/design-system/brand';
 import { useT } from '@nibleaf/i18n/react';
 import { Cloud, Globe2, Languages, ShieldCheck } from 'lucide-react';
 import type { ComponentType, ReactNode, SVGProps } from 'react';
-import { InstanceMark, InstanceName } from '@/components/instance-brand';
 import { InterfaceLanguageButton } from '@/components/interface-language-dialog';
 import { useBrand } from '@/lib/brand';
 
@@ -40,8 +40,8 @@ export function AuthLayout({ children, subtitle }: { children: ReactNode; subtit
           style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.35) 1px, transparent 1px)', backgroundSize: '22px 22px' }}
         />
         <div className="relative flex items-center gap-2.5">
-          <InstanceMark className="size-8 text-white" variant="bare" />
-          <InstanceName className="font-semibold text-lg tracking-tight" />
+          <BrandMark className="size-8 text-white" variant="bare" />
+          <span className="font-semibold text-lg tracking-tight">{brand.name}</span>
         </div>
         <div className="relative">
           <h2 className="font-semibold text-[2rem] leading-[1.15] tracking-tight">{t('auth.brand.heading')}</h2>
@@ -77,8 +77,8 @@ export function AuthLayout({ children, subtitle }: { children: ReactNode; subtit
         <div className="w-full max-w-sm">
           <div className="mb-8 flex flex-col items-center gap-3 text-center lg:hidden">
             <div className="inline-flex items-center gap-2">
-              <InstanceMark className="size-7" />
-              <InstanceName className="font-semibold text-2xl tracking-tight" />
+              <BrandMark className="size-7" />
+              <span className="font-semibold text-2xl tracking-tight">{brand.name}</span>
             </div>
           </div>
           {subtitle ? <h1 className="mb-6 text-center font-semibold text-2xl tracking-tight lg:text-start">{subtitle}</h1> : null}

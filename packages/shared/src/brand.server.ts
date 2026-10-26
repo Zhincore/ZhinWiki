@@ -98,5 +98,5 @@ export function brandAssetResponse(request: Request, manifest?: ManifestOptions)
     return new Response(head ? null : JSON.stringify(brandManifest(instanceBrand(), manifest)), { headers });
   }
   if (name === 'mark.svg') return null;
-  return new Response(null, { status: 302, headers: { Location: `/${name}` } });
+  return new Response(null, { status: 302, headers: { Location: `/${name}`, 'Cache-Control': CACHE_CONTROL } });
 }

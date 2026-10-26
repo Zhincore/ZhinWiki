@@ -2,9 +2,9 @@ import { BrandProvider } from '@nibleaf/design-system/brand';
 import { ConfirmProvider } from '@nibleaf/design-system/components/ui/confirm';
 import { Toaster } from '@nibleaf/design-system/components/ui/sonner';
 import { ThemeProvider } from '@nibleaf/design-system/theme';
-import { isRtl, translateFn } from '@nibleaf/i18n';
+import { isRtl, setMessageBrand, translateFn } from '@nibleaf/i18n';
 import { useLocale } from '@nibleaf/i18n/react';
-import { BRAND_ASSETS_PATH, DEFAULT_BRAND } from '@nibleaf/shared/brand';
+import { brandIconLinks, DEFAULT_BRAND } from '@nibleaf/shared/brand';
 import type { QueryClient } from '@tanstack/react-query';
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
@@ -20,24 +20,19 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   loader: async () => ({ brand: await getBrandFn() }),
   staleTime: Number.POSITIVE_INFINITY,
   head: ({ loaderData }) => {
-    const iconBase = (loaderData?.brand ?? DEFAULT_BRAND).iconBase;
+    const { iconBase, name } = loaderData?.brand ?? DEFAULT_BRAND;
+    const title = translateFn('admin.meta.title', { brand: name });
     return {
       meta: [
         { charSet: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { title: translateFn('admin.meta.title') },
-        { name: 'application-name', content: translateFn('admin.meta.title') },
+        { title },
+        { name: 'application-name', content: title },
         { name: 'theme-color', content: '#181612' },
         // Internal panel — never index.
         { name: 'robots', content: 'noindex, nofollow' },
       ],
-      links: [
-        { rel: 'stylesheet', href: appCss },
-        { rel: 'icon', href: `${iconBase}/favicon.svg`, type: 'image/svg+xml' },
-        { rel: 'icon', href: `${iconBase}/favicon-32x32.png`, type: 'image/png', sizes: '32x32' },
-        { rel: 'apple-touch-icon', href: `${iconBase}/apple-touch-icon.png` },
-        { rel: 'manifest', href: `${BRAND_ASSETS_PATH}/site.webmanifest` },
-      ],
+      links: [{ rel: 'stylesheet', href: appCss }, ...brandIconLinks(iconBase)],
     };
   },
   component: RootComponent,
@@ -45,6 +40,8 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootComponent() {
   const { brand } = Route.useLoaderData();
+  // One brand per process/page: messages read it during this render's children.
+  setMessageBrand(brand);
   return (
     <BrandProvider brand={brand}>
       <RootDocument>

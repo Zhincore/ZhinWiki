@@ -619,6 +619,9 @@ importers:
       '@nibleaf/email':
         specifier: workspace:*
         version: link:../../packages/email
+      '@nibleaf/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@nibleaf/logger':
         specifier: workspace:*
         version: link:../../packages/logger
@@ -986,6 +989,9 @@ importers:
       '@inlang/paraglide-js':
         specifier: 2.25.0
         version: 2.25.0(typescript@7.0.2)(vite@8.3.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
+      '@nibleaf/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@inlang/plugin-m-function-matcher':
         specifier: 2.3.4

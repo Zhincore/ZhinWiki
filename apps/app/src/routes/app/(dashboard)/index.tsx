@@ -1,3 +1,4 @@
+import { BrandMark } from '@nibleaf/design-system/brand';
 import { Alert, AlertDescription, AlertTitle } from '@nibleaf/design-system/components/ui/alert';
 import { Button } from '@nibleaf/design-system/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@nibleaf/design-system/components/ui/dialog';
@@ -14,7 +15,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { SectionCard } from '@/components/analytics/section-card';
 import { ViewsAreaChart } from '@/components/analytics/views-area-chart';
-import { InstanceMark } from '@/components/instance-brand';
 import { QueryErrorState } from '@/components/query-error-state';
 import type { AnalyticsRange } from '@/hooks/api';
 import { useCreateProject, useProjects, useWorkspaceAnalytics } from '@/hooks/api';
@@ -243,7 +243,7 @@ function ProjectsPage() {
                 <TableRow key={project.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <InstanceMark className="size-8 shrink-0" />
+                      <BrandMark className="size-8 shrink-0" />
                       <Link
                         className="min-w-0 rounded-sm outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
                         to="/app/projects/$projectId"

@@ -1,3 +1,4 @@
+import { BrandMark } from '@nibleaf/design-system/brand';
 import { Button } from '@nibleaf/design-system/components/ui/button';
 import {
   Dialog,
@@ -16,7 +17,6 @@ import { useT } from '@nibleaf/i18n/react';
 import { ArrowLeft, FileText, Loader2, type LucideIcon, Minus, Pencil, Plus, Rocket, TriangleAlert } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { InstanceMark } from '@/components/instance-brand';
 import { usePendingChanges, usePublish } from '@/hooks/api';
 import type { Deployment, PendingChange, Project } from '@/hooks/api/types';
 import { type FirstPublishAttribution, readFirstPublishAttribution } from '@/lib/first-publish-activation';
@@ -283,7 +283,7 @@ export function PublishModal({ project, open, onOpenChange, onPublished, beforeP
         ) : (
           <div className="flex flex-col gap-4 px-6 py-5">
             <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-3">
-              <InstanceMark className="size-9 shrink-0" />
+              <BrandMark className="size-9 shrink-0" />
               <div className="min-w-0 leading-tight">
                 <div className="truncate font-semibold text-[13.5px]">{project.name}</div>
                 <div className="truncate font-mono text-[12.5px] text-muted-foreground">{siteHref(project.id)}</div>

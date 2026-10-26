@@ -1,13 +1,6 @@
 import { resolveLocale } from './locales';
 import type { MessageKey } from './message-ids';
 import type { MessageFn } from './message-types';
-import { marketing_arabiclanding_description } from './paraglide/messages/marketing_arabiclanding_description.js';
-import { marketing_arabiclanding_imagealt } from './paraglide/messages/marketing_arabiclanding_imagealt.js';
-import { marketing_arabiclanding_title } from './paraglide/messages/marketing_arabiclanding_title.js';
-import { marketing_arabicplatforms_breadcrumb } from './paraglide/messages/marketing_arabicplatforms_breadcrumb.js';
-import { marketing_arabicplatforms_description } from './paraglide/messages/marketing_arabicplatforms_description.js';
-import { marketing_arabicplatforms_imagealt } from './paraglide/messages/marketing_arabicplatforms_imagealt.js';
-import { marketing_arabicplatforms_title } from './paraglide/messages/marketing_arabicplatforms_title.js';
 import { site_analyticsconsentaccept } from './paraglide/messages/site_analyticsconsentaccept.js';
 import { site_analyticsconsentbody } from './paraglide/messages/site_analyticsconsentbody.js';
 import { site_analyticsconsentdecline } from './paraglide/messages/site_analyticsconsentdecline.js';
@@ -147,13 +140,6 @@ const siteMessages = {
   importBlog: site_importblog,
   importPages: site_importpages,
   importAdditionalPages: site_importadditionalpages,
-  arabicLandingTitle: marketing_arabiclanding_title,
-  arabicLandingDescription: marketing_arabiclanding_description,
-  arabicLandingImageAlt: marketing_arabiclanding_imagealt,
-  arabicPlatformsTitle: marketing_arabicplatforms_title,
-  arabicPlatformsDescription: marketing_arabicplatforms_description,
-  arabicPlatformsImageAlt: marketing_arabicplatforms_imagealt,
-  arabicPlatformsBreadcrumb: marketing_arabicplatforms_breadcrumb,
   changeLanguage: site_changelanguage,
   toggleTheme: site_toggletheme,
   articleDetails: site_articledetails,

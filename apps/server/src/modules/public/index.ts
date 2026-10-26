@@ -6,7 +6,6 @@ import assets from './assets/handlers';
 import domains from './domains/handlers';
 import git from './git/handlers';
 import invitations from './invitations/handlers';
-import marketingEvents from './marketing-events/handlers';
 import meta from './meta/handlers';
 import readerAccess from './reader-access/handlers';
 import sites from './sites/handlers';
@@ -32,12 +31,10 @@ const app = new Hono<HonoEnv>()
   // abuse budget than ordinary content/search requests.
   .use('/reader-access/*', rateLimit({ windowMs: 60_000, max: 20 }))
   .use('/sites/:id/answer', rateLimit({ windowMs: 60_000, max: envExtras.SEARCH_ANSWER_RATE_LIMIT_PER_MIN }))
-  .use('/marketing-events/*', rateLimit({ windowMs: 60_000, max: 30 }))
   .route('/sites', sites)
   .route('/domains', domains)
   .route('/git', git)
   .route('/invitations', invitations)
-  .route('/marketing-events', marketingEvents)
   .route('/assets', assets)
   .route('/reader-access', readerAccess)
   .route('/meta', meta);

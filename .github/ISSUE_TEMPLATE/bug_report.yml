@@ -36,7 +36,7 @@ body:
     attributes:
       label: Which surface?
       options:
-        - Dashboard / editor / marketing (app)
+        - Dashboard / editor (app)
         - Published docs site
         - API (server)
         - Worker / publish pipeline

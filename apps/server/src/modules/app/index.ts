@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import type { HonoEnv } from '@/lib/hono/context';
-import activationEvents from './activation-events/handlers';
 import addons from './addons/handlers';
 import ai from './ai/handlers';
 import analytics from './analytics/handlers';
@@ -32,7 +31,6 @@ const app = new Hono<HonoEnv>()
       'x-nibleaf-revision': revision,
     });
   })
-  .route('/activation-events', activationEvents)
   .route('/projects', projects)
   .route('/projects/:projectId/pages', pages)
   .route('/projects/:projectId/addons', addons)

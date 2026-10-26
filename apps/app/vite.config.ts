@@ -1,18 +1,14 @@
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
-import mdx from '@mdx-js/rollup';
 import { createEnv } from '@t3-oss/env-core';
 import tailwindcss from '@tailwindcss/vite';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import viteReact from '@vitejs/plugin-react';
 import { nitro } from 'nitro/vite';
-import remarkFrontmatter from 'remark-frontmatter';
-import remarkGfm from 'remark-gfm';
-import remarkMdxFrontmatter from 'remark-mdx-frontmatter';
 import { defineConfig, loadEnv } from 'vite';
 import { z } from 'zod';
 import { bundleAnalysisPlugin } from './scripts/bundle-analysis-plugin.ts';
 
-// Baseline browser hardening for every dashboard, marketing, and published-site
+// Baseline browser hardening for every dashboard and published-site
 // response. The custom server entry adds the per-response nonce-based CSP to
 // HTML after TanStack Start has created its streaming response.
 const SECURITY_HEADERS = {
@@ -42,15 +38,8 @@ export default defineConfig(({ mode }) => {
               codeSplitting: {
                 groups: [
                   {
-                    name: 'marketing-faqs',
-                    priority: 100,
-                    minSize: 0,
-                    test: (id) => /\/apps\/app\/src\/lib\/marketing-faqs\.ts$/.test(id.replaceAll('\\', '/')),
-                  },
-                  {
                     name: 'public-site-i18n',
-                    test: (id) =>
-                      /\/packages\/i18n\/src\/paraglide\/messages\/(?:site_|marketing_arabic(?:landing|platforms)_)/.test(id.replaceAll('\\', '/')),
+                    test: (id) => /\/packages\/i18n\/src\/paraglide\/messages\/site_/.test(id.replaceAll('\\', '/')),
                   },
                   {
                     name: 'standalone-i18n',
@@ -93,12 +82,6 @@ export default defineConfig(({ mode }) => {
         cookieName: 'NIBLEAF_LOCALE',
       }),
       bundleAnalysisPlugin(),
-      // Blog articles (src/content/**). `enforce: 'pre'` so .mdx compiles before the
-      // React plugin sees it. remark-mdx-frontmatter turns the YAML block into an
-      // `export const frontmatter` for the article module. Production metadata
-      // comes from the lightweight manifest; a test deep-compares it to every MDX
-      // frontmatter block so bodies never enter the homepage bundle.
-      { enforce: 'pre', ...mdx({ remarkPlugins: [remarkFrontmatter, [remarkMdxFrontmatter, { name: 'frontmatter' }], remarkGfm] }) },
       tailwindcss(),
       // Same-origin /api proxy: the browser only talks to the dashboard origin, so
       // better-auth session cookies stay first-party. All /api/** → the Nibleaf API.

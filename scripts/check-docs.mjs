@@ -4,7 +4,6 @@ import { dirname, extname, join, normalize, relative, resolve, sep } from 'node:
 const root = process.cwd();
 const docsRoot = join(root, 'docs');
 const configPath = join(docsRoot, 'docs.json');
-const nonPublishedRoots = [join(docsRoot, 'marketing')];
 const nonPublishedFiles = new Set([join(docsRoot, 'README.md'), join(docsRoot, 'ARABIC_GLOSSARY.md')].map(normalize));
 const errors = [];
 const REQUIRED_LANGUAGES = ['en', 'ar'];
@@ -74,10 +73,6 @@ function validateConfig(config) {
     const duplicates = tree.pages.filter((page, index) => tree.pages.indexOf(page) !== index);
     for (const page of new Set(duplicates)) fail(configPath, `${language} navigation lists "${page}" more than once`);
     for (const route of tree.pages) {
-      if (route === 'marketing' || route.startsWith('marketing/')) {
-        fail(configPath, `internal strategy route "${route}" must never be public`);
-        continue;
-      }
       const file = sourceFor(route);
       if (!file) {
         fail(configPath, `${language} navigation page "${route}" has no .md or .mdx source`);
@@ -96,7 +91,6 @@ function validateConfig(config) {
   for (const file of markdownFiles(docsRoot)) {
     const normalized = normalize(file);
     if (nonPublishedFiles.has(normalized)) continue;
-    if (nonPublishedRoots.some((directory) => normalized.startsWith(`${normalize(directory)}${sep}`))) continue;
     if (!navigatedFiles.has(normalized)) fail(file, 'page is orphaned from docs.json navigation');
   }
 

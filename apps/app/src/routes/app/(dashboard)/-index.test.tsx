@@ -4,11 +4,10 @@ import { act, type ComponentType, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ projects: vi.fn(), analytics: vi.fn(), refetch: vi.fn(), navigate: vi.fn() }));
+const mocks = vi.hoisted(() => ({ projects: vi.fn(), analytics: vi.fn(), refetch: vi.fn() }));
 vi.mock('@nibleaf/i18n/react', () => ({ useT: () => (key: string) => key }));
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({ options, useSearch: () => ({}) }),
-  useNavigate: () => mocks.navigate,
   Link: ({ to, params, children, className }: { to: string; params: { projectId: string }; children: ReactNode; className?: string }) => (
     <a className={className} href={to.replace('$projectId', params.projectId)}>
       {children}
@@ -21,7 +20,6 @@ vi.mock('@/hooks/api', () => ({
   useCreateProject: () => ({ mutate: vi.fn() }),
 }));
 vi.mock('@/components/analytics/views-area-chart', () => ({ ViewsAreaChart: () => <div data-testid="views-chart" /> }));
-vi.mock('@/lib/first-publish-activation', () => ({ recordFirstPublishStage: vi.fn() }));
 
 import { Route } from './index';
 

@@ -37,6 +37,7 @@ x-service-env: &service-env
   BRAND_SOURCE_URL: ${BRAND_SOURCE_URL:-}
   BRAND_TERMS_URL: ${BRAND_TERMS_URL:-}
   BRAND_PRIVACY_URL: ${BRAND_PRIVACY_URL:-}
+  BRAND_THEME_COLOR: ${BRAND_THEME_COLOR:-}
   BRAND_ASSETS_DIR: ${BRAND_ASSETS_DIR:-}
   # What the app root serves: marketing (default), app, or site:<projectId>.
   HOMEPAGE: ${HOMEPAGE:-}

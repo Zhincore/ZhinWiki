@@ -14,6 +14,8 @@ export interface Brand {
   termsUrl: string;
   /** Privacy policy: `BRAND_PRIVACY_URL`, else the built-in `/privacy` page. */
   privacyUrl: string;
+  /** Browser UI color: `theme-color` meta and the generated manifest (`BRAND_THEME_COLOR`). */
+  themeColor: string;
   /** Path prefix of the favicon set: `''` = bundled, `/brand-assets` = `BRAND_ASSETS_DIR`. */
   iconBase: string;
   /** Custom mark image (`BRAND_ASSETS_DIR/mark.svg`); null = built-in mark. */
@@ -44,6 +46,7 @@ export const DEFAULT_BRAND: Brand = {
   sourceUrl: 'https://github.com/Zhincore/zhindocs',
   termsUrl: '/terms',
   privacyUrl: '/privacy',
+  themeColor: '#000000',
   iconBase: '',
   markUrl: null,
 };
@@ -60,6 +63,7 @@ export const brandIconLinks = (iconBase: string) => [
 type Env = Record<string, string | undefined>;
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 const isHttpUrl = (raw: string): boolean => {
   try {
@@ -80,6 +84,7 @@ const valid = (env: Env, key: string, isValid: (raw: string) => boolean, expecte
 
 const url = (env: Env, key: string) => valid(env, key, isHttpUrl, 'an absolute http(s) URL');
 const email = (env: Env, key: string) => valid(env, key, (raw) => EMAIL.test(raw), 'an email address');
+const color = (env: Env, key: string) => valid(env, key, (raw) => HEX_COLOR.test(raw), 'a hex color like #000000');
 
 /** Build the brand from env, given which parts the asset directory provides. Throws on an invalid brand variable. */
 export const readBrand = (env: Env, assets: { icons: boolean; mark: boolean } = { icons: false, mark: false }): Brand => {
@@ -92,6 +97,7 @@ export const readBrand = (env: Env, assets: { icons: boolean; mark: boolean } = 
     sourceUrl: url(env, 'BRAND_SOURCE_URL') ?? DEFAULT_BRAND.sourceUrl,
     termsUrl: url(env, 'BRAND_TERMS_URL') ?? DEFAULT_BRAND.termsUrl,
     privacyUrl: url(env, 'BRAND_PRIVACY_URL') ?? DEFAULT_BRAND.privacyUrl,
+    themeColor: color(env, 'BRAND_THEME_COLOR') ?? DEFAULT_BRAND.themeColor,
     iconBase: assets.icons ? BRAND_ASSETS_PATH : '',
     markUrl: assets.mark ? `${BRAND_ASSETS_PATH}/mark.svg` : null,
   };

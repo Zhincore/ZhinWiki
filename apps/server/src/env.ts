@@ -3,6 +3,7 @@ import { keys as bullmq } from '@nibleaf/bullmq/keys';
 import { keys as database } from '@nibleaf/database/keys';
 import { keys as qdrant } from '@nibleaf/qdrant/keys';
 import { keys as search } from '@nibleaf/search/keys';
+import { DEFAULT_BRAND, readBrand } from '@nibleaf/shared/brand';
 import { keys as storage } from '@nibleaf/storage/keys';
 import { createEnv } from '@t3-oss/env-core';
 import { z } from 'zod';
@@ -18,7 +19,10 @@ export const env = createEnv({
   extends: [auth(), bullmq(), database(), qdrant(), search(), storage()],
   server: {
     NODE_ENV: z.enum(Env).default('development'),
-    APP_NAME: z.string().default('Nibleaf'),
+    APP_NAME: z
+      .string()
+      .optional()
+      .transform((name) => name?.trim() || DEFAULT_BRAND.name),
     API_PORT: z.coerce.number().default(4311),
     SERVER_SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).default(25_000),
     API_URL: z.url().default('http://localhost:4311'),
@@ -83,3 +87,6 @@ export const env = createEnv({
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
 });
+
+/** Fail fast at boot on an invalid brand env. */
+readBrand(process.env);

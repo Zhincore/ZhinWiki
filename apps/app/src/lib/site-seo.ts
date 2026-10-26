@@ -170,9 +170,10 @@ const seoConfig = (config: ProjectConfig | null) => config;
 
 /**
  * Site-level <head>: favicon, og:site_name and theme-color. Per-page head()
- * layers title + description + canonical on top of these.
+ * layers title + description + canonical on top of these. `iconBase` is the
+ * instance brand's icon path prefix, for the built-in favicon fallback.
  */
-export function siteHead(site: SiteShell | null | undefined, requestOrigin?: string): Head {
+export function siteHead(site: SiteShell | null | undefined, requestOrigin?: string, iconBase = ''): Head {
   if (!site) {
     return {};
   }
@@ -193,7 +194,7 @@ export function siteHead(site: SiteShell | null | undefined, requestOrigin?: str
     requestOrigin,
   });
   const links: Tag[] = [
-    { rel: 'icon', href: config?.branding?.favicon || '/favicon.svg' },
+    { rel: 'icon', href: config?.branding?.favicon || `${iconBase}/favicon.svg` },
     { rel: 'sitemap', type: 'application/xml', href: `${canonicalBase}/sitemap.xml` },
     ...fontLinks(config),
   ];

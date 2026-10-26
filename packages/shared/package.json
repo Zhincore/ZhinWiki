@@ -7,6 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./addons": "./src/addons.ts",
+    "./brand": "./src/brand.ts",
+    "./brand/server": "./src/brand.server.ts",
     "./constants": "./src/constants.ts",
     "./rbac": "./src/rbac.ts",
     "./ids": "./src/ids.ts",

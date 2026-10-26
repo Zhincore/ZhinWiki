@@ -13,6 +13,7 @@ import { QueryErrorState } from '@/components/query-error-state';
 import { useGetPublicMeta } from '@/hooks/api/public';
 import { AuthLayout } from '@/layouts/auth';
 import { authEmailErrorMessage } from '@/lib/auth-errors';
+import { brandedTitle } from '@/lib/brand';
 import { readPendingInvitation } from '@/lib/invitations';
 import { authClient, signIn } from '@/services/auth-client';
 
@@ -25,7 +26,7 @@ export const Route = createFileRoute('/(auth)/sign-up')({
         intent: z.literal('first-publish').optional().catch(undefined),
       })
       .parse(search),
-  head: () => ({ meta: [{ title: 'Sign up — Nibleaf' }, { name: 'robots', content: 'noindex, nofollow' }] }),
+  head: ({ matches }) => ({ meta: [{ title: brandedTitle(matches, 'Sign up') }, { name: 'robots', content: 'noindex, nofollow' }] }),
   component: SignUpPage,
 });
 

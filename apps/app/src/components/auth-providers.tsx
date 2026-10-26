@@ -3,15 +3,17 @@ import { useRouterState } from '@tanstack/react-router';
 import { type ReactNode, useEffect } from 'react';
 import { LocalizedProductProviders } from '@/components/localized-product-providers';
 import { authDocumentTitle } from '@/lib/auth-document-title';
+import { useBrand } from '@/lib/brand';
 
 function AuthDocumentTitle() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const t = useT();
+  const brandName = useBrand().name;
 
   useEffect(() => {
-    const title = authDocumentTitle(pathname, t);
+    const title = authDocumentTitle(pathname, t, brandName);
     if (title) document.title = title;
-  }, [pathname, t]);
+  }, [pathname, t, brandName]);
 
   return null;
 }

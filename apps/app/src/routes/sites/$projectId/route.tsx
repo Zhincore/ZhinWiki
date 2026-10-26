@@ -22,6 +22,7 @@ import { getSiteFn } from '@/functions/site';
 import { ApiResponseError } from '@/hooks/api/client-helpers';
 import type { ProjectConfig } from '@/hooks/api/types';
 import { QueryProvider } from '@/integrations/tanstack-query/root-provider';
+import { loadedBrand, useBrand } from '@/lib/brand';
 import { useSearchShortcutLabel } from '@/lib/shortcut';
 import { publishedSiteLogo } from '@/lib/site-branding';
 import { useSiteLinkNavigation } from '@/lib/site-link-navigation';
@@ -53,7 +54,7 @@ export const Route = createFileRoute('/sites/$projectId')({
       return { site: null, siteOrigin: customDomainOrigin() };
     }
   },
-  head: ({ loaderData }) => siteHead(loaderData?.site ?? null, loaderData?.siteOrigin),
+  head: ({ loaderData, matches }) => siteHead(loaderData?.site ?? null, loaderData?.siteOrigin, loadedBrand(matches).iconBase),
 });
 
 function SiteRoute() {
@@ -93,6 +94,7 @@ function SiteChrome() {
   const { site } = Route.useLoaderData();
   const navigate = useNavigate({ from: Route.fullPath });
   useSiteLinkNavigation(projectId);
+  const brand = useBrand();
   const [searchOpen, setSearchOpen] = useState(false);
   const [pageAlternates, setPageAlternates] = useState<SiteLanguageAlternate[]>([]);
   const [measuredHeaderHeight, setMeasuredHeaderHeight] = useState<number>();
@@ -212,7 +214,7 @@ function SiteChrome() {
   }, [projectId, siteTheme, siteThemeHydratedFor]);
 
   // Apply the configured favicon on the published site.
-  const faviconUrl = config?.branding?.favicon || '/favicon.svg';
+  const faviconUrl = config?.branding?.favicon || `${brand.iconBase}/favicon.svg`;
   useEffect(() => {
     if (typeof document === 'undefined') {
       return;

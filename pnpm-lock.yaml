@@ -90,6 +90,9 @@ importers:
       '@nibleaf/server':
         specifier: workspace:*
         version: link:../server
+      '@nibleaf/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@t3-oss/env-core':
         specifier: ^0.13.11
         version: 0.13.11(typescript@7.0.2)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
@@ -888,6 +891,9 @@ importers:
       '@fontsource-variable/noto-sans-arabic':
         specifier: ^5.3.0
         version: 5.3.0
+      '@nibleaf/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@tanstack/react-router':
         specifier: 1.170.44
         version: 1.170.44(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

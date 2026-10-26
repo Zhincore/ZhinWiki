@@ -1,4 +1,4 @@
-import { NibleafMark, NibleafWordmark } from '@nibleaf/design-system/brand';
+import { BrandMark, BrandWordmark, useBrand } from '@nibleaf/design-system/brand';
 import {
   Sidebar,
   SidebarContent,
@@ -14,6 +14,7 @@ import { useT } from '@nibleaf/i18n/react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { Activity, LayoutDashboard, LogOut, Server, Users } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
+
 import { signOut, useSession } from '@/services/auth-client';
 
 export function AdminSidebar() {
@@ -28,13 +29,14 @@ export function AdminSidebar() {
   const { data: session } = useSession();
   const user = session?.user;
   const initial = (user?.name ?? user?.email ?? 'A').slice(0, 1).toUpperCase();
+  const brand = useBrand();
 
   return (
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center gap-2.5 px-2 py-1.5">
-          <NibleafMark className="size-7" />
-          <NibleafWordmark className="font-semibold tracking-tight" />
+          <BrandMark className="size-7" name={brand.name} src={brand.markUrl} />
+          <BrandWordmark className="font-semibold tracking-tight" name={brand.name} />
           <span className="ms-auto rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">{t('admin.label')}</span>
         </div>
       </SidebarHeader>

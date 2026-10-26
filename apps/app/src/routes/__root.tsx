@@ -1,36 +1,48 @@
+import { BrandProvider } from '@nibleaf/design-system/brand';
 import { ThemeProvider } from '@nibleaf/design-system/theme';
+import { BRAND_ASSETS_PATH, DEFAULT_BRAND } from '@nibleaf/shared/brand';
 import { createRootRoute, HeadContent, Outlet, Scripts, useRouter, useRouterState } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { RootMarketingAnalytics } from '@/components/root-marketing-analytics';
+import { getBrandFn } from '@/functions/brand';
 import type { SiteShell } from '@/hooks/api/types';
 import { siteThemeNoFlashScript } from '@/lib/site-theme';
 import appCss from '@/styles.css?url';
 
 export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'Nibleaf Cloud — documentation workspace' },
-      { name: 'application-name', content: 'Nibleaf' },
-      { name: 'theme-color', content: '#181612' },
-    ],
-    links: [
-      { rel: 'stylesheet', href: appCss },
-      { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
-      { rel: 'icon', href: '/favicon-32x32.png', type: 'image/png', sizes: '32x32' },
-      { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
-      { rel: 'manifest', href: '/site.webmanifest' },
-    ],
-  }),
+  // The brand comes from runtime env; it never changes while the app runs.
+  loader: async () => ({ brand: await getBrandFn() }),
+  staleTime: Number.POSITIVE_INFINITY,
+  head: ({ loaderData }) => {
+    const brand = loaderData?.brand ?? DEFAULT_BRAND;
+    return {
+      meta: [
+        { charSet: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { title: `${brand.name} — documentation workspace` },
+        { name: 'application-name', content: brand.name },
+        { name: 'theme-color', content: '#181612' },
+      ],
+      links: [
+        { rel: 'stylesheet', href: appCss },
+        { rel: 'icon', href: `${brand.iconBase}/favicon.svg`, type: 'image/svg+xml' },
+        { rel: 'icon', href: `${brand.iconBase}/favicon-32x32.png`, type: 'image/png', sizes: '32x32' },
+        { rel: 'apple-touch-icon', href: `${brand.iconBase}/apple-touch-icon.png` },
+        { rel: 'manifest', href: `${BRAND_ASSETS_PATH}/site.webmanifest` },
+      ],
+    };
+  },
   component: RootComponent,
 });
 
 function RootComponent() {
+  const { brand } = Route.useLoaderData();
   return (
-    <RootDocument>
-      <Outlet />
-    </RootDocument>
+    <BrandProvider brand={brand}>
+      <RootDocument>
+        <Outlet />
+      </RootDocument>
+    </BrandProvider>
   );
 }
 

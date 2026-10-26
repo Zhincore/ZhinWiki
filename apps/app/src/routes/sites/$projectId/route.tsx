@@ -24,7 +24,6 @@ import type { ProjectConfig } from '@/hooks/api/types';
 import { QueryProvider } from '@/integrations/tanstack-query/root-provider';
 import { loadedBrand, useBrand } from '@/lib/brand';
 import { useSearchShortcutLabel } from '@/lib/shortcut';
-import { publishedSiteLogo } from '@/lib/site-branding';
 import { useSiteLinkNavigation } from '@/lib/site-link-navigation';
 import { customDomainOrigin } from '@/lib/site-origin';
 import { siteHref, siteLanguageParam } from '@/lib/site-paths';
@@ -263,8 +262,7 @@ function SiteChrome() {
 
   // Branding can provide a theme-specific logo and an optional off-site link.
   const branding = config?.branding;
-  const configuredLogo = (siteTheme === 'dark' ? branding?.logoDark || branding?.logoLight : branding?.logoLight) || null;
-  const logo = publishedSiteLogo(configuredLogo, siteTheme);
+  const logo = (siteTheme === 'dark' ? branding?.logoDark || branding?.logoLight : branding?.logoLight) || null;
   const logoHref = branding?.logoHref?.trim() || undefined;
 
   // --site-header-h drives every sticky offset (sidebar, TOC, heading scroll
@@ -282,8 +280,8 @@ function SiteChrome() {
     <>
       {logo ? (
         <>
-          <img src={logo.src} alt={siteName ?? 'Logo'} className={cn('object-contain', logo.markOnly ? 'size-7 shrink-0' : 'h-6 w-auto')} />
-          {logo.markOnly ? null : <span className="truncate">{siteName ?? 'Documentation'}</span>}
+          <img src={logo} alt={siteName ?? 'Logo'} className="h-6 w-auto object-contain" />
+          <span className="truncate">{siteName ?? 'Documentation'}</span>
         </>
       ) : (
         <>

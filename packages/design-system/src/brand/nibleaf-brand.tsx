@@ -2,12 +2,8 @@ import type { ComponentProps } from 'react';
 import { cn } from '../lib/utils';
 import { useBrand } from './brand-context';
 
-export function NibleafMark({
-  className,
-  title = 'Nibleaf',
-  variant = 'tile',
-  ...props
-}: ComponentProps<'svg'> & { title?: string; variant?: 'tile' | 'bare' }) {
+/** The built-in mark: a Z on an ink tile, or bare in `currentColor`. */
+function BuiltInMark({ className, title, variant = 'tile', ...props }: ComponentProps<'svg'> & { title: string; variant?: 'tile' | 'bare' }) {
   return (
     <svg
       aria-label={title}
@@ -19,12 +15,12 @@ export function NibleafMark({
     >
       {variant === 'tile' ? <rect fill="#181612" height="512" rx="104" width="512" /> : null}
       <path
-        d="M148 368V144L364 368V144"
+        d="M152 148H360L152 364H360"
         fill="none"
         stroke={variant === 'tile' ? '#FBF7EE' : 'currentColor'}
         strokeLinecap="square"
-        strokeLinejoin="round"
-        strokeWidth="88"
+        strokeLinejoin="miter"
+        strokeWidth="72"
       />
     </svg>
   );
@@ -38,7 +34,7 @@ export function BrandMark({ name, src, className, variant, decorative }: BrandMa
   return image ? (
     <img alt={decorative ? '' : label} aria-hidden={decorative} className={cn('object-contain', className)} src={image} />
   ) : (
-    <NibleafMark aria-hidden={decorative} className={className} title={label} variant={variant} />
+    <BuiltInMark aria-hidden={decorative} className={className} title={label} variant={variant} />
   );
 }
 
@@ -66,9 +62,4 @@ export function BrandWordmark({ name, className, ...props }: ComponentProps<'spa
       {label}
     </span>
   );
-}
-
-/** The built-in "Nibleaf" wordmark. */
-export function NibleafWordmark({ title = 'Nibleaf', ...props }: ComponentProps<'span'> & { title?: string }) {
-  return <BrandWordmark name={title} {...props} />;
 }

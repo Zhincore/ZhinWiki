@@ -1,9 +1,6 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="apps/app/public/brand/nibleaf-logo-horizontal-ltr-reverse.svg" />
-  <img src="apps/app/public/brand/nibleaf-logo-horizontal-ltr.svg" alt="Nibleaf" height="56" />
-</picture>
+<img src="apps/app/public/favicon.svg" alt="ZhinDocs" height="56" />
 
 ### The open-source Mintlify alternative
 

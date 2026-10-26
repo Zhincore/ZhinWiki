@@ -339,9 +339,6 @@ importers:
       tiptap-markdown:
         specifier: 0.9.0
         version: 0.9.0(@tiptap/core@3.31.0(@tiptap/pm@3.31.0))
-      tldts:
-        specifier: 7.4.11
-        version: 7.4.11
       zod:
         specifier: ^4.5.4
         version: 4.5.4

@@ -115,9 +115,10 @@ describe('createDeployment redirect preflight', () => {
     mocks.projectFindFirst.mockResolvedValue(value);
     mocks.projectFindUnique.mockResolvedValue(value);
 
-    await expect(
-      createDeployment('org-1', 'project-1', 'user-1', { message: 'Redirect cleanup' }),
-    ).resolves.toMatchObject({ id: 'deployment-3', version: 3 });
+    await expect(createDeployment('org-1', 'project-1', 'user-1', { message: 'Redirect cleanup' })).resolves.toMatchObject({
+      id: 'deployment-3',
+      version: 3,
+    });
     expect(mocks.deploymentCreate).toHaveBeenCalledTimes(1);
     expect(mocks.createJob).toHaveBeenCalledWith('publish', {
       name: 'publish-deployment',

@@ -31,7 +31,9 @@ describe('manual publish receipts', () => {
 
   it.each([true, undefined])('marks non-explicit manual jobs as auto (auto=%s)', async (auto) => {
     await recordPublishReady({ ...job, auto }, ready);
-    expect(database.createMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ metadata: { auto: true, version: 2 } }) }));
+    expect(database.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ metadata: { auto: true, version: 2 } }) }),
+    );
   });
 
   it('propagates receipt persistence failure for a retry instead of acknowledging delivery', async () => {

@@ -65,12 +65,7 @@ export function PublishControl({
         open={publishOpen}
         project={project}
       />
-      <DeployPipeline
-        onOpenChange={setDeployOpen}
-        open={deployOpen}
-        project={project}
-        trackedDeploymentId={publishedDeploymentId}
-      />
+      <DeployPipeline onOpenChange={setDeployOpen} open={deployOpen} project={project} trackedDeploymentId={publishedDeploymentId} />
     </div>
   );
 }

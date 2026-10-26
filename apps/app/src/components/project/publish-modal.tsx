@@ -129,22 +129,19 @@ export function PublishModal({ project, open, onOpenChange, onPublished, beforeP
       return;
     }
     const trimmed = message.trim();
-    publish.mutate(
-      trimmed ? { message: trimmed } : {},
-      {
-        onSuccess: (deployment) => {
-          setMessage('');
-          onOpenChange(false);
-          onPublished(deployment);
-        },
-        onError: (error) => toast.error(error instanceof Error ? error.message : t('publish.failed')),
-        onSettled: () => {
-          if (!isCurrentAttempt()) return;
-          publishInFlight.current = false;
-          setPreparing(false);
-        },
+    publish.mutate(trimmed ? { message: trimmed } : {}, {
+      onSuccess: (deployment) => {
+        setMessage('');
+        onOpenChange(false);
+        onPublished(deployment);
       },
-    );
+      onError: (error) => toast.error(error instanceof Error ? error.message : t('publish.failed')),
+      onSettled: () => {
+        if (!isCurrentAttempt()) return;
+        publishInFlight.current = false;
+        setPreparing(false);
+      },
+    });
   };
 
   const count = sorted.length;

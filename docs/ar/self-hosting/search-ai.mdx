@@ -44,7 +44,7 @@ BM25 والمتجهات الكثيفة، مع فرض نطاق المستأجر �
 docker compose -f docker-compose.prod.yml -f docker-compose.search.yml up -d
 ```
 
-يبقى الملف منفصلاً حتى لا تتغير أصول الاستضافة الذاتية الموقعة للإصدار v0.1.2.
+يبقى الملف منفصلاً حتى لا يتغير ملف Compose الخاص بالإنتاج.
 ويتضمن إعداد Coolify وبيئة التطوير Qdrant مباشرة.
 
 للإجابات، فعّل `SEARCH_ANSWER_ENABLED` وثبّت `SEARCH_ANSWER_MODEL`. تستخدم

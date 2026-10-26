@@ -13,8 +13,8 @@ translation_key: 'releases/august-2026-capabilities'
 Six capability pull requests are integrated in Nibleaf source on `main`. They
 form one coherent control plane for search, usage, add-ons, themes,
 integrations, and agent access. This is source availability, not deployment
-evidence: the committed self-host manifest still points to v0.1.2, and no Cloud
-or self-host deployment is performed by these documentation changes.
+evidence: no Cloud or self-host deployment is performed by these documentation
+changes.
 
 ## Integrated source baseline
 
@@ -92,6 +92,6 @@ and reconciliation have their own gate. Read the
 [combined migration and rollback guide](/self-hosting/combined-release-migration)
 before selecting a source revision or future image.
 
-Do not replace the v0.1.2 installer, compose digest, or container reference with
-these commits. A future published artifact needs its own build, security and
-migration checks, exact digest, release notes, and signed-out runtime validation.
+Do not replace a pinned container reference with these commits. A future
+published artifact needs its own build, security and migration checks, exact
+digest, release notes, and signed-out runtime validation.

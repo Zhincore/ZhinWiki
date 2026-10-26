@@ -1,9 +1,28 @@
 name: Docker
 
-# Docker builds are deliberately manual. Pull requests and pushes must not
+# Docker builds run only on manual dispatch or when the release workflow calls
+# this one for a pushed version tag. Pull requests and branch pushes must not
 # spend runner time building images or publish artifacts implicitly.
 
 on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Branch, tag, or commit SHA to build
+        required: true
+        type: string
+      image_tag:
+        description: Container tag to produce
+        required: true
+        type: string
+      platforms:
+        description: Target platforms
+        required: true
+        type: string
+      publish:
+        description: Publish the image to GHCR
+        required: true
+        type: boolean
   workflow_dispatch:
     inputs:
       ref:
@@ -63,7 +82,13 @@ jobs:
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "image_tag=sha-$sha" >> "$GITHUB_OUTPUT"
 
-      - name: Validate dispatch
+      # GHCR repository names must be lowercase; github.repository keeps case.
+      - name: Resolve image repository
+        id: image
+        shell: bash
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate inputs
         env:
           TAG: ${{ inputs.image_tag }}
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
@@ -97,7 +122,7 @@ jobs:
       - name: Reject existing immutable image tags
         if: inputs.publish
         env:
-          IMAGE: ghcr.io/${{ github.repository }}
+          IMAGE: ${{ steps.image.outputs.name }}
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
           TAG: ${{ inputs.image_tag }}
           GHCR_USERNAME: ${{ github.actor }}
@@ -108,10 +133,11 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ steps.image.outputs.name }}
           tags: |
             type=raw,value=${{ inputs.image_tag }}
             type=raw,value=${{ steps.source.outputs.image_tag }}
+            type=raw,value=latest,enable=${{ startsWith(inputs.image_tag, 'v') && !contains(inputs.image_tag, '-') }}
 
       - name: Build and publish
         id: build
@@ -129,7 +155,7 @@ jobs:
             REVISION=${{ steps.source.outputs.sha }}
             VITE_API_URL=http://server:4311
             VITE_APP_URL=https://nibleaf.com
-            VITE_SITE_BASE_DOMAIN=nibleaf.com
+            VITE_SITE_BASE_DOMAIN=
           cache-from: |
             type=gha,scope=nibleaf-image
           cache-to: |
@@ -142,7 +168,7 @@ jobs:
         shell: bash
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
-          IMAGE: ghcr.io/${{ github.repository }}
+          IMAGE: ${{ steps.image.outputs.name }}
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: node scripts/verify-published-image.mjs
 
@@ -150,7 +176,7 @@ jobs:
         if: inputs.publish
         uses: actions/attest@v4
         with:
-          subject-name: ghcr.io/${{ github.repository }}
+          subject-name: ${{ steps.image.outputs.name }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 

@@ -5,26 +5,57 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: write
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Publish GitHub release
+  validate:
+    name: Validate release tag
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Validate semver tag
         run: |
           TAG="${GITHUB_REF_NAME}"
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
-            echo "Release tags must be semantic versions like v0.1.0 or v0.1.0-rc.1"
+            echo "Release tags must be semantic versions like v1.0.0 or v1.0.0-rc.1"
             exit 1
           fi
 
+      - uses: actions/checkout@v7
+
+      # The production templates pin the image; a release must ship them pinned to itself.
+      - name: Check pinned image version
+        run: |
+          grep -qF 'NIBLEAF_VERSION:-'"$GITHUB_REF_NAME"'}' docker-compose.prod.yml || { echo "::error::docker-compose.prod.yml does not default NIBLEAF_VERSION to $GITHUB_REF_NAME"; exit 1; }
+          grep -qxF "NIBLEAF_VERSION=$GITHUB_REF_NAME" .env.production.example || { echo "::error::.env.production.example does not pin NIBLEAF_VERSION=$GITHUB_REF_NAME"; exit 1; }
+
+  image:
+    name: Build and publish image
+    needs: validate
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
+    uses: ./.github/workflows/docker.yml
+    with:
+      ref: ${{ github.ref_name }}
+      image_tag: ${{ github.ref_name }}
+      platforms: linux/amd64
+      publish: true
+
+  release:
+    name: Publish GitHub release
+    needs: image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
       # changelogithub derives the previous tag from history, so fetch everything.
       - uses: actions/checkout@v7
         with:
@@ -40,15 +71,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Build and verify self-host release assets
-        run: |
-          manifest_version=$(node -e "import('./release/self-host.json', { with: { type: 'json' } }).then(({ default: value }) => process.stdout.write(value.version))")
-          if [[ "$manifest_version" != "$GITHUB_REF_NAME" ]]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match release/self-host.json version $manifest_version"
-            exit 1
-          fi
-          node scripts/self-host-release.mjs --output "$RUNNER_TEMP/self-host-release"
-
       # Generates the GitHub release notes from conventional commits since the
       # previous tag and publishes the release for this tag.
       - name: Publish release notes
@@ -56,7 +78,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload versioned installer, Compose, and checksums
-        run: gh release upload "$GITHUB_REF_NAME" "$RUNNER_TEMP/self-host-release"/* --clobber
+      # GitHub renames assets with a leading dot, so publish the env template under a stable name.
+      - name: Attach production Compose templates
+        run: |
+          cp .env.production.example "$RUNNER_TEMP/env.production.example"
+          gh release upload "$GITHUB_REF_NAME" docker-compose.prod.yml "$RUNNER_TEMP/env.production.example" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

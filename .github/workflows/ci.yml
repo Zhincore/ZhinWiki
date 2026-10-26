@@ -64,6 +64,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Turbo's local cache: unchanged packages skip typecheck and tests.
+      - name: Restore Turbo cache
+        uses: actions/cache@v6
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+
       - name: Generate Prisma client
         run: pnpm db:generate
 
@@ -123,14 +131,15 @@ jobs:
       - name: Check for unused source files
         run: pnpm check:dead-code
 
-      - name: Typecheck
-        run: pnpm typecheck
-
       - name: Lint
         run: pnpm lint
 
-      - name: Test
-        run: pnpm test
+      - name: Test scripts
+        run: pnpm test:scripts
+
+      # One Turbo run so typecheck and tests share the runner's cores.
+      - name: Typecheck & test
+        run: pnpm turbo run typecheck test
 
       - name: Build production app
         env:

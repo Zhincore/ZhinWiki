@@ -41,7 +41,7 @@ describe('readBrand', () => {
   it('falls back from the abuse contact to the support contact, then the default', () => {
     expect(readBrand({ BRAND_SUPPORT_EMAIL: 'help@acme.test' }).abuseEmail).toBe('help@acme.test');
     expect(readBrand({ BRAND_ABUSE_EMAIL: 'abuse@acme.test', BRAND_SUPPORT_EMAIL: 'help@acme.test' }).abuseEmail).toBe('abuse@acme.test');
-    expect(readBrand({}).abuseEmail).toBe('abuse@nibleaf.com');
+    expect(readBrand({}).abuseEmail).toBe(DEFAULT_BRAND.abuseEmail);
   });
 
   it('rejects brand URLs that are not absolute http(s)', () => {

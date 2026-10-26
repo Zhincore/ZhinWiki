@@ -33,11 +33,11 @@ export const BRAND_ASSET_FILES = [
 ] as const;
 
 export const DEFAULT_BRAND: Brand = {
-  name: 'Nibleaf',
-  url: 'https://nibleaf.com',
-  supportEmail: 'support@nibleaf.com',
-  abuseEmail: 'abuse@nibleaf.com',
-  sourceUrl: 'https://github.com/lord007tn/nibleaf',
+  name: 'ZhinDocs',
+  url: 'https://github.com/Zhincore/zhindocs',
+  supportEmail: 'support@zhindocs.invalid',
+  abuseEmail: 'abuse@zhindocs.invalid',
+  sourceUrl: 'https://github.com/Zhincore/zhindocs',
   iconBase: '',
   markUrl: null,
 };

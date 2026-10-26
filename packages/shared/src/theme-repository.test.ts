@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_BRAND } from './brand';
 import type { SiteSnapshot, SnapshotPage } from './site';
 import {
   buildThemeRepository,
@@ -353,7 +354,7 @@ describe('Git-native repository contract v2', () => {
   it('rejects a manifest connected to the wrong project before importing files', () => {
     const manifest = buildThemeRepository(snapshot).find((file) => file.path === THEME_REPOSITORY_MANIFEST_PATH)?.content;
     expect(validateThemeRepositoryManifest(manifest, 'another_project')).toEqual([
-      expect.objectContaining({ code: 'MANIFEST_INVALID', message: expect.stringContaining('different Nibleaf project') }),
+      expect.objectContaining({ code: 'MANIFEST_INVALID', message: expect.stringContaining(`different ${DEFAULT_BRAND.name} project`) }),
     ]);
     expect(validateThemeRepositoryManifest(manifest, 'another_project', undefined, { name: 'Acme Docs' })).toEqual([
       expect.objectContaining({ message: 'The theme repository belongs to a different Acme Docs project.' }),

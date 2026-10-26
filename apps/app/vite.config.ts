@@ -12,7 +12,7 @@ import { defineConfig, loadEnv } from 'vite';
 import { z } from 'zod';
 import { bundleAnalysisPlugin } from './scripts/bundle-analysis-plugin.ts';
 
-// Baseline browser hardening for every dashboard, marketing, and published-site
+// Baseline browser hardening for every dashboard and published-site
 // response. The custom server entry adds the per-response nonce-based CSP to
 // HTML after TanStack Start has created its streaming response.
 const SECURITY_HEADERS = {

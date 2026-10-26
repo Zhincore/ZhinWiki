@@ -25,7 +25,6 @@ import type {
 } from '@nibleaf/validators';
 import { inferUploadableAssetContentType } from '@nibleaf/validators';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { FirstPublishAttribution } from '@/lib/first-publish-activation';
 import { api } from '@/services/api';
 import { ApiResponseError, getData, mutateData } from './client-helpers';
 import { queryKeys } from './query-keys';
@@ -227,11 +226,11 @@ export const useReorderPages = (projectId: string) => {
 export const usePublish = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ message, firstPublishAttribution }: { message?: string; firstPublishAttribution?: FirstPublishAttribution }) =>
+    mutationFn: async ({ message }: { message?: string }) =>
       mutateData<Deployment>(
         await api.app.projects[':projectId'].deployments.$post({
           param: { projectId },
-          json: { ...(message ? { message } : {}), ...(firstPublishAttribution ? { firstPublishAttribution } : {}) },
+          json: message ? { message } : {},
         }),
         'Could not publish.',
       ),

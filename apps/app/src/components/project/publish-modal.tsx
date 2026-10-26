@@ -19,7 +19,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { toast } from 'sonner';
 import { usePendingChanges, usePublish } from '@/hooks/api';
 import type { Deployment, PendingChange, Project } from '@/hooks/api/types';
-import { type FirstPublishAttribution, readFirstPublishAttribution } from '@/lib/first-publish-activation';
 import { siteHref } from '@/lib/links';
 
 interface PublishModalProps {
@@ -27,7 +26,7 @@ interface PublishModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Called after the publish mutation is fired, to hand off to the deploy pipeline. */
-  onPublished: (deployment: Deployment, attribution: FirstPublishAttribution | null) => void;
+  onPublished: (deployment: Deployment) => void;
   beforePublish?: () => Promise<void> | Promise<boolean>;
 }
 
@@ -130,14 +129,13 @@ export function PublishModal({ project, open, onOpenChange, onPublished, beforeP
       return;
     }
     const trimmed = message.trim();
-    const firstPublishAttribution = readFirstPublishAttribution();
     publish.mutate(
-      { ...(trimmed ? { message: trimmed } : {}), ...(firstPublishAttribution ? { firstPublishAttribution } : {}) },
+      trimmed ? { message: trimmed } : {},
       {
         onSuccess: (deployment) => {
           setMessage('');
           onOpenChange(false);
-          onPublished(deployment, firstPublishAttribution);
+          onPublished(deployment);
         },
         onError: (error) => toast.error(error instanceof Error ? error.message : t('publish.failed')),
         onSettled: () => {

@@ -23,7 +23,6 @@ vi.mock('@/hooks/api', () => ({
     refetch: refreshPreflight,
   }),
 }));
-vi.mock('@/lib/first-publish-activation', () => ({ readFirstPublishAttribution: () => null }));
 
 const project = { id: 'project-a', name: 'Docs' } as Project;
 

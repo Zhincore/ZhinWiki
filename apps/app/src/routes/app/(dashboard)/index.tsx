@@ -9,23 +9,21 @@ import { Skeleton } from '@nibleaf/design-system/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@nibleaf/design-system/components/ui/table';
 import { useT } from '@nibleaf/i18n/react';
 import { useForm } from '@tanstack/react-form';
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { AlertTriangle, BarChart3, BookText, FileText, Plus, Users } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { SectionCard } from '@/components/analytics/section-card';
 import { ViewsAreaChart } from '@/components/analytics/views-area-chart';
 import { QueryErrorState } from '@/components/query-error-state';
 import type { AnalyticsRange } from '@/hooks/api';
 import { useCreateProject, useProjects, useWorkspaceAnalytics } from '@/hooks/api';
-import { recordFirstPublishStage } from '@/lib/first-publish-activation';
 import { required } from '@/lib/form';
 import { useFormatters, viewsTrend } from '@/lib/format';
 
 export const Route = createFileRoute('/app/(dashboard)/')({
   component: ProjectsPage,
-  validateSearch: (search: Record<string, unknown>): { firstPublish?: boolean; newSite?: boolean } => ({
-    ...(search.firstPublish === true || search.firstPublish === 'true' ? { firstPublish: true } : {}),
+  validateSearch: (search: Record<string, unknown>): { newSite?: boolean } => ({
     ...(search.newSite === true || search.newSite === 'true' ? { newSite: true } : {}),
   }),
 });
@@ -108,7 +106,7 @@ function NewProjectDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
 }
 
 function ProjectsPage() {
-  const { firstPublish, newSite } = Route.useSearch();
+  const { newSite } = Route.useSearch();
   const { data: projects, isPending, isError: projectsError, isFetching: projectsFetching, refetch: retryProjects } = useProjects();
   const [range, setRange] = useState<AnalyticsRange>('30d');
   const {
@@ -120,25 +118,12 @@ function ProjectsPage() {
   } = useWorkspaceAnalytics(range);
   const [newProjectOpen, setNewProjectOpen] = useState(Boolean(newSite));
   const t = useT();
-  const navigate = useNavigate();
   const { number } = useFormatters();
 
   const totalPages = projects && !projectsError ? projects.reduce((sum, p) => sum + (p._count?.pages ?? 0), 0) : null;
   const analyticsUnavailable = analyticsError || analytics?.availability === 'unavailable';
   const trend = useMemo(() => (analyticsUnavailable ? null : viewsTrend(analytics?.timeseries ?? [])), [analytics?.timeseries, analyticsUnavailable]);
   const viewsByProject = useMemo(() => new Map((analytics?.byProject ?? []).map((b) => [b.projectId, b.views])), [analytics?.byProject]);
-
-  useEffect(() => {
-    const starterProject = projects?.[0];
-    if (!firstPublish || !starterProject) return;
-    void recordFirstPublishStage('project_entered');
-    void navigate({
-      to: '/app/projects/$projectId/editor',
-      params: { projectId: starterProject.id },
-      search: { firstPublish: true },
-      replace: true,
-    });
-  }, [firstPublish, navigate, projects]);
 
   return (
     <div className="flex flex-col gap-6">

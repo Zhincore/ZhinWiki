@@ -24,7 +24,6 @@ export const Route = createFileRoute('/(auth)/sign-up')({
       .object({
         invite: z.string().optional().catch(undefined),
         email: z.string().optional().catch(undefined),
-        intent: z.literal('first-publish').optional().catch(undefined),
       })
       .parse(search),
   head: ({ matches }) => ({ meta: [{ title: brandedTitle(matches, 'Sign up') }, { name: 'robots', content: 'noindex, nofollow' }] }),
@@ -50,14 +49,13 @@ function SignUpPage() {
 
   const normalizedEmail = email.trim().toLowerCase();
   const invitationId = search.invite ?? readPendingInvitation() ?? undefined;
-  const firstPublish = search.intent === 'first-publish';
-  const afterAuthPath = invitationId ? `/accept-invite/${invitationId}` : firstPublish ? '/app?firstPublish=true' : '/app';
+  const afterAuthPath = invitationId ? `/accept-invite/${invitationId}` : '/app';
 
   const finishSignUp = async () => {
     if (invitationId) {
       await navigate({ to: '/accept-invite/$invitationId', params: { invitationId } });
     } else {
-      await navigate({ to: '/app', search: firstPublish ? { firstPublish: true } : {} });
+      await navigate({ to: '/app' });
     }
   };
 

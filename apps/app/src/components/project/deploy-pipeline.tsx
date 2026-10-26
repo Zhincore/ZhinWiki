@@ -8,14 +8,12 @@ import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useDeployments, useRollback } from '@/hooks/api';
 import type { DeploymentStatus, Project } from '@/hooks/api/types';
-import { completeFirstPublishAttribution, type FirstPublishAttribution } from '@/lib/first-publish-activation';
 import { siteHref } from '@/lib/links';
 
 interface DeployPipelineProps {
   project: Project;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  trackedAttribution?: FirstPublishAttribution | null;
   trackedDeploymentId?: string | null;
 }
 
@@ -47,7 +45,7 @@ function activeStep(status: DeploymentStatus | undefined): number {
 type StepState = 'done' | 'active' | 'failed' | 'pending';
 
 /** Live deploy progress. Polls the deployments list while building. Faithful to design lines 2143-2178. */
-export function DeployPipeline({ project, open, onOpenChange, trackedAttribution, trackedDeploymentId }: DeployPipelineProps) {
+export function DeployPipeline({ project, open, onOpenChange, trackedDeploymentId }: DeployPipelineProps) {
   const rollback = useRollback(project.id);
   const confirm = useConfirm();
   const t = useT();
@@ -65,17 +63,6 @@ export function DeployPipeline({ project, open, onOpenChange, trackedAttribution
   const previousReady = (deployments.data ?? []).find(
     (item) => item.status === 'READY' && item.id !== deployment?.id && (!deployment || item.version < deployment.version),
   );
-
-  // Keep polling the exact mutation result after the dialog closes. The
-  // worker owns the READY receipt; the client consumes local attribution only
-  // after that same deployment reaches READY.
-  const completedAttribution = useRef<string | null>(null);
-  useEffect(() => {
-    if (deployment && done && trackedAttribution && deployment.id === trackedDeploymentId && completedAttribution.current !== deployment.id) {
-      completedAttribution.current = deployment.id;
-      completeFirstPublishAttribution(trackedAttribution);
-    }
-  }, [deployment, done, trackedAttribution, trackedDeploymentId]);
 
   // Fire the "published" toast exactly once, on transition into READY while the dialog is open.
   const announced = useRef<string | null>(null);

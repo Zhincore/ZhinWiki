@@ -1,5 +1,5 @@
-/** Build the enforced HTML Content Security Policy for the dashboard,
- * marketing pages, and published sites. Scripts emitted by TanStack Start and
+/** Build the enforced HTML Content Security Policy for the dashboard and
+ * published sites. Scripts emitted by TanStack Start and
  * route head metadata receive the per-response nonce. Cloudflare injects its
  * analytics beacon after the origin response, so its script host remains an
  * explicit source rather than relying on a nonce it cannot receive. */

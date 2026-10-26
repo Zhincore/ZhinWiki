@@ -116,10 +116,7 @@ describe('createDeployment redirect preflight', () => {
     mocks.projectFindUnique.mockResolvedValue(value);
 
     await expect(
-      createDeployment('org-1', 'project-1', 'user-1', {
-        message: 'Redirect cleanup',
-        firstPublishAttribution: { entry_point: 'free_tool', intent: 'first_publish', source: 'rtl_readiness_grader' },
-      }),
+      createDeployment('org-1', 'project-1', 'user-1', { message: 'Redirect cleanup' }),
     ).resolves.toMatchObject({ id: 'deployment-3', version: 3 });
     expect(mocks.deploymentCreate).toHaveBeenCalledTimes(1);
     expect(mocks.createJob).toHaveBeenCalledWith('publish', {
@@ -129,7 +126,6 @@ describe('createDeployment redirect preflight', () => {
         projectId: 'project-1',
         skipGrammarChecks: false,
         auto: false,
-        firstPublishAttribution: { entry_point: 'free_tool', intent: 'first_publish', source: 'rtl_readiness_grader' },
       },
     });
   });

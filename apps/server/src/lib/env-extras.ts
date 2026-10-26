@@ -20,22 +20,6 @@ export const envExtras = createEnv({
       .string()
       .optional()
       .transform((value) => value === 'true' || value === '1'),
-    /** Optional GTM container ID for the instance's public marketing pages.
-     *  It is deliberately public and takes precedence over MARKETING_GA4_ID. */
-    MARKETING_GTM_ID: z
-      .string()
-      .regex(/^GTM-[A-Z0-9]{6,}$/i)
-      .refine((value) => !/^GTM-X+$/i.test(value), 'Use the real GTM container ID, not the GTM-XXXXXXX placeholder.')
-      .optional()
-      .transform((value) => value?.toUpperCase()),
-    /** Legacy direct GA4 fallback for self-hosters. GTM is preferred when both
-     *  variables are configured. Both providers load only after consent. */
-    MARKETING_GA4_ID: z
-      .string()
-      .regex(/^G-[A-Z0-9]{6,}$/i)
-      .refine((value) => !/^G-X+$/i.test(value), 'Use the real GA4 measurement ID, not the G-XXXXXXXXXX placeholder.')
-      .optional()
-      .transform((value) => value?.toUpperCase()),
     /** Number of PUBLIC proxy hops appended by edge infrastructure you operate
      *  (e.g. 1 behind Cloudflare). Private-network hops (nginx/Traefik/the app's
      *  own proxy) are always skipped and must NOT be counted. Raising this past

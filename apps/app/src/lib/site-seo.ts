@@ -1,29 +1,14 @@
 import { markdownAlternateUrl } from '@nibleaf/shared/markdown-discovery';
 import { isPublicMarkdownPage } from '@nibleaf/shared/public-markdown';
 import type { ProjectConfig, SitePage, SiteShell } from '@/hooks/api/types';
+import { publicUrls } from '@/lib/public-urls';
 
 /**
- * Public origin the site is served from. On the client this is the real origin;
- * during SSR we fall back to the configured app URL. (Per-site custom domains
- * are handled separately — for now every site is served from the app origin.)
+ * Public origin the site is served from: the real origin on the client, the
+ * configured app URL during SSR. (Per-site custom domains are handled separately.)
  */
 function publicOrigin(): string {
-  if (typeof window !== 'undefined') {
-    return window.location.origin;
-  }
-  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-  return env?.APP_URL ?? 'http://localhost:4310';
-}
-
-/** The free-subdomain base configured for this deployment (`<slug>.<base>`),
- *  cleaned of a wildcard prefix / trailing dot. Prefers the runtime process env
- *  (SSR container, tests via vi.stubEnv) and falls back to the value Vite baked
- *  into the bundle at build time (browser). */
-function siteBaseDomain(): string | undefined {
-  const nodeEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-  const metaEnv = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  const raw = nodeEnv?.VITE_SITE_BASE_DOMAIN ?? metaEnv?.VITE_SITE_BASE_DOMAIN;
-  return raw?.replace(/^\*\./, '').replace(/\.$/, '') || undefined;
+  return typeof window === 'undefined' ? publicUrls().appUrl : window.location.origin;
 }
 
 /** Inputs for resolving a site's ONE canonical base URL. */
@@ -55,7 +40,7 @@ export function canonicalSiteBase(projectId: string, options: SiteUrlOptions = {
   if (primary) {
     return `https://${primary}`;
   }
-  const base = options.baseDomain !== undefined ? (options.baseDomain ?? undefined) : siteBaseDomain();
+  const base = options.baseDomain !== undefined ? (options.baseDomain ?? undefined) : publicUrls().siteBaseDomain;
   const slug = options.slug?.trim();
   if (slug && base) {
     return `https://${slug}.${base}`;

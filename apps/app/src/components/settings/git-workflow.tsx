@@ -21,7 +21,6 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { env } from '@/env';
 import {
   type GitConflict as Conflict,
   useAuthorizeGitWorkflow,
@@ -33,6 +32,7 @@ import {
   useRotateGitWorkflowWebhookSecret,
 } from '@/hooks/api';
 import { localeTag } from '@/lib/format';
+import { publicUrls } from '@/lib/public-urls';
 
 type GitIdentity = { login: string; name: string | null };
 const statusTone = (status: string): 'default' | 'secondary' | 'destructive' | 'outline' =>
@@ -139,7 +139,7 @@ export function GitWorkflow({ projectId }: { projectId: string }) {
     () => connection?.operations.flatMap((item) => item.conflicts.filter((conflict) => conflict.status === 'OPEN')) ?? [],
     [connection],
   );
-  const webhookUrl = new URL(`/api/public/git/webhook/${projectId}`, env.VITE_APP_URL).toString();
+  const webhookUrl = new URL(`/api/public/git/webhook/${projectId}`, publicUrls().appUrl).toString();
 
   useEffect(() => {
     if (!connection) return;

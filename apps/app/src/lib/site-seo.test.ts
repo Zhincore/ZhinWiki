@@ -1,14 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SitePage, SiteShell } from '@/hooks/api/types';
 import { canonicalSiteBase, changelogFeedUrl, pageHead, siteHead } from './site-seo';
 
-// Keep the canonical tests hermetic: a developer's local .env may configure a
-// VITE_SITE_BASE_DOMAIN, which would flip the default canonical to a subdomain.
+const urls = vi.hoisted(() => ({ siteBaseDomain: undefined as string | undefined }));
+vi.mock('@/lib/public-urls', () => ({
+  publicUrls: () => ({ appUrl: 'http://localhost:4310', adminUrl: 'http://localhost:4315', siteBaseDomain: urls.siteBaseDomain }),
+}));
+
 beforeEach(() => {
-  vi.stubEnv('VITE_SITE_BASE_DOMAIN', '');
-});
-afterEach(() => {
-  vi.unstubAllEnvs();
+  urls.siteBaseDomain = undefined;
 });
 
 /** Find the value of a meta tag emitted by pageHead (matches name or property). */
@@ -280,7 +280,7 @@ describe('canonical consolidation across origins', () => {
   });
 
   it('falls back to the slug subdomain when a base domain is configured and no primary exists', () => {
-    vi.stubEnv('VITE_SITE_BASE_DOMAIN', 'nibleaf.site');
+    urls.siteBaseDomain = 'nibleaf.site';
     const head = pageHead(base(), 'p1', 'en');
     expect(canonical(head)).toBe('https://acme.nibleaf.site/quickstart');
   });

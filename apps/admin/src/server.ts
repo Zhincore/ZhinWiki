@@ -7,7 +7,6 @@ import { serverEnv } from '@/env.server';
 import { adminContentSecurityPolicy } from '@/lib/content-security-policy';
 import { ssrNonce } from '@/lib/ssr-nonce.server';
 
-const appOrigin = serverEnv.VITE_APP_URL ?? (serverEnv.NODE_ENV === 'production' ? 'https://nibleaf.com' : 'http://localhost:4310');
 const revision = process.env.NIBLEAF_REVISION ?? 'development';
 const drainFile = process.env.NIBLEAF_DRAIN_FILE ?? '/tmp/nibleaf-draining';
 
@@ -30,7 +29,7 @@ const handleRequest: RequestHandler<Register> = async (request, ...rest) => {
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
     }
 
-    headers.set('Content-Security-Policy', adminContentSecurityPolicy(nonce, appOrigin));
+    headers.set('Content-Security-Policy', adminContentSecurityPolicy(nonce, serverEnv.APP_URL));
     headers.set('cache-control', 'private, no-store');
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   });

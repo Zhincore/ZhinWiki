@@ -22,7 +22,7 @@ vi.mock('@/env.server', () => ({
     },
   },
 }));
-vi.mock('@/lib/links', () => ({ APP_URL: 'https://public-dashboard.example:4410' }));
+vi.mock('@/lib/public-urls', () => ({ appUrl: () => 'https://public-dashboard.example:4410' }));
 vi.mock('@nibleaf/i18n', () => ({ getLocale: () => 'ar', REQUEST_LOCALE_HEADER: 'x-nibleaf-locale' }));
 vi.mock('@nibleaf/auth/client', () => ({ createNibleafAuthClientFn: mocks.auth }));
 vi.mock('@nibleaf/server/rpc', async () => ({ hcWithType: (await import('hono/client')).hc }));

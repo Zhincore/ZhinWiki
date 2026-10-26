@@ -10,7 +10,7 @@ vi.mock('@nibleaf/i18n/react', () => ({
   useT: () => (key: string, variables?: Record<string, string>) => (variables ? `${key}(${Object.values(variables).join(',')})` : key),
 }));
 vi.mock('@/services/auth-client', () => ({ authClient: { admin: { stopImpersonating: mocks.stopImpersonating } } }));
-vi.mock('@/lib/links', () => ({ ADMIN_URL: 'https://admin.example.test' }));
+vi.mock('@/lib/public-urls', () => ({ publicUrls: () => ({ appUrl: 'https://app.example.test', adminUrl: 'https://admin.example.test' }) }));
 
 import { SupportAccessBanner } from './support-access-banner';
 

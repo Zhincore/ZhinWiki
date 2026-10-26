@@ -8,7 +8,7 @@ vi.mock('@tanstack/react-start/server', async (importOriginal) => ({
   createStartHandler: () => mocks.startHandler,
   defaultStreamHandler: vi.fn(),
 }));
-vi.mock('@/env.server', () => ({ serverEnv: { NODE_ENV: 'test', VITE_APP_URL: 'http://localhost:4310' } }));
+vi.mock('@/env.server', () => ({ serverEnv: { APP_URL: 'http://localhost:4310' } }));
 
 import server from './server';
 

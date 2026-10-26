@@ -21,7 +21,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { SupportAccessDialog } from '@/components/support-access-dialog';
 import { useAdminSite } from '@/hooks/api/queries';
 import { fmtBytes, fmtDateTime, fmtRelative, useFormatters } from '@/lib/format';
-import { APP_URL } from '@/lib/links';
+import { appUrl } from '@/lib/public-urls';
 
 export const Route = createFileRoute('/(dashboard)/sites/$siteId')({
   component: SiteDetailPage,
@@ -105,7 +105,7 @@ function SiteDetailPage() {
           <Button
             nativeButton={false}
             render={
-              <a aria-label={t('admin.site.openLive', { site: site.name })} href={`${APP_URL}/sites/${site.id}`} rel="noreferrer" target="_blank" />
+              <a aria-label={t('admin.site.openLive', { site: site.name })} href={`${appUrl()}/sites/${site.id}`} rel="noreferrer" target="_blank" />
             }
             variant="outline"
           >

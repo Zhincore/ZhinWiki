@@ -293,7 +293,6 @@ services:
     environment:
       <<: *service-env
       PORT: "4310"
-      VITE_SITE_BASE_DOMAIN: ${SITE_BASE_DOMAIN:-nibleaf.com}
     expose:
       - "4310"
     depends_on:

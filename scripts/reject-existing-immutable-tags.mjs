@@ -62,8 +62,13 @@ export const rejectExistingImmutableTags = async ({ image, sourceSha, tag, usern
 
   // A token alone does not establish pull permission. Require the registry to
   // authorize this repository before trusting any missing-manifest response.
-  // A new repository needs a separately reviewed bootstrap, never a bypass here.
+  // Only an authoritative NAME_UNKNOWN proves a package that was never pushed,
+  // so it has no tags to overwrite.
   const access = await request(`/v2/${repository}/tags/list?n=1`, authorization, dependencies);
+  if (access.status === 404) {
+    const errors = parse(access)?.errors;
+    if (Array.isArray(errors) && errors.length > 0 && errors.every((error) => error?.code === 'NAME_UNKNOWN')) return;
+  }
   if (access.status !== 200) throw new Error(`GHCR repository read access not established (HTTP ${access.status})`);
   const listing = parse(access);
   if (listing?.name !== repository || !Array.isArray(listing.tags) || !listing.tags.every((entry) => typeof entry === 'string')) {

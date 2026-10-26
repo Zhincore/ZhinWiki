@@ -37,6 +37,9 @@ export function instanceBrand(): Brand {
       icons: Boolean(dir && ICON_FILES.some((file) => isFile(join(dir, file)))),
       mark: Boolean(dir && isFile(join(dir, 'mark.svg'))),
     });
+    if (!process.env.BRAND_SUPPORT_EMAIL?.trim()) {
+      console.warn(`BRAND_SUPPORT_EMAIL is not set; users are told to contact ${cached.supportEmail}, which does not deliver.`);
+    }
   }
   return cached;
 }

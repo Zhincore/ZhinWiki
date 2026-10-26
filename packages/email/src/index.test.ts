@@ -5,7 +5,7 @@ describe('localized transactional email rendering', () => {
   it('renders an English verification code with a plain-text body', async () => {
     const email = await renderVerificationCodeEmail({ code: '123456', purpose: 'sign-in' });
 
-    expect(email.subject).toBe('Your Nibleaf sign-in code');
+    expect(email.subject).toBe('Your ZhinDocs sign-in code');
     expect(email.html).toContain('lang="en"');
     expect(email.html).toContain('123456');
     expect(email.text).toContain('123456');
@@ -14,7 +14,7 @@ describe('localized transactional email rendering', () => {
   it('renders Arabic email chrome with RTL direction', async () => {
     const email = await renderNewSignInEmail({ language: 'ar' });
 
-    expect(email.subject).toBe('تسجيل دخول جديد إلى حسابك في Nibleaf');
+    expect(email.subject).toBe('تسجيل دخول جديد إلى حسابك في ZhinDocs');
     expect(email.html).toContain('dir="rtl"');
     expect(email.html).toContain('lang="ar"');
     expect(email.text).toContain('رصدنا تسجيل دخول');

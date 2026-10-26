@@ -21,6 +21,6 @@ test('renders a verification email through the production TSX runtime', () => {
   assert.deepEqual(JSON.parse(output), {
     hasCode: true,
     hasText: true,
-    subject: 'Your Nibleaf sign-in code',
+    subject: 'Your ZhinDocs sign-in code',
   });
 });

@@ -137,12 +137,13 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Test scripts
-        run: pnpm test:scripts
-
       # One Turbo run so typecheck and tests share the runner's cores.
       - name: Typecheck & test
         run: pnpm turbo run typecheck test
+
+      # After Turbo, which generates the i18n messages the scripts import.
+      - name: Test scripts
+        run: pnpm test:scripts
 
       - name: Build production app
         env:

@@ -45,6 +45,22 @@ test('authenticated repository access plus MANIFEST_UNKNOWN permits SHA and vers
   assert.equal(mock.calls[1].options.headers.Authorization, 'Bearer bearer-fixture');
 });
 
+test('an authoritative NAME_UNKNOWN repository permits the first publish without manifest lookups', async () => {
+  const mock = harness([auth(), reply(404, { errors: [{ code: 'NAME_UNKNOWN' }] })]);
+  await rejectExistingImmutableTags({ ...input, tag: 'v1.0.0' }, mock.dependencies);
+  assert.equal(mock.calls.length, 2);
+  for (const response of [
+    reply(404, 'not JSON'),
+    reply(404, { errors: [] }),
+    reply(404, { errors: [{ code: 'NAME_UNKNOWN' }, { code: 'DENIED' }] }),
+    reply(404, { errors: [{ code: 'MANIFEST_UNKNOWN' }] }),
+  ]) {
+    const denied = harness([auth(), response]);
+    await assert.rejects(rejectExistingImmutableTags(input, denied.dependencies));
+    assert.equal(denied.calls.length, 2);
+  }
+});
+
 test('existing SHA or version tag rejects even if response body is malformed', async () => {
   for (const responses of [
     [auth(), access(), reply(200, 'not JSON')],

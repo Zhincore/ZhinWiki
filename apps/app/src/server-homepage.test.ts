@@ -11,8 +11,6 @@ vi.mock('@tanstack/react-start/server', async (importOriginal) => ({
   defaultStreamHandler: vi.fn(),
 }));
 vi.mock('got', () => ({ default: mocks.got }));
-vi.mock('@nibleaf/i18n', () => ({ translateFn: () => 'synthetic translation' }));
-vi.mock('@/lib/blog', () => ({ BLOG_ENTRIES: [] }));
 vi.mock('@/env.server', () => ({
   serverEnv: {
     APP_URL: 'http://localhost:4310',
@@ -64,7 +62,28 @@ describe('HOMEPAGE server entry', () => {
     expect(mocks.startHandler).not.toHaveBeenCalled();
   });
 
-  it('leaves app-mode marketing paths to the router unchanged', async () => {
+  it('renders the welcome page at the root by default', async () => {
+    const server = await serverWith('');
+    const response = await server.fetch(new Request('http://localhost:4310/', { headers: { accept: 'text/html' } }));
+
+    expect(response.status).toBe(200);
+    expect(new URL(rendered[0]?.url ?? '').pathname).toBe('/');
+  });
+
+  it('refuses the removed marketing mode at boot', async () => {
+    await expect(serverWith('marketing')).rejects.toThrow(/Invalid HOMEPAGE "marketing"/);
+  });
+
+  it('keeps only the minimal robots.txt at the app root', async () => {
+    const server = await serverWith('');
+    const robots = await server.fetch(new Request('http://localhost:4310/robots.txt'));
+    const llms = await server.fetch(new Request('http://localhost:4310/llms.txt'));
+
+    expect(await robots.text()).toBe('User-agent: *\nDisallow: /app/\nDisallow: /app$\nDisallow: /sign-in\nDisallow: /sign-up\nDisallow: /api/\n');
+    expect(llms.status).toBe(404);
+  });
+
+  it('leaves other app-mode paths to the router unchanged', async () => {
     const server = await serverWith('app');
     await server.fetch(new Request('http://localhost:4310/pricing', { headers: { accept: 'text/html' } }));
 

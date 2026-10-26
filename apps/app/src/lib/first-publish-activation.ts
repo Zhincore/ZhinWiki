@@ -1,4 +1,4 @@
-import { FIRST_PUBLISH_CONTEXT_KEY as CONTEXT_KEY, MARKETING_ANALYTICS_CONSENT_EVENT, readMarketingAnalyticsConsent } from './marketing-analytics';
+import { FIRST_PUBLISH_CONTEXT_KEY as CONTEXT_KEY, readMarketingAnalyticsConsent } from './marketing-analytics';
 import { type FirstPublishSource, trackMarketingEvent } from './marketing-events';
 
 const MAX_CONTEXT_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -140,4 +140,4 @@ export async function recordFirstPublishStage(stage: FirstPublishStage): Promise
   }
 }
 
-export { CONTEXT_KEY as FIRST_PUBLISH_CONTEXT_KEY, MARKETING_ANALYTICS_CONSENT_EVENT };
+export { CONTEXT_KEY as FIRST_PUBLISH_CONTEXT_KEY };

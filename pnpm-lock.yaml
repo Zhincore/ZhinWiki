@@ -301,9 +301,6 @@ importers:
       nitro:
         specifier: 3.0.260903-beta
         version: 3.0.260903-beta
-      octokit:
-        specifier: 5.0.5
-        version: 5.0.5
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -355,12 +352,6 @@ importers:
       tldts:
         specifier: 7.4.11
         version: 7.4.11
-      turndown:
-        specifier: ^7.2.4
-        version: 7.2.4
-      turndown-plugin-gfm:
-        specifier: ^1.0.2
-        version: 1.0.2
       zod:
         specifier: ^4.5.4
         version: 4.5.4
@@ -383,9 +374,6 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.5
         version: 19.2.5(@types/react@19.2.18)
-      '@types/turndown':
-        specifier: ^5.0.6
-        version: 5.0.6
       '@vitejs/plugin-react':
         specifier: 6.1.2
         version: 6.1.2(oxc-transform-react@0.152.0)(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))

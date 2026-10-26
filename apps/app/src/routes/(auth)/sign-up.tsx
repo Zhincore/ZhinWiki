@@ -39,7 +39,6 @@ function SignUpPage() {
   const [email, setEmail] = useState(search.email ?? '');
   const [otp, setOtp] = useState('');
   const [codeSent, setCodeSent] = useState(false);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -152,7 +151,7 @@ function SignUpPage() {
         <>
           <Button
             className="mb-4 w-full gap-2"
-            disabled={isGoogleSubmitting || lockedEmail || !agreedToTerms}
+            disabled={isGoogleSubmitting || lockedEmail}
             onClick={signUpWithGoogle}
             type="button"
             variant="outline"
@@ -196,27 +195,6 @@ function SignUpPage() {
               />
               {lockedEmail ? <p className="text-muted-foreground text-xs">{t('auth.invite.invitedAs', { email: search.email ?? '' })}</p> : null}
             </div>
-            <label className="flex items-start gap-2.5 text-muted-foreground text-sm" htmlFor="agree-terms">
-              <input
-                checked={agreedToTerms}
-                className="mt-0.5 size-4 shrink-0 accent-primary"
-                id="agree-terms"
-                onChange={(event) => setAgreedToTerms(event.target.checked)}
-                required
-                type="checkbox"
-              />
-              <span>
-                {t('auth.legal.agreePrefix')}
-                <a className="text-primary hover:underline" href="/terms" rel="noreferrer" target="_blank">
-                  {t('auth.legal.terms')}
-                </a>
-                {t('auth.legal.and')}
-                <a className="text-primary hover:underline" href="/privacy" rel="noreferrer" target="_blank">
-                  {t('auth.legal.privacy')}
-                </a>
-                {t('auth.legal.agreeSuffix')}
-              </span>
-            </label>
           </>
         ) : (
           <div className="flex flex-col items-center gap-2" dir="ltr">
@@ -251,11 +229,7 @@ function SignUpPage() {
             {error}
           </p>
         ) : null}
-        <Button
-          className="mt-1 w-full"
-          disabled={isSubmitting || (codeSent ? otp.length !== 6 : !agreedToTerms || !name.trim() || !normalizedEmail)}
-          type="submit"
-        >
+        <Button className="mt-1 w-full" disabled={isSubmitting || (codeSent ? otp.length !== 6 : !name.trim() || !normalizedEmail)} type="submit">
           {isSubmitting
             ? codeSent
               ? t('auth.otp.verifying')

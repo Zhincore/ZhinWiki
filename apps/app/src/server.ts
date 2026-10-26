@@ -1,7 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { translateFn } from '@nibleaf/i18n';
 import { setMessageBrand } from '@nibleaf/i18n/brand';
 import { brandAssetResponse, instanceBrand } from '@nibleaf/shared/brand/server';
 import {
@@ -17,30 +16,21 @@ import { createServerEntry } from '@tanstack/react-start/server-entry';
 import got from 'got';
 import { z } from 'zod';
 import { serverEnv } from '@/env.server';
-import { BLOG_ENTRIES } from '@/lib/blog';
-import { nibleafPricing, nibleafProductLimitations } from '@/lib/comparison-data';
 import { contentSecurityPolicy } from '@/lib/content-security-policy';
 import { isDashboardPath, parseHomepage } from '@/lib/homepage';
-import { agentFriendlyNotFoundMarkdown, marketingMarkdownResponse } from '@/lib/marketing-markdown';
-import { marketingMarkdownSourceUrls, marketingSitemap, marketingSitemapEntries } from '@/lib/marketing-sitemap';
-import { nibleafPublicOpenApi } from '@/lib/nibleaf-openapi';
 import { encodePublicRouteManifestResponse } from '@/lib/public-route-manifest';
 import { readerRateLimitResponse } from '@/lib/reader-rate-limit';
 import {
   acceptsHtml,
   appendVary,
-  asHtmlRenderRequest,
   isAppOwnedPath,
   isDocumentPath,
   notAcceptableHtmlResponse,
   preferredRepresentation,
 } from '@/lib/request-negotiation';
-import { renderSelfHostInstaller } from '@/lib/self-host-release';
 import { HOME_SITE_HEADER } from '@/lib/site-origin';
 import { ssrNonce } from '@/lib/ssr-nonce.server';
 import { apiOrigin } from '@/services/api-origin';
-import PRODUCTION_COMPOSE from '../../../docker-compose.prod.yml?raw';
-import INSTALL_SCRIPT from '../../../scripts/install.sh?raw';
 
 /**
  * Custom server entry. Wraps TanStack Start's request handler to add
@@ -84,17 +74,6 @@ const ownHosts = new Set(
   ),
 );
 
-// Paths the app serves itself — never rewritten to a site route.
-// The public cloud marketing brand host. Only a deployment whose configured app
-// origin IS this host serves the marketing SEO docs (robots/sitemap/llms that
-// advertise "Nibleaf Cloud" and link nibleaf.com's sitemap). A self-hoster's
-// APP_URL points at their OWN dashboard, so IS_CLOUD_MARKETING is false for them
-// and they get a minimal, self-referential robots.txt with no marketing docs.
-const MARKETING_HOST = 'nibleaf.com';
-const CONFIGURED_HOST = serverEnv.APP_URL.replace(/^https?:\/\//, '')
-  .split('/')[0]
-  ?.toLowerCase();
-const IS_CLOUD_MARKETING = CONFIGURED_HOST === MARKETING_HOST;
 setMessageBrand(instanceBrand());
 /** What the app origin serves at its root; fails fast on an invalid value. */
 const HOMEPAGE = parseHomepage(process.env.HOMEPAGE);
@@ -104,31 +83,6 @@ const DRAIN_FILE = process.env.NIBLEAF_DRAIN_FILE ?? '/tmp/nibleaf-draining';
 
 /** Fail fast at boot on an invalid brand env. */
 instanceBrand();
-
-/** Compatibility copies of the public self-hosting artifacts. The documented
- * command uses versioned GitHub release assets and verifies their committed
- * digests; these routes remain available for existing operators. */
-function serveSelfHostingArtifact(pathname: string, bare: string): Response | null {
-  if (!IS_CLOUD_MARKETING || bare !== MARKETING_HOST) {
-    return null;
-  }
-  const artifacts: Record<string, { body: string; type: string; filename: string }> = {
-    '/install.sh': { body: renderSelfHostInstaller(INSTALL_SCRIPT), type: 'text/x-shellscript; charset=utf-8', filename: 'nibleaf-install.sh' },
-    '/docker-compose.yml': { body: PRODUCTION_COMPOSE, type: 'application/yaml; charset=utf-8', filename: 'docker-compose.yml' },
-  };
-  const artifact = artifacts[pathname];
-  if (!artifact) {
-    return null;
-  }
-  return new Response(artifact.body, {
-    headers: {
-      'cache-control': 'public, max-age=300',
-      'content-disposition': `inline; filename="${artifact.filename}"`,
-      'content-type': artifact.type,
-      'x-content-type-options': 'nosniff',
-    },
-  });
-}
 
 // ─── Visitor IP forwarding for SSR loader fetches ────────────────────────────
 // SSR data loaders fetch the API from THIS process, so without help every page
@@ -410,8 +364,6 @@ const SEO_CONTENT_TYPE: Record<string, string> = {
   'sitemap.xml': 'application/xml; charset=utf-8',
   'llms.txt': 'text/plain; charset=utf-8',
   'llms-full.txt': 'text/plain; charset=utf-8',
-  'pricing.md': 'text/markdown; charset=utf-8',
-  'openapi.json': 'application/json; charset=utf-8',
   'changelog/rss.xml': 'application/rss+xml; charset=utf-8',
 };
 
@@ -558,18 +510,14 @@ async function serveAppOriginSeo(pathname: string): Promise<Response | null> {
   return seoUnavailableResponse(file);
 }
 
-// ─── App-origin root SEO docs (marketing vs self-hosted dashboard) ────────────
-// The four /robots.txt, /sitemap.xml, /llms.txt, /llms-full.txt files at the app
-// root are generated here (there is no static public/ copy) so that:
-//  - the cloud marketing site (nibleaf.com) serves the full marketing documents,
-//    with absolute URLs built from the request origin, and
-//  - every OTHER origin (a self-hoster's dashboard) serves only a minimal
-//    robots.txt keeping crawlers off the app surfaces, and 404s the marketing
-//    sitemap/llms — a self-hoster must never advertise as "Nibleaf Cloud".
+// ─── App-origin root machine files ────────────────────────────────────────────
+// The app root serves only a minimal robots.txt keeping crawlers off the app
+// surfaces; sitemap.xml, llms.txt and llms-full.txt 404 (published sites serve
+// their own under /sites/:id/* or on their domain).
 
-/** Minimal robots.txt for a self-hosted dashboard: no Sitemap line, no marketing
- *  docs, just keep crawlers out of the app/auth/api surfaces. (`/app$` catches the
- *  bare dashboard path without also matching e.g. /apple-touch-icon.png.) */
+/** Minimal robots.txt for the dashboard origin: no Sitemap line, just keep
+ *  crawlers out of the app/auth/api surfaces. (`/app$` catches the bare
+ *  dashboard path without also matching e.g. /apple-touch-icon.png.) */
 const DASHBOARD_DISALLOWS = ['Disallow: /app/', 'Disallow: /app$', 'Disallow: /sign-in', 'Disallow: /sign-up', 'Disallow: /api/'];
 const SELF_HOST_ROBOTS = `User-agent: *\n${DASHBOARD_DISALLOWS.join('\n')}\n`;
 
@@ -581,308 +529,15 @@ async function withDashboardDisallows(robots: Response): Promise<Response> {
   return new Response(body, { status: robots.status, headers: robots.headers });
 }
 
-/** Full marketing robots.txt: allow crawling, disallow the app/auth/api
- *  surfaces (incl. token-bearing auth utility pages), and point at the sitemap. */
-function marketingRobots(origin: string): string {
-  return [
-    'User-agent: OAI-SearchBot',
-    'Allow: /',
-    'Disallow: /app/',
-    'Disallow: /api/',
-    '',
-    'User-agent: *',
-    'Allow: /',
-    'Disallow: /app/',
-    'Disallow: /app$',
-    'Disallow: /sign-in',
-    'Disallow: /sign-up',
-    'Disallow: /accept-invite',
-    'Disallow: /forgot-password',
-    'Disallow: /reset-password',
-    'Disallow: /verify-email',
-    'Disallow: /api/',
-    'Disallow: /cdn-cgi/',
-    '',
-    `Sitemap: ${origin}/sitemap.xml`,
-    '',
-  ].join('\n');
-}
-
-function marketingLlms(origin: string): string {
-  return `# Nibleaf
-
-> Nibleaf is a documentation platform with a visual Markdown editor, versioned publishing, built-in search, Arabic/RTL support, custom domains, and a free cloud beta at nibleaf.com.
-
-Last reviewed: 2026-09-03
-
-## Key facts
-
-- Public AGPL-3.0 source repository with an anonymously accessible pinned GHCR container release
-- Guided Docker Compose installer for the app, API, worker, database, cache, and object storage
-- Notion-style WYSIWYG editor over plain Markdown/MDX - content round-trips losslessly, no proprietary format
-- First-class Arabic and English authoring with full right-to-left (RTL) support, per-language page trees, and hreflang
-- Versioned publishing: every publish is an immutable snapshot, rollback is atomic
-- Built-in Orama full-text/fuzzy search remains the default and immediate rollback; source main adds an optional tenant-filtered Qdrant hybrid path, privacy-safe diagnostics, and opt-in grounded answers
-- Usage, add-ons, integrations, themes, and MCP below are source-main-only capabilities and are absent from the pinned v0.1.2 artifact
-- Provider-neutral usage events and ClickHouse rollups keep missing state unknown and limits advisory; they do not implement payments
-- Audited project add-ons and integrations expose explicit availability, consent, credential ownership, and health without returning stored secrets
-- Harbor, Manuscript, and Signal support validated theme exchange and runnable Git-native repositories
-- Project-bound MCP uses expiring scoped keys and read-only adapters; theme import is preview-only
-- Custom-domain and project-subdomain workflows are active; operators must still verify their own DNS and TLS configuration
-- First-party reader analytics (page views, top pages, top searches); the hosted service also uses Cloudflare for delivery, security, and web analytics
-- Works with any S3-compatible storage (AWS S3, Cloudflare R2, Backblaze B2, or the bundled storage service)
-- Nibleaf Cloud (nibleaf.com) is a managed instance, free while in beta
-
-## Guide academy
-
-- [English guide hub](${markdownAlternateUrl(`${origin}/guides`)}): practical decision labs, migration runbooks, operations recovery, Arabic evaluation, and AI-ready documentation
-- [Arabic guide hub](${markdownAlternateUrl(`${origin}/ar/guides`)}): Arabic-first routing to the same evidence, with every card's available language stated explicitly
-
-## Pages
-
-- [Home](${markdownAlternateUrl(`${origin}/`)}): overview and features
-- [Arabic home](${markdownAlternateUrl(`${origin}/ar`)}): Arabic product overview and RTL-first workflow
-- [Documentation platforms for Arabic teams](${markdownAlternateUrl(`${origin}/documentation-platforms`)}): English source-backed platform evaluation
-- [Documentation platforms for Arabic teams](${markdownAlternateUrl(`${origin}/ar/documentation-platforms`)}): source-backed Arabic buyer guide
-- [Nibleaf Cloud](${markdownAlternateUrl(`${origin}/cloud`)}): hosted documentation sites, free during beta
-- [Pricing](${markdownAlternateUrl(`${origin}/pricing`)}): free cloud beta and self-hosting requirements
-- [Self-hosting](${markdownAlternateUrl(`${origin}/self-hosting`)}): guided installer and deployment architecture
-- [About](${markdownAlternateUrl(`${origin}/about`)}): mission and stack
-- [Contact](${markdownAlternateUrl(`${origin}/contact`)}): product support, privacy, security, abuse, and editorial corrections
-- [Nibleaf developer resources](${markdownAlternateUrl(`${origin}/developers`)}): public API contract, agent access, authentication boundaries, and CLI status
-- [RTL documentation readiness grader](${markdownAlternateUrl(`${origin}/tools/rtl-documentation-readiness`)}): browser-only static HTML checks with transparent unknowns
-- [Nibleaf vs Mintlify](${markdownAlternateUrl(`${origin}/compare/nibleaf-vs-mintlify`)})
-- [Nibleaf vs GitBook](${markdownAlternateUrl(`${origin}/compare/nibleaf-vs-gitbook`)})
-- [Nibleaf vs Docusaurus](${markdownAlternateUrl(`${origin}/compare/nibleaf-vs-docusaurus`)})
-- [Mintlify alternatives](${markdownAlternateUrl(`${origin}/alternatives/mintlify`)})
-- [GitBook alternatives](${markdownAlternateUrl(`${origin}/alternatives/gitbook`)})
-- [ReadMe alternatives](${markdownAlternateUrl(`${origin}/alternatives/readme`)})
-- [Terms of Service](${markdownAlternateUrl(`${origin}/terms`)})
-- [Privacy Policy](${markdownAlternateUrl(`${origin}/privacy`)})
-
-## Product truth and source
-
-- [Public source repository](https://github.com/lord007tn/nibleaf): AGPL-3.0 code, issues, releases, and implementation details
-- [Product documentation](https://docs.nibleaf.com): current public user and operator documentation
-- [Machine-readable pricing](${origin}/pricing.md): current plans, limits, and operational responsibilities
-- [Nibleaf public OpenAPI specification](${origin}/openapi.json): typed public reader endpoints with unique operation IDs
-- [Security contact](${origin}/.well-known/security.txt): supported disclosure channel
-
-## When to use Nibleaf
-
-Use Nibleaf when a team needs to author, publish, search, or self-host versioned Markdown documentation, especially for bilingual English/Arabic sites, right-to-left interfaces, portable MDX content, or immutable release snapshots. Do not use Nibleaf as a general-purpose CMS, transactional database, or hosted write API: the supported developer contract currently covers public read access only.
-
-## How agents should call Nibleaf
-
-1. Read this file for product routing, then use [llms-full.txt](${origin}/llms-full.txt) when the complete product description is needed.
-2. Request a human-facing Nibleaf URL with \`Accept: text/markdown\` for its clean Markdown representation.
-3. Read [openapi.json](${origin}/openapi.json) before calling public reader endpoints. Use the \`siteId\` from a published site's URL and do not assume dashboard session endpoints are a supported write API.
-4. For a published documentation site, prefer its own \`/llms.txt\`, \`/llms-full.txt\`, \`/sitemap.xml\`, and, when configured by that site owner, \`/openapi.json\`.
-5. If a path returns 404, follow the sitemap or llms index instead of guessing paths.
-
-## Current limitations
-
-- No paid Nibleaf Cloud plan is offered while the service is in beta.
-${nibleafProductLimitations.map((limitation) => `- ${limitation}`).join('\n')}
-- GitHub has a two-way authoring workflow; public GitLab and generic Git imports are currently one-way.
-
-## Blog
-
-${BLOG_ENTRIES.map((entry) => `- [${entry.title}](${markdownAlternateUrl(`${origin}/blog/${entry.slug}`)}): ${entry.description}`).join('\n')}
-
-## Full details
-
-- [llms-full.txt](${origin}/llms-full.txt): complete plain-text product description
-`;
-}
-
-function marketingLlmsFull(origin: string): string {
-  return `# Nibleaf - full description
-
-Nibleaf is a documentation platform with a visual Markdown editor, versioned publishing, built-in search, Arabic/RTL support, custom domains, and a free cloud beta at nibleaf.com.
-
-Nibleaf lets teams write documentation in Markdown/MDX, organize it into a navigable tree, and publish a searchable, multilingual site with versioned deploys, per-site teams, custom domains, and analytics. The managed cloud at nibleaf.com is free while in beta.
-
-## What is Nibleaf?
-
-Nibleaf combines a browser editor, Markdown content, publishing, search, analytics, and multilingual reader sites. Pages are stored as Markdown in the database and can be exported as Markdown, so the content format is portable even though the live source is not a Git directory.
-
-Nibleaf was built with English and Arabic authoring as core features, including right-to-left layout and per-language page trees.
-
-## Features
-
-- Rich editor: WYSIWYG and raw Markdown/MDX modes with live preview, a Notion-style block handle and slash menu, and a drag-and-drop, nestable page tree.
-- MDX components: callouts, cards, steps, tabs, code groups, accordions, param/response fields, frames, tooltips, inline icons, KaTeX math, and Mermaid diagrams - all round-trip losslessly between visual and source modes.
-- Versioned publishing: every publish is an immutable snapshot with atomic roll-forward; readers never see a half-written page.
-- Branches: git-style, database-backed branches - fork, edit in isolation, and merge into main.
-- Anchored comments: review comments pinned to the exact block, Figma-style.
-- Search: the built-in Orama full-text/fuzzy path remains the default and immediate rollback. Source main adds an optional tenant-filtered Qdrant BM25+dense path, privacy-safe diagnostics, and opt-in grounded answers. Operators begin with SEARCH_RUNTIME=shadow and must evaluate their configured providers before cutover.
-- The usage, add-on, integration, theme, and MCP capabilities below are source-main-only and are absent from the pinned v0.1.2 self-host artifact.
-- Usage and entitlements: provider-neutral events, exact ClickHouse rollups, deletion fences, and explicit unknown states. Limits remain advisory and no payment flow is present.
-- Project add-ons: audited feedback, edit/issue links, consent presentation, publishing checks, grammar-lint preview, and preview-deployment controls with current plan/entitlement availability.
-- Integrations: project-managed encrypted write-only webhook credentials and instance-managed provider status with explicit ownership and health states.
-- Documentation themes: Harbor, Manuscript, and Signal structural templates, bounded JSON exchange, and runnable Git-native repositories with platform/shared/customer ownership.
-- MCP: project-bound, expiring scoped API keys expose read-only content, search, usage, add-on, integration, operation, and theme adapters. Theme import is preview-only and cannot apply changes.
-- Bilingual and RTL: per-language page trees, RTL layout, hreflang, and localized dashboard/editor/site chrome in English and Arabic.
-- Custom domains and subdomains: guided DNS setup and verification plus host-based published-site routing. Production DNS readiness depends on the configured domain and must be verified separately.
-- SEO built in: server-side rendering, per-page canonical/Open Graph/Twitter/JSON-LD, sitemaps, robots controls, hreflang, and noindex controls.
-- Per-site teams: each site is its own workspace with role-based members (owner/admin/editor).
-- Analytics: first-party page views, unique visitors, top pages, top searches, plus device and language breakdowns. Nibleaf Cloud also uses Cloudflare for delivery, security, and web analytics.
-- Bring-your-own storage: any S3-compatible store (AWS S3, Cloudflare R2, Backblaze B2, or the bundled storage service).
-
-## Self-hosting
-
-The codebase is licensed under AGPL-3.0. Its public repository, pinned GHCR release, guided installer, and production Docker Compose file are anonymously accessible. The stack contains the app, API, worker, PostgreSQL, cache, and object storage. Operators remain responsible for DNS, TLS, backups, monitoring, and restore testing; see ${origin}/self-hosting for the verified installation path and production checklist.
-
-## Nibleaf Cloud
-
-Nibleaf Cloud (${origin}) is the managed instance run by the Nibleaf team: hosted dashboard, managed database, queues and storage, automatic upgrades, custom domains, and analytics. It is free while in beta. No paid plan is currently offered.
-
-## License
-
-AGPL-3.0. The license governs your rights to use, copy, modify, and distribute the software, including the AGPL's network-use clause.
-
-## Links
-
-- Home: ${origin}/
-- Arabic home: ${origin}/ar
-- English platform comparison: ${origin}/documentation-platforms
-- Arabic platform comparison: ${origin}/ar/documentation-platforms
-- Cloud: ${origin}/cloud
-- Pricing: ${origin}/pricing
-- Machine-readable pricing: ${origin}/pricing.md
-- Self-hosting: ${origin}/self-hosting
-- Blog: ${origin}/blog
-- About: ${origin}/about
-- Developer resources: ${origin}/developers
-- Nibleaf public OpenAPI specification: ${origin}/openapi.json
-- Terms of Service: ${origin}/terms
-- Privacy Policy: ${origin}/privacy
-- Support: support@nibleaf.com
-- RTL documentation readiness grader: ${origin}/tools/rtl-documentation-readiness
-- Product documentation: https://docs.nibleaf.com
-- Integrated release notes: https://docs.nibleaf.com/releases/august-2026-capabilities
-- Ordered migration and rollback guide: https://docs.nibleaf.com/self-hosting/combined-release-migration
-- Add-ons reference: https://docs.nibleaf.com/use-nibleaf/add-ons
-- MCP operator guide: https://docs.nibleaf.com/self-hosting/mcp
-- Public source: https://github.com/lord007tn/nibleaf
-
-## Public Markdown source inventory
-
-Every URL in the public marketing sitemap has a clean Markdown sibling. This list is generated from the same sitemap registry, so additions cannot silently disappear from llms-full.txt.
-
-${marketingMarkdownSourceUrls(origin)
-  .map((url) => `- ${url}`)
-  .join('\n')}
-`;
-}
-
-/** Stable, non-JavaScript pricing truth for search engines and software agents.
- * Keep this synchronized with /pricing and lib/comparison-data.ts. */
-function marketingPricingMarkdown(origin: string): string {
-  const cloud = nibleafPricing.rows.find((row) => row.plan === 'Cloud');
-  const selfHosted = nibleafPricing.rows.find((row) => row.plan === 'Self-hosted');
-
-  return `# Nibleaf pricing
-
-Last reviewed: 2026-08-22
-
-Nibleaf currently has no paid cloud plan. The managed cloud is free while in beta, and the self-hosted codebase is available under AGPL-3.0. No credit card is required to create a cloud account.
-
-## Nibleaf Cloud beta
-
-- Price: ${cloud?.price ?? 'Free while in beta'}
-- Billing: no paid plan is currently offered
-- Includes: ${cloud?.includes ?? 'Hosted dashboard and documentation sites, managed database and storage, custom domains, analytics, and search.'}
-- Limits: fair-use controls apply; product limits can change during beta
-- Sign up: ${origin}/sign-up
-
-## Self-hosted Nibleaf
-
-- Software price: ${selfHosted?.price ?? 'Free under AGPL-3.0'}
-- Source: https://github.com/lord007tn/nibleaf
-- Includes: ${selfHosted?.includes ?? 'App, API, worker, PostgreSQL, cache, object storage, installer, and production Docker Compose configuration.'}
-- Operator responsibilities: infrastructure, DNS, TLS, secrets, backups, monitoring, upgrades, incident response, and restore testing
-- Deployment guide: ${origin}/self-hosting
-
-## Important limitations
-
-- There is no committed date or price for a future paid cloud plan.
-${nibleafProductLimitations.map((limitation) => `- ${limitation}`).join('\n')}
-- Cloudflare processes traffic for delivery, security, and web analytics on the managed service.
-
-## ${translateFn('marketing.machine.arabic.heading', undefined, 'ar')}
-
-- ${translateFn('marketing.machine.arabic.betaPricing', undefined, 'ar')}
-- ${translateFn('marketing.machine.arabic.selfHosting', undefined, 'ar')}
-- ${translateFn('marketing.machine.arabic.pageLabel', undefined, 'ar')}: ${origin}/ar
-
-For the human-readable plan comparison and current policy details, see ${origin}/pricing.
-`;
-}
-
-/** Serve the four SEO docs at the APP origin's root. On the cloud marketing
- *  origin the full marketing documents (URLs built from the request origin); on
- *  any other origin a minimal robots.txt, with the marketing-only files 404ed. */
-function serveRootSeo(pathname: string, host: string, bare: string, request: Request): Response | null {
-  if (pathname === '/.well-known/security.txt') {
-    const isMarketing = IS_CLOUD_MARKETING && (bare === MARKETING_HOST || host === MARKETING_HOST);
-    if (!isMarketing) {
-      return new Response('Not found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
-    }
-    const proto = request.headers.get('x-forwarded-proto') || 'https';
-    const origin = `${proto}://${host}`;
-    const expires = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString();
-    const body = [
-      'Contact: mailto:security@nibleaf.com',
-      `Expires: ${expires}`,
-      `Canonical: ${origin}/.well-known/security.txt`,
-      'Policy: mailto:security@nibleaf.com',
-      'Preferred-Languages: en, ar',
-      '',
-    ].join('\n');
-    return new Response(body, {
-      status: 200,
-      headers: {
-        'cache-control': 'public, max-age=86400',
-        'content-type': 'text/plain; charset=utf-8',
-      },
-    });
-  }
-  const isMarketingMachineFile = pathname === '/pricing.md' || pathname === '/openapi.json';
-  if (!DOMAIN_SEO_FILE.test(pathname) && !isMarketingMachineFile) {
+/** App-origin root machine files: the minimal robots.txt, every other one (and security.txt) 404s. */
+function serveRootSeo(pathname: string): Response | null {
+  if (pathname !== '/.well-known/security.txt' && !DOMAIN_SEO_FILE.test(pathname)) {
     return null;
   }
-  const file = pathname.slice(1);
-  const isMarketing = IS_CLOUD_MARKETING && (bare === MARKETING_HOST || host === MARKETING_HOST);
-  if (!isMarketing) {
-    if (file === 'robots.txt') {
-      return new Response(SELF_HOST_ROBOTS, { headers: { 'content-type': 'text/plain; charset=utf-8' } });
-    }
-    return new Response('Not found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+  if (pathname === '/robots.txt') {
+    return new Response(SELF_HOST_ROBOTS, { headers: { 'content-type': 'text/plain; charset=utf-8' } });
   }
-  const proto = request.headers.get('x-forwarded-proto') || 'https';
-  const origin = `${proto}://${host}`;
-  const body =
-    file === 'openapi.json'
-      ? `${JSON.stringify(nibleafPublicOpenApi(origin), null, 2)}\n`
-      : file === 'pricing.md'
-        ? marketingPricingMarkdown(origin)
-        : file === 'robots.txt'
-          ? marketingRobots(origin)
-          : file === 'sitemap.xml'
-            ? marketingSitemap(origin)
-            : file === 'llms.txt'
-              ? marketingLlms(origin)
-              : marketingLlmsFull(origin);
-  return new Response(body, {
-    status: 200,
-    headers: {
-      'cache-control': 'public, max-age=300',
-      'content-type': SEO_CONTENT_TYPE[file] ?? 'text/plain; charset=utf-8',
-      ...(file === 'openapi.json' ? { 'content-disposition': 'inline; filename="openapi.json"', 'x-content-type-options': 'nosniff' } : {}),
-    },
-  });
+  return new Response('Not found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
 }
 
 const APP_SECURITY_HEADERS = {
@@ -957,11 +612,6 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
   const host = effectiveRequestHost(request, url);
   const bare = host.split(':')[0] ?? '';
   const isCustomDomain = Boolean(host) && !ownHosts.has(host) && !ownHosts.has(bare);
-  // Consolidate the marketing origin: www.nibleaf.com would otherwise resolve as
-  // an unknown custom domain and serve duplicate 200 content on every path.
-  if (IS_CLOUD_MARKETING && bare === `www.${MARKETING_HOST}`) {
-    return Response.redirect(`https://${MARKETING_HOST}${url.pathname}${url.search}`, 301);
-  }
   const isGetLike = request.method === 'GET' || request.method === 'HEAD';
   // Instance brand assets (BRAND_ASSETS_DIR) on every host, before any site rewrite.
   const brandAsset = brandAssetResponse(request);
@@ -976,9 +626,8 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
     return Response.redirect(`${proto}://${host}${url.pathname.replace(/\/+$/, '')}${url.search}`, 308);
   }
 
-  // Stable `.md` aliases render the same published/marketing document as the
-  // canonical HTML path. `/pricing.md` remains its dedicated product artifact.
-  const markdownAliasCanonical = isGetLike && url.pathname !== '/pricing.md' ? canonicalPathFromMarkdownAlias(url.pathname) : null;
+  // Stable `.md` aliases render the same published document as the canonical HTML path.
+  const markdownAliasCanonical = isGetLike ? canonicalPathFromMarkdownAlias(url.pathname) : null;
   let routedRequest = request;
   if (markdownAliasCanonical) {
     url.pathname = markdownAliasCanonical;
@@ -987,8 +636,6 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
     routedRequest.headers.set('x-nibleaf-markdown-alias', '1');
   }
 
-  const isMarketingOrigin = IS_CLOUD_MARKETING && (bare === MARKETING_HOST || host === MARKETING_HOST);
-  const marketingMarkdownPaths = new Set(marketingSitemapEntries().map((entry) => entry.path));
   const renderHtml = async (documentRequest: Request): Promise<Response> => {
     const documentUrl = new URL(documentRequest.url);
     if (!(isGetLike && isDocumentPath(documentUrl.pathname))) return startHandler(documentRequest, ...rest);
@@ -996,83 +643,37 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
     const preferred = preferredRepresentation(documentRequest.headers.get('accept'));
     if (!preferred) return notAcceptableHtmlResponse();
 
-    if (!isMarketingOrigin) {
-      const siteMatch = /^\/sites\/([^/]+)(\/.*)?$/.exec(documentUrl.pathname);
-      if (preferred === 'text/markdown') {
-        if (!siteMatch?.[1]) return notAcceptableHtmlResponse();
-        const projectId = siteMatch[1];
-        const routedPath = siteMatch[2] || '/';
-        const publicPath = decodePublishedPathname(routedPath);
-        const requestOrigin = documentRequest.headers.get('x-nibleaf-site-origin');
-        const meta = await resolveSiteMeta(projectId);
-        const base = meta?.primaryDomain
-          ? `https://${meta.primaryDomain}`
-          : requestOrigin
-            ? requestOrigin
-            : `${documentUrl.origin}/sites/${projectId}`;
-        if (publicPath === null) return siteMarkdownUnavailableResponse(base);
-        const proxied = await proxyPublishedMarkdown(projectId, publicPath, documentUrl.searchParams);
-        if (!proxied?.ok) return siteMarkdownUnavailableResponse(base);
-        const canonicalUrl = documentUrlForBase(base, routedPath, documentUrl.search);
-        return withoutHeadBody(addMarkdownDiscovery(proxied.response, canonicalUrl, llmsUrlForBase(base)), documentRequest.method);
-      }
-      if (!acceptsHtml(documentRequest.headers.get('accept'))) return notAcceptableHtmlResponse();
-      const rendered = await startHandler(documentRequest, ...rest);
-      if (rendered.status >= 400 || !siteMatch?.[1]) return rendered;
-      const meta = await resolveSiteMeta(siteMatch[1]);
-      if (!meta || meta.isPrivate) return rendered;
-      const requestOrigin = documentRequest.headers.get('x-nibleaf-site-origin');
-      const base = meta.primaryDomain
-        ? `https://${meta.primaryDomain}`
-        : requestOrigin
-          ? requestOrigin
-          : `${documentUrl.origin}/sites/${siteMatch[1]}`;
+    const siteMatch = /^\/sites\/([^/]+)(\/.*)?$/.exec(documentUrl.pathname);
+    if (preferred === 'text/markdown') {
+      if (!siteMatch?.[1]) return notAcceptableHtmlResponse();
+      const projectId = siteMatch[1];
       const routedPath = siteMatch[2] || '/';
       const publicPath = decodePublishedPathname(routedPath);
-      if (publicPath === null) return rendered;
-      // The public Markdown action owns the complete project/language/page
-      // eligibility contract. Only advertise an alternate that it confirms.
-      const markdown = await proxyPublishedMarkdown(siteMatch[1], publicPath, documentUrl.searchParams);
-      if (!markdown?.ok) return rendered;
+      const requestOrigin = documentRequest.headers.get('x-nibleaf-site-origin');
+      const meta = await resolveSiteMeta(projectId);
+      const base = meta?.primaryDomain ? `https://${meta.primaryDomain}` : requestOrigin ? requestOrigin : `${documentUrl.origin}/sites/${projectId}`;
+      if (publicPath === null) return siteMarkdownUnavailableResponse(base);
+      const proxied = await proxyPublishedMarkdown(projectId, publicPath, documentUrl.searchParams);
+      if (!proxied?.ok) return siteMarkdownUnavailableResponse(base);
       const canonicalUrl = documentUrlForBase(base, routedPath, documentUrl.search);
-      return addMarkdownDiscovery(rendered, canonicalUrl, llmsUrlForBase(base));
+      return withoutHeadBody(addMarkdownDiscovery(proxied.response, canonicalUrl, llmsUrlForBase(base)), documentRequest.method);
     }
-
-    const isMarkdownCandidate = marketingMarkdownPaths.has(documentUrl.pathname);
-    if (preferred === 'text/markdown' && documentUrl.pathname === '/pricing') {
-      const protocol = documentRequest.headers.get('x-forwarded-proto') || documentUrl.protocol.replace(':', '') || 'https';
-      const origin = `${protocol}://${documentUrl.host}`;
-      const response = new Response(marketingPricingMarkdown(origin), {
-        headers: { 'cache-control': 'public, max-age=300', 'content-type': 'text/markdown; charset=utf-8' },
-      });
-      return withoutHeadBody(addMarkdownDiscovery(response, `${origin}/pricing`, `${origin}/llms.txt`), documentRequest.method);
-    }
-    const renderRequest = preferred === 'text/markdown' ? asHtmlRenderRequest(documentRequest) : documentRequest;
-    const rendered = await startHandler(renderRequest, ...rest);
-
-    if (rendered.status === 404) {
-      const response = preferred === 'text/markdown' ? agentFriendlyNotFoundMarkdown(documentUrl.origin) : new Response(rendered.body, rendered);
-      appendVary(response.headers, 'Accept');
-      return withoutHeadBody(response, documentRequest.method);
-    }
-
-    if (preferred === 'text/markdown') {
-      if (!isMarkdownCandidate) {
-        if (!acceptsHtml(documentRequest.headers.get('accept'))) return notAcceptableHtmlResponse();
-        return rendered;
-      }
-      const markdown = await marketingMarkdownResponse(rendered, documentUrl.toString());
-      return withoutHeadBody(
-        addMarkdownDiscovery(markdown, documentUrl.toString(), new URL('/llms.txt', documentUrl.origin).toString()),
-        documentRequest.method,
-      );
-    }
-
-    const response = new Response(rendered.body, rendered);
-    if (isMarkdownCandidate) {
-      return addMarkdownDiscovery(response, documentUrl.toString(), new URL('/llms.txt', documentUrl.origin).toString());
-    }
-    return response;
+    if (!acceptsHtml(documentRequest.headers.get('accept'))) return notAcceptableHtmlResponse();
+    const rendered = await startHandler(documentRequest, ...rest);
+    if (rendered.status >= 400 || !siteMatch?.[1]) return rendered;
+    const meta = await resolveSiteMeta(siteMatch[1]);
+    if (!meta || meta.isPrivate) return rendered;
+    const requestOrigin = documentRequest.headers.get('x-nibleaf-site-origin');
+    const base = meta.primaryDomain ? `https://${meta.primaryDomain}` : requestOrigin ? requestOrigin : `${documentUrl.origin}/sites/${siteMatch[1]}`;
+    const routedPath = siteMatch[2] || '/';
+    const publicPath = decodePublishedPathname(routedPath);
+    if (publicPath === null) return rendered;
+    // The public Markdown action owns the complete project/language/page
+    // eligibility contract. Only advertise an alternate that it confirms.
+    const markdown = await proxyPublishedMarkdown(siteMatch[1], publicPath, documentUrl.searchParams);
+    if (!markdown?.ok) return rendered;
+    const canonicalUrl = documentUrlForBase(base, routedPath, documentUrl.search);
+    return addMarkdownDiscovery(rendered, canonicalUrl, llmsUrlForBase(base));
   };
 
   const serve = async (): Promise<Response> => {
@@ -1091,18 +692,11 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
         rewritten.headers.set(HOME_SITE_HEADER, HOMEPAGE.projectId);
         return renderHtml(rewritten);
       }
-      // Marketing pages 404 through the router's homepage rewrite, on server and client alike.
       if (HOMEPAGE.mode === 'app' && url.pathname === '/') {
         return new Response(null, { status: 302, headers: { location: `/app${url.search}` } });
       }
       if (isGetLike) {
-        const artifact = serveSelfHostingArtifact(url.pathname, bare);
-        if (artifact) {
-          return withoutHeadBody(artifact, request.method);
-        }
-        // App-origin ROOT robots/sitemap/llms: the marketing docs on nibleaf.com,
-        // a minimal robots.txt (and 404s) on every self-hosted dashboard.
-        const rootSeo = serveRootSeo(url.pathname, host, bare, request);
+        const rootSeo = serveRootSeo(url.pathname);
         if (rootSeo) {
           return withoutHeadBody(rootSeo, request.method);
         }

@@ -7,8 +7,6 @@ vi.mock('@tanstack/react-start/server', async (importOriginal) => ({
   defaultStreamHandler: vi.fn(),
 }));
 vi.mock('got', () => ({ default: mocks.got }));
-vi.mock('@nibleaf/i18n', () => ({ translateFn: () => 'synthetic translation' }));
-vi.mock('@/lib/blog', () => ({ BLOG_ENTRIES: [] }));
 vi.mock('@/env.server', () => ({
   serverEnv: {
     APP_URL: 'http://localhost:4310',

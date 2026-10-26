@@ -10,9 +10,9 @@ first-class Arabic/RTL support, custom domains, and a free cloud beta at
 [nibleaf.com](https://nibleaf.com).
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/lord007tn/nibleaf?sort=semver&color=B96A3D)](https://github.com/lord007tn/nibleaf/releases)
-[![CI](https://github.com/lord007tn/nibleaf/actions/workflows/ci.yml/badge.svg)](https://github.com/lord007tn/nibleaf/actions/workflows/ci.yml)
-[![Docker image](https://github.com/lord007tn/nibleaf/actions/workflows/docker.yml/badge.svg)](https://github.com/lord007tn/nibleaf/pkgs/container/nibleaf)
+[![Release](https://img.shields.io/github/v/release/Zhincore/zhindocs?sort=semver&color=B96A3D)](https://github.com/Zhincore/zhindocs/releases)
+[![CI](https://github.com/Zhincore/zhindocs/actions/workflows/ci.yml/badge.svg)](https://github.com/Zhincore/zhindocs/actions/workflows/ci.yml)
+[![Docker image](https://github.com/Zhincore/zhindocs/actions/workflows/docker.yml/badge.svg)](https://github.com/Zhincore/zhindocs/pkgs/container/zhindocs)
 
 [Homepage](https://nibleaf.com) · [Documentation](https://docs.nibleaf.com) · [Docs source](docs/README.md) · [Quick start](#-quick-start) · [Features](#-features) · [Self-host](https://docs.nibleaf.com/getting-started/self-hosted) · [Architecture](#️-architecture) · [Contributing](CONTRIBUTING.md)
 
@@ -28,8 +28,7 @@ first-class Arabic/RTL support, custom domains, and a free cloud beta at
 
 Nibleaf lets you write documentation in Markdown/MDX, organize it into a navigable tree,
 and publish a fast, searchable, multilingual site — with versioned deploys, custom
-domains, per-site teams, and analytics. Run it with the guided installer or Docker
-Compose, or use the hosted beta. It's the docs platform you can operate end to end:
+domains, per-site teams, and analytics. Run it with Docker Compose, or use the hosted beta. It's the docs platform you can operate end to end:
 no per-seat pricing for the self-hosted edition, no proprietary content format, and
 your content stays in your database.
 
@@ -107,7 +106,7 @@ Honesty over marketing — if you need these today, Nibleaf isn't there yet:
 - **SSO / SAML** — passwordless email OTP + Google OAuth only; no enterprise SSO.
 
 Want one of these sooner? Open or upvote an issue —
-[github.com/lord007tn/nibleaf/issues](https://github.com/lord007tn/nibleaf/issues).
+[github.com/Zhincore/zhindocs/issues](https://github.com/Zhincore/zhindocs/issues).
 
 ## OpenAPI reference setup
 
@@ -138,22 +137,17 @@ or private examples in a document you intend to publish.
 
 ## 🚀 Quick start
 
-On a Linux server, the pinned bootstrap downloads the v0.1.2 installer, verifies
-its committed SHA-256 digest, and only then executes it. The verified installer
-also verifies the release's production Compose file before it writes a mode-600
-`.env` or starts the stack:
+The production stack **pulls the prebuilt image** from GHCR
+(`ghcr.io/zhincore/zhindocs`, linux/amd64) — nothing is compiled on your server,
+so it runs fine on a small VPS. Download `docker-compose.prod.yml` and
+`env.production.example` from the
+[latest release](https://github.com/Zhincore/zhindocs/releases/latest) (or use
+the same files from a repository checkout):
 
 ```bash
-set -eu; d=$(mktemp -d); trap 'rm -rf "$d"' EXIT; curl -fsSLo "$d/nibleaf-install.sh" https://github.com/lord007tn/nibleaf/releases/download/v0.1.2/nibleaf-install.sh; actual=$(openssl dgst -sha256 "$d/nibleaf-install.sh"); actual=${actual##* }; [ "$actual" = "d23da907556cc31ddd4d7b3a7f62ed933106bcef8b2e9439c15e7ab71a05e59a" ] || { echo "Nibleaf installer checksum mismatch" >&2; exit 1; }; sh "$d/nibleaf-install.sh"
-```
-
-For manual setup, the recommended path below **pulls the prebuilt image** from
-GHCR (`ghcr.io/lord007tn/nibleaf`) — nothing is compiled on your server, so it
-runs fine on a small VPS:
-
-```bash
-git clone https://github.com/lord007tn/nibleaf
-cd nibleaf && cp .env.production.example .env
+mkdir zhindocs && cd zhindocs
+curl -fsSLO https://github.com/Zhincore/zhindocs/releases/latest/download/docker-compose.prod.yml
+curl -fsSLo .env https://github.com/Zhincore/zhindocs/releases/latest/download/env.production.example
 
 # Edit .env — set APP_URL (your dashboard origin), the storage endpoints, and
 # fresh secrets (openssl rand -hex 32). The stack fails fast if one is missing.
@@ -199,7 +193,7 @@ docker compose up -d --build
   at [`docker-compose.coolify.yml`](docker-compose.coolify.yml), assign domains
   to the `app` / `admin` / `maxio` services (Coolify auto-generates the
   `SERVICE_*` secrets), set `SITE_BASE_DOMAIN` + `CUSTOM_DOMAIN_CNAME_TARGET`,
-  and deploy. Pin a build with `NIBLEAF_IMAGE=ghcr.io/lord007tn/nibleaf:v0.1.2`.
+  and deploy. Pin a build with `NIBLEAF_IMAGE=ghcr.io/zhincore/zhindocs:v1.0.0`.
 - **Nibleaf Cloud** — don't want to run servers? The hosted beta at
   [nibleaf.com](https://nibleaf.com) is free while in beta.
 
@@ -260,10 +254,6 @@ better-auth session cookies stay first-party with no CORS dance.
 
 TanStack Start · React 19 · Hono · better-auth · Prisma · PostgreSQL · BullMQ · Dragonfly ·
 Orama · optional Qdrant and ClickHouse · shadcn/ui (Base UI) · Tailwind CSS v4 · Zod · Pino · tsdown · Vite · Biome.
-
-> **Release boundary:** the integrated capabilities above are present in source `main`. The
-> checksummed installer and pinned public container remain v0.1.2 until a separate release is
-> published. Do not treat a source merge as an image or deployment receipt.
 
 ## 💻 Local development
 
@@ -328,8 +318,8 @@ When `NODE_ENV=production`, the container entrypoint refuses to start (`exit 1`)
 ## 💬 Support & community
 
 - **Support guide** — [SUPPORT.md](SUPPORT.md)
-- **Questions & ideas** — [GitHub Discussions](https://github.com/lord007tn/nibleaf/discussions)
-- **Bugs** — [GitHub Issues](https://github.com/lord007tn/nibleaf/issues)
+- **Questions & ideas** — [GitHub Discussions](https://github.com/Zhincore/zhindocs/discussions)
+- **Bugs** — [GitHub Issues](https://github.com/Zhincore/zhindocs/issues)
 - **Email** — [support@nibleaf.com](mailto:support@nibleaf.com)
 - **Security vulnerabilities** — privately, please: see [SECURITY.md](SECURITY.md)
 

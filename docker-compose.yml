@@ -8,7 +8,7 @@ name: nibleaf
 # ⚠ RAM WARNING: building the whole monorepo in-container needs ~5–6 GB of
 # free RAM and will OOM small VPSes. For production self-hosting, use the
 # pull-based docker-compose.prod.yml instead (recommended) — it pulls the
-# prebuilt image from ghcr.io/lord007tn/nibleaf and needs no build at all.
+# prebuilt image from ghcr.io/zhincore/zhindocs and needs no build at all.
 #
 # For production: set strong POSTGRES_PASSWORD / STORAGE_SECRET_ACCESS_KEY /
 # BETTER_AUTH_SECRET and put the apps behind a TLS reverse proxy.

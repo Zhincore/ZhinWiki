@@ -3,9 +3,9 @@
 Nibleaf is maintained in public. Use the channel that matches the kind of help
 you need:
 
-- Ask setup and usage questions in [GitHub Discussions](https://github.com/lord007tn/nibleaf/discussions).
-- Report reproducible bugs with the [bug report template](https://github.com/lord007tn/nibleaf/issues/new?template=bug_report.yml).
-- Propose features with the [feature request template](https://github.com/lord007tn/nibleaf/issues/new?template=feature_request.yml).
+- Ask setup and usage questions in [GitHub Discussions](https://github.com/Zhincore/zhindocs/discussions).
+- Report reproducible bugs with the [bug report template](https://github.com/Zhincore/zhindocs/issues/new?template=bug_report.yml).
+- Propose features with the [feature request template](https://github.com/Zhincore/zhindocs/issues/new?template=feature_request.yml).
 - Read the [production checklist](https://docs.nibleaf.com/self-hosting/production) before operating Nibleaf in production.
 
 Support is best-effort. The project does not currently promise response or

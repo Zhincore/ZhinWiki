@@ -51,8 +51,7 @@ operation (including pull, up, config checks, and backup automation):
 docker compose -f docker-compose.prod.yml -f docker-compose.search.yml up -d
 ```
 
-The overlay is separate so the checksummed v0.1.2 self-host release artifacts
-remain immutable. Coolify and the development stack include Qdrant directly.
+The overlay is separate so the production Compose file stays unchanged. Coolify and the development stack include Qdrant directly.
 
 To offer answers, set `SEARCH_ANSWER_ENABLED=true` and pin
 `SEARCH_ANSWER_MODEL`. Answer generation uses the same OpenRouter credential

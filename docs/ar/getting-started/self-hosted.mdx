@@ -1,23 +1,19 @@
 ---
 title: 'ثبّت Nibleaf على خادم Linux واحد'
-description: 'ثبّت إصدار Nibleaf المثبّت باستخدام برنامج التثبيت الموجّه أو Docker Compose، ثم تحقق من عمليات الترحيل والتسجيل والتخزين والنشر.'
+description: 'ثبّت إصدار Nibleaf مثبّتًا باستخدام Docker Compose، ثم تحقق من عمليات الترحيل والتسجيل والتخزين والنشر.'
 audience: 'المشغّلون الذين يقيّمون Nibleaf المستضاف ذاتيًا أو يثبتونه'
 content_type: 'tutorial'
 last_reviewed: '2026-08-24'
-verified_against: 'scripts/install.sh, docker-compose.prod.yml, and .env.production.example'
+verified_against: 'docker-compose.prod.yml and .env.production.example'
 lang: 'ar'
 dir: 'rtl'
 translation_key: 'getting-started/self-hosted'
 ---
 
-يسحب مسار الإنتاج الموصى به صورة متعددة البنى ومثبتة الإصدار من GHCR. ولا
+يسحب مسار الإنتاج الموصى به صورة linux/amd64 مثبتة الإصدار من GHCR
+(`ghcr.io/zhincore/zhindocs`). ولا
 يجمع المستودع الأحادي على الخادم. أكمل هذا الدليل التعليمي على مضيف مؤقت قبل
 نقل المحتوى الحقيقي.
-
-يحدد برنامج التثبيت وبيان الاستضافة الذاتية المنشوران حاليًا v0.1.2. مجموعة
-إمكانات أغسطس 2026 مدمجة في المصدر لكنها ليست صورة منشورة. استخدم هذا الدليل
-للناتج المثبت الذي ينزله، ولا تستبدل التزامًا من `main` في الإنتاج من دون
-[مراجعة الترحيل المجمعة](/ar/self-hosting/combined-release-migration) المنفصلة.
 
 ## المتطلبات المسبقة
 
@@ -39,37 +35,21 @@ curl --version
 openssl version
 ```
 
-## شغّل برنامج التثبيت الموجّه
+## نزّل ملفات الإصدار
 
-لأقصر مسار، شغّل برنامج التثبيت التفاعلي الرسمي من طرفية SSH:
-
-```bash
-curl -fsSL https://nibleaf.com/install.sh | sh
-```
-
-إذا كانت سياسة الأمان لديك تتطلب الفحص قبل التنفيذ، فنزّل البرنامج النصي نفسه
-وراجعه أولًا:
+يرفق كل إصدار ملف Compose الخاص بالإنتاج وقالب البيئة. نزّل الملفين إلى مجلد
+جديد، واحفظ القالب باسم `.env`:
 
 ```bash
-curl -fsSLo nibleaf-install.sh https://nibleaf.com/install.sh
-less nibleaf-install.sh
-sh nibleaf-install.sh
+mkdir zhindocs && cd zhindocs
+curl -fsSLO https://github.com/Zhincore/zhindocs/releases/latest/download/docker-compose.prod.yml
+curl -fsSLo .env https://github.com/Zhincore/zhindocs/releases/latest/download/env.production.example
 ```
 
-يتحقق برنامج التثبيت من الأدوات المحلية، ويطلب الأصول العامة، وينشئ أسرارًا
-جديدة، ويكتب ملف `.env` بصلاحيات الوضع 600، وينزّل ملف Compose الخاص بالإنتاج،
-ويسحب الصورة المثبتة الإصدار، ثم يشغّل المنظومة. مجلد التثبيت الافتراضي هو
-`$PWD/nibleaf`.
+الملفان نفسهما هما `docker-compose.prod.yml` و`.env.production.example` في نسخة
+محلية من المستودع. يثبّت كلاهما `NIBLEAF_VERSION` على وسم إصداره.
 
-## ثبّت يدويًا
-
-استخدم هذا المسار عندما تكون إدارة الإعدادات مسؤولة عن ملف البيئة:
-
-```bash
-git clone https://github.com/lord007tn/nibleaf.git
-cd nibleaf
-cp .env.production.example .env
-```
+## هيّئ البيئة
 
 عيّن كل قيمة مطلوبة في `.env`. أنشئ أسرارًا مستقلة؛ ولا تُعد استخدام قيم
 الأمثلة أو التطوير أو قيم بيئة أخرى مطلقًا:

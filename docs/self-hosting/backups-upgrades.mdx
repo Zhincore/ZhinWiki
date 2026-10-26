@@ -25,13 +25,6 @@ maxio volume:
 ./scripts/backup.sh
 ```
 
-For a guided-installer directory where the Compose file is named
-`docker-compose.yml`, point the script at that file:
-
-```bash
-COMPOSE_FILE=docker-compose.yml ./scripts/backup.sh
-```
-
 The script creates a custom-format `pg_dump` and, when the configured Docker
 volume exists, a compressed storage archive. External R2 or S3 buckets are not
 captured by the Docker-volume step; use provider versioning, replication, or an
@@ -57,10 +50,8 @@ Read each intervening release note and check for release-specific migration or
 configuration changes. Create and restore-test a backup, then change
 `NIBLEAF_VERSION` to an existing release tag in `.env`:
 
-The six August 2026 capabilities are currently merged source, while the
-published self-host manifest remains v0.1.2. Do not invent a newer tag or replace
-the committed installer and Compose digests. When a matching future artifact is
-available, use the [combined release migration guide](/self-hosting/combined-release-migration)
+Use only a tag listed on the [releases page](https://github.com/Zhincore/zhindocs/releases).
+When upgrading from v0.1.2, use the [combined release migration guide](/self-hosting/combined-release-migration)
 for its search, usage, add-on, integration, and MCP dependency order.
 
 ```dotenv

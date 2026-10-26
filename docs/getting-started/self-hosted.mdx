@@ -1,24 +1,18 @@
 ---
 title: 'Install Nibleaf on one Linux server'
-description: 'Install the pinned Nibleaf release with the guided installer or Docker Compose, then verify migrations, sign-up, storage, and publishing.'
+description: 'Install a pinned Nibleaf release with Docker Compose, then verify migrations, sign-up, storage, and publishing.'
 audience: 'operators evaluating or installing self-hosted Nibleaf'
 content_type: 'tutorial'
 last_reviewed: '2026-08-24'
-verified_against: 'scripts/install.sh, docker-compose.prod.yml, and .env.production.example'
+verified_against: 'docker-compose.prod.yml and .env.production.example'
 lang: 'en'
 dir: 'ltr'
 translation_key: 'getting-started/self-hosted'
 ---
 
-The recommended production path pulls the pinned multi-architecture image from
-GHCR. It does not compile the monorepo on the server. Complete this tutorial on
-a disposable host before moving real content.
-
-The published installer and self-host manifest currently identify v0.1.2. The
-August 2026 capability set is merged into source but is not a published image.
-Use this tutorial for the pinned artifact it downloads; do not substitute a
-`main` commit into production without the separate
-[combined migration review](/self-hosting/combined-release-migration).
+The recommended production path pulls the pinned linux/amd64 image from GHCR
+(`ghcr.io/zhincore/zhindocs`). It does not compile the monorepo on the server.
+Complete this tutorial on a disposable host before moving real content.
 
 ## Prerequisites
 
@@ -40,38 +34,21 @@ curl --version
 openssl version
 ```
 
-## Run the guided installer
+## Download the release files
 
-For the shortest path, run the official interactive installer from an SSH
-terminal:
-
-```bash
-curl -fsSL https://nibleaf.com/install.sh | sh
-```
-
-If your security policy requires inspection before execution, download and
-review the same script first:
+Each release attaches its production Compose file and environment template.
+Download both into a new directory, saving the template as `.env`:
 
 ```bash
-curl -fsSLo nibleaf-install.sh https://nibleaf.com/install.sh
-less nibleaf-install.sh
-sh nibleaf-install.sh
+mkdir zhindocs && cd zhindocs
+curl -fsSLO https://github.com/Zhincore/zhindocs/releases/latest/download/docker-compose.prod.yml
+curl -fsSLo .env https://github.com/Zhincore/zhindocs/releases/latest/download/env.production.example
 ```
 
-The installer validates its local tools, asks for public origins, generates
-fresh secrets, writes a mode-600 `.env`, downloads the production Compose file,
-pulls the pinned image, and starts the stack. Its default install directory is
-`$PWD/nibleaf`.
+The same files are `docker-compose.prod.yml` and `.env.production.example` in a
+repository checkout. Both pin `NIBLEAF_VERSION` to their release tag.
 
-## Install manually
-
-Use this path when configuration management owns the environment file:
-
-```bash
-git clone https://github.com/lord007tn/nibleaf.git
-cd nibleaf
-cp .env.production.example .env
-```
+## Configure the environment
 
 Set every required value in `.env`. Generate independent secrets; never reuse
 example, development, or cross-environment values:

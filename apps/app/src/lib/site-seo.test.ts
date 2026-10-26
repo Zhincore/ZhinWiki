@@ -4,7 +4,7 @@ import { canonicalSiteBase, changelogFeedUrl, pageHead, siteHead } from './site-
 
 const urls = vi.hoisted(() => ({ siteBaseDomain: undefined as string | undefined }));
 vi.mock('@/lib/public-urls', () => ({
-  publicUrls: () => ({ appUrl: 'http://localhost:4310', adminUrl: 'http://localhost:4315', siteBaseDomain: urls.siteBaseDomain }),
+  publicUrls: () => ({ appUrl: 'http://localhost:4310', siteBaseDomain: urls.siteBaseDomain }),
 }));
 
 beforeEach(() => {

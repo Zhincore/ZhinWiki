@@ -79,7 +79,6 @@ function RootDocument({ children }: { children: ReactNode }) {
         {siteProjectId ? <meta name="nibleaf-site-project" content={siteProjectId} /> : null}
         {homepage.mode !== 'marketing' ? <meta name="nibleaf-homepage" content={formatHomepage(homepage)} /> : null}
         <meta name={PUBLIC_URL_META.appUrl} content={urls.appUrl} />
-        <meta name={PUBLIC_URL_META.adminUrl} content={urls.adminUrl} />
         {urls.siteBaseDomain ? <meta name={PUBLIC_URL_META.siteBaseDomain} content={urls.siteBaseDomain} /> : null}
         <HeadContent />
       </head>

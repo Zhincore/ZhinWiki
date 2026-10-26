@@ -10,7 +10,6 @@ vi.mock('@nibleaf/i18n/react', () => ({
   useT: () => (key: string, variables?: Record<string, string>) => (variables ? `${key}(${Object.values(variables).join(',')})` : key),
 }));
 vi.mock('@/services/auth-client', () => ({ authClient: { admin: { stopImpersonating: mocks.stopImpersonating } } }));
-vi.mock('@/lib/public-urls', () => ({ publicUrls: () => ({ appUrl: 'https://app.example.test', adminUrl: 'https://admin.example.test' }) }));
 
 import { SupportAccessBanner } from './support-access-banner';
 
@@ -26,12 +25,12 @@ afterEach(async () => {
   vi.clearAllMocks();
 });
 
-async function render(customerName?: string | null) {
+async function render(customerName?: string | null, adminUrl: string | null = 'https://admin.example.test') {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
   roots.push(root);
-  await act(async () => root.render(<SupportAccessBanner customerId="user-1" customerName={customerName} />));
+  await act(async () => root.render(<SupportAccessBanner adminUrl={adminUrl} customerId="user-1" customerName={customerName} />));
   return container;
 }
 
@@ -51,5 +50,21 @@ describe('SupportAccessBanner', () => {
 
     expect(container.querySelector('[role="alert"]')?.textContent).toBe('support.banner.stopError');
     expect(container.querySelector('button')?.textContent).toBe('support.banner.stop');
+  });
+
+  it.each([
+    ['https://admin.example.test', 'https://admin.example.test/users/user-1'],
+    [null, '/app'],
+  ])('returns to the operator console %s after stopping', async (adminUrl, target) => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { assign });
+    mocks.stopImpersonating.mockResolvedValue({});
+    const container = await render('Layla', adminUrl);
+
+    await act(async () => container.querySelector('button')?.click());
+
+    expect(assign).toHaveBeenCalledWith(target);
+    vi.unstubAllGlobals();
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   });
 });

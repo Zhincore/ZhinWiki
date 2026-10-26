@@ -5,8 +5,6 @@ import { serverEnv } from '@/env.server';
 export interface PublicUrls {
   /** Dashboard origin (`APP_URL`). */
   appUrl: string;
-  /** Operator console origin (`ADMIN_URL`). */
-  adminUrl: string;
   /** Free-subdomain base (`SITE_BASE_DOMAIN`), when configured. */
   siteBaseDomain?: string;
 }
@@ -14,7 +12,6 @@ export interface PublicUrls {
 /** `<meta name>` the root document renders for each public URL. */
 export const PUBLIC_URL_META = {
   appUrl: 'nibleaf-app-url',
-  adminUrl: 'nibleaf-admin-url',
   siteBaseDomain: 'nibleaf-site-base-domain',
 } as const satisfies Record<keyof PublicUrls, string>;
 
@@ -25,11 +22,10 @@ export const normalizeBaseDomain = (raw?: string): string | undefined => raw?.tr
 export function readPublicUrls(doc: Pick<Document, 'querySelector'>): PublicUrls {
   const read = (name: string) => doc.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)?.content || undefined;
   const appUrl = read(PUBLIC_URL_META.appUrl);
-  const adminUrl = read(PUBLIC_URL_META.adminUrl);
-  if (!appUrl || !adminUrl) {
+  if (!appUrl) {
     throw new Error('The document is missing its public URL meta tags.');
   }
-  return { appUrl, adminUrl, siteBaseDomain: normalizeBaseDomain(read(PUBLIC_URL_META.siteBaseDomain)) };
+  return { appUrl, siteBaseDomain: normalizeBaseDomain(read(PUBLIC_URL_META.siteBaseDomain)) };
 }
 
 /** Server: validated runtime env. Client: the meta tags the root route rendered from it. */
@@ -37,7 +33,6 @@ export const publicUrls = createIsomorphicFn()
   .server(
     (): PublicUrls => ({
       appUrl: serverEnv.APP_URL,
-      adminUrl: serverEnv.ADMIN_URL,
       siteBaseDomain: normalizeBaseDomain(serverEnv.SITE_BASE_DOMAIN),
     }),
   )

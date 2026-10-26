@@ -1,6 +1,6 @@
 import { BrandProvider } from '@nibleaf/design-system/brand';
 import { ThemeProvider } from '@nibleaf/design-system/theme';
-import { setMessageBrand } from '@nibleaf/i18n';
+import { setMessageBrand } from '@nibleaf/i18n/brand';
 import { brandIconLinks, DEFAULT_BRAND } from '@nibleaf/shared/brand';
 import { createRootRoute, HeadContent, Outlet, Scripts, useRouter, useRouterState } from '@tanstack/react-router';
 import type { ReactNode } from 'react';

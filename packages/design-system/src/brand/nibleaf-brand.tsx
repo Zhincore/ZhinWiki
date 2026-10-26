@@ -13,7 +13,7 @@ function BuiltInMark({ className, title, variant = 'tile', ...props }: Component
       xmlns="http://www.w3.org/2000/svg"
       {...props}
     >
-      {variant === 'tile' ? <rect fill="#181612" height="512" rx="104" width="512" /> : null}
+      {variant === 'tile' ? <rect fill="#000000" height="512" rx="104" width="512" /> : null}
       <path
         d="M152 148H360L152 364H360"
         fill="none"

@@ -12,7 +12,7 @@ import {
   queryWorkspaceAnalytics,
   relationalWritesEnabled,
 } from '@nibleaf/clickhouse';
-import { prisma } from '@nibleaf/database';
+import { prisma, resolveAnalyticsHashSalt } from '@nibleaf/database';
 import { createLogger } from '@nibleaf/logger';
 import type { AnalyticsRange, ProjectConfig } from '@nibleaf/validators';
 import { enqueueAnalyticsEvent } from '@/lib/usage-ingest';
@@ -364,11 +364,15 @@ export interface TrackEventContext {
 const trackEvent = async (context: TrackEventContext, body: AnalyticsEventInput): Promise<void> => {
   const config = clickHouseKeys();
   const parsed = body;
-  const hashSalt = config.ANALYTICS_HASH_SALT;
-  if (!hashSalt && config.ANALYTICS_MODE !== 'disabled') {
+  if (!config.ANALYTICS_HASH_SALT && config.ANALYTICS_MODE !== 'disabled') {
     log.warn({ projectId: context.projectId }, 'analytics event dropped because ANALYTICS_HASH_SALT is missing');
     return;
   }
+  const hashSalt = await resolveAnalyticsHashSalt(config.ANALYTICS_HASH_SALT).catch((error: unknown) => {
+    log.warn({ error, projectId: context.projectId }, 'analytics event dropped because the instance hash salt is unavailable');
+    return null;
+  });
+  if (!hashSalt) return;
   const envelope = buildAnalyticsEvent(parsed, {
     tenantId: context.tenantId,
     projectId: context.projectId,
@@ -378,7 +382,7 @@ const trackEvent = async (context: TrackEventContext, body: AnalyticsEventInput)
     country: context.country,
     device: context.device,
     privacy: context.privacy,
-    hashSalt: hashSalt ?? 'disabled-relational-mode',
+    hashSalt,
   });
   try {
     await enqueueAnalyticsEvent(envelope);

@@ -21,7 +21,11 @@ drafting.
 The server derives tenant, project, site, deployment, country, and coarse device
 dimensions. Public clients cannot choose a tenant. Session and anonymous-user
 identifiers are HMAC-like salted hashes; rotate `ANALYTICS_HASH_SALT` only with a
-documented identity discontinuity.
+documented identity discontinuity. ClickHouse modes require the variable. When it
+is unset in `disabled` mode, Nibleaf generates a random salt once per instance
+and stores it in the Postgres `instance_secret` table, so hashes stay stable
+across restarts and replicas. Setting `ANALYTICS_HASH_SALT` later starts a new
+identity series.
 
 Raw private search queries, document text, prompts, answers, and citation text
 are never stored. Public search-term storage is off by default and requires both

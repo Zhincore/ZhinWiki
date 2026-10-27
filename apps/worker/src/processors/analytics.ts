@@ -24,6 +24,7 @@ import {
   markUsageStoragePending,
   markUsageStorageQueued,
   prisma,
+  resolveAnalyticsHashSalt,
   runWithTenantAnalyticsWriteFence,
 } from '@nibleaf/database';
 import { createLogger } from '@nibleaf/logger';
@@ -205,7 +206,7 @@ async function upgradeLegacyEvent(data: LegacyTrackAnalyticsEventJobData, jobId:
   return legacyAnalyticsJobToEnvelope(data, {
     tenantId: project.organizationId,
     jobId,
-    hashSalt: config.ANALYTICS_HASH_SALT ?? 'disabled-relational-mode',
+    hashSalt: await resolveAnalyticsHashSalt(config.ANALYTICS_HASH_SALT),
     privacy: {
       visibility: project.accessMode === 'PUBLIC' && projectConfig?.visibility !== 'private' ? 'public' : 'private',
       allowCampaignDimensions: projectConfig?.analytics?.campaignDimensions === true,

@@ -1451,6 +1451,15 @@ model Notification {
   @@map("notification")
 }
 
+/// Random secrets generated once per instance and shared by every replica.
+model InstanceSecret {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+
+  @@map("instance_secret")
+}
+
 /// Page views and search queries on published sites (powers the analytics tab).
 model AnalyticsEvent {
   id        String   @id @default(cuid())

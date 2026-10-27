@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { canonicalUsageEventBatch, type UsageEvent } from '@nibleaf/usage';
 import { getDb, type PrismaClient } from './client';
 import { Prisma } from './generated/client';
@@ -12,6 +12,25 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 export const prisma = globalForPrisma.prisma ?? getDb({ connectionString: keys().POSTGRES_URL });
+
+const instanceSecrets = new Map<string, Promise<string>>();
+
+/** Per-instance random secret: created once in Postgres, then cached per process. */
+export const getInstanceSecret = (key: string): Promise<string> => {
+  const cached = instanceSecrets.get(key);
+  if (cached) return cached;
+  const secret = prisma.instanceSecret
+    .createMany({ data: [{ key, value: randomBytes(32).toString('base64url') }], skipDuplicates: true })
+    .then(() => prisma.instanceSecret.findUniqueOrThrow({ where: { key }, select: { value: true } }))
+    .then((row) => row.value);
+  instanceSecrets.set(key, secret);
+  secret.catch(() => instanceSecrets.delete(key));
+  return secret;
+};
+
+/** Salt for reader identifier hashes: `ANALYTICS_HASH_SALT` when set, else the persisted instance salt. */
+export const resolveAnalyticsHashSalt = async (configured: string | undefined): Promise<string> =>
+  configured ?? getInstanceSecret('analytics_hash_salt');
 
 export const markUsageStoragePending = async (input: { id: string; organizationId: string; projectId: string; events: UsageEvent[] }) => {
   const enqueuedAt = new Date();

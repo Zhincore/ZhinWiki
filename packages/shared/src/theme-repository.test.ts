@@ -155,7 +155,7 @@ describe('Git-native repository contract v2', () => {
     expect(main.languages[0]).toEqual({
       language: 'en',
       'x-nibleaf': { label: 'English', direction: 'LTR', default: true },
-      pages: [{ group: 'Guides', pages: ['guides/authentication'] }, 'welcome'],
+      pages: ['welcome', { group: 'Guides', pages: ['guides/authentication'] }],
     });
     expect(main.languages[1].pages).toEqual(['ar/مرحبا', 'ar/المصادقة']);
     expect(docs.navigation.versions[1].languages[0].pages).toEqual(['versions/next/next-release']);

@@ -124,13 +124,15 @@ describe('buildNavTree', () => {
     expect(tree[0]).toMatchObject({ kind: 'GROUP', icon: 'hotel' });
     expect(tree[0]?.children.map((node) => node.path)).toEqual(['blog/hotel', 'blog/room']);
   });
-  it('keeps real groups ahead of virtual categories and uncategorized pages last', () => {
+  it('keeps the editor order, with virtual categories at their first page', () => {
     const tree = buildNavTree([
-      page({ id: 'loose', position: 0 }),
+      page({ id: 'home', position: 0 }),
       page({ id: 'guides', kind: 'GROUP', position: 1 }),
       page({ id: 'setup', position: 2, config: { category: 'Start', categoryOrder: 0 } }),
+      page({ id: 'faq', position: 3 }),
+      page({ id: 'billing', position: 4, config: { category: 'Accounting', categoryOrder: 1 } }),
     ]);
-    expect(tree.map((node) => node.title)).toEqual(['guides', 'Start', 'loose']);
+    expect(tree.map((node) => node.title)).toEqual(['home', 'guides', 'Start', 'Accounting', 'faq']);
   });
   it('auto-organizes oversized flat English imports while explicit categories win', () => {
     const pages = Array.from({ length: 24 }, (_, index) =>

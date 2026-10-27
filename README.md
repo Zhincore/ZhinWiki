@@ -2,34 +2,29 @@
 
 <img src="apps/app/public/favicon.svg" alt="ZhinDocs" height="56" />
 
-### The open-source Mintlify alternative
+### Self-hosted documentation platform
 
-Nibleaf is an open-source, self-hostable documentation platform — an alternative
-to Mintlify and GitBook — with a rich-text editor over Markdown/MDX,
-first-class Arabic/RTL support, custom domains, and a free cloud beta at
-[nibleaf.com](https://nibleaf.com).
+ZhinDocs is an open-source, self-hostable documentation platform with a rich-text
+editor over Markdown/MDX, multilingual and RTL support, and custom domains. It is a
+fork of [Nibleaf](https://github.com/lord007tn/nibleaf).
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/Zhincore/zhindocs?sort=semver&color=B96A3D)](https://github.com/Zhincore/zhindocs/releases)
 [![CI](https://github.com/Zhincore/zhindocs/actions/workflows/ci.yml/badge.svg)](https://github.com/Zhincore/zhindocs/actions/workflows/ci.yml)
 [![Docker image](https://github.com/Zhincore/zhindocs/actions/workflows/docker.yml/badge.svg)](https://github.com/Zhincore/zhindocs/pkgs/container/zhindocs)
 
-[Homepage](https://nibleaf.com) · [Documentation](https://docs.nibleaf.com) · [Docs source](docs/README.md) · [Quick start](#-quick-start) · [Features](#-features) · [Self-host](https://docs.nibleaf.com/getting-started/self-hosted) · [Architecture](#️-architecture) · [Contributing](CONTRIBUTING.md)
-
-<br />
-
-<img src=".github/assets/landing.png" alt="Nibleaf — the open-source documentation platform" width="840" />
+[Documentation](docs/README.md) · [Quick start](#-quick-start) · [Features](#-features) · [Self-host](docs/getting-started/self-hosted.mdx) · [Architecture](#️-architecture) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
 ---
 
-## What is Nibleaf?
+## What is ZhinDocs?
 
-Nibleaf lets you write documentation in Markdown/MDX, organize it into a navigable tree,
+ZhinDocs lets you write documentation in Markdown/MDX, organize it into a navigable tree,
 and publish a fast, searchable, multilingual site — with versioned deploys, custom
-domains, per-site teams, and analytics. Run it with Docker Compose, or use the hosted beta. It's the docs platform you can operate end to end:
-no per-seat pricing for the self-hosted edition, no proprietary content format, and
+domains, per-site teams, and analytics. Run it with Docker Compose. It's the docs platform you can operate end to end:
+no per-seat pricing, no proprietary content format, and
 your content stays in your database.
 
 - 🖋️ **Rich text _and_ Markdown, round-tripped** — write visually or in raw MDX; content is
@@ -46,13 +41,13 @@ your content stays in your database.
 **The published docs site** — three-column layout, instant `⌘K` search, and a scroll-spy
 table of contents:
 
-<img src=".github/assets/docs-en.png" alt="A published Nibleaf documentation site" width="840" />
+<img src=".github/assets/docs-en.png" alt="A published documentation site" width="840" />
 
 **The editor** — Visual, Rich text, and full-canvas Markdown editing, plus a preview action
 that opens the saved draft in a separate tab, a drag-and-drop page tree, branches,
 anchored comments, and one-click publish:
 
-<img src=".github/assets/editor.png" alt="The Nibleaf editor" width="840" />
+<img src=".github/assets/editor.png" alt="The editor" width="840" />
 
 ## ✨ Features
 
@@ -101,7 +96,7 @@ Private customer documentation supports dedicated reader accounts, audience/page
 
 ## 🚧 Not built yet
 
-Honesty over marketing — if you need these today, Nibleaf isn't there yet:
+Honesty over marketing — if you need these today, ZhinDocs isn't there yet:
 
 - **SSO / SAML** — passwordless email OTP + Google OAuth only; no enterprise SSO.
 
@@ -117,7 +112,7 @@ one of these sources:
 - a public HTTP(S) URL without embedded credentials; or
 - a repository-relative file in the site's connected public GitHub/GitLab repository.
 
-Nibleaf parses and validates OpenAPI 3.x before saving it. Validation errors identify the
+ZhinDocs parses and validates OpenAPI 3.x before saving it. Validation errors identify the
 first failing path in the settings toast. Public external `$ref` files are resolved and bundled
 into the stored document: relative references work for URL and repository sources, while an
 upload can use absolute public HTTP(S) references. The combined document is limited to 5 MB
@@ -130,7 +125,7 @@ available for later refreshes. Older deployments and rollbacks keep their own sp
 Repository-backed specs currently support the public GitHub and GitLab providers; generic
 clone URLs can use the URL or upload option.
 
-Scalar sends try-it requests directly from the reader's browser. Nibleaf does not provide a
+Scalar sends try-it requests directly from the reader's browser. ZhinDocs does not provide a
 request proxy, prefill credentials, persist authentication, or log request secrets. Your API
 must allow the published documentation origin in its CORS policy. Never place live credentials
 or private examples in a document you intend to publish.
@@ -159,13 +154,13 @@ docker compose -f docker-compose.prod.yml up -d
 
 Database migrations run automatically (the one-shot `migrate` service), and the
 image tag is **pinned** via `NIBLEAF_VERSION`. Read the
-**[backup and upgrade guide](https://docs.nibleaf.com/self-hosting/backups-upgrades)**
+**[backup and upgrade guide](docs/self-hosting/backups-upgrades.mdx)**
 before changing it. Open **`$APP_URL/sign-up`** and create the first
 account — it's provisioned with a workspace and a starter docs project
 automatically (no demo credentials are seeded in production). The full production
 guide — reverse proxy, TLS, wildcard subdomains, custom-domain TLS automation,
 backups, and restore testing — is in the
-**[Nibleaf documentation](https://docs.nibleaf.com/self-hosting/production)**.
+**[production guide](docs/self-hosting/production.mdx)**.
 
 <details>
 <summary><b>Build from source instead</b> (needs ~5–6 GB free RAM)</summary>
@@ -187,15 +182,13 @@ docker compose up -d --build
 ## 🐳 Deploy to production
 
 - **Docker Compose (recommended)** — the quick start above *is* the production
-  path; harden it with the **[production checklist](https://docs.nibleaf.com/self-hosting/production)**
+  path; harden it with the **[production checklist](docs/self-hosting/production.mdx)**
   (secrets, reverse proxy + TLS, wildcard docs subdomains, backups, security checklist).
 - **[Coolify](https://coolify.io)** — add a **Docker Compose** resource pointing
   at [`docker-compose.coolify.yml`](docker-compose.coolify.yml), assign domains
   to the `app` / `admin` / `maxio` services (Coolify auto-generates the
   `SERVICE_*` secrets), set `SITE_BASE_DOMAIN` + `CUSTOM_DOMAIN_CNAME_TARGET`,
   and deploy. Pin a build with `NIBLEAF_IMAGE=ghcr.io/zhincore/zhindocs:v1.0.0`.
-- **Nibleaf Cloud** — don't want to run servers? The hosted beta at
-  [nibleaf.com](https://nibleaf.com) is free while in beta.
 
 ## 🏗️ Architecture
 
@@ -245,7 +238,7 @@ queue in `WORKER_QUEUES` when an allowlist is used. Operators can tune
 `EXPORT_MAX_PAGES`, `EXPORT_MAX_SNAPSHOT_BYTES`, `EXPORT_MAX_ASSET_BYTES`,
 `EXPORT_MANUAL_RETENTION_DAYS`, and `EXPORT_DOWNLOAD_TTL_SECONDS`. The nightly cleanup
 job deletes expired objects and database rows; storage lifecycle rules may be added as a
-defense in depth, but must not delete objects earlier than Nibleaf retention.
+defense in depth, but must not delete objects earlier than the configured retention.
 
 **Same-origin auth** — the dashboard proxies `/api/**` to the server (via Nitro), so
 better-auth session cookies stay first-party with no CORS dance.
@@ -307,20 +300,19 @@ S3-compatible, so swap **maxio** for Cloudflare R2, AWS S3, or Backblaze B2 by
 changing the `STORAGE_*` variables. For production, set strong values for
 `BETTER_AUTH_SECRET`, `POSTGRES_PASSWORD`, and `STORAGE_SECRET_ACCESS_KEY`, and
 serve the apps behind a TLS-terminating reverse proxy. The
-[configuration reference](https://docs.nibleaf.com/self-hosting/configuration)
+[configuration reference](docs/self-hosting/configuration.mdx)
 documents every production setting.
 
 When `NODE_ENV=production`, the container entrypoint refuses to start (`exit 1`) if
 `BETTER_AUTH_SECRET` is empty or left at a known demo default — generate one with
 `openssl rand -hex 32`. Current product boundaries are documented in
-**[Known limitations](https://docs.nibleaf.com/reference/known-limitations)**.
+**[Known limitations](docs/reference/known-limitations.mdx)**.
 
 ## 💬 Support & community
 
 - **Support guide** — [SUPPORT.md](SUPPORT.md)
 - **Questions & ideas** — [GitHub Discussions](https://github.com/Zhincore/zhindocs/discussions)
 - **Bugs** — [GitHub Issues](https://github.com/Zhincore/zhindocs/issues)
-- **Email** — [support@nibleaf.com](mailto:support@nibleaf.com)
 - **Security vulnerabilities** — privately, please: see [SECURITY.md](SECURITY.md)
 
 ## 🤝 Contributing
@@ -331,11 +323,13 @@ discuss substantial changes first. Found a vulnerability? See **[SECURITY.md](SE
 
 ## 📄 License
 
-Nibleaf is free software, licensed under the **GNU Affero General Public License v3.0 only**
+ZhinDocs is free software, licensed under the **GNU Affero General Public License v3.0 only**
 (`AGPL-3.0-only`) — see [LICENSE](LICENSE) for the full text. Because the AGPL includes the
-“network use” clause, if you run a modified version of Nibleaf as a network service you must
+“network use” clause, if you run a modified version of ZhinDocs as a network service you must
 make your modified source available to its users. Contributions are accepted under the same
-license. The “Nibleaf” name and logo are **not** covered by the AGPL — see
-**[TRADEMARK.md](TRADEMARK.md)**.
+license. ZhinDocs is a fork of [Nibleaf](https://github.com/lord007tn/nibleaf); see
+**[NOTICE](NOTICE)** for copyright and **[BRANDING.md](BRANDING.md)** for naming. The
+“Nibleaf” name and logo belong to the upstream project and are **not** covered by the
+AGPL — see **[TRADEMARK.md](TRADEMARK.md)**.
 
-<div align="center"><sub>Built with 🖋️ — <a href="https://nibleaf.com">nibleaf.com</a></sub></div>
+<div align="center"><sub>A fork of <a href="https://github.com/lord007tn/nibleaf">Nibleaf</a></sub></div>

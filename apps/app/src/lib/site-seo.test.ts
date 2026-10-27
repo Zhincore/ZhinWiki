@@ -25,6 +25,7 @@ const base = (over: Partial<SitePage> = {}): SitePage => ({
     name: 'Acme Docs',
     slug: 'acme',
     description: 'Site default description',
+    icon: null,
     primaryDomain: null,
     config: { visibility: 'public', seo: { metaTitle: 'Acme', metaDescription: 'Site SEO desc', socialImage: 'https://cdn/site-og.png' } },
   },
@@ -370,12 +371,17 @@ describe('pageHead JSON-LD', () => {
 });
 
 describe('siteHead analytics scripts', () => {
-  const shell = (config: SiteShell['project']['config'], languageConfig: SiteShell['languageConfig'] = null): SiteShell => ({
+  const shell = (
+    config: SiteShell['project']['config'],
+    languageConfig: SiteShell['languageConfig'] = null,
+    icon: string | null = null,
+  ): SiteShell => ({
     project: {
       id: 'p1',
       name: 'Acme Docs',
       slug: 'acme',
       description: null,
+      icon,
       primaryDomain: null,
       config,
     },
@@ -395,6 +401,26 @@ describe('siteHead analytics scripts', () => {
     expect(plain.meta?.find((m) => m.property === 'og:site_name')?.content).toBe('Acme Docs');
     const localized = siteHead(shell(null, { name: 'وثائق أكمي' }));
     expect(localized.meta?.find((m) => m.property === 'og:site_name')?.content).toBe('وثائق أكمي');
+  });
+
+  const favicon = (site: SiteShell, iconBase?: string) => siteHead(site, undefined, iconBase).links?.find((link) => link.rel === 'icon')?.href;
+
+  it('prefers the configured favicon over the project icon', () => {
+    expect(favicon(shell({ branding: { favicon: 'https://cdn.example.com/icon.png' } }, null, '🚀'), '/brand')).toBe(
+      'https://cdn.example.com/icon.png',
+    );
+  });
+
+  it('draws the project emoji as an SVG favicon when none is configured', () => {
+    const href = favicon(shell(null, null, '🚀'), '/brand');
+    expect(href?.startsWith('data:image/svg+xml,')).toBe(true);
+    expect(decodeURIComponent(href?.slice('data:image/svg+xml,'.length) ?? '')).toContain('>🚀</text>');
+  });
+
+  it('falls back to the instance brand favicon without a usable project icon', () => {
+    expect(favicon(shell(null), '/brand')).toBe('/brand/favicon.svg');
+    expect(favicon(shell(null, null, 'rocket'), '/brand')).toBe('/brand/favicon.svg');
+    expect(favicon(shell(null, null, '  '))).toBe('/favicon.svg');
   });
 
   it('advertises the sitemap on the canonical custom domain', () => {

@@ -153,6 +153,29 @@ export function changelogFeedUrl(pageUrl: string): string {
 
 const seoConfig = (config: ProjectConfig | null) => config;
 
+const PICTOGRAPHIC = /\p{Extended_Pictographic}/u;
+
+const escapeXml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** An emoji drawn as a scalable SVG favicon. */
+const emojiFaviconHref = (emoji: string) =>
+  `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="50" y="50" font-size="88" text-anchor="middle" dominant-baseline="central">${escapeXml(emoji)}</text></svg>`,
+  )}`;
+
+/**
+ * Favicon of a published site: the configured branding favicon, else the
+ * project's emoji icon, else the instance brand favicon under `iconBase`.
+ */
+export function siteFaviconHref(config: ProjectConfig | null, projectIcon: string | null | undefined, iconBase = ''): string {
+  const configured = config?.branding?.favicon;
+  if (configured) {
+    return configured;
+  }
+  const icon = projectIcon?.trim();
+  return icon && PICTOGRAPHIC.test(icon) ? emojiFaviconHref(icon) : `${iconBase}/favicon.svg`;
+}
+
 /**
  * Site-level <head>: favicon, og:site_name and theme-color. Per-page head()
  * layers title + description + canonical on top of these. `iconBase` is the
@@ -170,7 +193,7 @@ export function siteHead(site: SiteShell | null | undefined, requestOrigin?: str
   if (themeColor) {
     meta.push({ name: 'theme-color', content: themeColor });
   }
-  // Always advertise either the configured favicon or the built-in favicon.
+  // Always advertise a favicon: configured, project emoji, or the built-in one.
   // Point crawlers at the sitemap on the same canonical site origin, including
   // custom domains, instead of leaking the app-origin API endpoint.
   const canonicalBase = canonicalSiteBase(site.project.id, {
@@ -179,7 +202,7 @@ export function siteHead(site: SiteShell | null | undefined, requestOrigin?: str
     requestOrigin,
   });
   const links: Tag[] = [
-    { rel: 'icon', href: config?.branding?.favicon || `${iconBase}/favicon.svg` },
+    { rel: 'icon', href: siteFaviconHref(config, site.project.icon, iconBase) },
     { rel: 'sitemap', type: 'application/xml', href: `${canonicalBase}/sitemap.xml` },
     ...fontLinks(config),
   ];

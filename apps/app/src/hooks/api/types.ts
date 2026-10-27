@@ -290,6 +290,8 @@ export interface SiteShell {
     name: string;
     slug: string;
     description: string | null;
+    /** Emoji picked in the project's general settings. */
+    icon: string | null;
     config: ProjectConfig | null;
     /** Verified primary custom domain — canonical/301 consolidation target. */
     primaryDomain: string | null;

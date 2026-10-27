@@ -2744,5 +2744,19 @@
   "settings_members_removeconfirm": "{name} को इस साइट से हटाएँ? दस्तावेज़ और सेटिंग तक उनकी पहुँच समाप्त हो जाएगी।",
   "settings_members_revokeconfirm": "{email} का आमंत्रण रद्द करें? यह आमंत्रण लिंक काम करना बंद कर देगा।",
   "settings_config_discarddescription": "सेटिंग में आपके बदलाव सहेजे नहीं गए हैं। यह अनुभाग छोड़ने पर वे हट जाएँगे।",
-  "editor_saveconfigfirst": "पूर्वावलोकन या प्रकाशन से पहले अपनी सेटिंग में किए गए बदलाव सहेजें।"
+  "editor_saveconfigfirst": "पूर्वावलोकन या प्रकाशन से पहले अपनी सेटिंग में किए गए बदलाव सहेजें।",
+  "settings_account_delete_title": "खाता हटाएँ",
+  "settings_account_delete_description": "अपना खाता स्थायी रूप से हटाएँ। जिन वर्कस्पेस में आप एकमात्र सदस्य हैं, वे अपनी सभी साइटों और सामग्री के साथ हटा दिए जाएँगे। इसे पूर्ववत नहीं किया जा सकता।",
+  "settings_account_delete_button": "खाता हटाएँ",
+  "settings_account_delete_deleting": "हटाया जा रहा है…",
+  "settings_account_delete_confirm": "आपका खाता, सत्र और हर वह वर्कस्पेस जिसमें आप एकमात्र सदस्य हैं, स्थायी रूप से हटा दिए जाएँगे। इसे पूर्ववत नहीं किया जा सकता।",
+  "settings_account_delete_typetoconfirm": "पुष्टि करने के लिए अपना ईमेल \"{email}\" लिखें",
+  "settings_account_delete_mismatch": "ईमेल मेल नहीं खाया — हटाना रद्द किया गया।",
+  "settings_account_delete_deleted": "आपका खाता हटा दिया गया",
+  "settings_account_delete_error": "आपका खाता हटाया नहीं जा सका",
+  "settings_account_delete_pending": "वर्कस्पेस का डेटा अभी भी प्रोसेस हो रहा है। कुछ मिनट बाद फिर से कोशिश करें।",
+  "settings_account_delete_blocked": "आप ऐसे वर्कस्पेस के मालिक हैं जिनमें अन्य सदस्य हैं। खाता हटाने से पहले किसी एडमिन को स्वामित्व सौंपें या अन्य सदस्यों को हटाएँ:",
+  "settings_account_delete_transfer": "स्वामित्व सौंपें",
+  "settings_account_delete_sessionexpired": "आपकी सुरक्षा के लिए, खाता हटाने से पहले फिर से साइन इन करें।",
+  "settings_account_delete_signinagain": "फिर से साइन इन करें"
 }

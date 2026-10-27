@@ -19,7 +19,7 @@ import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { APIError } from 'better-auth/api';
 import { admin, emailOTP, organization } from 'better-auth/plugins';
-import { reassignOrDeleteOrgs } from './account-deletion';
+import { prepareAccountDeletion } from './account-deletion';
 import { requireAuthEmailEnqueue, trackRequiredAuthEmail, withRequiredAuthEmailScope } from './auth-email-delivery';
 import { deliverAuthOtpEmail } from './auth-email-expiry';
 import { keys } from './keys.server';
@@ -745,7 +745,7 @@ const authInstance = betterAuth({
     deleteUser: {
       enabled: true,
       beforeDelete: async (user) => {
-        await reassignOrDeleteOrgs(user.id);
+        await prepareAccountDeletion(user.id);
       },
     },
   },

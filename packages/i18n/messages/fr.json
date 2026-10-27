@@ -2744,5 +2744,19 @@
   "settings_members_removeconfirm": "Retirer {name} de ce site ? Cette personne perdra l’accès à sa documentation et à ses paramètres.",
   "settings_members_revokeconfirm": "Révoquer l’invitation pour {email} ? Ce lien d’invitation ne fonctionnera plus.",
   "settings_config_discarddescription": "Certaines modifications des paramètres ne sont pas enregistrées. Elles seront perdues si vous quittez cette section.",
-  "editor_saveconfigfirst": "Enregistrez les modifications des paramètres avant de prévisualiser ou de publier."
+  "editor_saveconfigfirst": "Enregistrez les modifications des paramètres avant de prévisualiser ou de publier.",
+  "settings_account_delete_title": "Supprimer le compte",
+  "settings_account_delete_description": "Supprimez définitivement votre compte. Les espaces de travail dont vous êtes le seul membre sont supprimés avec tous leurs sites et contenus. Cette action est irréversible.",
+  "settings_account_delete_button": "Supprimer le compte",
+  "settings_account_delete_deleting": "Suppression…",
+  "settings_account_delete_confirm": "Votre compte, vos sessions et tous les espaces de travail dont vous êtes le seul membre seront définitivement supprimés. Cette action est irréversible.",
+  "settings_account_delete_typetoconfirm": "Saisissez votre e-mail « {email} » pour confirmer",
+  "settings_account_delete_mismatch": "L’e-mail ne correspond pas — suppression annulée.",
+  "settings_account_delete_deleted": "Votre compte a été supprimé",
+  "settings_account_delete_error": "Impossible de supprimer votre compte",
+  "settings_account_delete_pending": "Les données de l’espace de travail sont encore en cours de traitement. Réessayez dans quelques minutes.",
+  "settings_account_delete_blocked": "Vous êtes propriétaire d’espaces de travail qui comptent d’autres membres. Transférez la propriété à un administrateur ou retirez les autres membres avant de supprimer votre compte :",
+  "settings_account_delete_transfer": "Transférer la propriété",
+  "settings_account_delete_sessionexpired": "Pour votre sécurité, reconnectez-vous avant de supprimer votre compte.",
+  "settings_account_delete_signinagain": "Se reconnecter"
 }

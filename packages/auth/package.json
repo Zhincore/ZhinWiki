@@ -8,6 +8,7 @@
     "./src/server.ts"
   ],
   "exports": {
+    "./account-deletion-errors": "./src/account-deletion-errors.ts",
     "./client": "./src/client.ts",
     "./server": "./src/server.ts",
     "./tenant-erasure": "./src/tenant-erasure.ts",

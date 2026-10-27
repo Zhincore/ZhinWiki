@@ -25,6 +25,10 @@ const handleRequest: RequestHandler<Register> = async (request, ...rest) => {
     const response = await startHandler(request, ...rest);
     const headers = new Headers(response.headers);
     headers.set('x-nibleaf-revision', revision);
+    // Every admin response is session-dependent; handlers may only tighten it.
+    if (!headers.has('cache-control') || headers.has('set-cookie')) {
+      headers.set('cache-control', 'private, no-store');
+    }
     if (!(response.headers.get('content-type') || '').includes('text/html')) {
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
     }

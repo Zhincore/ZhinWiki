@@ -330,6 +330,6 @@ make your modified source available to its users. Contributions are accepted und
 license. ZhinDocs is a fork of [Nibleaf](https://github.com/lord007tn/nibleaf); see
 **[NOTICE](NOTICE)** for copyright and **[BRANDING.md](BRANDING.md)** for naming. The
 “Nibleaf” name and logo belong to the upstream project and are **not** covered by the
-AGPL — see **[TRADEMARK.md](TRADEMARK.md)**.
+AGPL — see their **[trademark policy](https://github.com/lord007tn/nibleaf/blob/main/TRADEMARK.md)**.
 
 <div align="center"><sub>A fork of <a href="https://github.com/lord007tn/nibleaf">Nibleaf</a></sub></div>

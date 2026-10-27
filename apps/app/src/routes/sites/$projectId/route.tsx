@@ -373,6 +373,7 @@ function SiteChrome() {
                   version={activeVersionPrefix}
                   label={t('docs')}
                   closeLabel={deploy_close(undefined, { locale: resolveLocale(activeLanguage?.code) ?? 'en' })}
+                  toggleLabel={t('toggleSubpages')}
                   isRtl={isRtl}
                   links={headerLinks}
                   anchors={navAnchors.map((anchor) => ({
@@ -528,6 +529,7 @@ function SiteChrome() {
                 currentPath={effectiveCurrentPath}
                 lang={navigationLanguage}
                 version={activeVersionPrefix}
+                toggleLabel={t('toggleSubpages')}
               />
             </>
           }

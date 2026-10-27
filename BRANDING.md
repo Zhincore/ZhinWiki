@@ -32,8 +32,9 @@ Never rename an existing `nibleaf` identifier just to rebrand.
 
 ## Attribution and notices
 
-- `TRADEMARK.md` stays Nibleaf's policy, unchanged on both branches. The fork
-  claims no trademark on ZhinDocs; "Nibleaf" is used only to say this is a fork.
+- Nibleaf's trademark policy is linked from upstream, not copied: `TRADEMARK.md`
+  exists only on the `upstream` branch. The fork claims no trademark on ZhinDocs;
+  "Nibleaf" is used only to say this is a fork.
 - No Nibleaf logo anywhere users see it on `main` (favicons, app, emails,
   default docs theme): their policy forbids using or modifying it.
 

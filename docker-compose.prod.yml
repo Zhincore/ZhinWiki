@@ -67,6 +67,18 @@ x-service-env: &service-env
   APP_URL: ${APP_URL:?Set APP_URL to the public dashboard origin, e.g. https://docs.example.com}
   ADMIN_URL: ${ADMIN_URL:-http://localhost:4315}
   SITE_BASE_DOMAIN: ${SITE_BASE_DOMAIN:-}
+  # White-label brand (see .env.production.example). Empty = built-in brand.
+  APP_NAME: ${APP_NAME:-}
+  BRAND_URL: ${BRAND_URL:-}
+  BRAND_SUPPORT_EMAIL: ${BRAND_SUPPORT_EMAIL:-}
+  BRAND_ABUSE_EMAIL: ${BRAND_ABUSE_EMAIL:-}
+  BRAND_SOURCE_URL: ${BRAND_SOURCE_URL:-}
+  BRAND_TERMS_URL: ${BRAND_TERMS_URL:-}
+  BRAND_PRIVACY_URL: ${BRAND_PRIVACY_URL:-}
+  BRAND_THEME_COLOR: ${BRAND_THEME_COLOR:-}
+  BRAND_ASSETS_DIR: ${BRAND_ASSETS_DIR:-}
+  # What the app root serves: welcome page (default), app, or site:<projectId>.
+  HOMEPAGE: ${HOMEPAGE:-}
   CUSTOM_DOMAIN_CNAME_TARGET: ${CUSTOM_DOMAIN_CNAME_TARGET:-}
   CUSTOM_DOMAIN_PROVIDER: ${CUSTOM_DOMAIN_PROVIDER:-ingress}
   CLOUDFLARE_SAAS_ZONE_ID: ${CLOUDFLARE_SAAS_ZONE_ID:-}

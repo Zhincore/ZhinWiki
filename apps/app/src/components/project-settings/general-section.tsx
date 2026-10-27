@@ -6,7 +6,7 @@ import { cn } from '@nibleaf/design-system/lib/utils';
 import { useT } from '@nibleaf/i18n/react';
 import { slugify } from '@nibleaf/shared/utils';
 import { useForm } from '@tanstack/react-form';
-import { CirclePlus } from 'lucide-react';
+import { Ban, CirclePlus } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import type { Language, Project } from '@/hooks/api';
@@ -52,7 +52,7 @@ export function GeneralSection({ project }: { project: Project }) {
   const update = useUpdateProject(project.id);
   const updateLanguage = useUpdateLanguage(project.id);
   const { data: languages } = useLanguages(project.id);
-  const [icon, setIcon] = useState<string>(project.icon ?? '📘');
+  const [icon, setIcon] = useState<string | null>(project.icon ?? null);
   const [iconOpen, setIconOpen] = useState(false);
   // Without a configured base domain the free-subdomain host would 404, so the
   // preview falls back to the working /sites/:id path.
@@ -128,7 +128,9 @@ export function GeneralSection({ project }: { project: Project }) {
       <SectionHeader icon={<CirclePlus className="size-4" />} title={t('settings.general.title')} />
 
       <div className="mb-3.5 flex items-center gap-3.5">
-        <span className="grid size-[46px] place-items-center rounded-xl bg-primary/10 text-2xl text-primary">{icon}</span>
+        <span className="grid size-[46px] place-items-center rounded-xl bg-primary/10 text-2xl text-primary">
+          {icon ?? <Ban aria-label={t('settings.general.noIcon')} className="size-5 text-muted-foreground" />}
+        </span>
         <button
           className="h-[34px] cursor-pointer rounded-[9px] border border-border bg-card px-3 text-[13px] hover:bg-muted"
           onClick={() => setIconOpen((open) => !open)}
@@ -139,6 +141,22 @@ export function GeneralSection({ project }: { project: Project }) {
       </div>
       {iconOpen ? (
         <div className="mb-5 flex flex-wrap gap-2 rounded-xl bg-muted/30 p-3.5">
+          <button
+            aria-label={t('settings.general.noIcon')}
+            aria-pressed={icon === null}
+            className={cn(
+              'grid size-[38px] cursor-pointer place-items-center rounded-[9px] border text-base',
+              icon === null ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card text-muted-foreground hover:bg-muted',
+            )}
+            onClick={() => {
+              setIcon(null);
+              setIconOpen(false);
+            }}
+            title={t('settings.general.noIcon')}
+            type="button"
+          >
+            <Ban className="size-4" />
+          </button>
           {ICON_CHOICES.map((choice) => {
             const active = choice === icon;
             return (
@@ -363,7 +381,7 @@ export function GeneralSection({ project }: { project: Project }) {
 
       <form.Subscribe selector={(state) => [state.isSubmitting, state.isDirty] as const}>
         {([isSubmitting, isDirty]) => (
-          <SaveBar disabled={!isDirty && icon === (project.icon ?? '📘') && !translationsDirty} isSubmitting={isSubmitting} />
+          <SaveBar disabled={!isDirty && icon === (project.icon ?? null) && !translationsDirty} isSubmitting={isSubmitting} />
         )}
       </form.Subscribe>
     </form>

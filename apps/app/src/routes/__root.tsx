@@ -1,4 +1,4 @@
-import { BrandProvider } from '@nibleaf/design-system/brand';
+import { BrandAccentStyle, BrandProvider } from '@nibleaf/design-system/brand';
 import { ThemeProvider } from '@nibleaf/design-system/theme';
 import { setMessageBrand } from '@nibleaf/i18n/brand';
 import { brandIconLinks, DEFAULT_BRAND } from '@nibleaf/shared/brand';
@@ -79,6 +79,8 @@ function RootDocument({ children }: { children: ReactNode }) {
         <meta name={PUBLIC_URL_META.appUrl} content={urls.appUrl} />
         {urls.siteBaseDomain ? <meta name={PUBLIC_URL_META.siteBaseDomain} content={urls.siteBaseDomain} /> : null}
         <HeadContent />
+        {/* Published sites keep their own theme accent. */}
+        {siteProjectId ? null : <BrandAccentStyle />}
       </head>
       <body>
         <ThemeProvider applyDocumentTheme={!siteProjectId} initialThemeScript={siteThemeBootstrap ?? undefined}>

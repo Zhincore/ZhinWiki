@@ -1,3 +1,5 @@
+import { contrastingText } from './themes';
+
 /** The instance brand shown to users. Read at runtime from env, so one prebuilt image serves any brand. */
 export interface Brand {
   /** Product name (`APP_NAME`). */
@@ -14,12 +16,20 @@ export interface Brand {
   termsUrl: string;
   /** Privacy policy: `BRAND_PRIVACY_URL`, else the built-in `/privacy` page. */
   privacyUrl: string;
-  /** Browser UI color: `theme-color` meta and the generated manifest (`BRAND_THEME_COLOR`). */
+  /** Browser UI / address-bar color: `theme-color` meta and the generated manifest (`BRAND_THEME_COLOR`). */
   themeColor: string;
+  /** Dashboard accent (buttons, links, focus rings) per mode (`BRAND_ACCENT_COLOR`); null = the built-in orange. */
+  accentColor: BrandAccent | null;
   /** Path prefix of the favicon set: `''` = bundled, `/brand-assets` = `BRAND_ASSETS_DIR`. */
   iconBase: string;
   /** Custom mark image (`BRAND_ASSETS_DIR/mark.svg`); null = built-in mark. */
   markUrl: string | null;
+}
+
+/** Dashboard accent hex per color mode. */
+export interface BrandAccent {
+  light: string;
+  dark: string;
 }
 
 /** Public path prefix `BRAND_ASSETS_DIR` is served under. */
@@ -47,6 +57,7 @@ export const DEFAULT_BRAND: Brand = {
   termsUrl: '/terms',
   privacyUrl: '/privacy',
   themeColor: '#000000',
+  accentColor: null,
   iconBase: '',
   markUrl: null,
 };
@@ -86,6 +97,45 @@ const url = (env: Env, key: string) => valid(env, key, isHttpUrl, 'an absolute h
 const email = (env: Env, key: string) => valid(env, key, (raw) => EMAIL.test(raw), 'an email address');
 const color = (env: Env, key: string) => valid(env, key, (raw) => HEX_COLOR.test(raw), 'a hex color like #000000');
 
+/** `BRAND_ACCENT_COLOR`: one hex for both modes or a `light,dark` pair; undefined when unset. */
+const accent = (env: Env): BrandAccent | undefined => {
+  const raw = env.BRAND_ACCENT_COLOR?.trim();
+  if (!raw) return undefined;
+  const parts = raw.split(',').map((part) => part.trim());
+  if (parts.length > 2 || !parts.every((part) => HEX_COLOR.test(part))) {
+    throw new Error(`Invalid BRAND_ACCENT_COLOR "${raw}": expected a hex color like #2563eb or a light,dark pair like #2563eb,#60a5fa.`);
+  }
+  const [light = '', dark = light] = parts;
+  return { light, dark };
+};
+
+/** Design-system variables carrying the dashboard accent. */
+const ACCENT_VARIABLES = ['--primary', '--ring', '--chart-1', '--sidebar-primary', '--sidebar-ring', '--brand-copper'];
+const ACCENT_FOREGROUND_VARIABLES = ['--primary-foreground', '--sidebar-primary-foreground'];
+
+/** `#rrggbb` rebuilt from the parsed channels of a 3- or 6-digit hex; null when not a hex color. */
+const canonicalHex = (value: string): string | null => {
+  if (!HEX_COLOR.test(value)) return null;
+  const digits = value.length === 4 ? [...value.slice(1)].map((digit) => digit + digit) : value.slice(1).match(/../g);
+  return `#${(digits ?? []).map((pair) => Number.parseInt(pair, 16).toString(16).padStart(2, '0')).join('')}`;
+};
+
+const accentDeclarations = (color: string): string => {
+  const foreground = contrastingText(color);
+  return [...ACCENT_VARIABLES.map((name) => `${name}:${color}`), ...ACCENT_FOREGROUND_VARIABLES.map((name) => `${name}:${foreground}`)].join(';');
+};
+
+/**
+ * Stylesheet overriding the dashboard accent per mode, built from re-parsed hex values only
+ * (empty when either is not a hex color). Outranks the design-system `:root` / `.dark` defaults.
+ */
+export const brandAccentCss = (accent: BrandAccent): string => {
+  const light = canonicalHex(accent.light);
+  const dark = canonicalHex(accent.dark);
+  if (!light || !dark) return '';
+  return `:root:not(.dark){${accentDeclarations(light)}}:root.dark{${accentDeclarations(dark)}}`;
+};
+
 /** Build the brand from env, given which parts the asset directory provides. Throws on an invalid brand variable. */
 export const readBrand = (env: Env, assets: { icons: boolean; mark: boolean } = { icons: false, mark: false }): Brand => {
   const supportEmail = email(env, 'BRAND_SUPPORT_EMAIL');
@@ -98,6 +148,7 @@ export const readBrand = (env: Env, assets: { icons: boolean; mark: boolean } = 
     termsUrl: url(env, 'BRAND_TERMS_URL') ?? DEFAULT_BRAND.termsUrl,
     privacyUrl: url(env, 'BRAND_PRIVACY_URL') ?? DEFAULT_BRAND.privacyUrl,
     themeColor: color(env, 'BRAND_THEME_COLOR') ?? DEFAULT_BRAND.themeColor,
+    accentColor: accent(env) ?? DEFAULT_BRAND.accentColor,
     iconBase: assets.icons ? BRAND_ASSETS_PATH : '',
     markUrl: assets.mark ? `${BRAND_ASSETS_PATH}/mark.svg` : null,
   };

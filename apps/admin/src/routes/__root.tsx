@@ -1,4 +1,4 @@
-import { BrandProvider } from '@nibleaf/design-system/brand';
+import { BrandAccentStyle, BrandProvider } from '@nibleaf/design-system/brand';
 import { ConfirmProvider } from '@nibleaf/design-system/components/ui/confirm';
 import { Toaster } from '@nibleaf/design-system/components/ui/sonner';
 import { ThemeProvider } from '@nibleaf/design-system/theme';
@@ -60,6 +60,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       <head>
         <meta name={APP_URL_META} content={appUrl} />
         <HeadContent />
+        <BrandAccentStyle />
       </head>
       <body>
         <ThemeProvider>

@@ -13,6 +13,8 @@ name: nibleaf
 # For production: set strong POSTGRES_PASSWORD / STORAGE_SECRET_ACCESS_KEY /
 # BETTER_AUTH_SECRET and put the apps behind a TLS reverse proxy.
 # Cache = Dragonfly (Redis-compatible); object storage = maxio (S3-compatible).
+# ClickHouse analytics is opt-in: set COMPOSE_PROFILES=clickhouse and an
+# ANALYTICS_MODE other than disabled (see docs/self-hosting/clickhouse-analytics).
 
 x-build: &build
   context: .
@@ -42,7 +44,7 @@ x-service-env: &service-env
   POSTGRES_URL: postgresql://nibleaf:${POSTGRES_PASSWORD:-nibleaf}@postgres:5432/nibleaf
   REDIS_HOST: dragonfly
   REDIS_PORT: "6379"
-  ANALYTICS_MODE: ${ANALYTICS_MODE:-dual_write}
+  ANALYTICS_MODE: ${ANALYTICS_MODE:-disabled}
   ANALYTICS_HASH_SALT: ${ANALYTICS_HASH_SALT:-local-analytics-salt-change-in-production}
   CLICKHOUSE_URL: http://clickhouse:8123
   CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-nibleaf_analytics}
@@ -156,6 +158,7 @@ services:
 
   clickhouse:
     image: clickhouse/clickhouse-server:25.8-alpine
+    profiles: ["clickhouse"]
     restart: unless-stopped
     environment:
       CLICKHOUSE_DB: ${CLICKHOUSE_DATABASE:-nibleaf_analytics}
@@ -210,6 +213,7 @@ services:
     image: nibleaf:latest
     pull_policy: never
     command: ["clickhouse-migrate"]
+    profiles: ["clickhouse"]
     environment: *service-env
     depends_on:
       clickhouse:

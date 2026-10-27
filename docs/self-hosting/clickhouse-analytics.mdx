@@ -67,7 +67,9 @@ Store all passwords in the deployment secret manager, not Git or Compose files.
 
 1. Back up Postgres and ClickHouse. Set `ANALYTICS_MODE=disabled`, configure
    ClickHouse credentials and an independent hash salt, then run
-   `pnpm analytics:migrate`.
+   `pnpm analytics:migrate`. The bundled Compose ClickHouse and
+   `analytics-migrate` services start only with `COMPOSE_PROFILES=clickhouse`
+   in `.env`; without it, the stack runs without ClickHouse.
 2. Set `ANALYTICS_MODE=dual_write`. Postgres remains authoritative while the
    worker writes both stores. Queue retries absorb transient ClickHouse outages.
    Deploy the worker before or with the API. It upgrades already queued and

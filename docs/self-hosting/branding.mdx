@@ -1,0 +1,163 @@
+---
+title: 'Brand your instance'
+description: 'Set the product name, contacts, source and legal links, theme color, icons, logo, and homepage of a self-hosted instance through runtime environment variables.'
+audience: 'self-hosted operators'
+content_type: 'how-to'
+last_reviewed: '2026-10-27'
+verified_against: 'packages/shared/src/brand.ts, packages/shared/src/brand.server.ts, apps/app/src/lib/homepage.ts, apps/app/src/server.ts, .env.example, and docker-compose.prod.yml'
+lang: 'en'
+dir: 'ltr'
+translation_key: 'self-hosting/branding'
+---
+
+One prebuilt image serves any brand. Every service (`server`, `worker`, `app`,
+`admin`) reads the brand variables from its environment once at boot, so a
+rebrand needs no rebuild, only a restart.
+
+## Set the brand variables
+
+Add the values to the deployment `.env`. Empty or unset variables keep the
+built-in default.
+
+```dotenv
+APP_NAME=Acme Docs
+BRAND_URL=https://acme.example
+BRAND_SUPPORT_EMAIL=support@acme.example
+BRAND_ABUSE_EMAIL=abuse@acme.example
+BRAND_SOURCE_URL=https://git.acme.example/acme/docs
+BRAND_TERMS_URL=https://acme.example/terms
+BRAND_PRIVACY_URL=https://acme.example/privacy
+BRAND_THEME_COLOR=#0f172a
+BRAND_ASSETS_DIR=/brand
+```
+
+| Variable | Used for | Default |
+| --- | --- | --- |
+| `APP_NAME` | Product name in the UI, emails, page titles, and API docs | `ZhinDocs` |
+| `BRAND_URL` | Public homepage of the brand | `https://github.com/Zhincore/zhindocs` |
+| `BRAND_SUPPORT_EMAIL` | Contact shown in emails, errors, and legal pages | `support@zhindocs.invalid` |
+| `BRAND_ABUSE_EMAIL` | Abuse-report contact | `BRAND_SUPPORT_EMAIL`, else `abuse@zhindocs.invalid` |
+| `BRAND_SOURCE_URL` | **Source** link in the footer | `https://github.com/Zhincore/zhindocs` |
+| `BRAND_TERMS_URL` | Terms of service | built-in `/terms` page |
+| `BRAND_PRIVACY_URL` | Privacy policy | built-in `/privacy` page |
+| `BRAND_THEME_COLOR` | Browser `theme-color` and the generated web manifest | `#000000` |
+| `BRAND_ASSETS_DIR` | Directory of custom icons and logo, see below | unset |
+
+Always set `BRAND_SUPPORT_EMAIL`. The default `.invalid` address does not
+deliver, and each service logs a warning at boot while it is unset.
+
+### Validation
+
+Values are trimmed and checked at boot:
+
+- `BRAND_URL`, `BRAND_SOURCE_URL`, `BRAND_TERMS_URL`, `BRAND_PRIVACY_URL`:
+  absolute `http://` or `https://` URLs;
+- `BRAND_SUPPORT_EMAIL`, `BRAND_ABUSE_EMAIL`: email addresses;
+- `BRAND_THEME_COLOR`: a hex color, `#rgb` or `#rrggbb`.
+
+An invalid value stops the service with an error such as
+`Invalid BRAND_URL "acme.example": expected an absolute http(s) URL.` Check
+`docker compose logs` after a change.
+
+### Source link and AGPL-3.0
+
+The code is licensed under AGPL-3.0. Section 13 requires offering the source of
+the running version to everyone who uses it over the network; the footer's
+**Source** link does that. The default points at the unmodified ZhinDocs
+repository. If you run modified code, publish your changes and set
+`BRAND_SOURCE_URL` to that source.
+
+### Terms and privacy
+
+Without `BRAND_TERMS_URL` / `BRAND_PRIVACY_URL`, `/terms` and `/privacy` serve
+generic built-in pages filled with the brand name and contacts. Review them
+before launch; they are a starting point, not legal advice. When set, the
+sign-in and sign-up links point there and `/terms` / `/privacy` redirect to
+them. Pointing them at the instance's own `/terms` or `/privacy` keeps the
+built-in page.
+
+## Add custom icons and a logo
+
+`BRAND_ASSETS_DIR` is a directory inside the `app` and `admin` containers. It may
+contain any of these files:
+
+- `favicon.svg`, `favicon.ico`, `favicon-16x16.png`, `favicon-32x32.png`
+- `apple-touch-icon.png`, `android-chrome-192x192.png`, `android-chrome-512x512.png`
+- `site.webmanifest`
+- `mark.svg`
+
+They are served under `/brand-assets/`. Any icon file from the first two rows
+switches the page icons to that directory; icons you leave out fall back to the
+bundled ones. `mark.svg` replaces the built-in mark beside the name.
+`site.webmanifest` is optional: without it, a manifest is generated from
+`APP_NAME`, `BRAND_THEME_COLOR`, and the active icons. Files are read once per
+process, so restart `app` and `admin` after changing them.
+
+### Mount the directory with Docker
+
+Put the files in `./brand` next to `docker-compose.prod.yml` and create
+`docker-compose.override.yml`:
+
+```yaml
+services:
+  app:
+    volumes:
+      - ./brand:/brand:ro
+  admin:
+    volumes:
+      - ./brand:/brand:ro
+```
+
+Set `BRAND_ASSETS_DIR=/brand` in `.env`. Compose loads
+`docker-compose.override.yml` automatically only when no `-f` option is given,
+so with `docker-compose.prod.yml` pass both files explicitly:
+
+```bash
+docker compose -f docker-compose.prod.yml -f docker-compose.override.yml up -d
+```
+
+Every later command (`pull`, `up`, `logs`) must name both files, or the
+containers are recreated without the mount. To make that automatic, set
+[`COMPOSE_FILE`](https://docs.docker.com/compose/how-tos/environment-variables/envvars/#compose_file)
+in the same `.env`, using `:` as the separator on Linux and macOS:
+
+```dotenv
+COMPOSE_FILE=docker-compose.prod.yml:docker-compose.override.yml
+```
+
+Plain `docker compose pull` and `docker compose up -d` then
+[merge both files](https://docs.docker.com/compose/how-tos/multiple-compose-files/merge/).
+Prefer this for upgrades so the override is never forgotten.
+
+Verify with `curl -I https://docs.example.com/brand-assets/favicon.svg`: a
+custom file returns `200`, a missing icon redirects to the bundled one.
+
+## Choose the homepage
+
+`HOMEPAGE` sets what the dashboard origin (`APP_URL`) serves at `/`:
+
+| Value | Result |
+| --- | --- |
+| empty | A welcome page linking sign-in and sign-up (default). |
+| `app` | `/` redirects to the dashboard at `/app`. |
+| `site:<projectId>` | That project's published site becomes the home wiki at the root. |
+
+The project ID is the segment after `/app/projects/` in the dashboard URL. In
+`site` mode the dashboard, auth, and runtime paths stay with the app: `/app`,
+`/sign-in`, `/sign-up`, `/forgot-password`, `/reset-password`, `/verify-email`,
+`/accept-invite`, `/git-preview`, `/brand-assets`, `/health`, `/terms`,
+`/privacy`, `/api`, `/assets`, `/sites`, favicons, and paths starting with `_`.
+A wiki page cannot use those top-level slugs. Any other value stops the `app`
+service at boot.
+
+## Where the brand appears
+
+- `APP_NAME`: dashboard, auth and legal pages, footer, page titles, web
+  manifest, API docs at `/docs`, and every UI and email message that names the
+  product;
+- `BRAND_SUPPORT_EMAIL`: emails, suspended-account and site-takedown errors,
+  and legal pages;
+- `BRAND_ABUSE_EMAIL`: the built-in terms and the badge on published sites;
+- `BRAND_SOURCE_URL` and `APP_NAME`: the footer
+  `© ‹year› ‹APP_NAME› · Open source under AGPL-3.0 · Source · A fork of Nibleaf`.
+  The attribution to Nibleaf is fixed.

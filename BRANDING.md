@@ -8,6 +8,7 @@ merging cleanly.
 
 Instances can rename themselves at runtime (`APP_NAME` and the other `BRAND_*`
 variables, see `.env.example`); ZhinDocs is only the built-in default.
+Operator guide: [Brand your instance](docs/self-hosting/branding.mdx).
 
 ## Branches
 

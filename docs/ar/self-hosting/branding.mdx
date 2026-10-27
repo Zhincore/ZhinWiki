@@ -1,0 +1,140 @@
+---
+title: 'تخصيص العلامة التجارية لنسختك'
+description: 'اضبط اسم المنتج وجهات الاتصال وروابط المصدر والشروط ولون السمة والأيقونات والشعار والصفحة الرئيسية لنسخة مستضافة ذاتيًا عبر متغيرات البيئة وقت التشغيل.'
+audience: 'مشغّلو النسخ المستضافة ذاتيًا'
+content_type: 'how-to'
+last_reviewed: '2026-10-27'
+verified_against: 'packages/shared/src/brand.ts وpackages/shared/src/brand.server.ts وapps/app/src/lib/homepage.ts وapps/app/src/server.ts و.env.example وdocker-compose.prod.yml'
+lang: 'ar'
+dir: 'rtl'
+translation_key: 'self-hosting/branding'
+---
+
+تخدم صورة واحدة مبنية مسبقًا أي علامة تجارية. تقرأ كل خدمة (`server` و`worker`
+و`app` و`admin`) متغيرات العلامة من بيئتها مرة واحدة عند الإقلاع، فلا يحتاج
+تغيير العلامة إلى إعادة بناء، بل إلى إعادة تشغيل فقط.
+
+## ضبط متغيرات العلامة
+
+أضف القيم إلى ملف `.env` الخاص بالنشر. يبقي المتغير الفارغ أو غير المضبوط
+القيمة الافتراضية المدمجة.
+
+```dotenv
+APP_NAME=Acme Docs
+BRAND_URL=https://acme.example
+BRAND_SUPPORT_EMAIL=support@acme.example
+BRAND_ABUSE_EMAIL=abuse@acme.example
+BRAND_SOURCE_URL=https://git.acme.example/acme/docs
+BRAND_TERMS_URL=https://acme.example/terms
+BRAND_PRIVACY_URL=https://acme.example/privacy
+BRAND_THEME_COLOR=#0f172a
+BRAND_ASSETS_DIR=/brand
+```
+
+| المتغير | الاستخدام | الافتراضي |
+| --- | --- | --- |
+| `APP_NAME` | اسم المنتج في الواجهة والبريد وعناوين الصفحات ووثائق API | `ZhinDocs` |
+| `BRAND_URL` | الصفحة العامة للعلامة | `https://github.com/Zhincore/zhindocs` |
+| `BRAND_SUPPORT_EMAIL` | جهة الدعم في البريد والأخطاء والصفحات القانونية | `support@zhindocs.invalid` |
+| `BRAND_ABUSE_EMAIL` | جهة الإبلاغ عن إساءة الاستخدام | `BRAND_SUPPORT_EMAIL`، وإلا `abuse@zhindocs.invalid` |
+| `BRAND_SOURCE_URL` | رابط **المصدر** في التذييل | `https://github.com/Zhincore/zhindocs` |
+| `BRAND_TERMS_URL` | شروط الخدمة | صفحة `/terms` المدمجة |
+| `BRAND_PRIVACY_URL` | سياسة الخصوصية | صفحة `/privacy` المدمجة |
+| `BRAND_THEME_COLOR` | `theme-color` في المتصفح وملف البيان المولّد | `#000000` |
+| `BRAND_ASSETS_DIR` | مجلد الأيقونات والشعار المخصص | غير مضبوط |
+
+اضبط `BRAND_SUPPORT_EMAIL` دائمًا؛ فالعنوان الافتراضي `.invalid` لا يستقبل
+البريد، وتسجل كل خدمة تحذيرًا عند الإقلاع ما دام غير مضبوط.
+
+تُتحقق القيم عند الإقلاع: عناوين URL مطلقة تبدأ بـ`http://` أو `https://`،
+وعناوين بريد صالحة، ولون سداسي عشري `#rgb` أو `#rrggbb`. توقف القيمة غير
+الصالحة الخدمة مع رسالة خطأ؛ راجع `docker compose logs` بعد كل تغيير.
+
+الشيفرة مرخّصة بـAGPL-3.0، وتشترط المادة 13 إتاحة مصدر النسخة العاملة لكل من
+يستخدمها عبر الشبكة، ويؤدي رابط **المصدر** في التذييل ذلك. يشير الافتراضي إلى
+مستودع ZhinDocs غير المعدّل؛ فإن شغّلت شيفرة معدّلة فانشر تعديلاتك واضبط
+`BRAND_SOURCE_URL` على مصدرها.
+
+من دون `BRAND_TERMS_URL` و`BRAND_PRIVACY_URL` تعرض `/terms` و`/privacy` صفحات
+عامة مدمجة تحمل اسم العلامة وجهات الاتصال؛ راجعها قبل الإطلاق فهي ليست استشارة
+قانونية. وعند ضبطهما تشير روابط تسجيل الدخول والتسجيل إليهما وتُعاد توجيه
+`/terms` و`/privacy` إليهما. ويبقي توجيههما إلى `/terms` أو `/privacy` في النسخة
+نفسها الصفحة المدمجة.
+
+## إضافة أيقونات وشعار مخصصين
+
+`BRAND_ASSETS_DIR` مجلد داخل حاويتي `app` و`admin`، ويمكن أن يحتوي أيًا من:
+`favicon.svg` و`favicon.ico` و`favicon-16x16.png` و`favicon-32x32.png`
+و`apple-touch-icon.png` و`android-chrome-192x192.png`
+و`android-chrome-512x512.png` و`site.webmanifest` و`mark.svg`.
+
+تُخدَم الملفات تحت `/brand-assets/`. يكفي وجود أي ملف أيقونة لتبديل أيقونات
+الصفحات إلى هذا المجلد، وتعود الأيقونات الناقصة إلى المدمجة. يستبدل `mark.svg`
+الشعار المدمج بجانب الاسم. و`site.webmanifest` اختياري؛ فمن دونه يُولَّد بيان
+من `APP_NAME` و`BRAND_THEME_COLOR` والأيقونات الفعالة. تُقرأ الملفات مرة واحدة
+لكل عملية، فأعد تشغيل `app` و`admin` بعد تغييرها.
+
+### ربط المجلد عبر Docker
+
+ضع الملفات في `./brand` بجانب `docker-compose.prod.yml` وأنشئ
+`docker-compose.override.yml`:
+
+```yaml
+services:
+  app:
+    volumes:
+      - ./brand:/brand:ro
+  admin:
+    volumes:
+      - ./brand:/brand:ro
+```
+
+اضبط `BRAND_ASSETS_DIR=/brand` في `.env`. لا يحمّل Compose ملف
+`docker-compose.override.yml` تلقائيًا إلا عند غياب الخيار `-f`، لذا مرّر
+الملفين صراحة مع `docker-compose.prod.yml`:
+
+```bash
+docker compose -f docker-compose.prod.yml -f docker-compose.override.yml up -d
+```
+
+يجب أن يسمّي كل أمر لاحق (`pull` و`up` و`logs`) الملفين، وإلا أُعيد إنشاء
+الحاويات من دون المجلد. ولجعل ذلك تلقائيًا اضبط
+[`COMPOSE_FILE`](https://docs.docker.com/compose/how-tos/environment-variables/envvars/#compose_file)
+في `.env` نفسه، بالفاصل `:` على Linux وmacOS:
+
+```dotenv
+COMPOSE_FILE=docker-compose.prod.yml:docker-compose.override.yml
+```
+
+عندها [يدمج](https://docs.docker.com/compose/how-tos/multiple-compose-files/merge/)
+الأمران `docker compose pull` و`docker compose up -d` الملفين. فضّل هذه الطريقة
+عند الترقية كي لا يُنسى ملف التجاوز.
+
+تحقق عبر `curl -I https://docs.example.com/brand-assets/favicon.svg`: يعيد الملف
+المخصص `200`، وتُعاد توجيه الأيقونة الناقصة إلى المدمجة.
+
+## اختيار الصفحة الرئيسية
+
+يحدد `HOMEPAGE` ما يعرضه أصل لوحة التحكم (`APP_URL`) عند `/`:
+
+| القيمة | النتيجة |
+| --- | --- |
+| فارغة | صفحة ترحيب بروابط تسجيل الدخول والتسجيل (الافتراضي). |
+| `app` | تُعاد توجيه `/` إلى لوحة التحكم في `/app`. |
+| `site:<projectId>` | يصبح الموقع المنشور لذلك المشروع الويكي الرئيسي عند الجذر. |
+
+معرّف المشروع هو الجزء التالي لـ`/app/projects/` في عنوان لوحة التحكم. في وضع
+`site` تبقى مسارات لوحة التحكم والمصادقة والتشغيل للتطبيق: `/app` و`/sign-in`
+و`/sign-up` و`/forgot-password` و`/reset-password` و`/verify-email`
+و`/accept-invite` و`/git-preview` و`/brand-assets` و`/health` و`/terms`
+و`/privacy` و`/api` و`/assets` و`/sites` والأيقونات والمسارات التي تبدأ بـ`_`. لا
+يمكن لصفحة الويكي استخدام هذه المسارات العليا. وتوقف أي قيمة أخرى خدمة `app`
+عند الإقلاع.
+
+## أين تظهر العلامة
+
+- `APP_NAME`: لوحة التحكم وصفحات المصادقة والصفحات القانونية والتذييل وعناوين
+  الصفحات وملف البيان ووثائق API في `/docs` وكل رسالة واجهة أو بريد تذكر المنتج؛
+- `BRAND_SUPPORT_EMAIL`: البريد وأخطاء تعليق الحساب وإزالة الموقع والصفحات القانونية؛
+- `BRAND_ABUSE_EMAIL`: الشروط المدمجة والشارة في المواقع المنشورة؛
+- `BRAND_SOURCE_URL` و`APP_NAME`: التذييل، مع إشارة ثابتة إلى أن المشروع تفرّع من Nibleaf.

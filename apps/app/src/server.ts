@@ -540,11 +540,19 @@ function serveRootSeo(pathname: string): Response | null {
   return new Response('Not found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
 }
 
-/** Where `/terms` or `/privacy` redirect when `BRAND_TERMS_URL` / `BRAND_PRIVACY_URL` replace the built-in page; null otherwise. */
-function legalPageRedirect(pathname: string): string | null {
+const APP_HOST = new URL(serverEnv.APP_URL).host;
+
+/**
+ * Where `/terms` or `/privacy` redirect when `BRAND_TERMS_URL` / `BRAND_PRIVACY_URL` replace the built-in page;
+ * null otherwise, including when the URL points back at this page (on the request or `APP_URL` host).
+ */
+function legalPageRedirect(url: URL): string | null {
   const brand = instanceBrand();
-  const target = pathname === '/terms' ? brand.termsUrl : pathname === '/privacy' ? brand.privacyUrl : null;
-  return target && target !== pathname ? target : null;
+  const target = url.pathname === '/terms' ? brand.termsUrl : url.pathname === '/privacy' ? brand.privacyUrl : null;
+  if (!target) return null;
+  const resolved = new URL(target, url);
+  const self = resolved.pathname === url.pathname && (resolved.host === url.host || resolved.host === APP_HOST);
+  return self ? null : target;
 }
 
 const APP_SECURITY_HEADERS = {
@@ -685,7 +693,7 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
 
   const serve = async (): Promise<Response> => {
     if (!isCustomDomain) {
-      const legalRedirect = isGetLike ? legalPageRedirect(url.pathname) : null;
+      const legalRedirect = isGetLike ? legalPageRedirect(url) : null;
       if (legalRedirect) {
         return new Response(null, { status: 302, headers: { location: legalRedirect } });
       }

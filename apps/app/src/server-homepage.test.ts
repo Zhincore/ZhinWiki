@@ -132,6 +132,17 @@ describe('HOMEPAGE server entry', () => {
     expect(mocks.startHandler).not.toHaveBeenCalled();
   });
 
+  it('serves the built-in legal pages when the operator URLs point back at them', async () => {
+    vi.stubEnv('BRAND_TERMS_URL', 'http://localhost:4310/terms');
+    vi.stubEnv('BRAND_PRIVACY_URL', 'http://localhost:4310/privacy');
+    const server = await serverWith('site:home');
+    const terms = await server.fetch(new Request('http://localhost:4310/terms', { headers: { accept: 'text/html' } }));
+    const privacy = await server.fetch(new Request('http://localhost:4310/privacy', { headers: { accept: 'text/html' } }));
+
+    expect([terms.status, privacy.status]).not.toContain(302);
+    expect(mocks.startHandler).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps security.txt with the app and dashboard paths out of every robots group', async () => {
     const server = await serverWith('site:home');
     const security = await server.fetch(new Request('http://localhost:4310/.well-known/security.txt'));

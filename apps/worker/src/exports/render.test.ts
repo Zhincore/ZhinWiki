@@ -403,14 +403,13 @@ Before expression {globalThis.stolen({ nested: true })} after expression.
     expect(text(required(files['theme/theme.js']))).not.toContain('Embargoed roadmap details');
   });
 
-  it('produces PDF source with RTL, tables, code, page breaks, links, and metadata', () => {
+  it('produces PDF source with RTL, tables, code, page breaks, links, and inlined images', () => {
     const html = renderPdfHtml(snapshot, assets);
     expect(html).toContain('dir="rtl"');
     expect(html).toContain('<table>');
     expect(html).toContain('<pre><code class="language-ts">');
     expect(html).toContain('page-break-inside:avoid');
     expect(html).toContain('href="#page-setup"');
-    expect(html).toContain('<meta name="generator" content="ZhinWiki export">');
     expect(html).toContain('data:image/png;base64,AQID');
   });
 

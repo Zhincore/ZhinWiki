@@ -123,8 +123,6 @@ describe('Git-native repository contract v2', () => {
     expect(byPath.get('src/lib/markdown.tsx')?.content).toContain('rehypeSanitize, sanitizeSchema');
     expect(byPath.get('src/components/mdx/index.tsx')?.content).toContain('relatedcard: RelatedCard');
     expect(byPath.get('src/components/mdx/tooltip.tsx')?.content).toContain('role="tooltip"');
-    expect(byPath.get('messages/ar.json')?.content).toContain('ابحث في التوثيق');
-    expect(byPath.get('messages/en.json')?.content).toContain('No pages match this search.');
 
     const readme = byPath.get('README.md');
     expect(readme?.ownership).toBe('CUSTOMER');

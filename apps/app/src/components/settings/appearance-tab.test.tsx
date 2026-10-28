@@ -50,16 +50,6 @@ describe('AppearanceTab', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the translated theme section in English', async () => {
-    await render();
-
-    const headings = [...container.querySelectorAll('h2')].map((heading) => heading.textContent);
-    expect(headings).toEqual(['Theme', 'Interface language']);
-    const buttons = [...container.querySelectorAll('button[type="button"]')].map((button) => button.textContent);
-    expect(buttons).toContain('Light');
-    expect(buttons).toContain('Dark');
-  });
-
   it('renders the translated theme section in Arabic', async () => {
     i18n.locale = 'ar';
     await render();

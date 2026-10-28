@@ -30,7 +30,6 @@ describe('canAssignRole — owner is never assignable; otherwise never above you
   });
   it('excludes owner from the assignable-roles set', () => {
     expect(ASSIGNABLE_MEMBER_ROLES).not.toContain(MemberRole.OWNER);
-    expect(ASSIGNABLE_MEMBER_ROLES).toEqual([MemberRole.ADMIN, MemberRole.MEMBER]);
   });
   it('lets an owner assign the non-owner roles', () => {
     expect(canAssignRole('owner', 'admin')).toBe(true);

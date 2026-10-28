@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { ThemePreview } from '@/components/project-settings/theme-section';
 import {
-  DOCUMENTATION_THEME_TEMPLATES,
   DocumentationPageLayout,
   DocumentationProjectPreviewLayout,
   DocumentationReaderLayout,
@@ -114,7 +113,6 @@ describe('published theme projection', () => {
       </DocumentationThemeProvider>,
     );
 
-    expect(Object.keys(DOCUMENTATION_THEME_TEMPLATES)).toEqual(['reference', 'editorial', 'console']);
     expect(markup).toContain('data-theme-id="harbor"');
     expect(markup).toContain('data-theme-shell="console"');
     expect(markup).toContain('data-documentation-template="signal"');

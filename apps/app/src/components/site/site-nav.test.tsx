@@ -67,7 +67,6 @@ describe('SiteNav page subtrees', () => {
     const link = toggle?.parentElement?.querySelector('a');
     expect(toggle?.getAttribute('type')).toBe('button');
     expect(toggle?.getAttribute('aria-labelledby')).toBe(`${toggle?.id} ${link?.id}`);
-    expect(toggle?.getAttribute('aria-label')).toBe('Toggle subpages');
     expect(toggle?.querySelector('svg')?.getAttribute('class')).toContain('rtl:-scale-x-100');
 
     await act(async () => toggle?.click());

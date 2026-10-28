@@ -1,7 +1,7 @@
 # AGENTS.md
 
-Guidance for coding agents (and humans) working on this repository: the
-ZhinDocs fork of Nibleaf. Setup and general conventions are in
+Guidance for coding agents (and humans) working on this repository, a fork
+of Nibleaf. Setup and general conventions are in
 [CONTRIBUTING.md](CONTRIBUTING.md); naming rules in [BRANDING.md](BRANDING.md).
 
 ## Branches and PRs

@@ -4,10 +4,12 @@ import {
   ASSIGNABLE_MEMBER_ROLES,
   canAdminister,
   canAssignRole,
+  canCreateWiki,
   canEdit,
   canManageMember,
   EXPORT_CREATE_ROLE,
   EXPORT_SCHEDULE_ROLE,
+  effectiveWikiRole,
   planOwnershipTransfer,
   rankOf,
   roleAtLeast,
@@ -19,6 +21,34 @@ describe('rankOf', () => {
     expect(rankOf('admin')).toBeGreaterThan(rankOf('member'));
     expect(rankOf('member')).toBeGreaterThan(rankOf('viewer'));
     expect(rankOf('nonsense')).toBe(0);
+  });
+});
+
+describe('effectiveWikiRole — max of membership role and platform grant', () => {
+  it('gives a platform editor member rights on a wiki they do not belong to', () => {
+    expect(effectiveWikiRole(null, 'editor')).toBe(MemberRole.MEMBER);
+  });
+  it('keeps a higher membership role over the editor grant', () => {
+    expect(effectiveWikiRole('owner', 'editor')).toBe(MemberRole.OWNER);
+    expect(effectiveWikiRole('admin', 'editor')).toBe(MemberRole.ADMIN);
+  });
+  it.each(['user', 'admin', null, undefined])('grants no wiki access to a non-member with platform role %s', (platformRole) => {
+    expect(effectiveWikiRole(null, platformRole)).toBeNull();
+  });
+  it('keeps the membership role when the platform role grants nothing', () => {
+    expect(effectiveWikiRole('member', 'admin')).toBe(MemberRole.MEMBER);
+  });
+});
+
+describe('canCreateWiki', () => {
+  it.each(['admin', 'editor', 'user', null, undefined])('lets any signed-in user create in multi (role %s)', (role) => {
+    expect(canCreateWiki('multi', role)).toBe(true);
+  });
+  it('lets only platform admins create in single', () => {
+    expect(canCreateWiki('single', 'admin')).toBe(true);
+    for (const role of ['editor', 'user', null, undefined]) {
+      expect(canCreateWiki('single', role)).toBe(false);
+    }
   });
 });
 

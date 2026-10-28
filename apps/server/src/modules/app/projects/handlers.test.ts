@@ -6,13 +6,16 @@ import type { HonoEnv } from '@/lib/hono/context';
 
 const mocks = vi.hoisted(() => ({
   member: { role: 'member' } as { role: string } | null,
+  platformRole: 'user',
+  tenancy: 'multi' as 'single' | 'multi',
+  createProject: vi.fn(async () => ({ id: 'new-project' })),
   exportProjectThemeRepository: vi.fn(async () => ({ fileName: 'theme.zip', data: new Uint8Array([80, 75]) })),
   getProjectThemeCatalog: vi.fn(async () => ({ schemaVersion: 1, authoring: [] })),
 }));
 
 vi.mock('@nibleaf/database', () => ({
   prisma: {
-    user: { findUnique: vi.fn(async () => ({ suspendedAt: null })) },
+    user: { findUnique: vi.fn(async () => ({ suspendedAt: null, role: mocks.platformRole })) },
     project: { findUnique: vi.fn(async () => ({ id: 'project', organizationId: 'org' })) },
     member: { findUnique: vi.fn(async () => mocks.member) },
   },
@@ -31,7 +34,7 @@ vi.mock('@/actions/projects', () => ({
     }
     return { project: { id: 'project', organizationId: 'org' }, organizationId: 'org', role: mocks.member.role };
   }),
-  createProject: vi.fn(),
+  createProject: mocks.createProject,
   deleteProject: vi.fn(),
   getProject: vi.fn(),
   listProjects: vi.fn(),
@@ -42,6 +45,14 @@ vi.mock('@/actions/themes', () => ({
   exportProjectTheme: vi.fn(),
   getProjectThemeCatalog: mocks.getProjectThemeCatalog,
   importProjectTheme: vi.fn(),
+}));
+
+vi.mock('@/env', () => ({
+  env: {
+    get TENANCY() {
+      return mocks.tenancy;
+    },
+  },
 }));
 
 import handlers from './handlers';
@@ -101,5 +112,35 @@ describe('theme repository export permissions', () => {
 
     expect(response.status).toBe(404);
     expect(mocks.getProjectThemeCatalog).not.toHaveBeenCalled();
+  });
+});
+
+describe('wiki creation by tenancy', () => {
+  const create = () =>
+    appFor(true).request('/projects', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Wiki' }) });
+
+  beforeEach(() => {
+    mocks.platformRole = 'user';
+    vi.clearAllMocks();
+  });
+
+  it('lets any signed-in user create a site in multi tenancy', async () => {
+    mocks.tenancy = 'multi';
+    expect((await create()).status).toBe(201);
+    expect(mocks.createProject).toHaveBeenCalledOnce();
+  });
+
+  it.each(['user', 'editor'])('forbids a platform %s from creating a wiki in single tenancy', async (role) => {
+    mocks.tenancy = 'single';
+    mocks.platformRole = role;
+    expect((await create()).status).toBe(403);
+    expect(mocks.createProject).not.toHaveBeenCalled();
+  });
+
+  it('lets a platform admin create a wiki in single tenancy', async () => {
+    mocks.tenancy = 'single';
+    mocks.platformRole = 'admin';
+    expect((await create()).status).toBe(201);
+    expect(mocks.createProject).toHaveBeenCalledOnce();
   });
 });

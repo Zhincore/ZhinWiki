@@ -11,9 +11,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@nibleaf/database', () => ({
   prisma: {
-    user: { findUnique: vi.fn(async () => ({ suspendedAt: null })) },
+    user: { findUnique: vi.fn(async () => ({ suspendedAt: null, role: 'user', members: [{ role: mocks.role }] })) },
     project: { findUnique: vi.fn(async () => ({ id: 'project', organizationId: 'org' })) },
-    member: { findUnique: vi.fn(async () => ({ role: mocks.role })) },
   },
 }));
 

@@ -5,6 +5,7 @@ import { brandIconLinks, DEFAULT_BRAND } from '@nibleaf/shared/brand';
 import { createRootRoute, HeadContent, Outlet, Scripts, useRouter, useRouterState } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { getBrandFn } from '@/functions/brand';
+import { getTenancyFn } from '@/functions/tenancy';
 import type { SiteShell } from '@/hooks/api/types';
 import { formatHomepage } from '@/lib/homepage';
 import { PUBLIC_URL_META, publicUrls } from '@/lib/public-urls';
@@ -13,8 +14,8 @@ import { siteThemeNoFlashScript } from '@/lib/site-theme';
 import appCss from '@/styles.css?url';
 
 export const Route = createRootRoute({
-  // The brand, homepage and public URLs come from runtime env; they never change while the app runs.
-  loader: async () => ({ brand: await getBrandFn(), homepage: currentHomepage(), urls: publicUrls() }),
+  // The brand, tenancy, homepage and public URLs come from runtime env; they never change while the app runs.
+  loader: async () => ({ brand: await getBrandFn(), tenancy: await getTenancyFn(), homepage: currentHomepage(), urls: publicUrls() }),
   staleTime: Number.POSITIVE_INFINITY,
   head: ({ loaderData }) => {
     const brand = loaderData?.brand ?? DEFAULT_BRAND;

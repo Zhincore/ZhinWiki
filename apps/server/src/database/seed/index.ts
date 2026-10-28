@@ -11,6 +11,9 @@ async function seed() {
   if (env.NODE_ENV === 'production' && !env.ALLOW_SEED) {
     throw new Error('Refusing to seed in production. Set ALLOW_SEED=1 to override.');
   }
+  if (env.TENANCY === 'single') {
+    throw new Error('The demo seed relies on sign-up provisioning; run it with TENANCY=multi.');
+  }
 
   // Use the same passwordless provisioning path as customer sign-up. Creating
   // the short-lived OTP is server-only and does not require a delivery provider.

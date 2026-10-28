@@ -21,7 +21,7 @@ model User {
   email         String    @unique
   emailVerified Boolean   @default(false)
   image         String?
-  /// Platform role for the internal admin panel (apps/admin): "user" | "admin".
+  /// Platform role: "user" | "admin" (internal admin panel, apps/admin) | "editor" (member rights on every wiki).
   /// Separate from per-workspace Member roles; managed via the grant-admin script.
   role          String    @default("user")
   /// Better Auth admin-plugin moderation fields. `suspendedAt` remains the

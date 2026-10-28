@@ -36,7 +36,7 @@ const projectSettingsRoutes = {
   usage: createRouteConfig({
     guard: [isAuthenticated, requireProjectMember()],
     tags: ['projects'],
-    description: "Get a site's usage counters (pages, languages, members, deployments, traffic, storage) for the Usage tab.",
+    description: "Get a site's usage counters and the instance's env-configured limits for the Usage tab.",
     responses: ok,
   }),
   searchConfiguration: createRouteConfig({

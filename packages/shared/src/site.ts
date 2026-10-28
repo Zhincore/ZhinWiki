@@ -358,14 +358,14 @@ export const buildNavTree = (pages: SnapshotPage[], languageCode?: string): NavN
 
     // Categories are deliberately virtual: imported flat collections can gain
     // an ergonomic, collapsible sidebar without re-parenting pages or breaking
-    // any existing URL. Real groups remain first; uncategorized pages follow the
-    // explicitly ordered category sections.
-    const plain: NavNode[] = [];
+    // any existing URL. Siblings keep the editor's order; the category sections
+    // sit together where their first page is.
+    const plain: Array<{ node: NavNode; position: number }> = [];
     const categories = new Map<string, { title: string; icon: string | null; order: number; firstPosition: number; pages: SnapshotPage[] }>();
     for (const page of siblings) {
       const resolvedCategory = resolvePageCategory(page, siblingPageCount);
       if (!resolvedCategory) {
-        plain.push(toNode(page));
+        plain.push({ node: toNode(page), position: page.position });
         continue;
       }
       const { title } = resolvedCategory;
@@ -394,9 +394,10 @@ export const buildNavTree = (pages: SnapshotPage[], languageCode?: string): NavN
         tag: null,
         children: category.pages.sort((a, b) => a.position - b.position).map(toNode),
       }));
-    const realGroups = plain.filter((node) => node.kind === 'GROUP');
-    const uncategorizedPages = plain.filter((node) => node.kind === 'PAGE');
-    return [...realGroups, ...grouped, ...uncategorizedPages];
+    const categoryPosition = Math.min(...[...categories.values()].map((category) => category.firstPosition));
+    const before = plain.filter((entry) => entry.position < categoryPosition).map((entry) => entry.node);
+    const after = plain.filter((entry) => entry.position >= categoryPosition).map((entry) => entry.node);
+    return [...before, ...grouped, ...after];
   };
   return build(null);
 };

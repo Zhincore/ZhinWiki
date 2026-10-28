@@ -8,9 +8,7 @@ import { getContextUserOrThrow, type HonoEnv } from '@/lib/hono/context';
 /**
  * Gate wiki creation by `canCreateWiki`: any signed-in user in multi tenancy
  * (no DB read), only platform admins in single (role read fresh from the DB).
- * Signed-in users without a wiki are contributors: they hold no Member row,
- * since any Member row reads drafts and private sites. Pair this AFTER
- * `isAuthenticated`.
+ * Pair this AFTER `isAuthenticated`.
  */
 export const canCreateProject: MiddlewareHandler<HonoEnv> = async (_ctx, next) => {
   if (!canCreateWiki(env.TENANCY)) {

@@ -22,7 +22,8 @@ model User {
   emailVerified Boolean   @default(false)
   image         String?
   /// Platform role: "user" | "admin" (internal admin panel, apps/admin) | "editor" (member rights on every wiki).
-  /// Separate from per-workspace Member roles; managed via the grant-admin script.
+  /// Separate from per-workspace Member roles. "admin" is set via the grant-admin script or the admin
+  /// console, "editor" by SQL.
   role          String    @default("user")
   /// Better Auth admin-plugin moderation fields. `suspendedAt` remains the
   /// operator-facing timestamp while `banned` is the authentication backstop.

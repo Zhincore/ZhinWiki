@@ -694,7 +694,8 @@ async function provisionWorkspace(user: { id: string; name?: string | null; emai
       await publishStarterSite(project.id, user.id, locale);
     }
   } catch (error) {
-    // Never block sign-up on provisioning; log it so the failure is diagnosable.
+    // Never block sign-up on provisioning; the user can create a workspace later.
+    // Log it so the failure is diagnosable instead of silently swallowed.
     log.error({ error, userId: user.id }, 'workspace provisioning failed during sign-up');
   }
 }
@@ -702,6 +703,7 @@ async function provisionWorkspace(user: { id: string; name?: string | null; emai
 const handleUserCreated = onUserCreated(env.TENANCY, {
   provision: provisionWorkspace,
   logSignup: (userId) => logPlatformEvent('signup_completed', { userId }),
+  onLogFailure: (error, userId) => log.error({ error, userId }, 'sign-up event logging failed'),
 });
 
 const authInstance = betterAuth({

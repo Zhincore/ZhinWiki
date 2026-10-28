@@ -6,10 +6,16 @@ export const organizationTenancyOptions = (tenancy: Tenancy) => ({ allowUserToCr
 
 type NewUser = { id: string; name?: string | null; email: string };
 
+type SignupHandlers = {
+  provision: (user: NewUser, locale?: string) => Promise<void>;
+  logSignup: (userId: string) => Promise<unknown>;
+  onLogFailure: (error: unknown, userId: string) => void;
+};
+
 /** Sign-up hook: multi provisions a workspace; single only records the sign-up
- *  and never blocks it. */
+ *  and reports a failed record without blocking the sign-up. */
 export const onUserCreated =
-  (tenancy: Tenancy, handlers: { provision: (user: NewUser, locale?: string) => Promise<void>; logSignup: (userId: string) => Promise<unknown> }) =>
+  (tenancy: Tenancy, handlers: SignupHandlers) =>
   async (user: NewUser, locale?: string): Promise<void> => {
     if (tenancy === 'multi') {
       await handlers.provision(user, locale);
@@ -17,7 +23,7 @@ export const onUserCreated =
     }
     try {
       await handlers.logSignup(user.id);
-    } catch {
-      // never block sign-up
+    } catch (error) {
+      handlers.onLogFailure(error, user.id);
     }
   };

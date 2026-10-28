@@ -71,7 +71,7 @@ actually consumes. Never commit a populated `.env`.
 | Variable | Required | Default | Purpose |
 | --- | --- | --- | --- |
 | `DISABLE_SIGNUP` | No | `false` | Close new registration while preserving existing sign-in. |
-| `TENANCY` | No | `multi` | `multi`: every sign-up gets its own workspace. `single`: one shared instance; sign-up creates no workspace and only platform admins create wikis. An invalid value stops the server and app at boot (worker and admin unaffected). |
+| `TENANCY` | No | `multi` | `multi`: every sign-up gets its own workspace. `single`: one shared instance; sign-up creates no workspace and only platform admins create wikis. An invalid value stops the server at boot. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | For Google sign-in | Empty | OAuth client credentials. |
 | `EMAIL_FROM` | For delivery | `nibleaf@localhost` | Provider-verified sender. |
 | `POSTMARK_API_KEY` | For Postmark | Empty | Server token; preferred when set. |

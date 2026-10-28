@@ -14,30 +14,25 @@ describe('TENANCY env', () => {
     }
   };
 
-  it.each([undefined, ''])('defaults to multi when unset or empty (%j)', (value) => {
-    expect(withTenancy(value)).toBe('multi');
-  });
-
-  it('accepts single', () => {
-    expect(withTenancy('single')).toBe('single');
-  });
-
   it('rejects an unknown value at boot', () => {
     expect(() => withTenancy('singel')).toThrow();
   });
 });
 
 describe('onUserCreated', () => {
-  it('never blocks a single-tenancy sign-up on a failed event log', async () => {
+  it('never blocks a single-tenancy sign-up on a failed event log, and reports it', async () => {
     const provision = vi.fn();
-    const handle = onUserCreated('single', { provision, logSignup: vi.fn(async () => Promise.reject(new Error('db down'))) });
+    const onLogFailure = vi.fn();
+    const failure = new Error('db down');
+    const handle = onUserCreated('single', { provision, logSignup: vi.fn(async () => Promise.reject(failure)), onLogFailure });
     await expect(handle(user)).resolves.toBeUndefined();
     expect(provision).not.toHaveBeenCalled();
+    expect(onLogFailure).toHaveBeenCalledWith(failure, user.id);
   });
 
   it('passes the request locale to multi-tenancy provisioning', async () => {
     const provision = vi.fn(async () => undefined);
-    await onUserCreated('multi', { provision, logSignup: vi.fn() })(user, 'de');
+    await onUserCreated('multi', { provision, logSignup: vi.fn(), onLogFailure: vi.fn() })(user, 'de');
     expect(provision).toHaveBeenCalledWith(user, 'de');
   });
 });

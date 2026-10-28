@@ -1,6 +1,8 @@
 import { parseAddonConfigRecord } from '@nibleaf/shared/addons';
+import { MemberRole } from '@nibleaf/shared/constants';
 import type { Context } from 'hono';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { notFound } from '@/errors';
 import type { HonoEnv } from '@/lib/hono/context';
 
 const database = vi.hoisted(() => ({
@@ -15,17 +17,18 @@ const database = vi.hoisted(() => ({
 vi.mock('@nibleaf/database', () => ({
   Prisma: { sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }) },
   prisma: {
-    project: { findFirst: database.authorizeProject, findUnique: vi.fn() },
-    projectAddon: { findMany: vi.fn(), findUnique: vi.fn() },
+    project: { findUnique: vi.fn() },
+    projectAddon: { findMany: vi.fn(async () => []), findUnique: vi.fn() },
     projectAddonAuditEvent: { findFirst: database.findAuditCursor, findMany: database.listAuditEvents },
     $transaction: database.transaction,
   },
 }));
 
+vi.mock('./projects', () => ({ assertProjectAccess: database.authorizeProject }));
 vi.mock('./usage', () => ({ resolveProjectCapability: database.resolveCapability }));
 vi.mock('./sites', () => ({ invalidatePublishedSiteConfig: database.invalidatePublishedSiteConfig }));
 
-import { activateProjectAddon, deactivateProjectAddon, listProjectAddonAuditEvents, updateProjectAddon } from './addons';
+import { activateProjectAddon, deactivateProjectAddon, listProjectAddonAuditEvents, listProjectAddons, updateProjectAddon } from './addons';
 
 interface AddonRow {
   id: string;
@@ -86,12 +89,7 @@ describe('project add-on mutations', () => {
     forceCreateConflict = null;
 
     database.authorizeProject.mockReset();
-    database.authorizeProject.mockResolvedValue({
-      id: projectId,
-      organizationId,
-      config: projectConfig,
-      organization: { metadata: null, members: [{ role: 'owner' }] },
-    });
+    database.authorizeProject.mockResolvedValue({ organizationId, role: MemberRole.OWNER });
     database.findAuditCursor.mockReset();
     database.listAuditEvents.mockReset();
     database.resolveCapability.mockReset();
@@ -266,10 +264,19 @@ describe('project add-on mutations', () => {
   });
 
   it('keeps an unauthorized project selector opaque across tenants', async () => {
-    database.authorizeProject.mockResolvedValueOnce(null);
+    database.authorizeProject.mockRejectedValueOnce(notFound('project', { id: 'other-project' }));
     await expect(deactivateProjectAddon(userContext, 'other-project', 'feedback', { expectedRevision: 1 })).rejects.toMatchObject({
       code: 'database:not_found',
       status: 404,
+    });
+    expect(database.transaction).not.toHaveBeenCalled();
+  });
+
+  it('lets a member-level role read add-ons but not change them', async () => {
+    database.authorizeProject.mockResolvedValue({ organizationId, role: MemberRole.MEMBER });
+    await expect(listProjectAddons(userContext, projectId)).resolves.not.toHaveLength(0);
+    await expect(updateProjectAddon(userContext, projectId, 'feedback', { expectedRevision: 1, config: {} })).rejects.toMatchObject({
+      code: 'auth:insufficient_role',
     });
     expect(database.transaction).not.toHaveBeenCalled();
   });

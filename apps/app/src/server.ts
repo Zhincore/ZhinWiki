@@ -16,6 +16,7 @@ import got from 'got';
 import { z } from 'zod';
 import { serverEnv } from '@/env.server';
 import { BLOG_ENTRIES } from '@/lib/blog';
+import { applyDefaultCacheControl, PRIVATE_NO_STORE } from '@/lib/cache-control';
 import { nibleafPricing, nibleafProductLimitations } from '@/lib/comparison-data';
 import { contentSecurityPolicy } from '@/lib/content-security-policy';
 import { isDashboardPath, parseHomepage } from '@/lib/homepage';
@@ -50,7 +51,7 @@ import INSTALL_SCRIPT from '../../../scripts/install.sh?raw';
  * It also owns the published-site edge concerns:
  *  - robots.txt / sitemap.xml / llms.txt / llms-full.txt at both origins,
  *  - 301 consolidation of secondary origins onto a verified primary domain,
- *  - a shared Cache-Control on public published-site HTML,
+ *  - an explicit Cache-Control on every response it produces,
  *  - stamping the real visitor IP onto SSR loader fetches (x-nibleaf-client-ip)
  *    so the API rate-limiter doesn't key every SSR render on this container.
  */
@@ -487,12 +488,16 @@ const siteMarkdownUnavailableResponse = (origin: string): Response => {
   return response;
 };
 
-const addMarkdownDiscovery = (response: Response, canonicalUrl: string, llmsUrl: string): Response => {
+/** Advertise the Markdown alternate. A Markdown variant negotiated at the HTML
+ *  URL shares that URL's cache key in Vary-blind CDNs (Cloudflare by default),
+ *  so only the `.md` alias URL keeps its shared-cache policy. */
+const addMarkdownDiscovery = (response: Response, canonicalUrl: string, llmsUrl: string, isMarkdownAlias: boolean): Response => {
   const decorated = new Response(response.body, response);
   decorated.headers.set('Link', markdownDiscoveryLinkHeader(canonicalUrl, llmsUrl));
   appendVary(decorated.headers, 'Accept');
   if (decorated.headers.get('content-type')?.startsWith('text/markdown')) {
     decorated.headers.set('Content-Location', markdownAlternateUrl(canonicalUrl));
+    if (!isMarkdownAlias) decorated.headers.set('cache-control', PRIVATE_NO_STORE);
   }
   return decorated;
 };
@@ -851,7 +856,7 @@ function serveRootSeo(pathname: string, host: string, bare: string, request: Req
   const isMarketing = IS_CLOUD_MARKETING && (bare === MARKETING_HOST || host === MARKETING_HOST);
   if (!isMarketing) {
     if (file === 'robots.txt') {
-      return new Response(SELF_HOST_ROBOTS, { headers: { 'content-type': 'text/plain; charset=utf-8' } });
+      return new Response(SELF_HOST_ROBOTS, { headers: { 'cache-control': 'public, max-age=300', 'content-type': 'text/plain; charset=utf-8' } });
     }
     return new Response('Not found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
   }
@@ -886,45 +891,36 @@ const APP_SECURITY_HEADERS = {
   'X-Frame-Options': 'SAMEORIGIN',
 } as const;
 
+/** Apply the security baseline and cache policy to a mutable response. HTML is
+ *  never shared-cacheable: its CSP nonce must be unique per transmission and it
+ *  may depend on the session, reader access or the locale cookie. */
+function applyBaselineHeaders(res: Response, nonce: string): Response {
+  res.headers.set('x-nibleaf-revision', REVISION);
+  for (const [name, value] of Object.entries(APP_SECURITY_HEADERS)) {
+    if (!res.headers.has(name)) {
+      res.headers.set(name, value);
+    }
+  }
+  if ((res.headers.get('content-type') || '').includes('text/html')) {
+    if (res.status === 404 && !res.headers.has('X-Robots-Tag')) {
+      res.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    }
+    res.headers.set('Content-Security-Policy', contentSecurityPolicy(nonce));
+    res.headers.set('cache-control', PRIVATE_NO_STORE);
+    return encodePublicRouteManifestResponse(res);
+  }
+  applyDefaultCacheControl(res.headers);
+  return res;
+}
+
 /** Custom server responses bypass Nitro route rules, so apply the same baseline
  *  here as a final wrapper. Preserve any stricter route-specific value. */
 async function withSecurityHeaders(response: Response | Promise<Response>, nonce: string): Promise<Response> {
   const res = await response;
   try {
-    res.headers.set('x-nibleaf-revision', REVISION);
-    for (const [name, value] of Object.entries(APP_SECURITY_HEADERS)) {
-      if (!res.headers.has(name)) {
-        res.headers.set(name, value);
-      }
-    }
-    if ((res.headers.get('content-type') || '').includes('text/html')) {
-      if (res.status === 404 && !res.headers.has('X-Robots-Tag')) {
-        res.headers.set('X-Robots-Tag', 'noindex, nofollow');
-      }
-      res.headers.set('Content-Security-Policy', contentSecurityPolicy(nonce));
-      // A CSP nonce must be unique each time the policy is transmitted. Never
-      // allow an intermediary to replay HTML and its nonce from a shared cache.
-      res.headers.set('cache-control', 'private, no-store');
-      return encodePublicRouteManifestResponse(res);
-    }
-    return res;
+    return applyBaselineHeaders(res, nonce);
   } catch {
-    const wrapped = new Response(res.body, res);
-    wrapped.headers.set('x-nibleaf-revision', REVISION);
-    for (const [name, value] of Object.entries(APP_SECURITY_HEADERS)) {
-      if (!wrapped.headers.has(name)) {
-        wrapped.headers.set(name, value);
-      }
-    }
-    if ((wrapped.headers.get('content-type') || '').includes('text/html')) {
-      if (wrapped.status === 404 && !wrapped.headers.has('X-Robots-Tag')) {
-        wrapped.headers.set('X-Robots-Tag', 'noindex, nofollow');
-      }
-      wrapped.headers.set('Content-Security-Policy', contentSecurityPolicy(nonce));
-      wrapped.headers.set('cache-control', 'private, no-store');
-      return encodePublicRouteManifestResponse(wrapped);
-    }
-    return wrapped;
+    return applyBaselineHeaders(new Response(res.body, res), nonce);
   }
 }
 
@@ -970,6 +966,7 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
   // Stable `.md` aliases render the same published/marketing document as the
   // canonical HTML path. `/pricing.md` remains its dedicated product artifact.
   const markdownAliasCanonical = isGetLike && url.pathname !== '/pricing.md' ? canonicalPathFromMarkdownAlias(url.pathname) : null;
+  const isMarkdownAlias = markdownAliasCanonical !== null;
   let routedRequest = request;
   if (markdownAliasCanonical) {
     url.pathname = markdownAliasCanonical;
@@ -1005,7 +1002,7 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
         const proxied = await proxyPublishedMarkdown(projectId, publicPath, documentUrl.searchParams);
         if (!proxied?.ok) return siteMarkdownUnavailableResponse(base);
         const canonicalUrl = documentUrlForBase(base, routedPath, documentUrl.search);
-        return withoutHeadBody(addMarkdownDiscovery(proxied.response, canonicalUrl, llmsUrlForBase(base)), documentRequest.method);
+        return withoutHeadBody(addMarkdownDiscovery(proxied.response, canonicalUrl, llmsUrlForBase(base), isMarkdownAlias), documentRequest.method);
       }
       if (!acceptsHtml(documentRequest.headers.get('accept'))) return notAcceptableHtmlResponse();
       const rendered = await startHandler(documentRequest, ...rest);
@@ -1026,7 +1023,7 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
       const markdown = await proxyPublishedMarkdown(siteMatch[1], publicPath, documentUrl.searchParams);
       if (!markdown?.ok) return rendered;
       const canonicalUrl = documentUrlForBase(base, routedPath, documentUrl.search);
-      return addMarkdownDiscovery(rendered, canonicalUrl, llmsUrlForBase(base));
+      return addMarkdownDiscovery(rendered, canonicalUrl, llmsUrlForBase(base), isMarkdownAlias);
     }
 
     const isMarkdownCandidate = marketingMarkdownPaths.has(documentUrl.pathname);
@@ -1036,7 +1033,7 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
       const response = new Response(marketingPricingMarkdown(origin), {
         headers: { 'cache-control': 'public, max-age=300', 'content-type': 'text/markdown; charset=utf-8' },
       });
-      return withoutHeadBody(addMarkdownDiscovery(response, `${origin}/pricing`, `${origin}/llms.txt`), documentRequest.method);
+      return withoutHeadBody(addMarkdownDiscovery(response, `${origin}/pricing`, `${origin}/llms.txt`, isMarkdownAlias), documentRequest.method);
     }
     const renderRequest = preferred === 'text/markdown' ? asHtmlRenderRequest(documentRequest) : documentRequest;
     const rendered = await startHandler(renderRequest, ...rest);
@@ -1054,14 +1051,14 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
       }
       const markdown = await marketingMarkdownResponse(rendered, documentUrl.toString());
       return withoutHeadBody(
-        addMarkdownDiscovery(markdown, documentUrl.toString(), new URL('/llms.txt', documentUrl.origin).toString()),
+        addMarkdownDiscovery(markdown, documentUrl.toString(), new URL('/llms.txt', documentUrl.origin).toString(), isMarkdownAlias),
         documentRequest.method,
       );
     }
 
     const response = new Response(rendered.body, rendered);
     if (isMarkdownCandidate) {
-      return addMarkdownDiscovery(response, documentUrl.toString(), new URL('/llms.txt', documentUrl.origin).toString());
+      return addMarkdownDiscovery(response, documentUrl.toString(), new URL('/llms.txt', documentUrl.origin).toString(), isMarkdownAlias);
     }
     return response;
   };

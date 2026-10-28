@@ -8,7 +8,7 @@ import { defineConfig, loadEnv } from 'vite';
 import { z } from 'zod';
 
 const SECURITY_HEADERS = {
-  'Cache-Control': 'no-store',
+  'cache-control': 'private, no-store',
   'Referrer-Policy': 'no-referrer',
   'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
   'X-Content-Type-Options': 'nosniff',

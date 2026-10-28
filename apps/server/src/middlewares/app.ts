@@ -3,12 +3,14 @@ import { cors } from 'hono/cors';
 import { env } from '@/env';
 import type { HonoEnv } from '@/lib/hono/context';
 import { sessionMiddleware } from './auth';
+import { cacheControl } from './cache-control';
 import { localeMiddleware } from './locale';
 import { securityHeaders } from './security-headers';
 
 const app = new Hono<HonoEnv>();
 
 app.use('*', securityHeaders());
+app.use('*', cacheControl());
 
 app.use(
   '*',

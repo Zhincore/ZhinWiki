@@ -48,12 +48,15 @@ export const BRAND_ASSET_FILES = [
   'mark.svg',
 ] as const;
 
+/** The software every instance runs, named in attributions ("Made with …", generated files) whatever `APP_NAME` is. */
+export const SOFTWARE = { name: 'ZhinWiki', url: 'https://github.com/Zhincore/ZhinWiki' } as const;
+
 export const DEFAULT_BRAND: Brand = {
-  name: 'ZhinWiki',
-  url: 'https://github.com/Zhincore/ZhinWiki',
+  name: SOFTWARE.name,
+  url: SOFTWARE.url,
   supportEmail: 'support@example.invalid',
   abuseEmail: 'abuse@example.invalid',
-  sourceUrl: 'https://github.com/Zhincore/ZhinWiki',
+  sourceUrl: SOFTWARE.url,
   termsUrl: '/terms',
   privacyUrl: '/privacy',
   themeColor: '#000000',

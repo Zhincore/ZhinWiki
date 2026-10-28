@@ -2744,5 +2744,19 @@
   "settings_members_removeconfirm": "هل تريد إزالة {name} من هذا الموقع؟ سيفقد الوصول إلى توثيق الموقع وإعداداته.",
   "settings_members_revokeconfirm": "هل تريد إلغاء دعوة {email}؟ سيتوقف رابط الدعوة عن العمل.",
   "settings_config_discarddescription": "لديك تغييرات غير محفوظة في الإعدادات. ستُفقد عند مغادرة هذا القسم.",
-  "editor_saveconfigfirst": "احفظ تغييرات الإعدادات قبل المعاينة أو النشر."
+  "editor_saveconfigfirst": "احفظ تغييرات الإعدادات قبل المعاينة أو النشر.",
+  "settings_account_delete_title": "حذف الحساب",
+  "settings_account_delete_description": "احذف حسابك نهائيًا. تُحذف مساحات العمل التي تكون فيها العضو الوحيد مع جميع مواقعها ومحتواها. لا يمكن التراجع عن ذلك.",
+  "settings_account_delete_button": "حذف الحساب",
+  "settings_account_delete_deleting": "جارٍ الحذف…",
+  "settings_account_delete_confirm": "سيتم حذف حسابك وجلساتك وكل مساحة عمل تكون فيها العضو الوحيد نهائيًا. لا يمكن التراجع عن ذلك.",
+  "settings_account_delete_typetoconfirm": "اكتب بريدك الإلكتروني \"{email}\" للتأكيد",
+  "settings_account_delete_mismatch": "البريد الإلكتروني غير مطابق — أُلغي الحذف.",
+  "settings_account_delete_deleted": "تم حذف حسابك",
+  "settings_account_delete_error": "تعذّر حذف حسابك",
+  "settings_account_delete_pending": "لا تزال بيانات مساحة العمل قيد المعالجة. حاول مرة أخرى بعد بضع دقائق.",
+  "settings_account_delete_blocked": "أنت تملك مساحات عمل تضم أعضاء آخرين. انقل الملكية إلى مسؤول أو أزل الأعضاء الآخرين قبل حذف حسابك:",
+  "settings_account_delete_transfer": "نقل الملكية",
+  "settings_account_delete_sessionexpired": "لأمانك، سجّل الدخول مرة أخرى قبل حذف حسابك.",
+  "settings_account_delete_signinagain": "تسجيل الدخول مرة أخرى"
 }

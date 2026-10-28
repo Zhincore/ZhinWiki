@@ -11,6 +11,7 @@ vi.mock('@/services/auth-client', () => ({
   authClient: { updateUser: mocks.updateUser, emailOtp: { sendVerificationOtp: mocks.send, requestEmailChange: mocks.requestChange } },
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: mocks.toastError } }));
+vi.mock('./delete-account-section', () => ({ DeleteAccountSection: () => null }));
 
 import { AccountTab } from './account-tab';
 

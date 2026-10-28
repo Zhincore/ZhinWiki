@@ -2744,5 +2744,19 @@
   "settings_members_removeconfirm": "Hapus {name} dari situs ini? Akses ke dokumentasi dan pengaturan akan hilang.",
   "settings_members_revokeconfirm": "Cabut undangan untuk {email}? Tautan undangan ini tidak akan berfungsi lagi.",
   "settings_config_discarddescription": "Ada perubahan pengaturan yang belum disimpan. Meninggalkan bagian ini akan membuangnya.",
-  "editor_saveconfigfirst": "Simpan perubahan pengaturan sebelum melihat pratinjau atau menerbitkan."
+  "editor_saveconfigfirst": "Simpan perubahan pengaturan sebelum melihat pratinjau atau menerbitkan.",
+  "settings_account_delete_title": "Hapus akun",
+  "settings_account_delete_description": "Hapus akun Anda secara permanen. Ruang kerja yang hanya beranggotakan Anda akan dihapus beserta semua situs dan kontennya. Tindakan ini tidak dapat dibatalkan.",
+  "settings_account_delete_button": "Hapus akun",
+  "settings_account_delete_deleting": "Menghapus…",
+  "settings_account_delete_confirm": "Akun, sesi, dan setiap ruang kerja yang hanya beranggotakan Anda akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.",
+  "settings_account_delete_typetoconfirm": "Ketik email Anda \"{email}\" untuk mengonfirmasi",
+  "settings_account_delete_mismatch": "Email tidak cocok — penghapusan dibatalkan.",
+  "settings_account_delete_deleted": "Akun Anda telah dihapus",
+  "settings_account_delete_error": "Tidak dapat menghapus akun Anda",
+  "settings_account_delete_pending": "Data ruang kerja masih diproses. Coba lagi dalam beberapa menit.",
+  "settings_account_delete_blocked": "Anda memiliki ruang kerja yang memiliki anggota lain. Alihkan kepemilikan ke admin atau keluarkan anggota lain sebelum menghapus akun Anda:",
+  "settings_account_delete_transfer": "Alihkan kepemilikan",
+  "settings_account_delete_sessionexpired": "Demi keamanan Anda, masuk kembali sebelum menghapus akun.",
+  "settings_account_delete_signinagain": "Masuk kembali"
 }

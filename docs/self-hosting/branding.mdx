@@ -28,6 +28,7 @@ BRAND_SOURCE_URL=https://git.acme.example/acme/docs
 BRAND_TERMS_URL=https://acme.example/terms
 BRAND_PRIVACY_URL=https://acme.example/privacy
 BRAND_THEME_COLOR=#0f172a
+BRAND_ACCENT_COLOR=#2563eb,#60a5fa
 BRAND_ASSETS_DIR=/brand
 ```
 
@@ -40,7 +41,8 @@ BRAND_ASSETS_DIR=/brand
 | `BRAND_SOURCE_URL` | **Source** link in the footer | `https://github.com/Zhincore/zhindocs` |
 | `BRAND_TERMS_URL` | Terms of service | built-in `/terms` page |
 | `BRAND_PRIVACY_URL` | Privacy policy | built-in `/privacy` page |
-| `BRAND_THEME_COLOR` | Browser `theme-color` and the generated web manifest | `#000000` |
+| `BRAND_THEME_COLOR` | Browser UI / address-bar color: `theme-color` and the generated web manifest | `#000000` |
+| `BRAND_ACCENT_COLOR` | Dashboard accent (buttons, links, focus rings); published sites keep their own theme | built-in orange |
 | `BRAND_ASSETS_DIR` | Directory of custom icons and logo, see below | unset |
 
 Always set `BRAND_SUPPORT_EMAIL`. The default `.invalid` address does not
@@ -53,7 +55,10 @@ Values are trimmed and checked at boot:
 - `BRAND_URL`, `BRAND_SOURCE_URL`, `BRAND_TERMS_URL`, `BRAND_PRIVACY_URL`:
   absolute `http://` or `https://` URLs;
 - `BRAND_SUPPORT_EMAIL`, `BRAND_ABUSE_EMAIL`: email addresses;
-- `BRAND_THEME_COLOR`: a hex color, `#rgb` or `#rrggbb`.
+- `BRAND_THEME_COLOR`: a hex color, `#rgb` or `#rrggbb`;
+- `BRAND_ACCENT_COLOR`: one hex color for both modes, or a `light,dark` pair
+  such as `#2563eb,#60a5fa`. Button text switches between light and dark for
+  contrast.
 
 An invalid value stops the service with an error such as
 `Invalid BRAND_URL "acme.example": expected an absolute http(s) URL.` Check

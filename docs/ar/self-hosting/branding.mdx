@@ -28,6 +28,7 @@ BRAND_SOURCE_URL=https://git.acme.example/acme/docs
 BRAND_TERMS_URL=https://acme.example/terms
 BRAND_PRIVACY_URL=https://acme.example/privacy
 BRAND_THEME_COLOR=#0f172a
+BRAND_ACCENT_COLOR=#2563eb,#60a5fa
 BRAND_ASSETS_DIR=/brand
 ```
 
@@ -40,14 +41,15 @@ BRAND_ASSETS_DIR=/brand
 | `BRAND_SOURCE_URL` | رابط **المصدر** في التذييل | `https://github.com/Zhincore/zhindocs` |
 | `BRAND_TERMS_URL` | شروط الخدمة | صفحة `/terms` المدمجة |
 | `BRAND_PRIVACY_URL` | سياسة الخصوصية | صفحة `/privacy` المدمجة |
-| `BRAND_THEME_COLOR` | `theme-color` في المتصفح وملف البيان المولّد | `#000000` |
+| `BRAND_THEME_COLOR` | لون واجهة المتصفح وشريط العنوان: `theme-color` وملف البيان المولّد | `#000000` |
+| `BRAND_ACCENT_COLOR` | لون التمييز في لوحة التحكم (الأزرار والروابط وحلقات التركيز)؛ تحتفظ المواقع المنشورة بقالبها | البرتقالي المدمج |
 | `BRAND_ASSETS_DIR` | مجلد الأيقونات والشعار المخصص | غير مضبوط |
 
 اضبط `BRAND_SUPPORT_EMAIL` دائمًا؛ فالعنوان الافتراضي `.invalid` لا يستقبل
 البريد، وتسجل كل خدمة تحذيرًا عند الإقلاع ما دام غير مضبوط.
 
 تُتحقق القيم عند الإقلاع: عناوين URL مطلقة تبدأ بـ`http://` أو `https://`،
-وعناوين بريد صالحة، ولون سداسي عشري `#rgb` أو `#rrggbb`. توقف القيمة غير
+وعناوين بريد صالحة، ولون سداسي عشري `#rgb` أو `#rrggbb` (ويقبل `BRAND_ACCENT_COLOR` لونًا واحدًا أو زوجًا `فاتح,داكن`). توقف القيمة غير
 الصالحة الخدمة مع رسالة خطأ؛ راجع `docker compose logs` بعد كل تغيير.
 
 الشيفرة مرخّصة بـAGPL-3.0، وتشترط المادة 13 إتاحة مصدر النسخة العاملة لكل من

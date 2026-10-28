@@ -4,10 +4,18 @@ import { act, type ComponentType, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ projects: vi.fn(), analytics: vi.fn(), refetch: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  projects: vi.fn(),
+  analytics: vi.fn(),
+  refetch: vi.fn(),
+  search: {} as { newSite?: boolean },
+  tenancy: 'multi' as 'single' | 'multi',
+  canCreate: true,
+  dialog: vi.fn(),
+}));
 vi.mock('@nibleaf/i18n/react', () => ({ useT: () => (key: string) => key }));
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: () => (options: Record<string, unknown>) => ({ options, useSearch: () => ({}) }),
+  createFileRoute: () => (options: Record<string, unknown>) => ({ options, useSearch: () => mocks.search }),
   Link: ({ to, params, children, className }: { to: string; params: { projectId: string }; children: ReactNode; className?: string }) => (
     <a className={className} href={to.replace('$projectId', params.projectId)}>
       {children}
@@ -20,6 +28,8 @@ vi.mock('@/hooks/api', () => ({
   useCreateProject: () => ({ mutate: vi.fn() }),
 }));
 vi.mock('@/components/analytics/views-area-chart', () => ({ ViewsAreaChart: () => <div data-testid="views-chart" /> }));
+vi.mock('@/components/app/new-project-dialog', () => ({ NewProjectDialog: mocks.dialog }));
+vi.mock('@/hooks/use-tenancy', () => ({ useTenancy: () => mocks.tenancy, useCanCreateWiki: () => mocks.canCreate }));
 
 import { Route } from './index';
 
@@ -31,6 +41,10 @@ describe('dashboard request recovery', () => {
   let root: Root;
 
   beforeEach(() => {
+    mocks.search = {};
+    mocks.tenancy = 'multi';
+    mocks.canCreate = true;
+    mocks.dialog.mockReturnValue(null);
     mocks.projects.mockReturnValue({
       isPending: false,
       data: [{ id: 'project-1', name: 'Docs', slug: 'docs', _count: { pages: 3, deployments: 1 } }],
@@ -83,5 +97,58 @@ describe('dashboard request recovery', () => {
     expect(values.slice(2)).toEqual(['—', '—']);
     expect(container.textContent).toContain('analytics.state.unavailable.title');
     expect(container.querySelector('[data-testid="views-chart"]')).toBeNull();
+  });
+});
+
+describe('dashboard wiki creation gate', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+  const buttons = () => [...container.querySelectorAll('button')].map((button) => button.textContent?.trim());
+
+  beforeEach(() => {
+    mocks.search = { newSite: true };
+    mocks.tenancy = 'single';
+    mocks.canCreate = false;
+    mocks.dialog.mockReturnValue(null);
+    mocks.projects.mockReturnValue({ isPending: false, data: [], refetch: mocks.refetch });
+    mocks.analytics.mockReturnValue({ isPending: true, refetch: mocks.refetch });
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+    vi.clearAllMocks();
+  });
+
+  it('shows a contributor with no wikis only the empty state, without analytics or create actions', async () => {
+    await act(async () => root.render(<DashboardPage />));
+
+    expect(container.textContent).toContain('dashboard.empty.contributor.title');
+    expect(container.querySelectorAll('[data-slot="card-title"]')).toHaveLength(0);
+    expect(container.querySelector('[data-testid="views-chart"]')).toBeNull();
+    expect(mocks.analytics).toHaveBeenCalledWith('30d', { enabled: false });
+    expect(buttons()).toEqual([]);
+    expect(mocks.dialog).not.toHaveBeenCalled();
+  });
+
+  it('keeps the dashboard for a contributor invited to a wiki, without create actions', async () => {
+    mocks.projects.mockReturnValue({ isPending: false, data: [{ id: 'project-1', name: 'Docs', slug: 'docs', _count: { pages: 1 } }] });
+    await act(async () => root.render(<DashboardPage />));
+
+    expect(container.querySelector('a[href="/app/projects/project-1"]')).not.toBeNull();
+    expect(mocks.analytics).toHaveBeenCalledWith('30d', { enabled: true });
+    expect(buttons()).not.toContain('dashboard.newProject');
+    expect(mocks.dialog).not.toHaveBeenCalled();
+  });
+
+  it('offers an admin the first wiki and honours ?newSite', async () => {
+    mocks.canCreate = true;
+    await act(async () => root.render(<DashboardPage />));
+
+    expect(buttons()).toContain('dashboard.empty.firstWiki.cta');
+    expect(mocks.dialog).toHaveBeenLastCalledWith(expect.objectContaining({ open: true }), undefined);
   });
 });

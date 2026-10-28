@@ -12,6 +12,7 @@ import { GoogleIcon } from '@/components/icons/brand';
 import { LegalNotice } from '@/components/legal-notice';
 import { QueryErrorState } from '@/components/query-error-state';
 import { useGetPublicMeta } from '@/hooks/api/public';
+import { useTenancy } from '@/hooks/use-tenancy';
 import { AuthLayout } from '@/layouts/auth';
 import { authEmailErrorMessage } from '@/lib/auth-errors';
 import { brandedTitle } from '@/lib/brand';
@@ -32,6 +33,7 @@ export const Route = createFileRoute('/(auth)/sign-up')({
 
 function SignUpPage() {
   const t = useT();
+  const subtitle = t(useTenancy() === 'single' ? 'auth.signUp.subtitleSingle' : 'auth.signUp.subtitle');
   const navigate = useNavigate();
   const search = Route.useSearch();
   const lockedEmail = Boolean(search.email);
@@ -112,7 +114,7 @@ function SignUpPage() {
 
   if (metaPending) {
     return (
-      <AuthLayout subtitle={t('auth.signUp.subtitle')}>
+      <AuthLayout subtitle={subtitle}>
         <p className="py-4 text-center text-muted-foreground text-sm" role="status">
           {t('common.loading')}
         </p>
@@ -122,7 +124,7 @@ function SignUpPage() {
 
   if (metaError || !publicMeta) {
     return (
-      <AuthLayout subtitle={t('auth.signUp.subtitle')}>
+      <AuthLayout subtitle={subtitle}>
         <QueryErrorState onRetry={() => void retryMeta()} retrying={metaFetching} />
       </AuthLayout>
     );
@@ -130,7 +132,7 @@ function SignUpPage() {
 
   if (signupDisabled) {
     return (
-      <AuthLayout subtitle={t('auth.signUp.subtitle')}>
+      <AuthLayout subtitle={subtitle}>
         <p className="rounded-md border border-border bg-muted/40 px-4 py-3 text-center text-muted-foreground text-sm">
           {t('auth.legal.signupDisabled')}
         </p>
@@ -145,7 +147,7 @@ function SignUpPage() {
   }
 
   return (
-    <AuthLayout subtitle={codeSent ? t('auth.otp.checkEmail', { email: normalizedEmail }) : t('auth.signUp.subtitle')}>
+    <AuthLayout subtitle={codeSent ? t('auth.otp.checkEmail', { email: normalizedEmail }) : subtitle}>
       {!codeSent && googleEnabled ? (
         <>
           <Button

@@ -9,10 +9,12 @@ import { AlertTriangle, BarChart3, BookText, FileText, Plus, Users } from 'lucid
 import { useMemo, useState } from 'react';
 import { SectionCard } from '@/components/analytics/section-card';
 import { ViewsAreaChart } from '@/components/analytics/views-area-chart';
+import { EmptyWikis } from '@/components/app/empty-wikis';
 import { NewProjectDialog } from '@/components/app/new-project-dialog';
 import { QueryErrorState } from '@/components/query-error-state';
 import type { AnalyticsRange } from '@/hooks/api';
 import { useProjects, useWorkspaceAnalytics } from '@/hooks/api';
+import { useCanCreateWiki } from '@/hooks/use-tenancy';
 import { useFormatters, viewsTrend } from '@/lib/format';
 
 export const Route = createFileRoute('/app/(dashboard)/')({
@@ -25,6 +27,9 @@ export const Route = createFileRoute('/app/(dashboard)/')({
 function ProjectsPage() {
   const { newSite } = Route.useSearch();
   const { data: projects, isPending, isError: projectsError, isFetching: projectsFetching, refetch: retryProjects } = useProjects();
+  const canCreate = useCanCreateWiki();
+  // A user who can neither create nor see a wiki gets only the empty state.
+  const noWikis = !canCreate && !projectsError && projects?.length === 0;
   const [range, setRange] = useState<AnalyticsRange>('30d');
   const {
     data: analytics,
@@ -32,8 +37,8 @@ function ProjectsPage() {
     isError: analyticsError,
     isFetching: analyticsFetching,
     refetch: retryAnalytics,
-  } = useWorkspaceAnalytics(range);
-  const [newProjectOpen, setNewProjectOpen] = useState(Boolean(newSite));
+  } = useWorkspaceAnalytics(range, { enabled: !noWikis });
+  const [newProjectOpen, setNewProjectOpen] = useState(Boolean(newSite) && canCreate);
   const t = useT();
   const { number } = useFormatters();
 
@@ -42,6 +47,17 @@ function ProjectsPage() {
   const trend = useMemo(() => (analyticsUnavailable ? null : viewsTrend(analytics?.timeseries ?? [])), [analytics?.timeseries, analyticsUnavailable]);
   const viewsByProject = useMemo(() => new Map((analytics?.byProject ?? []).map((b) => [b.projectId, b.views])), [analytics?.byProject]);
 
+  if (noWikis) {
+    return (
+      <div className="grid min-h-96 place-items-center text-center">
+        <div className="grid place-items-center">
+          <BookText className="size-7 text-muted-foreground" />
+          <EmptyWikis canCreate={false} onCreate={() => setNewProjectOpen(true)} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
@@ -49,10 +65,14 @@ function ProjectsPage() {
           <h1 className="font-semibold text-2xl tracking-tight">{t('dashboard.title')}</h1>
           <p className="mt-1 text-muted-foreground text-sm">{t('dashboard.subtitle')}</p>
         </div>
-        <Button onClick={() => setNewProjectOpen(true)}>
-          <Plus className="size-4" /> {t('dashboard.newProject')}
-        </Button>
-        <NewProjectDialog open={newProjectOpen} onOpenChange={setNewProjectOpen} />
+        {canCreate ? (
+          <>
+            <Button onClick={() => setNewProjectOpen(true)}>
+              <Plus className="size-4" /> {t('dashboard.newProject')}
+            </Button>
+            <NewProjectDialog open={newProjectOpen} onOpenChange={setNewProjectOpen} />
+          </>
+        ) : null}
       </div>
 
       {projectsError ? <QueryErrorState onRetry={() => void retryProjects()} retrying={projectsFetching} /> : null}
@@ -120,15 +140,11 @@ function ProjectsPage() {
             ))}
           </div>
         ) : projectsError && !projects ? null : (projects ?? []).length === 0 ? (
-          // Also the recovery path for a user whose workspace provisioning
-          // failed at sign-up: creating a project mints a fresh workspace.
+          // Where creation is allowed, also the recovery path for a user whose
+          // workspace provisioning failed at sign-up: creating a project mints a fresh workspace.
           <div className="grid place-items-center py-16 text-center">
             <BookText className="size-7 text-muted-foreground" />
-            <p className="mt-3 font-medium">{t('dashboard.empty.title')}</p>
-            <p className="mt-1 max-w-sm text-muted-foreground text-sm">{t('dashboard.empty.body')}</p>
-            <Button className="mt-4" onClick={() => setNewProjectOpen(true)}>
-              <Plus className="size-4" /> {t('dashboard.empty.cta')}
-            </Button>
+            <EmptyWikis canCreate={canCreate} onCreate={() => setNewProjectOpen(true)} withBody />
           </div>
         ) : (
           <Table>

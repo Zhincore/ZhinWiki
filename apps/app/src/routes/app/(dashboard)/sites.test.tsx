@@ -7,7 +7,15 @@ import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const i18n = vi.hoisted(() => ({ locale: 'en' as string }));
-const mocks = vi.hoisted(() => ({ navigate: vi.fn(), useProjects: vi.fn(), refetch: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  useProjects: vi.fn(),
+  refetch: vi.fn(),
+  search: {} as { newSite?: boolean },
+  tenancy: 'multi' as 'single' | 'multi',
+  canCreate: true,
+  dialog: vi.fn(),
+}));
 
 // Real catalogs, controlled locale: the page count must come out translated and
 // in the locale's own digits (Arabic-Indic for ar), not as a raw number.
@@ -21,11 +29,12 @@ vi.mock('@nibleaf/i18n/react', async () => {
   return { useLocale, useT: () => useLocale().t };
 });
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: () => (options: Record<string, unknown>) => ({ options, useSearch: () => ({}) }),
+  createFileRoute: () => (options: Record<string, unknown>) => ({ options, useSearch: () => mocks.search }),
   useNavigate: () => mocks.navigate,
 }));
 vi.mock('@/hooks/api', () => ({ useProjects: mocks.useProjects }));
-vi.mock('@/components/app/new-project-dialog', () => ({ NewProjectDialog: () => null }));
+vi.mock('@/components/app/new-project-dialog', () => ({ NewProjectDialog: mocks.dialog }));
+vi.mock('@/hooks/use-tenancy', () => ({ useTenancy: () => mocks.tenancy, useCanCreateWiki: () => mocks.canCreate }));
 
 import { Route } from './sites';
 
@@ -43,6 +52,10 @@ describe('SitesPage', () => {
 
   beforeEach(() => {
     i18n.locale = 'en';
+    mocks.search = {};
+    mocks.tenancy = 'multi';
+    mocks.canCreate = true;
+    mocks.dialog.mockReturnValue(null);
     mocks.useProjects.mockReturnValue({
       isPending: false,
       isError: false,
@@ -122,5 +135,17 @@ describe('SitesPage', () => {
     await act(async () => clear?.click());
     expect(container.textContent).toContain('58 pages');
     expect(search?.value).toBe('');
+  });
+
+  it('hides every create action from a single-wiki contributor and ignores ?newSite', async () => {
+    mocks.search = { newSite: true };
+    mocks.tenancy = 'single';
+    mocks.canCreate = false;
+    mocks.useProjects.mockReturnValue({ isPending: false, isError: false, data: [], refetch: mocks.refetch });
+    await render();
+
+    expect(container.textContent).toContain('No wikis yet');
+    expect(container.querySelectorAll('button')).toHaveLength(0);
+    expect(mocks.dialog).not.toHaveBeenCalled();
   });
 });

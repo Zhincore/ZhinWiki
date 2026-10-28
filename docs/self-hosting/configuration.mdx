@@ -3,7 +3,7 @@ title: 'Configure a production deployment'
 description: 'Set public origins, independent secrets, object storage, email, domain routing, proxy trust, and operator access for self-hosted Nibleaf.'
 audience: 'self-hosted Nibleaf operators'
 content_type: 'how-to'
-last_reviewed: '2026-08-17'
+last_reviewed: '2026-10-28'
 verified_against: '.env.production.example and docker-compose.prod.yml'
 lang: 'en'
 dir: 'ltr'
@@ -72,6 +72,47 @@ message to an external mailbox; a container health check cannot prove delivery.
 
 After creating the intended owners, set `DISABLE_SIGNUP=true` if registration
 should close. Existing accounts can still sign in.
+
+## Run a single-wiki instance
+
+`TENANCY=single` turns the instance into one shared wiki host. Sign-up creates
+an account but no workspace, and only platform admins create wikis. Editors
+join a wiki by invitation; other accounts are contributors who read public
+wikis. A platform `editor` role, set by SQL like `admin`, holds member rights
+on every wiki.
+
+First run:
+
+1. Set `APP_NAME` and `TENANCY=single`, then sign up with the operator account.
+2. Grant that account the platform admin role:
+
+   ```bash
+   # Docker
+   docker compose exec server pnpm --filter @nibleaf/server exec tsx src/scripts/grant-admin.ts you@example.com
+   # Source checkout
+   pnpm --filter @nibleaf/server with-env tsx src/scripts/grant-admin.ts you@example.com
+   ```
+
+   Without shell access, run `UPDATE "user" SET role='admin' WHERE email='you@example.com';`.
+3. Reload the dashboard and choose **Create wiki**. You become the owner of an
+   empty wiki. Invite editors from its members settings.
+
+Keep in mind:
+
+- Sign up before setting `DISABLE_SIGNUP=true`. It also blocks invited editors
+  from creating accounts.
+- The mode is not retroactive. Switching an existing instance keeps its
+  workspaces, sites, members, and invitations; owners of older workspaces can
+  still invite anyone. Switching back to `multi` creates no workspaces.
+- The demo seed (`pnpm db:seed`) relies on sign-up provisioning and fails in
+  `single`.
+- A wiki accepts up to 100 members, the authentication library's default.
+- If the last platform admin is demoted or deleted, nobody can create wikis
+  until you grant the role again with the script or SQL above.
+- An account that is the only member of a wiki cannot be deleted; invite
+  another member or delete the wiki from the operator console first.
+- The `signup_completed` platform event counts every new account, invited
+  editors included.
 
 ## Preserve the client address behind a proxy
 

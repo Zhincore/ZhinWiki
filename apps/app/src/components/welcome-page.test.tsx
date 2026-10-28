@@ -13,6 +13,7 @@ vi.mock('@tanstack/react-router', () => ({
     </a>
   ),
 }));
+vi.mock('@/hooks/use-tenancy', () => ({ useTenancy: () => 'multi' }));
 
 import { WelcomePage } from './welcome-page';
 

@@ -1821,6 +1821,7 @@
   "site_analyticsconsentdecline": "Ablehnen",
   "site_changelanguage": "Sprache ändern",
   "site_toggletheme": "Thema umschalten",
+  "site_togglesubpages": "Unterseiten ein- oder ausblenden",
   "site_articledetails": "Artikeldetails",
   "site_copycode": "Code kopieren",
   "site_copied": "Kopiert",
@@ -2534,5 +2535,19 @@
   "settings_members_removeconfirm": "{name} von dieser Website entfernen? Der Zugriff auf Dokumentation und Einstellungen geht verloren.",
   "settings_members_revokeconfirm": "Einladung für {email} widerrufen? Dieser Einladungslink funktioniert dann nicht mehr.",
   "settings_config_discarddescription": "Sie haben ungespeicherte Änderungen an den Einstellungen. Beim Verlassen dieses Bereichs werden sie verworfen.",
-  "editor_saveconfigfirst": "Speichere deine Einstellungsänderungen, bevor du eine Vorschau öffnest oder veröffentlichst."
+  "editor_saveconfigfirst": "Speichere deine Einstellungsänderungen, bevor du eine Vorschau öffnest oder veröffentlichst.",
+  "settings_account_delete_title": "Konto löschen",
+  "settings_account_delete_description": "Lösche dein Konto dauerhaft. Workspaces, in denen du das einzige Mitglied bist, werden mit allen Sites und Inhalten gelöscht. Dies kann nicht rückgängig gemacht werden.",
+  "settings_account_delete_button": "Konto löschen",
+  "settings_account_delete_deleting": "Wird gelöscht…",
+  "settings_account_delete_confirm": "Dein Konto, deine Sitzungen und alle Workspaces, in denen du das einzige Mitglied bist, werden dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
+  "settings_account_delete_typetoconfirm": "Gib zur Bestätigung deine E-Mail-Adresse \"{email}\" ein",
+  "settings_account_delete_mismatch": "Die E-Mail-Adresse stimmte nicht überein – Löschen abgebrochen.",
+  "settings_account_delete_deleted": "Dein Konto wurde gelöscht",
+  "settings_account_delete_error": "Dein Konto konnte nicht gelöscht werden",
+  "settings_account_delete_pending": "Workspace-Daten werden noch verarbeitet. Versuche es in ein paar Minuten erneut.",
+  "settings_account_delete_blocked": "Du besitzt Workspaces mit weiteren Mitgliedern. Übertrage die Inhaberschaft an einen Admin oder entferne die anderen Mitglieder, bevor du dein Konto löschst:",
+  "settings_account_delete_transfer": "Inhaberschaft übertragen",
+  "settings_account_delete_sessionexpired": "Melde dich zu deiner Sicherheit erneut an, bevor du dein Konto löschst.",
+  "settings_account_delete_signinagain": "Erneut anmelden"
 }

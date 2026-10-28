@@ -1821,6 +1821,7 @@
   "site_analyticsconsentdecline": "拒绝",
   "site_changelanguage": "更改语言",
   "site_toggletheme": "切换主题",
+  "site_togglesubpages": "展开或收起子页面",
   "site_articledetails": "文章详情",
   "site_copycode": "复制代码",
   "site_copied": "已复制",
@@ -2534,5 +2535,19 @@
   "settings_members_removeconfirm": "要从此站点移除 {name} 吗？该成员将无法访问站点文档和设置。",
   "settings_members_revokeconfirm": "要撤销发给 {email} 的邀请吗？此邀请链接将失效。",
   "settings_config_discarddescription": "您有未保存的设置更改。离开此部分将丢弃这些更改。",
-  "editor_saveconfigfirst": "请先保存设置更改，再预览或发布。"
+  "editor_saveconfigfirst": "请先保存设置更改，再预览或发布。",
+  "settings_account_delete_title": "删除账户",
+  "settings_account_delete_description": "永久删除你的账户。你是唯一成员的工作区及其所有站点和内容都将被删除。此操作无法撤销。",
+  "settings_account_delete_button": "删除账户",
+  "settings_account_delete_deleting": "正在删除…",
+  "settings_account_delete_confirm": "你的账户、会话以及你是唯一成员的所有工作区都将被永久删除。此操作无法撤销。",
+  "settings_account_delete_typetoconfirm": "输入你的邮箱“{email}”以确认",
+  "settings_account_delete_mismatch": "邮箱不匹配，已取消删除。",
+  "settings_account_delete_deleted": "你的账户已删除",
+  "settings_account_delete_error": "无法删除你的账户",
+  "settings_account_delete_pending": "工作区数据仍在处理中，请几分钟后重试。",
+  "settings_account_delete_blocked": "你拥有包含其他成员的工作区。删除账户前，请将所有权转移给管理员或移除其他成员：",
+  "settings_account_delete_transfer": "转移所有权",
+  "settings_account_delete_sessionexpired": "为了你的安全，删除账户前请重新登录。",
+  "settings_account_delete_signinagain": "重新登录"
 }

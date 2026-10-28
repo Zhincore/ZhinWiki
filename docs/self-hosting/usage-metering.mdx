@@ -171,7 +171,7 @@ The deletion workflow first sets a Postgres fence under the same organization
 row lock used to create ingestion receipts. New batches are rejected; existing
 pending batches may drain. Deletion returns a retryable conflict until none
 remain, then writes a project tombstone, deletes facts, hourly projections,
-reconciliation state, and coverage synchronously, queues search erasure, and
+reconciliation state, and coverage synchronously, queues search and object-storage erasure, and
 marks export checkpoints `deletion_pending`. Better Auth account deletion uses
 this same workflow rather than deleting an organization directly. Queries and
 the worker exclude both usage and analytics tombstones; ordinary analytics
@@ -186,6 +186,20 @@ earlier mode. False-positive markers cause a safe deletion attempt, never a
 false claim that no facts exist. An accepted provider export remains a separate
 external deletion reconciliation obligation; the checkpoint records that
 obligation without storing provider payloads or payment identifiers.
+
+### Account deletion
+
+Users delete their own account from **Settings → Account → Delete account**
+after typing their email. The request needs a session younger than Better
+Auth's `session.freshAge` (one day by default); older sessions must sign in
+again. Deletion is refused with `OWNS_SHARED_WORKSPACES` while the user owns a
+workspace that has other members, until ownership is transferred to an admin
+or the other members are removed. Otherwise every workspace where the user is
+the only member goes through the erasure workflow above, which returns a
+retryable `WORKSPACE_ERASURE_PENDING` conflict while usage is still draining.
+The user's `platform_event` and `notification` rows are then deleted, and
+sessions, accounts, memberships, comments, and sent invitations cascade with
+the user row.
 
 ## Rollback
 

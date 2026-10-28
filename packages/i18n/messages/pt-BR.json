@@ -1821,6 +1821,7 @@
   "site_analyticsconsentdecline": "Recusar",
   "site_changelanguage": "Alterar idioma",
   "site_toggletheme": "Alternar tema",
+  "site_togglesubpages": "Mostrar ou ocultar subpáginas",
   "site_articledetails": "Detalhes do artigo",
   "site_copycode": "Copiar código",
   "site_copied": "Copiado",
@@ -2534,5 +2535,19 @@
   "settings_members_removeconfirm": "Remover {name} deste site? Essa pessoa perderá o acesso à documentação e às configurações.",
   "settings_members_revokeconfirm": "Revogar o convite para {email}? Este link de convite deixará de funcionar.",
   "settings_config_discarddescription": "Há alterações não salvas nas configurações. Ao sair desta seção, elas serão descartadas.",
-  "editor_saveconfigfirst": "Salve as alterações das configurações antes de visualizar ou publicar."
+  "editor_saveconfigfirst": "Salve as alterações das configurações antes de visualizar ou publicar.",
+  "settings_account_delete_title": "Excluir conta",
+  "settings_account_delete_description": "Exclua sua conta permanentemente. Os workspaces em que você é o único membro são excluídos com todos os sites e conteúdos. Isso não pode ser desfeito.",
+  "settings_account_delete_button": "Excluir conta",
+  "settings_account_delete_deleting": "Excluindo…",
+  "settings_account_delete_confirm": "Sua conta, suas sessões e todos os workspaces em que você é o único membro serão excluídos permanentemente. Isso não pode ser desfeito.",
+  "settings_account_delete_typetoconfirm": "Digite seu e-mail \"{email}\" para confirmar",
+  "settings_account_delete_mismatch": "O e-mail não corresponde — exclusão cancelada.",
+  "settings_account_delete_deleted": "Sua conta foi excluída",
+  "settings_account_delete_error": "Não foi possível excluir sua conta",
+  "settings_account_delete_pending": "Os dados do workspace ainda estão sendo processados. Tente novamente em alguns minutos.",
+  "settings_account_delete_blocked": "Você é proprietário de workspaces com outros membros. Transfira a propriedade para um administrador ou remova os outros membros antes de excluir sua conta:",
+  "settings_account_delete_transfer": "Transferir propriedade",
+  "settings_account_delete_sessionexpired": "Por segurança, entre novamente antes de excluir sua conta.",
+  "settings_account_delete_signinagain": "Entrar novamente"
 }

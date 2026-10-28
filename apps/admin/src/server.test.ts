@@ -62,4 +62,12 @@ describe('admin custom Start entry', () => {
     expect(response.headers.get('content-security-policy')).toContain("'nonce-");
     expect(response.headers.get('cache-control')).toBe('private, no-store');
   });
+
+  it('keeps server function responses out of shared caches', async () => {
+    mocks.startHandler.mockResolvedValueOnce(
+      new Response('{}', { headers: { 'content-type': 'application/json', 'set-cookie': 'NIBLEAF_LOCALE=en; Path=/' } }),
+    );
+    const response = await server.fetch(new Request('http://localhost:4315/_serverFn/abc'));
+    expect(response.headers.get('cache-control')).toBe('private, no-store');
+  });
 });

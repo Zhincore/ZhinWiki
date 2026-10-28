@@ -75,6 +75,7 @@ import { site_showproperties } from './paraglide/messages/site_showproperties.js
 import { site_sources } from './paraglide/messages/site_sources.js';
 import { site_tab } from './paraglide/messages/site_tab.js';
 import { site_tags } from './paraglide/messages/site_tags.js';
+import { site_togglesubpages } from './paraglide/messages/site_togglesubpages.js';
 import { site_toggletheme } from './paraglide/messages/site_toggletheme.js';
 import { site_updated } from './paraglide/messages/site_updated.js';
 import { site_viewdetails } from './paraglide/messages/site_viewdetails.js';
@@ -142,6 +143,7 @@ const siteMessages = {
   importAdditionalPages: site_importadditionalpages,
   changeLanguage: site_changelanguage,
   toggleTheme: site_toggletheme,
+  toggleSubpages: site_togglesubpages,
   articleDetails: site_articledetails,
   copyCode: site_copycode,
   copied: site_copied,

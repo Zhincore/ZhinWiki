@@ -1821,6 +1821,7 @@
   "site_analyticsconsentdecline": "Rechazar",
   "site_changelanguage": "Cambiar idioma",
   "site_toggletheme": "Alternar tema",
+  "site_togglesubpages": "Mostrar u ocultar subpáginas",
   "site_articledetails": "Detalles del artículo",
   "site_copycode": "Copiar código",
   "site_copied": "copiado",
@@ -2534,5 +2535,19 @@
   "settings_members_removeconfirm": "¿Eliminar a {name} de este sitio? Perderá el acceso a su documentación y ajustes.",
   "settings_members_revokeconfirm": "¿Revocar la invitación para {email}? Este enlace de invitación dejará de funcionar.",
   "settings_config_discarddescription": "Tienes cambios sin guardar en los ajustes. Si sales de esta sección, se descartarán.",
-  "editor_saveconfigfirst": "Guarda los cambios de configuración antes de previsualizar o publicar."
+  "editor_saveconfigfirst": "Guarda los cambios de configuración antes de previsualizar o publicar.",
+  "settings_account_delete_title": "Eliminar cuenta",
+  "settings_account_delete_description": "Elimina tu cuenta de forma permanente. Los espacios de trabajo en los que eres el único miembro se eliminan con todos sus sitios y contenido. Esta acción no se puede deshacer.",
+  "settings_account_delete_button": "Eliminar cuenta",
+  "settings_account_delete_deleting": "Eliminando…",
+  "settings_account_delete_confirm": "Tu cuenta, tus sesiones y todos los espacios de trabajo en los que eres el único miembro se eliminarán de forma permanente. Esta acción no se puede deshacer.",
+  "settings_account_delete_typetoconfirm": "Escribe tu correo \"{email}\" para confirmar",
+  "settings_account_delete_mismatch": "El correo no coincide: eliminación cancelada.",
+  "settings_account_delete_deleted": "Tu cuenta se ha eliminado",
+  "settings_account_delete_error": "No se pudo eliminar tu cuenta",
+  "settings_account_delete_pending": "Los datos del espacio de trabajo aún se están procesando. Inténtalo de nuevo en unos minutos.",
+  "settings_account_delete_blocked": "Eres propietario de espacios de trabajo con otros miembros. Transfiere la propiedad a un administrador o elimina a los demás miembros antes de eliminar tu cuenta:",
+  "settings_account_delete_transfer": "Transferir propiedad",
+  "settings_account_delete_sessionexpired": "Por tu seguridad, vuelve a iniciar sesión antes de eliminar tu cuenta.",
+  "settings_account_delete_signinagain": "Volver a iniciar sesión"
 }

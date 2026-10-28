@@ -75,6 +75,29 @@ Confirm that:
 Do not publish secrets, customer content, access tokens, or full environment
 files in logs, screenshots, issues, or support discussions.
 
+## Configure CDN and reverse-proxy caching
+
+Every response carries an explicit `Cache-Control` header:
+
+| Path | `Cache-Control` |
+| --- | --- |
+| HTML (dashboard, auth, published pages) | `private, no-store` |
+| `/_serverFn/*`, `/api/**` (default), redirects, `Set-Cookie` responses | `private, no-store` |
+| `/assets/*` (content-hashed) | `public, max-age=31536000, immutable` |
+| Favicons, manifest, `/brand/*` | `public, max-age=3600` |
+| Public site data, `.md` aliases, sitemap, robots, llms | `public, s-maxage=60, stale-while-revalidate=300` |
+| Public uploaded media (`/api/public/assets/*`) | `public, max-age=86400` |
+| Private site data and assets | `private, no-store` |
+
+Configure the CDN to respect these origin headers. In Cloudflare, keep the edge
+TTL on "Use cache-control header if present" and do not add a "Cache Everything"
+rule with an overriding edge TTL for HTML, `/api/*` or `/_serverFn/*`: an
+override caches `private, no-store` responses and serves one user's dashboard to
+another. Cloudflare ignores `Vary: Accept` by default, so Markdown negotiated at
+an HTML URL is never shared-cacheable; agents get a cacheable copy at the `.md`
+URL. Publishing does not purge a CDN, so public site data can stay stale for up
+to the shared lifetime above.
+
 ## Monitor the user path
 
 Monitor container health, failed publish and export jobs, queue depth, Postgres

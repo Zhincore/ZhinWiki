@@ -1821,6 +1821,7 @@
   "site_analyticsconsentdecline": "প্রত্যাখ্যান",
   "site_changelanguage": "ভাষা পরিবর্তন করুন",
   "site_toggletheme": "থিম টগল করুন",
+  "site_togglesubpages": "উপপৃষ্ঠা টগল করুন",
   "site_articledetails": "নিবন্ধ বিবরণ",
   "site_copycode": "কোড কপি করুন",
   "site_copied": "কপি করা হয়েছে",
@@ -2534,5 +2535,19 @@
   "settings_members_removeconfirm": "এই সাইট থেকে {name}-কে সরাবেন? তিনি নথি ও সেটিংসে প্রবেশাধিকার হারাবেন।",
   "settings_members_revokeconfirm": "{email}-এর আমন্ত্রণ বাতিল করবেন? এই আমন্ত্রণের লিংক আর কাজ করবে না।",
   "settings_config_discarddescription": "আপনার সেটিংসের পরিবর্তনগুলি সংরক্ষণ করা হয়নি। এই বিভাগ ছেড়ে গেলে সেগুলি হারিয়ে যাবে।",
-  "editor_saveconfigfirst": "প্রিভিউ বা প্রকাশ করার আগে আপনার সেটিংসের পরিবর্তনগুলো সংরক্ষণ করুন।"
+  "editor_saveconfigfirst": "প্রিভিউ বা প্রকাশ করার আগে আপনার সেটিংসের পরিবর্তনগুলো সংরক্ষণ করুন।",
+  "settings_account_delete_title": "অ্যাকাউন্ট মুছুন",
+  "settings_account_delete_description": "আপনার অ্যাকাউন্ট স্থায়ীভাবে মুছুন। যেসব ওয়ার্কস্পেসে আপনি একমাত্র সদস্য, সেগুলো তাদের সব সাইট ও কনটেন্টসহ মুছে যাবে। এটি পূর্বাবস্থায় ফেরানো যাবে না।",
+  "settings_account_delete_button": "অ্যাকাউন্ট মুছুন",
+  "settings_account_delete_deleting": "মুছে ফেলা হচ্ছে…",
+  "settings_account_delete_confirm": "আপনার অ্যাকাউন্ট, সেশন এবং যেসব ওয়ার্কস্পেসে আপনি একমাত্র সদস্য সেগুলো স্থায়ীভাবে মুছে যাবে। এটি পূর্বাবস্থায় ফেরানো যাবে না।",
+  "settings_account_delete_typetoconfirm": "নিশ্চিত করতে আপনার ইমেল \"{email}\" লিখুন",
+  "settings_account_delete_mismatch": "ইমেল মেলেনি — মুছে ফেলা বাতিল হয়েছে।",
+  "settings_account_delete_deleted": "আপনার অ্যাকাউন্ট মুছে ফেলা হয়েছে",
+  "settings_account_delete_error": "আপনার অ্যাকাউন্ট মুছে ফেলা যায়নি",
+  "settings_account_delete_pending": "ওয়ার্কস্পেসের ডেটা এখনও প্রক্রিয়াধীন। কয়েক মিনিট পরে আবার চেষ্টা করুন।",
+  "settings_account_delete_blocked": "আপনি এমন ওয়ার্কস্পেসের মালিক যেখানে অন্য সদস্য আছেন। অ্যাকাউন্ট মোছার আগে একজন অ্যাডমিনকে মালিকানা হস্তান্তর করুন বা অন্য সদস্যদের সরান:",
+  "settings_account_delete_transfer": "মালিকানা হস্তান্তর করুন",
+  "settings_account_delete_sessionexpired": "আপনার নিরাপত্তার জন্য, অ্যাকাউন্ট মোছার আগে আবার সাইন ইন করুন।",
+  "settings_account_delete_signinagain": "আবার সাইন ইন করুন"
 }

@@ -1821,6 +1821,7 @@
   "site_analyticsconsentdecline": "Отклонить",
   "site_changelanguage": "Изменить язык",
   "site_toggletheme": "Переключить тему",
+  "site_togglesubpages": "Показать или скрыть подстраницы",
   "site_articledetails": "Подробности статьи",
   "site_copycode": "Скопировать код",
   "site_copied": "Скопировано",
@@ -2534,5 +2535,19 @@
   "settings_members_removeconfirm": "Удалить {name} с этого сайта? Доступ к документации и настройкам будет потерян.",
   "settings_members_revokeconfirm": "Отозвать приглашение для {email}? Ссылка приглашения перестанет работать.",
   "settings_config_discarddescription": "У вас есть несохранённые изменения настроек. При выходе из этого раздела они будут потеряны.",
-  "editor_saveconfigfirst": "Сохраните изменения настроек перед предпросмотром или публикацией."
+  "editor_saveconfigfirst": "Сохраните изменения настроек перед предпросмотром или публикацией.",
+  "settings_account_delete_title": "Удалить аккаунт",
+  "settings_account_delete_description": "Безвозвратно удалите свой аккаунт. Рабочие пространства, в которых вы единственный участник, будут удалены вместе со всеми сайтами и содержимым. Это действие нельзя отменить.",
+  "settings_account_delete_button": "Удалить аккаунт",
+  "settings_account_delete_deleting": "Удаление…",
+  "settings_account_delete_confirm": "Ваш аккаунт, сеансы и все рабочие пространства, в которых вы единственный участник, будут безвозвратно удалены. Это действие нельзя отменить.",
+  "settings_account_delete_typetoconfirm": "Введите свой адрес электронной почты «{email}» для подтверждения",
+  "settings_account_delete_mismatch": "Адрес электронной почты не совпал — удаление отменено.",
+  "settings_account_delete_deleted": "Ваш аккаунт удалён",
+  "settings_account_delete_error": "Не удалось удалить аккаунт",
+  "settings_account_delete_pending": "Данные рабочего пространства ещё обрабатываются. Повторите попытку через несколько минут.",
+  "settings_account_delete_blocked": "Вы владеете рабочими пространствами, в которых есть другие участники. Перед удалением аккаунта передайте права владельца администратору или удалите остальных участников:",
+  "settings_account_delete_transfer": "Передать права владельца",
+  "settings_account_delete_sessionexpired": "В целях безопасности войдите снова, прежде чем удалять аккаунт.",
+  "settings_account_delete_signinagain": "Войти снова"
 }

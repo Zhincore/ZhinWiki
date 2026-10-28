@@ -1821,6 +1821,7 @@
   "site_analyticsconsentdecline": "مسترد کریں",
   "site_changelanguage": "زبان بدلو",
   "site_toggletheme": "تھیم کو ٹوگل کریں۔",
+  "site_togglesubpages": "ذیلی صفحات ٹوگل کریں",
   "site_articledetails": "مضمون کی تفصیلات",
   "site_copycode": "کوڈ کاپی کریں۔",
   "site_copied": "کاپی",
@@ -2534,5 +2535,19 @@
   "settings_members_removeconfirm": "{name} کو اس سائٹ سے ہٹائیں؟ دستاویزات اور ترتیبات تک ان کی رسائی ختم ہو جائے گی۔",
   "settings_members_revokeconfirm": "{email} کی دعوت منسوخ کریں؟ دعوت کا یہ لنک کام کرنا بند کر دے گا۔",
   "settings_config_discarddescription": "آپ کی ترتیبات کی تبدیلیاں محفوظ نہیں ہوئیں۔ اس حصے سے جانے پر وہ ضائع ہو جائیں گی۔",
-  "editor_saveconfigfirst": "پیش منظر دیکھنے یا شائع کرنے سے پہلے ترتیبات کی تبدیلیاں محفوظ کریں۔"
+  "editor_saveconfigfirst": "پیش منظر دیکھنے یا شائع کرنے سے پہلے ترتیبات کی تبدیلیاں محفوظ کریں۔",
+  "settings_account_delete_title": "اکاؤنٹ حذف کریں",
+  "settings_account_delete_description": "اپنا اکاؤنٹ مستقل طور پر حذف کریں۔ جن ورک اسپیسز میں آپ واحد رکن ہیں وہ اپنی تمام سائٹس اور مواد سمیت حذف ہو جائیں گی۔ اسے واپس نہیں کیا جا سکتا۔",
+  "settings_account_delete_button": "اکاؤنٹ حذف کریں",
+  "settings_account_delete_deleting": "حذف ہو رہا ہے…",
+  "settings_account_delete_confirm": "آپ کا اکاؤنٹ، سیشنز اور ہر وہ ورک اسپیس جس میں آپ واحد رکن ہیں مستقل طور پر حذف ہو جائیں گے۔ اسے واپس نہیں کیا جا سکتا۔",
+  "settings_account_delete_typetoconfirm": "تصدیق کے لیے اپنا ای میل \"{email}\" لکھیں",
+  "settings_account_delete_mismatch": "ای میل مماثل نہیں — حذف منسوخ کر دیا گیا۔",
+  "settings_account_delete_deleted": "آپ کا اکاؤنٹ حذف کر دیا گیا",
+  "settings_account_delete_error": "آپ کا اکاؤنٹ حذف نہیں ہو سکا",
+  "settings_account_delete_pending": "ورک اسپیس کا ڈیٹا ابھی پروسیس ہو رہا ہے۔ چند منٹ بعد دوبارہ کوشش کریں۔",
+  "settings_account_delete_blocked": "آپ ایسی ورک اسپیسز کے مالک ہیں جن میں دوسرے اراکین ہیں۔ اکاؤنٹ حذف کرنے سے پہلے ملکیت کسی ایڈمن کو منتقل کریں یا دوسرے اراکین کو ہٹائیں:",
+  "settings_account_delete_transfer": "ملکیت منتقل کریں",
+  "settings_account_delete_sessionexpired": "آپ کی حفاظت کے لیے، اکاؤنٹ حذف کرنے سے پہلے دوبارہ سائن ان کریں۔",
+  "settings_account_delete_signinagain": "دوبارہ سائن ان کریں"
 }

@@ -1,3 +1,6 @@
+import { readdirSync } from 'node:fs';
+import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { createEnv } from '@t3-oss/env-core';
 import tailwindcss from '@tailwindcss/vite';
@@ -7,6 +10,7 @@ import { nitro } from 'nitro/vite';
 import { defineConfig, loadEnv } from 'vite';
 import { z } from 'zod';
 import { bundleAnalysisPlugin } from './scripts/bundle-analysis-plugin.ts';
+import { PUBLIC_FILE_CACHE } from './src/lib/cache-control.ts';
 
 // Baseline browser hardening for every dashboard and published-site
 // response. The custom server entry adds the per-response nonce-based CSP to
@@ -17,6 +21,20 @@ const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'SAMEORIGIN',
 };
+
+// Unhashed files from public/ get a short shared lifetime. Rules name exact
+// files so a published-site page under the same prefix keeps its own policy.
+// Hashed /assets/** get Nitro's `public, max-age=31536000, immutable`; every
+// other response gets its policy from src/server.ts or the API.
+const PUBLIC_DIR = fileURLToPath(new URL('./public', import.meta.url));
+const PUBLIC_FILE_RULES = Object.fromEntries(
+  readdirSync(PUBLIC_DIR, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => [
+      `/${relative(PUBLIC_DIR, join(entry.parentPath, entry.name)).replaceAll('\\', '/')}`,
+      { headers: { 'cache-control': PUBLIC_FILE_CACHE } },
+    ]),
+);
 
 export default defineConfig(({ mode }) => {
   const configEnv = createEnv({
@@ -89,6 +107,7 @@ export default defineConfig(({ mode }) => {
       nitro({
         routeRules: {
           '/**': { headers: SECURITY_HEADERS },
+          ...PUBLIC_FILE_RULES,
           // Nitro otherwise treats dotted asset keys as app/static paths before
           // the broad API proxy, leaving imported images as published-site 404s.
           '/api/public/assets/**': { proxy: `${apiTarget}/api/public/assets/**` },

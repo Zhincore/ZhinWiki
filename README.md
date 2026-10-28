@@ -1,17 +1,17 @@
 <div align="center">
 
-<img src="apps/app/public/favicon.svg" alt="ZhinDocs" height="56" />
+<img src="apps/app/public/favicon.svg" alt="ZhinWiki" height="56" />
 
 ### Self-hosted documentation platform
 
-ZhinDocs is an open-source, self-hostable documentation platform with a rich-text
+ZhinWiki is an open-source, self-hostable documentation platform with a rich-text
 editor over Markdown/MDX, multilingual and RTL support, and custom domains. It is a
 fork of [Nibleaf](https://github.com/lord007tn/nibleaf).
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/Zhincore/zhindocs?sort=semver&color=B96A3D)](https://github.com/Zhincore/zhindocs/releases)
-[![CI](https://github.com/Zhincore/zhindocs/actions/workflows/ci.yml/badge.svg)](https://github.com/Zhincore/zhindocs/actions/workflows/ci.yml)
-[![Docker image](https://github.com/Zhincore/zhindocs/actions/workflows/docker.yml/badge.svg)](https://github.com/Zhincore/zhindocs/pkgs/container/zhindocs)
+[![Release](https://img.shields.io/github/v/release/Zhincore/zhinwiki?sort=semver&color=B96A3D)](https://github.com/Zhincore/zhinwiki/releases)
+[![CI](https://github.com/Zhincore/zhinwiki/actions/workflows/ci.yml/badge.svg)](https://github.com/Zhincore/zhinwiki/actions/workflows/ci.yml)
+[![Docker image](https://github.com/Zhincore/zhinwiki/actions/workflows/docker.yml/badge.svg)](https://github.com/Zhincore/zhinwiki/pkgs/container/zhinwiki)
 
 [Documentation](docs/README.md) · [Quick start](#-quick-start) · [Features](#-features) · [Self-host](docs/getting-started/self-hosted.mdx) · [Architecture](#️-architecture) · [Contributing](CONTRIBUTING.md)
 
@@ -19,9 +19,9 @@ fork of [Nibleaf](https://github.com/lord007tn/nibleaf).
 
 ---
 
-## What is ZhinDocs?
+## What is ZhinWiki?
 
-ZhinDocs lets you write documentation in Markdown/MDX, organize it into a navigable tree,
+ZhinWiki lets you write documentation in Markdown/MDX, organize it into a navigable tree,
 and publish a fast, searchable, multilingual site — with versioned deploys, custom
 domains, per-site teams, and analytics. Run it with Docker Compose. It's the docs platform you can operate end to end:
 no per-seat pricing, no proprietary content format, and
@@ -96,12 +96,12 @@ Private customer documentation supports dedicated reader accounts, audience/page
 
 ## 🚧 Not built yet
 
-Honesty over marketing — if you need these today, ZhinDocs isn't there yet:
+Honesty over marketing — if you need these today, ZhinWiki isn't there yet:
 
 - **SSO / SAML** — passwordless email OTP + Google OAuth only; no enterprise SSO.
 
 Want one of these sooner? Open or upvote an issue —
-[github.com/Zhincore/zhindocs/issues](https://github.com/Zhincore/zhindocs/issues).
+[github.com/Zhincore/zhinwiki/issues](https://github.com/Zhincore/zhinwiki/issues).
 
 ## OpenAPI reference setup
 
@@ -112,7 +112,7 @@ one of these sources:
 - a public HTTP(S) URL without embedded credentials; or
 - a repository-relative file in the site's connected public GitHub/GitLab repository.
 
-ZhinDocs parses and validates OpenAPI 3.x before saving it. Validation errors identify the
+ZhinWiki parses and validates OpenAPI 3.x before saving it. Validation errors identify the
 first failing path in the settings toast. Public external `$ref` files are resolved and bundled
 into the stored document: relative references work for URL and repository sources, while an
 upload can use absolute public HTTP(S) references. The combined document is limited to 5 MB
@@ -125,7 +125,7 @@ available for later refreshes. Older deployments and rollbacks keep their own sp
 Repository-backed specs currently support the public GitHub and GitLab providers; generic
 clone URLs can use the URL or upload option.
 
-Scalar sends try-it requests directly from the reader's browser. ZhinDocs does not provide a
+Scalar sends try-it requests directly from the reader's browser. ZhinWiki does not provide a
 request proxy, prefill credentials, persist authentication, or log request secrets. Your API
 must allow the published documentation origin in its CORS policy. Never place live credentials
 or private examples in a document you intend to publish.
@@ -133,16 +133,16 @@ or private examples in a document you intend to publish.
 ## 🚀 Quick start
 
 The production stack **pulls the prebuilt image** from GHCR
-(`ghcr.io/zhincore/zhindocs`, linux/amd64) — nothing is compiled on your server,
+(`ghcr.io/zhincore/zhinwiki`, linux/amd64) — nothing is compiled on your server,
 so it runs fine on a small VPS. Download `docker-compose.prod.yml` and
 `env.production.example` from the
-[latest release](https://github.com/Zhincore/zhindocs/releases/latest) (or use
+[latest release](https://github.com/Zhincore/zhinwiki/releases/latest) (or use
 the same files from a repository checkout):
 
 ```bash
-mkdir zhindocs && cd zhindocs
-curl -fsSLO https://github.com/Zhincore/zhindocs/releases/latest/download/docker-compose.prod.yml
-curl -fsSLo .env https://github.com/Zhincore/zhindocs/releases/latest/download/env.production.example
+mkdir wiki && cd wiki
+curl -fsSLO https://github.com/Zhincore/zhinwiki/releases/latest/download/docker-compose.prod.yml
+curl -fsSLo .env https://github.com/Zhincore/zhinwiki/releases/latest/download/env.production.example
 
 # Edit .env — set APP_URL (your dashboard origin), the storage endpoints, and
 # fresh secrets (openssl rand -hex 32). The stack fails fast if one is missing.
@@ -188,7 +188,7 @@ docker compose up -d --build
   at [`docker-compose.coolify.yml`](docker-compose.coolify.yml), assign domains
   to the `app` / `admin` / `maxio` services (Coolify auto-generates the
   `SERVICE_*` secrets), set `SITE_BASE_DOMAIN` + `CUSTOM_DOMAIN_CNAME_TARGET`,
-  and deploy. Pin a build with `NIBLEAF_IMAGE=ghcr.io/zhincore/zhindocs:v1.0.0`.
+  and deploy. Pin a build with `NIBLEAF_IMAGE=ghcr.io/zhincore/zhinwiki:v0.1.0`.
 
 ## 🏗️ Architecture
 
@@ -311,8 +311,8 @@ When `NODE_ENV=production`, the container entrypoint refuses to start (`exit 1`)
 ## 💬 Support & community
 
 - **Support guide** — [SUPPORT.md](SUPPORT.md)
-- **Questions & ideas** — [GitHub Discussions](https://github.com/Zhincore/zhindocs/discussions)
-- **Bugs** — [GitHub Issues](https://github.com/Zhincore/zhindocs/issues)
+- **Questions & ideas** — [GitHub Discussions](https://github.com/Zhincore/zhinwiki/discussions)
+- **Bugs** — [GitHub Issues](https://github.com/Zhincore/zhinwiki/issues)
 - **Security vulnerabilities** — privately, please: see [SECURITY.md](SECURITY.md)
 
 ## 🤝 Contributing
@@ -323,11 +323,11 @@ discuss substantial changes first. Found a vulnerability? See **[SECURITY.md](SE
 
 ## 📄 License
 
-ZhinDocs is free software, licensed under the **GNU Affero General Public License v3.0 only**
+ZhinWiki is free software, licensed under the **GNU Affero General Public License v3.0 only**
 (`AGPL-3.0-only`) — see [LICENSE](LICENSE) for the full text. Because the AGPL includes the
-“network use” clause, if you run a modified version of ZhinDocs as a network service you must
+“network use” clause, if you run a modified version of ZhinWiki as a network service you must
 make your modified source available to its users. Contributions are accepted under the same
-license. ZhinDocs is a fork of [Nibleaf](https://github.com/lord007tn/nibleaf); see
+license. ZhinWiki is a fork of [Nibleaf](https://github.com/lord007tn/nibleaf); see
 **[NOTICE](NOTICE)** for copyright and **[BRANDING.md](BRANDING.md)** for naming. The
 “Nibleaf” name and logo belong to the upstream project and are **not** covered by the
 AGPL — see their **[trademark policy](https://github.com/lord007tn/nibleaf/blob/main/TRADEMARK.md)**.

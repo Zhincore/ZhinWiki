@@ -19,8 +19,8 @@ Requirements: **Node ≥ 22.13**, **pnpm ≥ 10**, and **Docker** (for Postgres,
 cache, and S3-compatible storage).
 
 ```bash
-git clone https://github.com/Zhincore/zhindocs.git
-cd zhindocs
+git clone https://github.com/Zhincore/zhinwiki.git
+cd zhinwiki
 cp .env.example .env
 
 pnpm install

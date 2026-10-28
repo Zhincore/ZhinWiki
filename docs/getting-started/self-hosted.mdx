@@ -11,7 +11,7 @@ translation_key: 'getting-started/self-hosted'
 ---
 
 The recommended production path pulls the pinned linux/amd64 image from GHCR
-(`ghcr.io/zhincore/zhindocs`). It does not compile the monorepo on the server.
+(`ghcr.io/zhincore/zhinwiki`). It does not compile the monorepo on the server.
 Complete this tutorial on a disposable host before moving real content.
 
 ## Prerequisites
@@ -40,9 +40,9 @@ Each release attaches its production Compose file and environment template.
 Download both into a new directory, saving the template as `.env`:
 
 ```bash
-mkdir zhindocs && cd zhindocs
-curl -fsSLO https://github.com/Zhincore/zhindocs/releases/latest/download/docker-compose.prod.yml
-curl -fsSLo .env https://github.com/Zhincore/zhindocs/releases/latest/download/env.production.example
+mkdir wiki && cd wiki
+curl -fsSLO https://github.com/Zhincore/zhinwiki/releases/latest/download/docker-compose.prod.yml
+curl -fsSLo .env https://github.com/Zhincore/zhinwiki/releases/latest/download/env.production.example
 ```
 
 The same files are `docker-compose.prod.yml` and `.env.production.example` in a

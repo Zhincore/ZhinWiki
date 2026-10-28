@@ -1,8 +1,8 @@
 # How ZhinWiki differs from Nibleaf
 
-Developer notes on behaviour that exists only in this fork. Naming rules are
-in [BRANDING.md](BRANDING.md), PR rules in [AGENTS.md](AGENTS.md); operator
-docs live under [`docs/`](docs/README.md).
+Developer notes on behaviour that exists only in this fork. Naming and branch
+rules are in [BRANDING.md](BRANDING.md), PR rules in
+[AGENTS.md](AGENTS.md); operator docs live under [`docs/`](docs/README.md).
 
 ## Tenancy modes
 
@@ -79,25 +79,23 @@ Future change requests need their own guards instead of widening membership.
 - Upstream's marketing site, blog, Cloud/billing wording and Plan tab are
   removed; generic welcome, terms and privacy pages replace them.
 
-## Where fork-only code lives
+## Where fork code lives
 
-- Tenancy: `packages/auth/src/{keys.server,tenancy,account-deletion}.ts`,
-  `packages/shared/src/rbac.ts`,
+Fork-only files:
+
+- Tenancy: `packages/auth/src/tenancy.ts`,
   `apps/server/src/middlewares/guard/can-create-project.ts`,
   `apps/app/src/functions/tenancy.ts`, `apps/app/src/hooks/use-tenancy.ts`,
   `apps/app/src/components/app/empty-wikis.tsx`.
-- Brand: `packages/shared/src/brand.ts`, `packages/design-system/src/brand/`,
-  `apps/app/src/lib/brand.ts`, `apps/app/src/components/welcome-page.tsx`.
-- Existing identifiers keep the `nibleaf` name (`@nibleaf/*`, env vars,
-  image). New fork-only internal identifiers use `nibbledocs`.
+- Brand: `packages/shared/src/brand.ts`, `apps/app/src/lib/brand.ts`,
+  `apps/app/src/components/welcome-page.tsx`.
 
-## Branches
+Upstream files carrying fork edits: `packages/auth/src/keys.server.ts`,
+`packages/auth/src/account-deletion.ts`, `packages/shared/src/rbac.ts`,
+`packages/design-system/src/brand/`.
 
-- `upstream`: Nibleaf-branded upstream `main` plus shareable changes.
-  `main`: `upstream` plus the rebrand and fork-only work.
-- Sync upstream into `upstream`, then merge `upstream` into `main`. Merge
-  only, never rebase; `git rerere` replays resolutions.
-- Tenancy and platform roles are fork-only: they live on `main`.
+Tenancy and platform roles are fork-only: they live on `main` (see
+[branches](BRANDING.md#branches)).
 
 ## Merging upstream: watch for
 

@@ -14,7 +14,7 @@ name: nibleaf
 #
 # Version pinning: NIBLEAF_VERSION defaults to a pinned release tag below so
 # upgrades are deliberate, not accidental. Pick the latest tag from
-# https://github.com/Zhincore/zhinwiki/releases and read the upgrade guide at
+# https://github.com/Zhincore/ZhinWiki/releases and read the upgrade guide at
 # https://docs.nibleaf.com/self-hosting/backups-upgrades. Avoid ":latest" in production.
 #
 # Only the `app` port is published (default bound to 127.0.0.1 — set

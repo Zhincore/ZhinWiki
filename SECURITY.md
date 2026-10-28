@@ -11,7 +11,7 @@ tagged release. Self-hosters should track `main` or the most recent release.
 
 Instead, use one of the following private channels:
 
-- Open a [GitHub security advisory](https://github.com/Zhincore/zhinwiki/security/advisories/new)
+- Open a [GitHub security advisory](https://github.com/Zhincore/ZhinWiki/security/advisories/new)
   (preferred), or
 - Email **security@nibleaf.com**.
 

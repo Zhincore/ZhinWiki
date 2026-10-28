@@ -9,9 +9,9 @@ editor over Markdown/MDX, multilingual and RTL support, and custom domains. It i
 fork of [Nibleaf](https://github.com/lord007tn/nibleaf).
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/Zhincore/zhinwiki?sort=semver&color=B96A3D)](https://github.com/Zhincore/zhinwiki/releases)
-[![CI](https://github.com/Zhincore/zhinwiki/actions/workflows/ci.yml/badge.svg)](https://github.com/Zhincore/zhinwiki/actions/workflows/ci.yml)
-[![Docker image](https://github.com/Zhincore/zhinwiki/actions/workflows/docker.yml/badge.svg)](https://github.com/Zhincore/zhinwiki/pkgs/container/zhinwiki)
+[![Release](https://img.shields.io/github/v/release/Zhincore/ZhinWiki?sort=semver&color=B96A3D)](https://github.com/Zhincore/ZhinWiki/releases)
+[![CI](https://github.com/Zhincore/ZhinWiki/actions/workflows/ci.yml/badge.svg)](https://github.com/Zhincore/ZhinWiki/actions/workflows/ci.yml)
+[![Docker image](https://github.com/Zhincore/ZhinWiki/actions/workflows/docker.yml/badge.svg)](https://github.com/Zhincore/ZhinWiki/pkgs/container/zhinwiki)
 
 [Documentation](docs/README.md) · [Quick start](#-quick-start) · [Features](#-features) · [Self-host](docs/getting-started/self-hosted.mdx) · [Architecture](#️-architecture) · [Contributing](CONTRIBUTING.md)
 
@@ -101,7 +101,7 @@ Honesty over marketing — if you need these today, ZhinWiki isn't there yet:
 - **SSO / SAML** — passwordless email OTP + Google OAuth only; no enterprise SSO.
 
 Want one of these sooner? Open or upvote an issue —
-[github.com/Zhincore/zhinwiki/issues](https://github.com/Zhincore/zhinwiki/issues).
+[github.com/Zhincore/ZhinWiki/issues](https://github.com/Zhincore/ZhinWiki/issues).
 
 ## OpenAPI reference setup
 
@@ -136,13 +136,13 @@ The production stack **pulls the prebuilt image** from GHCR
 (`ghcr.io/zhincore/zhinwiki`, linux/amd64) — nothing is compiled on your server,
 so it runs fine on a small VPS. Download `docker-compose.prod.yml` and
 `env.production.example` from the
-[latest release](https://github.com/Zhincore/zhinwiki/releases/latest) (or use
+[latest release](https://github.com/Zhincore/ZhinWiki/releases/latest) (or use
 the same files from a repository checkout):
 
 ```bash
 mkdir wiki && cd wiki
-curl -fsSLO https://github.com/Zhincore/zhinwiki/releases/latest/download/docker-compose.prod.yml
-curl -fsSLo .env https://github.com/Zhincore/zhinwiki/releases/latest/download/env.production.example
+curl -fsSLO https://github.com/Zhincore/ZhinWiki/releases/latest/download/docker-compose.prod.yml
+curl -fsSLo .env https://github.com/Zhincore/ZhinWiki/releases/latest/download/env.production.example
 
 # Edit .env — set APP_URL (your dashboard origin), the storage endpoints, and
 # fresh secrets (openssl rand -hex 32). The stack fails fast if one is missing.
@@ -311,8 +311,8 @@ When `NODE_ENV=production`, the container entrypoint refuses to start (`exit 1`)
 ## 💬 Support & community
 
 - **Support guide** — [SUPPORT.md](SUPPORT.md)
-- **Questions & ideas** — [GitHub Discussions](https://github.com/Zhincore/zhinwiki/discussions)
-- **Bugs** — [GitHub Issues](https://github.com/Zhincore/zhinwiki/issues)
+- **Questions & ideas** — [GitHub Discussions](https://github.com/Zhincore/ZhinWiki/discussions)
+- **Bugs** — [GitHub Issues](https://github.com/Zhincore/ZhinWiki/issues)
 - **Security vulnerabilities** — privately, please: see [SECURITY.md](SECURITY.md)
 
 ## 🤝 Contributing

@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { authClient } from '@/services/auth-client';
 import { SettingsSection } from './section';
 
-type Blocker = { kind: 'workspaces'; workspaces: BlockingWorkspace[] } | { kind: 'session' };
+type Blocker = { kind: 'workspaces'; reason: 'shared' | 'soleMember'; workspaces: BlockingWorkspace[] } | { kind: 'session' };
 
 /** Danger-zone account deletion: type-the-email confirmation, then Better Auth `deleteUser`. */
 export function DeleteAccountSection({ email }: { email: string }) {
@@ -40,8 +40,11 @@ export function DeleteAccountSection({ email }: { email: string }) {
         window.location.assign('/');
         return;
       }
+      const workspaces = (res.error as { workspaces?: BlockingWorkspace[] }).workspaces ?? [];
       if (res.error.code === ACCOUNT_DELETION_ERROR.OWNS_SHARED_WORKSPACES) {
-        setBlocker({ kind: 'workspaces', workspaces: (res.error as { workspaces?: BlockingWorkspace[] }).workspaces ?? [] });
+        setBlocker({ kind: 'workspaces', reason: 'shared', workspaces });
+      } else if (res.error.code === ACCOUNT_DELETION_ERROR.SOLE_WIKI_OWNER) {
+        setBlocker({ kind: 'workspaces', reason: 'soleMember', workspaces });
       } else if (res.error.code === 'SESSION_EXPIRED') {
         setBlocker({ kind: 'session' });
       } else if (res.error.code === ACCOUNT_DELETION_ERROR.ERASURE_PENDING) {
@@ -79,7 +82,7 @@ export function DeleteAccountSection({ email }: { email: string }) {
     >
       {blocker?.kind === 'workspaces' ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm" role="alert">
-          <p>{t('settings.account.delete.blocked')}</p>
+          <p>{t(blocker.reason === 'shared' ? 'settings.account.delete.blocked' : 'settings.account.delete.soleMember')}</p>
           <ul className="mt-2 flex flex-col gap-1.5">
             {blocker.workspaces.map((workspace) => (
               <li className="flex flex-wrap items-center justify-between gap-2" key={workspace.organizationId}>
@@ -93,7 +96,7 @@ export function DeleteAccountSection({ email }: { email: string }) {
                     search={{ section: 'danger' }}
                     to="/app/projects/$projectId/settings"
                   >
-                    {t('settings.account.delete.transfer')}
+                    {t(blocker.reason === 'shared' ? 'settings.account.delete.transfer' : 'settings.account.delete.siteSettings')}
                   </Link>
                 ) : null}
               </li>

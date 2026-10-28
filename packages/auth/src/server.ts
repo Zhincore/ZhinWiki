@@ -752,7 +752,7 @@ const authInstance = betterAuth({
     deleteUser: {
       enabled: true,
       beforeDelete: async (user) => {
-        await prepareAccountDeletion(user.id);
+        await prepareAccountDeletion(user.id, env.TENANCY);
       },
     },
   },

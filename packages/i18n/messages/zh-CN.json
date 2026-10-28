@@ -2482,6 +2482,8 @@
   "settings_account_delete_pending": "工作区数据仍在处理中，请几分钟后重试。",
   "settings_account_delete_blocked": "你拥有包含其他成员的工作区。删除账户前，请将所有权转移给管理员或移除其他成员：",
   "settings_account_delete_transfer": "转移所有权",
+  "settings_account_delete_solemember": "你是这些站点的唯一成员。删除账户前，请邀请其他成员或删除该站点：",
+  "settings_account_delete_sitesettings": "站点设置",
   "settings_account_delete_sessionexpired": "为了你的安全，删除账户前请重新登录。",
   "settings_account_delete_signinagain": "重新登录"
 }

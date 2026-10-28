@@ -28,8 +28,8 @@ export const keys = () =>
       GOOGLE_CLIENT_ID: z.string().optional(),
       GOOGLE_CLIENT_SECRET: z.string().optional(),
       // Optional: refuse ALL new sign-ups (email OTP and social). Existing
-      // accounts keep signing in. Useful for closed self-hosted instances and as
-      // an emergency brake on the public cloud. Default off.
+      // accounts keep signing in. Useful for closed instances and as an
+      // emergency brake on open ones. Default off.
       DISABLE_SIGNUP: z
         .string()
         .optional()

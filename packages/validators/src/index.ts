@@ -281,8 +281,7 @@ export const projectConfigSchema = z
         github: url.optional(),
         x: url.optional(),
         linkedin: url.optional(),
-        // "Made with Nibleaf" badge on published sites — default ON; explicit
-        // false hides it (free during beta; may become a paid perk later).
+        // "Made with" badge on published sites — default ON; explicit false hides it.
         madeWithBadge: z.boolean().optional(),
       })
       .strict()

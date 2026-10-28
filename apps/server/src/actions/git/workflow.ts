@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { createJob, QUEUE_CONFIGS, QueueNames } from '@nibleaf/bullmq';
 import { type Prisma, prisma } from '@nibleaf/database';
 import { slugify } from '@nibleaf/shared';
+import { SOFTWARE } from '@nibleaf/shared/brand';
 import { instanceBrand } from '@nibleaf/shared/brand/server';
 import {
   buildThemeRepository,
@@ -170,7 +171,7 @@ const localFiles = async (connection: { projectId: string; contentPath: string; 
     const page = pageById.get(pageId);
     if (page) files.set(path, { page, content: serializeGitPage(page), ownership: 'SHARED' });
   }
-  for (const file of buildThemeRepository(snapshot, { contentPath: connection.contentPath, brand: instanceBrand() })) {
+  for (const file of buildThemeRepository(snapshot, { contentPath: connection.contentPath, brand: SOFTWARE })) {
     files.set(file.path, { page: null, content: file.content, ownership: file.ownership });
   }
   return { files, snapshot, pageIdByPath };
@@ -217,7 +218,7 @@ const remoteThemeRepositoryIssues = (files: RemoteFile[], snapshot: Awaited<Retu
     snapshot,
     contentPath,
     themeRepositoryTemplateId(snapshot),
-    instanceBrand(),
+    SOFTWARE,
   );
 };
 

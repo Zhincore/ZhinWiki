@@ -62,6 +62,7 @@ it.each(['en', 'ar'])(
         name: 'Example docs',
         slug: 'example',
         description: null,
+        icon: null,
         primaryDomain: null,
         config: { addons: { feedback: false } },
       },

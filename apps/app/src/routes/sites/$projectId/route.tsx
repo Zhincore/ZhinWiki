@@ -27,7 +27,7 @@ import { useSearchShortcutLabel } from '@/lib/shortcut';
 import { useSiteLinkNavigation } from '@/lib/site-link-navigation';
 import { customDomainOrigin } from '@/lib/site-origin';
 import { siteHref, siteLanguageParam } from '@/lib/site-paths';
-import { siteHead } from '@/lib/site-seo';
+import { siteFaviconHref, siteHead } from '@/lib/site-seo';
 import { readSiteStorage, writeSiteStorage } from '@/lib/site-storage';
 import { projectThemeCss, projectThemeStyle, resolveProjectTheme } from '@/lib/site-theme';
 import { SiteAnalyticsProvider } from '@/providers/site-analytics-provider';
@@ -212,8 +212,8 @@ function SiteChrome() {
     document.documentElement.style.colorScheme = siteTheme;
   }, [projectId, siteTheme, siteThemeHydratedFor]);
 
-  // Apply the configured favicon on the published site.
-  const faviconUrl = config?.branding?.favicon || `${brand.iconBase}/favicon.svg`;
+  // Apply the site favicon on the published site.
+  const faviconUrl = siteFaviconHref(config, site?.project.icon, brand.iconBase);
   useEffect(() => {
     if (typeof document === 'undefined') {
       return;

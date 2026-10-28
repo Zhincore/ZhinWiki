@@ -6,7 +6,6 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import {
   ArrowRight,
   BarChart3,
-  CreditCard,
   Eye,
   FileText,
   Globe2,
@@ -232,9 +231,6 @@ function SiteOverviewPage() {
           </ManageRow>
           <ManageRow icon={Plug} title={t('overview.link.integrations')} desc={t('overview.link.integrationsDesc')}>
             <Link className="absolute inset-0" params={{ projectId }} search={{ section: 'integrations' }} to="/app/projects/$projectId/settings" />
-          </ManageRow>
-          <ManageRow icon={CreditCard} title={t('overview.link.billing')} desc={t('overview.link.billingDesc')}>
-            <Link className="absolute inset-0" params={{ projectId }} search={{ section: 'plan' }} to="/app/projects/$projectId/settings" />
           </ManageRow>
           <ManageRow icon={SettingsIcon} title={t('overview.link.settings')} desc={t('overview.link.settingsDesc')}>
             <Link className="absolute inset-0" params={{ projectId }} search={{ section: 'general' }} to="/app/projects/$projectId/settings" />

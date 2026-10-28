@@ -29,7 +29,6 @@ vi.mock('@/components/project-settings/general-section', () => ({ GeneralSection
 vi.mock('@/components/project-settings/languages-section', () => ({ LanguagesSection: () => <div data-testid="language-settings" /> }));
 vi.mock('@/components/project-settings/members-section', () => ({ MembersSection: () => null }));
 vi.mock('@/components/project-settings/openapi-section', () => ({ OpenApiSection: () => null }));
-vi.mock('@/components/project-settings/plan-section', () => ({ PlanSection: () => null }));
 vi.mock('@/components/project-settings/search-section', () => ({ SearchSection: () => null }));
 vi.mock('@/components/settings/api-keys-tab', () => ({ ApiKeysTab: () => null }));
 vi.mock('@/components/settings/git-tab', () => ({ GitTab: () => null }));

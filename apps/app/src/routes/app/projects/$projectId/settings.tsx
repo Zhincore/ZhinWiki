@@ -13,7 +13,6 @@ import {
   Braces,
   ChartNoAxesCombined,
   CirclePlus,
-  Gem,
   GitBranch,
   Globe2,
   Import,
@@ -36,7 +35,6 @@ import { GeneralSection } from '@/components/project-settings/general-section';
 import { LanguagesSection } from '@/components/project-settings/languages-section';
 import { MembersSection } from '@/components/project-settings/members-section';
 import { OpenApiSection } from '@/components/project-settings/openapi-section';
-import { PlanSection } from '@/components/project-settings/plan-section';
 import { SearchSection } from '@/components/project-settings/search-section';
 import { QueryErrorState } from '@/components/query-error-state';
 import { ApiKeysTab } from '@/components/settings/api-keys-tab';
@@ -66,7 +64,6 @@ type SectionId =
   | 'contentImport'
   | 'members'
   | 'apiKeys'
-  | 'plan'
   | 'usage'
   | 'integrations'
   | 'notifications'
@@ -92,7 +89,6 @@ const SECTIONS = [
   { id: 'contentImport', group: 'deployment', icon: Import },
   { id: 'members', group: 'workspace', icon: Users },
   { id: 'apiKeys', group: 'workspace', icon: KeyRound },
-  { id: 'plan', group: 'workspace', icon: Gem },
   { id: 'usage', group: 'workspace', icon: ChartNoAxesCombined },
   { id: 'integrations', group: 'workspace', icon: Plug },
   { id: 'notifications', group: 'workspace', icon: Bell },
@@ -101,6 +97,11 @@ const SECTIONS = [
 ] as const satisfies ReadonlyArray<{ id: SectionId; group: SettingsGroupId; icon: LucideIcon }>;
 
 const isSectionId = (value: unknown): value is SectionId => SECTIONS.some((section) => section.id === value);
+/** Retired section ids and the section that now covers them. */
+const LEGACY_SECTIONS: ReadonlyMap<unknown, SectionId> = new Map<unknown, SectionId>([
+  ['analytics', 'integrations'],
+  ['plan', 'usage'],
+]);
 // Content languages, team visibility, usage and one-time exports are available
 // to editors. The other sections write operational settings guarded by ADMIN.
 const EDITOR_SECTIONS = new Set<SectionId>(['languages', 'members', 'usage', 'exports']);
@@ -108,8 +109,7 @@ const EDITOR_SECTIONS = new Set<SectionId>(['languages', 'members', 'usage', 'ex
 export const Route = createFileRoute('/app/projects/$projectId/settings')({
   component: ProjectSettingsPage,
   validateSearch: (search: Record<string, unknown>): { section: SectionId } => ({
-    // Analytics moved under Integrations — keep old ?section=analytics links working.
-    section: isSectionId(search.section) ? search.section : search.section === 'analytics' ? 'integrations' : 'general',
+    section: isSectionId(search.section) ? search.section : (LEGACY_SECTIONS.get(search.section) ?? 'general'),
   }),
 });
 
@@ -262,7 +262,6 @@ function ActiveSection({
     contentImport: <ImportTab key={`import-${projectId}`} projectId={projectId} />,
     members: <MembersSection key={`members-${projectId}`} projectId={projectId} />,
     apiKeys: <ApiKeysTab key={`api-keys-${projectId}`} projectId={projectId} />,
-    plan: <PlanSection key={`plan-${project.id}`} project={project} />,
     usage: <UsageTab key={`usage-${project.id}`} project={project} />,
     integrations: <IntegrationsTab key={`integrations-${projectId}`} projectId={projectId} project={project} />,
     notifications: <NotificationsTab key={`notifications-${projectId}`} projectId={projectId} />,

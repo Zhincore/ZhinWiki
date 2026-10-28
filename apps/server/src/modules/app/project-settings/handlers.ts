@@ -3,6 +3,7 @@ import { roleAtLeast } from '@nibleaf/shared/rbac';
 import { searchIndexDiagnosticsQuery, updateProjectSearchConfigurationBody, updateWorkspaceSettingsBody } from '@nibleaf/validators';
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { aiDraftAvailable } from '@/actions/ai';
 import { importFromGitProvider } from '@/actions/git-import';
 import { rotateGitWebhookSecret } from '@/actions/git-webhook';
 import { createNotificationsForOrgMembers } from '@/actions/notifications';
@@ -14,9 +15,22 @@ import {
 } from '@/actions/search';
 import { getProjectUsageSummary } from '@/actions/usage';
 import { getWorkspaceSettings, updateWorkspaceSettings } from '@/actions/workspace';
+import { env } from '@/env';
+import { answerSearchAvailable } from '@/lib/ai-search/runtime';
+import { envExtras } from '@/lib/env-extras';
 import { getContextMembership, getContextOrganizationIdOrThrow, getContextUserOrThrow, type HonoEnv } from '@/lib/hono/context';
 import { validator } from '@/lib/hono/validate';
 import projectSettingsRoutes from './routes';
+
+/** Env-enforced limits shown read-only in the Usage tab; null when the feature is off. */
+const instanceLimits = () => ({
+  aiDraftsPerDay: aiDraftAvailable() ? envExtras.AI_DAILY_LIMIT : null,
+  aiAnswersPerDay: answerSearchAvailable() ? env.SEARCH_ANSWER_DAILY_PER_PROJECT : null,
+  exportsPerDay: env.EXPORT_MAX_DAILY_PER_PROJECT,
+  exportsActive: env.EXPORT_MAX_ACTIVE_PER_PROJECT,
+  exportPages: env.EXPORT_MAX_PAGES,
+  exportBytes: String(env.EXPORT_MAX_SNAPSHOT_BYTES),
+});
 
 // organizationId here is the PROJECT's own org (resolved from :projectId by the
 // guards), so these reuse the org-scoped settings actions but operate per-site.
@@ -65,7 +79,7 @@ const app = new Hono<HonoEnv>()
   })
   .get('/usage', ...projectSettingsRoutes.usage, async (ctx) => {
     const projectId = ctx.req.param('projectId') ?? '';
-    return ctx.json({ data: await getProjectUsageSummary(ctx, projectId) }, 200);
+    return ctx.json({ data: { ...(await getProjectUsageSummary(ctx, projectId)), limits: instanceLimits() } }, 200);
   })
   .get('/search', ...projectSettingsRoutes.searchConfiguration, async (ctx) =>
     ctx.json({ data: await getProjectSearchConfiguration(ctx, ctx.req.param('projectId') ?? '') }, 200),

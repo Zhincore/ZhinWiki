@@ -1,7 +1,6 @@
-import { cn } from '@nibleaf/design-system/lib/utils';
 import type { MessageKey } from '@nibleaf/i18n';
 import { useT } from '@nibleaf/i18n/react';
-import type { LimitState, UsageAvailability } from '@nibleaf/usage';
+import type { UsageAvailability } from '@nibleaf/usage';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -57,24 +56,23 @@ const groups = [
   },
 ];
 
-const stateKeys: Record<LimitState, MessageKey> = {
-  available: 'settings.usage.state.available',
-  approaching: 'settings.usage.state.approaching',
-  exceeded: 'settings.usage.state.exceeded',
-  unknown: 'settings.usage.state.unknown',
-  unlimited: 'settings.usage.state.unlimited',
-};
-
 const availabilityKeys: Record<UsageAvailability, MessageKey> = {
   complete: 'settings.usage.availability.complete',
   partial: 'settings.usage.availability.partial',
   unavailable: 'settings.usage.availability.unavailable',
 };
 
-const planLabelKeys: ReadonlyMap<string, MessageKey> = new Map([['free', 'settings.usage.plan.free']]);
+const limitRows = [
+  { key: 'aiDraftsPerDay', label: 'settings.usage.limit.aiDrafts', unit: 'count' },
+  { key: 'aiAnswersPerDay', label: 'settings.usage.limit.aiAnswers', unit: 'count' },
+  { key: 'exportsPerDay', label: 'settings.usage.limit.exportsDaily', unit: 'count' },
+  { key: 'exportsActive', label: 'settings.usage.limit.exportsActive', unit: 'count' },
+  { key: 'exportPages', label: 'settings.usage.limit.exportPages', unit: 'count' },
+  { key: 'exportBytes', label: 'settings.usage.limit.exportSize', unit: 'byte' },
+] as const;
 
 function UsageSkeleton() {
-  return <div aria-hidden className="h-36 animate-pulse rounded-xl border border-border bg-muted/40" />;
+  return <div aria-hidden className="h-24 animate-pulse rounded-xl border border-border bg-muted/40" />;
 }
 
 export function UsageTab({ project }: { project: Project }) {
@@ -86,18 +84,25 @@ export function UsageTab({ project }: { project: Project }) {
     return <QueryErrorState onRetry={() => void refetch()} retrying={isFetching} />;
   }
 
+  const formatQuantity = (value: string | number, unit: string) => {
+    if (unit !== 'byte') return number(BigInt(value));
+    return formatByteQuantity(String(value), {
+      number,
+      decimal: (whole, fraction) => t('settings.usage.decimal', { whole, fraction }),
+      unit: (valueLabel, byteUnit) =>
+        t('settings.usage.unit', {
+          value: valueLabel,
+          unit: t(byteUnit === 'gib' ? 'settings.usage.unit.gib' : byteUnit === 'mib' ? 'settings.usage.unit.mib' : 'settings.usage.unit.byte'),
+        }),
+    });
+  };
+  const limits = usage ? limitRows.filter((row) => usage.limits[row.key] !== null) : [];
+
   return (
     <div className="flex flex-col gap-6">
       <header className="rounded-xl border border-border bg-card p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="font-semibold text-xl tracking-tight">{t('settings.usage.title')}</h2>
-            <p className="mt-1 max-w-2xl text-muted-foreground text-sm">{t('settings.usage.description')}</p>
-          </div>
-          <span className="rounded-full border border-border bg-background px-3 py-1.5 font-medium text-sm">
-            {t(planLabelKeys.get(usage?.plan.key ?? '') ?? 'settings.usage.plan.unconfigured')}
-          </span>
-        </div>
+        <h2 className="font-semibold text-xl tracking-tight">{t('settings.usage.title')}</h2>
+        <p className="mt-1 max-w-2xl text-muted-foreground text-sm">{t('settings.usage.description')}</p>
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-border border-t pt-4 text-muted-foreground text-xs">
           <span>
             {usage
@@ -124,74 +129,25 @@ export function UsageTab({ project }: { project: Project }) {
                       label: 'settings.usage.meter.unknown' as const,
                     };
                     const Icon = presentation.icon;
-                    const formatQuantity = (value: string) => {
-                      const quantity = BigInt(value);
-                      if (metric.unit !== 'byte') return number(quantity);
-                      return formatByteQuantity(value, {
-                        number,
-                        decimal: (whole, fraction) => t('settings.usage.decimal', { whole, fraction }),
-                        unit: (valueLabel, unit) =>
-                          t('settings.usage.unit', {
-                            value: valueLabel,
-                            unit: t(
-                              unit === 'gib' ? 'settings.usage.unit.gib' : unit === 'mib' ? 'settings.usage.unit.mib' : 'settings.usage.unit.byte',
-                            ),
-                          }),
-                      });
-                    };
-                    const progress = metric.ratio === null ? 0 : Math.min(100, Math.max(metric.ratio > 0 ? 2 : 0, metric.ratio * 100));
-                    const unavailable = metric.quantity === null;
                     return (
                       <article className="rounded-xl border border-border bg-background p-4" data-meter={metric.key} key={metric.key}>
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex min-w-0 items-center gap-2 text-muted-foreground text-sm">
-                            <Icon aria-hidden className="size-4 shrink-0" />
-                            <h3 className="truncate font-medium text-foreground">{t(presentation.label)}</h3>
-                          </div>
-                          <span
-                            className={cn(
-                              'shrink-0 rounded-full px-2 py-0.5 font-medium text-[11px]',
-                              metric.state === 'exceeded' && 'bg-destructive/10 text-destructive',
-                              metric.state === 'approaching' && 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
-                              (metric.state === 'unknown' || metric.availability === 'partial') && 'bg-muted text-muted-foreground',
-                              (metric.state === 'available' || metric.state === 'unlimited') && 'bg-primary/10 text-primary',
-                            )}
-                          >
-                            {metric.availability === 'partial' ? t('settings.usage.state.partial') : t(stateKeys[metric.state])}
-                          </span>
+                        <div className="flex min-w-0 items-center gap-2 text-muted-foreground text-sm">
+                          <Icon aria-hidden className="size-4 shrink-0" />
+                          <h3 className="truncate font-medium text-foreground">{t(presentation.label)}</h3>
                         </div>
-                        <div className="mt-3 flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
-                          <span
-                            className="font-semibold text-2xl tabular-nums"
-                            title={
-                              metric.quantity !== null && metric.unit === 'byte'
-                                ? t('settings.usage.exactBytes', { value: number(BigInt(metric.quantity)) })
-                                : undefined
-                            }
-                          >
-                            {metric.quantity === null ? '—' : formatQuantity(metric.quantity)}
-                          </span>
-                          {metric.limit ? <span className="text-muted-foreground text-sm tabular-nums">/ {formatQuantity(metric.limit)}</span> : null}
+                        <div
+                          className="mt-3 font-semibold text-2xl tabular-nums"
+                          title={
+                            metric.quantity !== null && metric.unit === 'byte'
+                              ? t('settings.usage.exactBytes', { value: number(BigInt(metric.quantity)) })
+                              : undefined
+                          }
+                        >
+                          {metric.quantity === null ? '—' : formatQuantity(metric.quantity, metric.unit)}
                         </div>
-                        {metric.limit && !unavailable ? (
-                          <div
-                            aria-label={t('settings.usage.progressLabel', { label: t(presentation.label) })}
-                            aria-valuemax={100}
-                            aria-valuemin={0}
-                            aria-valuenow={Math.round(progress)}
-                            className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted"
-                            role="progressbar"
-                          >
-                            <div
-                              className={cn(
-                                'h-full rounded-full',
-                                metric.state === 'exceeded' ? 'bg-destructive' : metric.state === 'approaching' ? 'bg-amber-500' : 'bg-primary',
-                              )}
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
+                        {metric.quantity === null ? (
+                          <p className="mt-2 text-muted-foreground text-xs">{t('settings.usage.unknownExplanation')}</p>
                         ) : null}
-                        {unavailable ? <p className="mt-2 text-muted-foreground text-xs">{t('settings.usage.unknownExplanation')}</p> : null}
                       </article>
                     );
                   })}
@@ -199,6 +155,19 @@ export function UsageTab({ project }: { project: Project }) {
           </SettingsSection>
         );
       })}
+
+      {limits.length > 0 ? (
+        <SettingsSection description={t('settings.usage.group.limits.description')} title={t('settings.usage.group.limits')}>
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+            {limits.map((row) => (
+              <div className="flex items-baseline justify-between gap-3 border-border border-b py-2" key={row.key}>
+                <dt className="text-muted-foreground">{t(row.label)}</dt>
+                <dd className="font-medium tabular-nums">{formatQuantity(usage?.limits[row.key] ?? 0, row.unit)}</dd>
+              </div>
+            ))}
+          </dl>
+        </SettingsSection>
+      ) : null}
 
       <p className="rounded-lg border border-border bg-muted/30 p-3 text-muted-foreground text-xs">{t('settings.usage.privacyNote')}</p>
     </div>

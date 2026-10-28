@@ -12,8 +12,6 @@ export function useFormatters() {
   const tag = localeTag(locale);
   return {
     number: (value: number | bigint, options?: Intl.NumberFormatOptions) => new Intl.NumberFormat(tag, options).format(value),
-    /** A currency amount (default USD) with the locale's symbol placement and Western digits. */
-    currency: (value: number, currency = 'USD') => formatCurrency(tag, value, currency),
     date: (value: string | number | Date) => new Intl.DateTimeFormat(tag, { dateStyle: 'medium' }).format(new Date(value)),
     /** A signed percentage like “+12.5%” / “−4%” for trend badges. `value` is
      *  already in percent units (e.g. 12.5 → “+12.5%”). `style:'percent'` lets
@@ -46,11 +44,6 @@ export function useFormatters() {
 /** The BCP-47 tag used for UI formatting. Arabic uses Western 0-9 digits. */
 export function localeTag(locale: string) {
   return locale.toLowerCase().startsWith('ar') ? `${locale}-u-nu-latn` : locale;
-}
-
-/** Whole-unit currency formatting (no trailing “.00”) so a free plan reads “$0”, not “$0.00”. */
-export function formatCurrency(tag: string, value: number, currency = 'USD') {
-  return new Intl.NumberFormat(tag, { style: 'currency', currency, maximumFractionDigits: Number.isInteger(value) ? 0 : 2 }).format(value);
 }
 
 /** Trend of a views time-series: % change of the recent half vs the older half.

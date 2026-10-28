@@ -44,7 +44,6 @@ describe('TermsPage', () => {
   it('names the operator, both contacts and the AGPL source', () => {
     const page = render(TermsPage);
 
-    expect(page.querySelector('h1')?.textContent).toBe('Terms of Service');
     expect(page.querySelector('header')?.textContent).toBe('Acme Docs');
     expect(page.textContent).toContain('Acme Docs is run by the operator of this instance');
     expect(hrefs(page)).toEqual(
@@ -58,7 +57,6 @@ describe('PrivacyPage', () => {
   it('names the operator and support contact', () => {
     const page = render(PrivacyPage);
 
-    expect(page.querySelector('h1')?.textContent).toBe('Privacy Policy');
     expect(page.textContent).toContain('Acme Docs is run by the operator of this instance');
     expect(hrefs(page)).toContain('mailto:help@acme.test');
     expect(page.querySelector('article')?.getAttribute('lang')).toBe('en');

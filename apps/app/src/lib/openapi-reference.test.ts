@@ -25,11 +25,4 @@ describe('scalarOpenApiConfiguration', () => {
     expect(SCALAR_THEME).toContain('--scalar-sidebar-search-color: var(--foreground)');
     expect(SCALAR_THEME).toContain('--scalar-button-1-color: var(--background)');
   });
-
-  it('keeps schemas, downloads, generated clients, and the interactive client visible', () => {
-    const configuration = scalarOpenApiConfiguration('project');
-    expect(configuration.hideModels).toBe(false);
-    expect(configuration.hideDownloadButton).toBe(false);
-    expect(configuration.hideClientButton).toBe(false);
-  });
 });

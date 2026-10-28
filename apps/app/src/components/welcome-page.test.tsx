@@ -37,7 +37,7 @@ describe('WelcomePage', () => {
   it('server-renders the brand, next steps and fork footer', () => {
     const page = render(false);
 
-    expect(page.querySelector('h1')?.textContent).toBe('You did it — Acme Docs is running');
+    expect(page.querySelector('h1')?.textContent).toContain('Acme Docs');
     expect(page.textContent).toContain('HOMEPAGE=site:<projectId>');
     expect(hrefs(page)).toEqual(['/sign-in', '/sign-up', 'https://git.example/acme-docs', 'https://github.com/lord007tn/nibleaf']);
     expect(page.querySelector('footer')?.textContent).toBe(

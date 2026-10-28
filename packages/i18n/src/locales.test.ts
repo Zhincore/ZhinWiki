@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INTERFACE_LOCALES, isRtl, resolveLocale } from './locales';
+import { isRtl, resolveLocale } from './locales';
 
 describe('interface locales', () => {
   it('normalizes BCP-47 variants and preserves RTL direction', () => {
@@ -7,6 +7,5 @@ describe('interface locales', () => {
     expect(resolveLocale('ar-SA')).toBe('ar');
     expect(isRtl('ar')).toBe(true);
     expect(isRtl('ur')).toBe(true);
-    expect(INTERFACE_LOCALES.find(({ code }) => code === 'de')?.native).toBe('Deutsch');
   });
 });

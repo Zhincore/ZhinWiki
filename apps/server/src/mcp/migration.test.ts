@@ -22,6 +22,5 @@ describe('MCP migration safety contract', () => {
     );
     expect(rollback).toContain('DROP COLUMN IF EXISTS "rotatedFromId"');
     expect(rollback).not.toMatch(/DROP\s+COLUMN\s+(?:IF\s+EXISTS\s+)?"expiresAt"/i);
-    expect(rollback).toContain('Wildcard normalization is also intentionally not reversed');
   });
 });

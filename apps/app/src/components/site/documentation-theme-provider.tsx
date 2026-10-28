@@ -275,7 +275,7 @@ const SignalTemplate: DocumentationThemeTemplate = {
   ),
 };
 
-export const DOCUMENTATION_THEME_TEMPLATES = {
+const DOCUMENTATION_THEME_TEMPLATES = {
   reference: HarborTemplate,
   editorial: ManuscriptTemplate,
   console: SignalTemplate,

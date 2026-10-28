@@ -10,6 +10,7 @@ import { buildUsageEvent, deterministicUsageEventId } from '@nibleaf/usage';
 import type { Job } from 'bullmq';
 import { z } from 'zod';
 import { env } from '../env';
+import { eraseProjectStorage } from '../lib/project-storage-erasure';
 import { DurableUsageEnqueueError, enqueueUsageEvents } from '../lib/usage-ingest';
 
 const log = createLogger({ processor: 'search' });
@@ -283,9 +284,9 @@ const renewRunClaim = async (run: { id: string; claimToken: string }) => {
 export async function handleSearchJobs(job: Job<ReindexProjectJobData>) {
   const client = getQdrantClient();
   if (job.name === 'delete-project') {
-    if (!client) return { disabled: true };
-    await client.deleteByFilterAllVersions(projectFilter(job.data.projectId));
-    return { deleted: true };
+    if (client) await client.deleteByFilterAllVersions(projectFilter(job.data.projectId));
+    const storageObjects = await eraseProjectStorage(job.data.projectId);
+    return client ? { deleted: true, storageObjects } : { disabled: true, storageObjects };
   }
   if (job.name === 'delete-deployment') {
     if (!job.data.deploymentId) throw new Error('delete-deployment requires deploymentId');

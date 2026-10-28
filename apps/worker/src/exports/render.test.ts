@@ -410,7 +410,7 @@ Before expression {globalThis.stolen({ nested: true })} after expression.
     expect(html).toContain('<pre><code class="language-ts">');
     expect(html).toContain('page-break-inside:avoid');
     expect(html).toContain('href="#page-setup"');
-    expect(html).toContain('<meta name="generator" content="ZhinDocs export">');
+    expect(html).toContain('<meta name="generator" content="ZhinWiki export">');
     expect(html).toContain('data:image/png;base64,AQID');
   });
 

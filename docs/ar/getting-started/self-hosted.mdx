@@ -11,7 +11,7 @@ translation_key: 'getting-started/self-hosted'
 ---
 
 يسحب مسار الإنتاج الموصى به صورة linux/amd64 مثبتة الإصدار من GHCR
-(`ghcr.io/zhincore/zhindocs`). ولا
+(`ghcr.io/zhincore/zhinwiki`). ولا
 يجمع المستودع الأحادي على الخادم. أكمل هذا الدليل التعليمي على مضيف مؤقت قبل
 نقل المحتوى الحقيقي.
 
@@ -41,9 +41,9 @@ openssl version
 جديد، واحفظ القالب باسم `.env`:
 
 ```bash
-mkdir zhindocs && cd zhindocs
-curl -fsSLO https://github.com/Zhincore/zhindocs/releases/latest/download/docker-compose.prod.yml
-curl -fsSLo .env https://github.com/Zhincore/zhindocs/releases/latest/download/env.production.example
+mkdir zhinwiki && cd zhinwiki
+curl -fsSLO https://github.com/Zhincore/zhinwiki/releases/latest/download/docker-compose.prod.yml
+curl -fsSLo .env https://github.com/Zhincore/zhinwiki/releases/latest/download/env.production.example
 ```
 
 الملفان نفسهما هما `docker-compose.prod.yml` و`.env.production.example` في نسخة

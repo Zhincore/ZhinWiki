@@ -163,8 +163,8 @@ jobs:
             exit 1
           fi
           curl --connect-timeout 2 --max-time 10 --fail --silent --show-error --header "Host: docs.example.test" http://127.0.0.1:3000/terms > /tmp/nibleaf-terms.html
-          grep --fixed-strings --quiet "ZhinDocs is running" /tmp/nibleaf-welcome.html
-          grep --fixed-strings --quiet "ZhinDocs" /tmp/nibleaf-terms.html
+          grep --fixed-strings --quiet "ZhinWiki is running" /tmp/nibleaf-welcome.html
+          grep --fixed-strings --quiet "ZhinWiki" /tmp/nibleaf-terms.html
           node apps/app/scripts/check-ssr-nonce.mjs /tmp/nibleaf-welcome.html /tmp/nibleaf-welcome.headers
           test "$(curl --connect-timeout 2 --max-time 10 --silent --output /dev/null --write-out '%{http_code}' --header 'Host: docs.example.test' 'http://127.0.0.1:3000/%E0%A4%A')" = 400
 
@@ -198,7 +198,7 @@ jobs:
             cat /tmp/nibleaf-admin-runtime.log
             exit 1
           fi
-          grep --fixed-strings --quiet "<title>ZhinDocs Admin</title>" /tmp/nibleaf-admin-sign-in.html
+          grep --fixed-strings --quiet "<title>ZhinWiki Admin</title>" /tmp/nibleaf-admin-sign-in.html
           node apps/app/scripts/check-ssr-nonce.mjs /tmp/nibleaf-admin-sign-in.html /tmp/nibleaf-admin-sign-in.headers
           test "$(curl --connect-timeout 2 --max-time 10 --silent --output /dev/null --write-out '%{http_code}' 'http://127.0.0.1:4315/%E0%A4%A')" = 400
           if grep --fixed-strings --quiet "__exportAll is not a function" /tmp/nibleaf-admin-runtime.log; then

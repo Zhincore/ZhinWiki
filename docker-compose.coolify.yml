@@ -34,7 +34,7 @@ name: nibleaf-coolify
 # manual dispatches by default. Keep this fallback aligned with that workflow:
 # a mismatched `main` fallback can successfully redeploy an older image while
 # the new digest sits unused in GHCR. Production may still pin NIBLEAF_IMAGE_TAG explicitly.
-x-nibleaf-image: &nibleaf-image ghcr.io/zhincore/zhindocs:${NIBLEAF_IMAGE_TAG:-latest}
+x-nibleaf-image: &nibleaf-image ghcr.io/zhincore/zhinwiki:${NIBLEAF_IMAGE_TAG:-latest}
 
 x-service-env: &service-env
   NODE_ENV: production

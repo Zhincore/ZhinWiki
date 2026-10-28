@@ -134,6 +134,14 @@ describe('dashboard wiki creation gate', () => {
     expect(mocks.dialog).not.toHaveBeenCalled();
   });
 
+  it('holds back workspace analytics for a contributor until their wikis load', async () => {
+    mocks.projects.mockReturnValue({ isPending: true, data: undefined, refetch: mocks.refetch });
+    await act(async () => root.render(<DashboardPage />));
+
+    expect(mocks.analytics).toHaveBeenCalled();
+    expect(mocks.analytics).not.toHaveBeenCalledWith('30d', { enabled: true });
+  });
+
   it('keeps the dashboard for a contributor invited to a wiki, without create actions', async () => {
     mocks.projects.mockReturnValue({ isPending: false, data: [{ id: 'project-1', name: 'Docs', slug: 'docs', _count: { pages: 1 } }] });
     await act(async () => root.render(<DashboardPage />));

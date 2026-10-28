@@ -6,7 +6,7 @@ import { useTenancy } from '@/hooks/use-tenancy';
 /** Copy and call to action for a user with no wikis. Multi tenancy keeps the
  *  generic copy (`withBody` toggles its body line); single tenancy invites
  *  admins to create the first wiki and tells everyone else where wikis appear. */
-export function EmptyWikis({ canCreate, onCreate, withBody = false }: { canCreate: boolean; onCreate: () => void; withBody?: boolean }) {
+export function EmptyWikis({ canCreate, onCreate, withBody = false }: { canCreate: boolean; onCreate?: () => void; withBody?: boolean }) {
   const t = useT();
   const single = useTenancy() === 'single';
   const body = single ? 'dashboard.empty.firstWiki.body' : withBody ? 'dashboard.empty.body' : null;

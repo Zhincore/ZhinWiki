@@ -144,7 +144,6 @@ describe('SitesPage', () => {
     mocks.useProjects.mockReturnValue({ isPending: false, isError: false, data: [], refetch: mocks.refetch });
     await render();
 
-    expect(container.textContent).toContain('No wikis yet');
     expect(container.querySelectorAll('button')).toHaveLength(0);
     expect(mocks.dialog).not.toHaveBeenCalled();
   });

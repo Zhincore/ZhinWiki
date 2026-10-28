@@ -37,7 +37,7 @@ function ProjectsPage() {
     isError: analyticsError,
     isFetching: analyticsFetching,
     refetch: retryAnalytics,
-  } = useWorkspaceAnalytics(range, { enabled: !noWikis });
+  } = useWorkspaceAnalytics(range, { enabled: canCreate || projectsError || (projects?.length ?? 0) > 0 });
   const [newProjectOpen, setNewProjectOpen] = useState(Boolean(newSite) && canCreate);
   const t = useT();
   const { number } = useFormatters();
@@ -52,7 +52,7 @@ function ProjectsPage() {
       <div className="grid min-h-96 place-items-center text-center">
         <div className="grid place-items-center">
           <BookText className="size-7 text-muted-foreground" />
-          <EmptyWikis canCreate={false} onCreate={() => setNewProjectOpen(true)} />
+          <EmptyWikis canCreate={false} />
         </div>
       </div>
     );

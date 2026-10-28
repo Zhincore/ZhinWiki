@@ -60,7 +60,9 @@ GRANT ALTER DELETE ON nibleaf_analytics.analytics_search_hourly TO nibleaf_analy
 ## مراحل الانتقال
 
 1. انسخ Postgres وClickHouse احتياطيًا. استخدم `ANALYTICS_MODE=disabled`، واضبط
-   بيانات ClickHouse وملحًا مستقلاً، ثم شغّل `pnpm analytics:migrate`.
+   بيانات ClickHouse وملحًا مستقلاً، ثم شغّل `pnpm analytics:migrate`. لا تبدأ
+   خدمتا ClickHouse و`analytics-migrate` المضمّنتان في Compose إلا مع
+   `COMPOSE_PROFILES=clickhouse` في `.env`؛ ومن دونه تعمل الحزمة بلا ClickHouse.
 2. استخدم `dual_write`. يبقى Postgres المصدر المعتمد، وتكتب المهام في النظامين.
    انشر العامل قبل API أو معه. يرقّي العامل المهام القديمة الموجودة في الطابور
    أثناء النشر التدريجي بعد اشتقاق المستأجر من الخادم، ويستخدم معرّفات ثابتة

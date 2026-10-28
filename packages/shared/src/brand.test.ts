@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_BRAND, readBrand } from './brand';
+import { brandAccentCss, DEFAULT_BRAND, readBrand } from './brand';
 import { brandAssetResponse, brandManifest } from './brand.server';
 
 const BRAND_ENV = [
@@ -14,6 +14,7 @@ const BRAND_ENV = [
   'BRAND_TERMS_URL',
   'BRAND_PRIVACY_URL',
   'BRAND_THEME_COLOR',
+  'BRAND_ACCENT_COLOR',
   'BRAND_ASSETS_DIR',
 ] as const;
 
@@ -37,6 +38,7 @@ describe('readBrand', () => {
           BRAND_TERMS_URL: 'https://acme.test/legal/terms',
           BRAND_PRIVACY_URL: 'https://acme.test/legal/privacy',
           BRAND_THEME_COLOR: '#1a2B3c',
+          BRAND_ACCENT_COLOR: '#2563eb,#60a5fa',
         },
         { icons: true, mark: true },
       ),
@@ -49,6 +51,7 @@ describe('readBrand', () => {
       termsUrl: 'https://acme.test/legal/terms',
       privacyUrl: 'https://acme.test/legal/privacy',
       themeColor: '#1a2B3c',
+      accentColor: { light: '#2563eb', dark: '#60a5fa' },
       iconBase: '/brand-assets',
       markUrl: '/brand-assets/mark.svg',
     });
@@ -83,9 +86,50 @@ describe('readBrand', () => {
     expect(readBrand({ BRAND_THEME_COLOR: '#fff' }).themeColor).toBe('#fff');
   });
 
+  it('reads one accent for both modes or a light,dark pair', () => {
+    expect(readBrand({ BRAND_ACCENT_COLOR: '#2563eb' }).accentColor).toEqual({ light: '#2563eb', dark: '#2563eb' });
+    expect(readBrand({ BRAND_ACCENT_COLOR: '#2563eb,#60A5FA' }).accentColor).toEqual({ light: '#2563eb', dark: '#60A5FA' });
+    expect(readBrand({ BRAND_ACCENT_COLOR: '  #2563eb ,  #fff ' }).accentColor).toEqual({ light: '#2563eb', dark: '#fff' });
+    expect(readBrand({ BRAND_ACCENT_COLOR: '' }).accentColor).toBeNull();
+    expect(readBrand({ BRAND_ACCENT_COLOR: '   ' }).accentColor).toBeNull();
+  });
+
+  it('rejects accents that are not one or two hex colors', () => {
+    for (const value of ['blue', '#2563eb;}', '#2563eb,', ',#2563eb', '#2563eb,#60a5fa,#000000', '#2563eb #60a5fa']) {
+      expect(() => readBrand({ BRAND_ACCENT_COLOR: value })).toThrow(/BRAND_ACCENT_COLOR/);
+    }
+  });
+
   it('rejects malformed emails', () => {
     expect(() => readBrand({ BRAND_SUPPORT_EMAIL: 'help' })).toThrow(/BRAND_SUPPORT_EMAIL/);
     expect(() => readBrand({ BRAND_ABUSE_EMAIL: 'abuse at acme.test' })).toThrow(/BRAND_ABUSE_EMAIL/);
+  });
+});
+
+describe('brandAccentCss', () => {
+  const VARIABLES = ['--primary', '--ring', '--chart-1', '--sidebar-primary', '--sidebar-ring', '--brand-copper'];
+
+  it('overrides every accent variable per mode', () => {
+    const css = brandAccentCss({ light: '#2563eb', dark: '#60a5fa' });
+    const [, light = '', dark = ''] = css.match(/^:root:not\(\.dark\)\{([^}]*)\}:root\.dark\{([^}]*)\}$/) ?? [];
+    for (const name of VARIABLES) {
+      expect(light).toContain(`${name}:#2563eb`);
+      expect(dark).toContain(`${name}:#60a5fa`);
+    }
+  });
+
+  it('picks the more contrasting text color for each accent', () => {
+    const css = brandAccentCss({ light: '#2563eb', dark: '#fde047' });
+    expect(css).toContain(
+      ':root:not(.dark){--primary:#2563eb;--ring:#2563eb;--chart-1:#2563eb;--sidebar-primary:#2563eb;--sidebar-ring:#2563eb;--brand-copper:#2563eb;--primary-foreground:#ffffff;--sidebar-primary-foreground:#ffffff}',
+    );
+    expect(css).toContain('--primary-foreground:#111318;--sidebar-primary-foreground:#111318}');
+  });
+
+  it('emits canonical hex only', () => {
+    expect(brandAccentCss({ light: '#ABC', dark: '#60A5FA' })).toContain('--primary:#aabbcc');
+    expect(brandAccentCss({ light: '#ABC', dark: '#60A5FA' })).toContain('--primary:#60a5fa');
+    expect(brandAccentCss({ light: '#2563eb', dark: 'red;}body{color:red' })).toBe('');
   });
 });
 

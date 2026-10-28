@@ -2,7 +2,8 @@
 
 Guidance for coding agents (and humans) working on this repository, a fork
 of Nibleaf. Setup and general conventions are in
-[CONTRIBUTING.md](CONTRIBUTING.md); naming rules in [BRANDING.md](BRANDING.md).
+[CONTRIBUTING.md](CONTRIBUTING.md); naming rules in [BRANDING.md](BRANDING.md);
+fork-only behaviour in [FORK.md](FORK.md).
 
 ## Branches and PRs
 

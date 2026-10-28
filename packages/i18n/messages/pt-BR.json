@@ -2482,7 +2482,7 @@
   "settings_account_delete_pending": "Os dados do workspace ainda estão sendo processados. Tente novamente em alguns minutos.",
   "settings_account_delete_blocked": "Você é proprietário de workspaces com outros membros. Transfira a propriedade para um administrador ou remova os outros membros antes de excluir sua conta:",
   "settings_account_delete_transfer": "Transferir propriedade",
-  "settings_account_delete_solemember": "Você é o único membro destes sites. Convide outro membro ou exclua o site antes de excluir sua conta:",
+  "settings_account_delete_solemember": "Você é o único membro destes sites. Convide outro membro ou exclua esses sites antes de excluir sua conta:",
   "settings_account_delete_sitesettings": "Configurações do site",
   "settings_account_delete_sessionexpired": "Por segurança, entre novamente antes de excluir sua conta.",
   "settings_account_delete_signinagain": "Entrar novamente"

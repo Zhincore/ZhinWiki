@@ -2482,7 +2482,7 @@
   "settings_account_delete_pending": "Workspace data is still being processed. Try again in a few minutes.",
   "settings_account_delete_blocked": "You own workspaces that have other members. Transfer ownership to an admin or remove the other members before deleting your account:",
   "settings_account_delete_transfer": "Transfer ownership",
-  "settings_account_delete_solemember": "You are the only member of these sites. Invite another member or delete the site before deleting your account:",
+  "settings_account_delete_solemember": "You are the only member of these sites. Invite another member or delete the sites before deleting your account:",
   "settings_account_delete_sitesettings": "Site settings",
   "settings_account_delete_sessionexpired": "For your security, sign in again before deleting your account.",
   "settings_account_delete_signinagain": "Sign in again"

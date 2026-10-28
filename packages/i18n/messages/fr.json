@@ -2482,7 +2482,7 @@
   "settings_account_delete_pending": "Les données de l’espace de travail sont encore en cours de traitement. Réessayez dans quelques minutes.",
   "settings_account_delete_blocked": "Vous êtes propriétaire d’espaces de travail qui comptent d’autres membres. Transférez la propriété à un administrateur ou retirez les autres membres avant de supprimer votre compte :",
   "settings_account_delete_transfer": "Transférer la propriété",
-  "settings_account_delete_solemember": "Vous êtes le seul membre de ces sites. Invitez un autre membre ou supprimez le site avant de supprimer votre compte :",
+  "settings_account_delete_solemember": "Vous êtes le seul membre de ces sites. Invitez un autre membre ou supprimez ces sites avant de supprimer votre compte :",
   "settings_account_delete_sitesettings": "Paramètres du site",
   "settings_account_delete_sessionexpired": "Pour votre sécurité, reconnectez-vous avant de supprimer votre compte.",
   "settings_account_delete_signinagain": "Se reconnecter"

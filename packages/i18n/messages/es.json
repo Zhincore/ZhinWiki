@@ -2482,7 +2482,7 @@
   "settings_account_delete_pending": "Los datos del espacio de trabajo aún se están procesando. Inténtalo de nuevo en unos minutos.",
   "settings_account_delete_blocked": "Eres propietario de espacios de trabajo con otros miembros. Transfiere la propiedad a un administrador o elimina a los demás miembros antes de eliminar tu cuenta:",
   "settings_account_delete_transfer": "Transferir propiedad",
-  "settings_account_delete_solemember": "Eres el único miembro de estos sitios. Invita a otro miembro o elimina el sitio antes de eliminar tu cuenta:",
+  "settings_account_delete_solemember": "Eres el único miembro de estos sitios. Invita a otro miembro o elimina estos sitios antes de eliminar tu cuenta:",
   "settings_account_delete_sitesettings": "Configuración del sitio",
   "settings_account_delete_sessionexpired": "Por tu seguridad, vuelve a iniciar sesión antes de eliminar tu cuenta.",
   "settings_account_delete_signinagain": "Volver a iniciar sesión"

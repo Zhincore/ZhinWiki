@@ -2482,7 +2482,7 @@
   "settings_account_delete_pending": "ওয়ার্কস্পেসের ডেটা এখনও প্রক্রিয়াধীন। কয়েক মিনিট পরে আবার চেষ্টা করুন।",
   "settings_account_delete_blocked": "আপনি এমন ওয়ার্কস্পেসের মালিক যেখানে অন্য সদস্য আছেন। অ্যাকাউন্ট মোছার আগে একজন অ্যাডমিনকে মালিকানা হস্তান্তর করুন বা অন্য সদস্যদের সরান:",
   "settings_account_delete_transfer": "মালিকানা হস্তান্তর করুন",
-  "settings_account_delete_solemember": "আপনি এই সাইটগুলোর একমাত্র সদস্য। অ্যাকাউন্ট মোছার আগে অন্য একজন সদস্যকে আমন্ত্রণ জানান বা সাইটটি মুছে ফেলুন:",
+  "settings_account_delete_solemember": "আপনি এই সাইটগুলোর একমাত্র সদস্য। অ্যাকাউন্ট মোছার আগে অন্য একজন সদস্যকে আমন্ত্রণ জানান বা সাইটগুলো মুছে ফেলুন:",
   "settings_account_delete_sitesettings": "সাইট সেটিংস",
   "settings_account_delete_sessionexpired": "আপনার নিরাপত্তার জন্য, অ্যাকাউন্ট মোছার আগে আবার সাইন ইন করুন।",
   "settings_account_delete_signinagain": "আবার সাইন ইন করুন"

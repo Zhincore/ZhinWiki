@@ -2482,7 +2482,7 @@
   "settings_account_delete_pending": "ورک اسپیس کا ڈیٹا ابھی پروسیس ہو رہا ہے۔ چند منٹ بعد دوبارہ کوشش کریں۔",
   "settings_account_delete_blocked": "آپ ایسی ورک اسپیسز کے مالک ہیں جن میں دوسرے اراکین ہیں۔ اکاؤنٹ حذف کرنے سے پہلے ملکیت کسی ایڈمن کو منتقل کریں یا دوسرے اراکین کو ہٹائیں:",
   "settings_account_delete_transfer": "ملکیت منتقل کریں",
-  "settings_account_delete_solemember": "آپ ان سائٹس کے واحد رکن ہیں۔ اکاؤنٹ حذف کرنے سے پہلے کسی دوسرے رکن کو مدعو کریں یا سائٹ حذف کریں:",
+  "settings_account_delete_solemember": "آپ ان سائٹس کے واحد رکن ہیں۔ اکاؤنٹ حذف کرنے سے پہلے کسی دوسرے رکن کو مدعو کریں یا یہ سائٹس حذف کریں:",
   "settings_account_delete_sitesettings": "سائٹ کی ترتیبات",
   "settings_account_delete_sessionexpired": "آپ کی حفاظت کے لیے، اکاؤنٹ حذف کرنے سے پہلے دوبارہ سائن ان کریں۔",
   "settings_account_delete_signinagain": "دوبارہ سائن ان کریں"

@@ -2482,7 +2482,7 @@
   "settings_account_delete_pending": "لا تزال بيانات مساحة العمل قيد المعالجة. حاول مرة أخرى بعد بضع دقائق.",
   "settings_account_delete_blocked": "أنت تملك مساحات عمل تضم أعضاء آخرين. انقل الملكية إلى مسؤول أو أزل الأعضاء الآخرين قبل حذف حسابك:",
   "settings_account_delete_transfer": "نقل الملكية",
-  "settings_account_delete_solemember": "أنت العضو الوحيد في هذه المواقع. ادعُ عضوًا آخر أو احذف الموقع قبل حذف حسابك:",
+  "settings_account_delete_solemember": "أنت العضو الوحيد في هذه المواقع. ادعُ عضوًا آخر أو احذف هذه المواقع قبل حذف حسابك:",
   "settings_account_delete_sitesettings": "إعدادات الموقع",
   "settings_account_delete_sessionexpired": "لأمانك، سجّل الدخول مرة أخرى قبل حذف حسابك.",
   "settings_account_delete_signinagain": "تسجيل الدخول مرة أخرى"

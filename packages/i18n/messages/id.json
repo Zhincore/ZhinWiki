@@ -2482,7 +2482,7 @@
   "settings_account_delete_pending": "Data ruang kerja masih diproses. Coba lagi dalam beberapa menit.",
   "settings_account_delete_blocked": "Anda memiliki ruang kerja yang memiliki anggota lain. Alihkan kepemilikan ke admin atau keluarkan anggota lain sebelum menghapus akun Anda:",
   "settings_account_delete_transfer": "Alihkan kepemilikan",
-  "settings_account_delete_solemember": "Anda satu-satunya anggota situs ini. Undang anggota lain atau hapus situs sebelum menghapus akun Anda:",
+  "settings_account_delete_solemember": "Anda satu-satunya anggota situs-situs ini. Undang anggota lain atau hapus situs-situs tersebut sebelum menghapus akun Anda:",
   "settings_account_delete_sitesettings": "Pengaturan situs",
   "settings_account_delete_sessionexpired": "Demi keamanan Anda, masuk kembali sebelum menghapus akun.",
   "settings_account_delete_signinagain": "Masuk kembali"

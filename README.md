@@ -140,7 +140,7 @@ so it runs fine on a small VPS. Download `docker-compose.prod.yml` and
 the same files from a repository checkout):
 
 ```bash
-mkdir zhinwiki && cd zhinwiki
+mkdir wiki && cd wiki
 curl -fsSLO https://github.com/Zhincore/zhinwiki/releases/latest/download/docker-compose.prod.yml
 curl -fsSLo .env https://github.com/Zhincore/zhinwiki/releases/latest/download/env.production.example
 

@@ -51,8 +51,8 @@ export const BRAND_ASSET_FILES = [
 export const DEFAULT_BRAND: Brand = {
   name: 'ZhinWiki',
   url: 'https://github.com/Zhincore/zhinwiki',
-  supportEmail: 'support@zhinwiki.invalid',
-  abuseEmail: 'abuse@zhinwiki.invalid',
+  supportEmail: 'support@example.invalid',
+  abuseEmail: 'abuse@example.invalid',
   sourceUrl: 'https://github.com/Zhincore/zhinwiki',
   termsUrl: '/terms',
   privacyUrl: '/privacy',

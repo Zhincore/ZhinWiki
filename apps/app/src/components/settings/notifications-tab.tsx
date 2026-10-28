@@ -52,11 +52,6 @@ const GROUPS: Array<{ titleKey: MessageKey; items: NotifItem[] }> = [
         labelKey: 'settings.notifications.workspaceWeekly.label',
         descriptionKey: 'settings.notifications.workspaceWeekly.description',
       },
-      {
-        id: 'workspace_plan',
-        labelKey: 'settings.notifications.workspacePlan.label',
-        descriptionKey: 'settings.notifications.workspacePlan.description',
-      },
     ],
   },
   {

@@ -15,7 +15,10 @@ import appCss from '@/styles.css?url';
 
 export const Route = createRootRoute({
   // The brand, tenancy, homepage and public URLs come from runtime env; they never change while the app runs.
-  loader: async () => ({ brand: await getBrandFn(), tenancy: await getTenancyFn(), homepage: currentHomepage(), urls: publicUrls() }),
+  loader: async () => {
+    const [brand, tenancy] = await Promise.all([getBrandFn(), getTenancyFn()]);
+    return { brand, tenancy, homepage: currentHomepage(), urls: publicUrls() };
+  },
   staleTime: Number.POSITIVE_INFINITY,
   head: ({ loaderData }) => {
     const brand = loaderData?.brand ?? DEFAULT_BRAND;

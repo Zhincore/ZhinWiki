@@ -30,6 +30,7 @@ vi.mock('@tanstack/react-router', () => ({
     }),
 }));
 vi.mock('@/functions/brand', () => ({ getBrandFn: vi.fn() }));
+vi.mock('@/functions/tenancy', () => ({ getTenancyFn: vi.fn(async () => 'single') }));
 vi.mock('@/lib/site-origin', () => ({ currentHomepage: vi.fn() }));
 vi.mock('@/lib/public-urls', () => ({
   PUBLIC_URL_META: { appUrl: 'nibleaf-app-url', siteBaseDomain: 'nibleaf-site-base-domain' },
@@ -67,5 +68,12 @@ describe('root document brand accent', () => {
     state.brand = { ...DEFAULT_BRAND, accentColor: ACCENT };
     state.siteMatch = true;
     expect(renderRoot()).not.toContain('<style');
+  });
+});
+
+describe('root loader', () => {
+  it('exposes the instance tenancy to every route', async () => {
+    const { loader } = (Route as unknown as { options: { loader: () => Promise<{ tenancy: string }> } }).options;
+    expect((await loader()).tenancy).toBe('single');
   });
 });

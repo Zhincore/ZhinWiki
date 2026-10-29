@@ -13,6 +13,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { Check, ChevronsUpDown, LayoutGrid, Plus } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
 import { useProjects } from '@/hooks/api';
+import { useCanCreateWiki } from '@/hooks/use-tenancy';
 
 const subscribeToHydration = () => () => undefined;
 
@@ -24,6 +25,7 @@ export function SiteSwitcher({ projectId }: { projectId?: string }) {
     () => false,
   );
   const selected = hydrated ? projects?.find((project) => project.id === projectId) : undefined;
+  const canCreate = useCanCreateWiki();
   const navigate = useNavigate();
   const t = useT();
   return (
@@ -63,10 +65,14 @@ export function SiteSwitcher({ projectId }: { projectId?: string }) {
                 {site.id === projectId ? <Check className="size-4 text-primary" /> : null}
               </DropdownMenuItem>
             ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate({ to: '/app/sites', search: { newSite: true } })}>
-              <Plus className="size-4.5" /> {t('dashboard.newProject')}
-            </DropdownMenuItem>
+            {canCreate ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate({ to: '/app/sites', search: { newSite: true } })}>
+                  <Plus className="size-4.5" /> {t('dashboard.newProject')}
+                </DropdownMenuItem>
+              </>
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

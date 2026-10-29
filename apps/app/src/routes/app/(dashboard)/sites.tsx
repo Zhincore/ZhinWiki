@@ -6,9 +6,11 @@ import { useT } from '@nibleaf/i18n/react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ArrowUpRight, FileText, Plus, Search } from 'lucide-react';
 import { useMemo, useState, useSyncExternalStore } from 'react';
+import { EmptyWikis } from '@/components/app/empty-wikis';
 import { NewProjectDialog } from '@/components/app/new-project-dialog';
 import { QueryErrorState } from '@/components/query-error-state';
 import { useProjects } from '@/hooks/api';
+import { useCanCreateWiki } from '@/hooks/use-tenancy';
 import { useFormatters } from '@/lib/format';
 
 export const Route = createFileRoute('/app/(dashboard)/sites')({
@@ -30,7 +32,8 @@ function SitesPage() {
     () => false,
   );
   const [query, setQuery] = useState('');
-  const [createOpen, setCreateOpen] = useState(Boolean(newSite));
+  const canCreate = useCanCreateWiki();
+  const [createOpen, setCreateOpen] = useState(Boolean(newSite) && canCreate);
   const navigate = useNavigate();
   const t = useT();
   const { number } = useFormatters();
@@ -46,9 +49,11 @@ function SitesPage() {
           <h1 className="font-semibold text-2xl tracking-tight">{t('project.allSites')}</h1>
           <p className="mt-1 text-muted-foreground text-sm">{t('dashboard.subtitle')}</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="size-4.5" /> {t('dashboard.newProject')}
-        </Button>
+        {canCreate ? (
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4.5" /> {t('dashboard.newProject')}
+          </Button>
+        ) : null}
       </div>
       <div className="relative max-w-md">
         <Search className="absolute start-3 top-1/2 size-4.5 -translate-y-1/2 text-muted-foreground" />
@@ -105,17 +110,12 @@ function SitesPage() {
                 </Button>
               </>
             ) : (
-              <>
-                <p className="mt-3 font-medium">{t('dashboard.empty.title')}</p>
-                <Button className="mt-4" onClick={() => setCreateOpen(true)}>
-                  <Plus className="size-4" /> {t('dashboard.empty.cta')}
-                </Button>
-              </>
+              <EmptyWikis canCreate={canCreate} onCreate={() => setCreateOpen(true)} />
             )}
           </div>
         </div>
       )}
-      <NewProjectDialog open={createOpen} onOpenChange={setCreateOpen} />
+      {canCreate ? <NewProjectDialog open={createOpen} onOpenChange={setCreateOpen} /> : null}
     </div>
   );
 }

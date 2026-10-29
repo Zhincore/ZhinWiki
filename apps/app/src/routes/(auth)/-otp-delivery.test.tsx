@@ -30,6 +30,7 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('@/hooks/api/public', () => ({
   useGetPublicMeta: () => ({ isPending: false, data: { signupDisabled: false, providers: { google: false } } }),
 }));
+vi.mock('@/hooks/use-tenancy', () => ({ useTenancy: () => 'multi' }));
 vi.mock('@/layouts/auth', () => ({ AuthLayout: ({ children }: { children: ReactNode }) => <div>{children}</div> }));
 vi.mock('@/services/auth-client', () => ({
   authClient: { emailOtp: { sendVerificationOtp: mocks.send, verifyEmail: mocks.verify }, signIn: { emailOtp: mocks.verify } },

@@ -36,6 +36,16 @@ your content stays in your database.
 - 🏠 **Self-hosted** — Docker Compose or Coolify, bring-your-own Postgres + S3-compatible
   storage. Your data never leaves your infrastructure.
 
+## Differences from Nibleaf
+
+- **Single-wiki instances:** with `TENANCY=single` (the production default),
+  sign-up creates an account only and platform admins create wikis.
+- **Platform `editor` role:** member rights on every wiki.
+- **Safer account deletion:** in single mode, a wiki's sole member cannot
+  delete their account.
+
+Details for developers: [FORK.md](FORK.md).
+
 ## 📸 Screenshots
 
 **The published docs site** — three-column layout, instant `⌘K` search, and a scroll-spy

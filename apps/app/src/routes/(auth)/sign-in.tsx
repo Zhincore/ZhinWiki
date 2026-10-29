@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { GoogleIcon } from '@/components/icons/brand';
 import { LegalNotice } from '@/components/legal-notice';
 import { useGetPublicMeta } from '@/hooks/api/public';
+import { useTenancy } from '@/hooks/use-tenancy';
 import { AuthLayout } from '@/layouts/auth';
 import { authEmailErrorMessage } from '@/lib/auth-errors';
 import { brandedTitle } from '@/lib/brand';
@@ -26,6 +27,7 @@ export const Route = createFileRoute('/(auth)/sign-in')({
 
 function SignInPage() {
   const t = useT();
+  const subtitle = t(useTenancy() === 'single' ? 'auth.signIn.subtitleSingle' : 'auth.signIn.subtitle');
   const navigate = useNavigate();
   const search = Route.useSearch();
   const [email, setEmail] = useState(search.email ?? '');
@@ -102,7 +104,7 @@ function SignInPage() {
   };
 
   return (
-    <AuthLayout subtitle={codeSent ? t('auth.otp.checkEmail', { email: normalizedEmail }) : t('auth.signIn.subtitle')}>
+    <AuthLayout subtitle={codeSent ? t('auth.otp.checkEmail', { email: normalizedEmail }) : subtitle}>
       {!codeSent && googleEnabled ? (
         <>
           <Button className="mb-4 w-full gap-2" disabled={isGoogleSubmitting} onClick={signInWithGoogle} type="button" variant="outline">

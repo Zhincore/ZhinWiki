@@ -4,7 +4,7 @@ import { emailOTP, organization } from 'better-auth/plugins';
 import { describe, expect, it, vi } from 'vitest';
 import { onUserCreated, organizationTenancyOptions } from './tenancy';
 
-const setup = (tenancy: 'single' | 'multi') => {
+const setup = (tenancy: 'shared' | 'independent') => {
   type Rows = Record<string, unknown>[];
   const data: Record<'user' | 'session' | 'account' | 'verification' | 'organization' | 'member' | 'invitation', Rows> = {
     user: [],
@@ -48,7 +48,7 @@ const setup = (tenancy: 'single' | 'multi') => {
   return { auth, data, provision, logSignup, signIn };
 };
 
-const signUpAndCreateOrg = async (tenancy: 'single' | 'multi') => {
+const signUpAndCreateOrg = async (tenancy: 'shared' | 'independent') => {
   const { auth, data, provision, logSignup, signIn } = setup(tenancy);
   const { headers } = await signIn('synthetic@example.test');
   const create = await auth.api.createOrganization({ body: { name: 'Wiki', slug: 'wiki' }, headers, asResponse: true });
@@ -56,24 +56,24 @@ const signUpAndCreateOrg = async (tenancy: 'single' | 'multi') => {
 };
 
 describe('installed Better Auth tenancy contract', () => {
-  it('provisions a workspace on sign-up and allows org creation in multi tenancy', async () => {
-    const result = await signUpAndCreateOrg('multi');
+  it('provisions a workspace on sign-up and allows org creation in independent tenancy', async () => {
+    const result = await signUpAndCreateOrg('independent');
     expect(result.provision).toHaveBeenCalledOnce();
     expect(result.logSignup).not.toHaveBeenCalled();
     expect(result.createStatus).toBe(200);
     expect(result.organizations).toHaveLength(1);
   });
 
-  it('provisions nothing on sign-up and forbids org creation in single tenancy', async () => {
-    const result = await signUpAndCreateOrg('single');
+  it('provisions nothing on sign-up and forbids org creation in shared tenancy', async () => {
+    const result = await signUpAndCreateOrg('shared');
     expect(result.provision).not.toHaveBeenCalled();
     expect(result.logSignup).toHaveBeenCalledOnce();
     expect(result.createStatus).toBe(403);
     expect(result.organizations).toHaveLength(0);
   });
 
-  it('still adds a member on an accepted invitation in single tenancy', async () => {
-    const { auth, data, signIn } = setup('single');
+  it('still adds a member on an accepted invitation in shared tenancy', async () => {
+    const { auth, data, signIn } = setup('shared');
     const owner = await signIn('owner@example.test');
     const now = new Date();
     data.organization.push({ id: 'org-1', name: 'Wiki', slug: 'wiki', createdAt: now });

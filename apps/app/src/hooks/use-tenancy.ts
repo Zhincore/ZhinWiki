@@ -6,7 +6,7 @@ import { useSession } from '@/services/auth-client';
 export const useTenancy = (): Tenancy => useLoaderData({ from: rootRouteId }).tenancy;
 
 /** Whether the signed-in user may create wikis. Only under `/app`; an unknown
- *  role counts as not allowed in single tenancy. */
+ *  role counts as not allowed in shared tenancy. */
 export const useCanCreateWiki = (): boolean => {
   const tenancy = useTenancy();
   const { routeSession } = useRouteContext({ from: '/app' });

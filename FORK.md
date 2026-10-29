@@ -10,15 +10,21 @@ rules are in [BRANDING.md](BRANDING.md), PR rules in
 selects how accounts and wikis relate. Each wiki owns its organization (one
 team per wiki), as upstream.
 
-| | `multi` (upstream behaviour) | `single` (fork default for production) |
+- `independent`: each wiki stands alone (upstream behaviour).
+- `shared`: all wikis share one community: accounts, global editors, and
+  contributors browsing public wikis.
+
+| | `independent` | `shared` (fork default for production) |
 | --- | --- | --- |
 | Sign-up | Creates a workspace and a starter wiki | Creates an account only |
 | Who creates wikis | Any signed-in user | Platform admins only |
+| Platform `admin` | No wiki rights beyond memberships | Wiki-admin rights on every wiki |
+| Platform `editor` | No wiki rights | Member rights on every wiki |
 | Account deletion | Erases wikis where the user is the sole member | Refused (`SOLE_WIKI_OWNER`) while the user is a wiki's sole member |
 
-- Code default, `.env.example` and `docker-compose.yml` stay `multi` (the
-  demo seed needs it). `.env.production.example`, `docker-compose.prod.yml`
-  and `docker-compose.coolify.yml` default to `single`.
+- Code default, `.env.example` and `docker-compose.yml` stay `independent`
+  (the demo seed needs it). `.env.production.example`, `docker-compose.prod.yml`
+  and `docker-compose.coolify.yml` default to `shared`.
 - Switching modes is not retroactive: existing workspaces, memberships and
   invitations keep working.
 - Server enforcement: `canCreateWiki` (`packages/shared/src/rbac.ts`), the
@@ -33,12 +39,16 @@ team per wiki), as upstream.
 `user.role`, separate from per-wiki member roles:
 
 - `user` (default): no platform rights.
-- `admin`: wiki creation in single mode, plus the operator console.
-- `editor`: member rights on every wiki. The effective wiki role is the
-  higher of the membership role and the platform grant
-  (`effectiveWikiRole` in `packages/shared/src/rbac.ts`). Not an admin-panel
-  role, and cannot create wikis. The dashboard lists only wikis the user is a
-  member of, so an `editor` opens other wikis by URL.
+- `admin`: the operator console; in shared mode also wiki creation and
+  wiki-admin rights on every wiki (ownership transfer stays with the owner);
+  in independent mode no rights inside wikis it is not a member of.
+- `editor`: in shared mode, member rights on every wiki; in independent
+  mode, nothing. The effective wiki role is the higher of the membership role
+  and the platform grant (`effectiveWikiRole` in
+  `packages/shared/src/rbac.ts`). Not an admin-panel role, and cannot create
+  wikis. The site list and dashboard analytics cover every wiki the user
+  reaches this way (`accessibleProjectsWhere` in
+  `apps/server/src/actions/projects.ts`).
 
 Granting (also in [configuration](docs/self-hosting/configuration.mdx)):
 
@@ -60,7 +70,7 @@ the last admin is gone, nobody can create wikis until one is granted again.
 
 ## Contributors
 
-In single mode, a signed-in account with platform role `user` and no
+In shared mode, a signed-in account with platform role `user` and no
 membership is a contributor. Contributors read public published wikis and
 join a wiki only by invitation; the dashboard shows them a text empty state
 (no wiki directory yet). There is no contributor member role: any membership
@@ -105,7 +115,8 @@ Tenancy and platform roles are fork-only: they live on `main` (see
   `canCreateWiki`.
 - New permission checks: must resolve the role through `effectiveWikiRole`
   (as `apps/server/src/actions/projects.ts` does), not the raw membership
-  role, or editors lose access.
+  role, or editors lose access. New cross-wiki lists: scope them with
+  `accessibleProjectsWhere`.
 - `apps/app/src/routes/__root.tsx` loader (`tenancy`), the dashboard,
   `sites.tsx` and the site switcher (create gates).
 - `account-deletion.ts` and its error codes.

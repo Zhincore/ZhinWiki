@@ -38,10 +38,11 @@ your content stays in your database.
 
 ## How ZhinWiki differs from Nibleaf
 
-- **Single-wiki instances:** with `TENANCY=single` (the production default),
+- **Shared instances:** with `TENANCY=shared` (the production default),
   sign-up creates an account only and platform admins create wikis.
-- **Platform `editor` role:** member rights on every wiki.
-- **Safer account deletion:** in single mode, a wiki's sole member cannot
+  `TENANCY=independent` keeps upstream behaviour.
+- **Platform `editor` role:** in shared mode, member rights on every wiki.
+- **Safer account deletion:** in shared mode, a wiki's sole member cannot
   delete their account.
 - **Runtime branding:** name, links, colors and homepage come from env
   (`APP_NAME`, `BRAND_*`, `HOMEPAGE`); one image serves any brand.

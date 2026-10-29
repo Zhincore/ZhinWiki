@@ -6,6 +6,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTenancy } from '@/hooks/use-tenancy';
 import { authClient } from '@/services/auth-client';
 import { SettingsSection } from './section';
 
@@ -18,11 +19,12 @@ export function DeleteAccountSection({ email }: { email: string }) {
   const navigate = useNavigate();
   const [isDeleting, setIsDeleting] = useState(false);
   const [blocker, setBlocker] = useState<Blocker | null>(null);
+  const shared = useTenancy() === 'shared';
 
   const deleteAccount = async () => {
     const typed = await prompt({
       title: t('settings.account.delete.title'),
-      description: t('settings.account.delete.confirm'),
+      description: t(shared ? 'settings.account.delete.confirmShared' : 'settings.account.delete.confirm'),
       label: t('settings.account.delete.typeToConfirm', { email }),
       placeholder: email,
       confirmLabel: t('settings.account.delete.button'),
@@ -73,7 +75,7 @@ export function DeleteAccountSection({ email }: { email: string }) {
           {t('settings.account.delete.title')}
         </span>
       }
-      description={t('settings.account.delete.description')}
+      description={t(shared ? 'settings.account.delete.descriptionShared' : 'settings.account.delete.description')}
       action={
         <Button disabled={isDeleting} onClick={deleteAccount} variant="destructive">
           {isDeleting ? t('settings.account.delete.deleting') : t('settings.account.delete.button')}

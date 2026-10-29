@@ -12,9 +12,11 @@ const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
   assign: vi.fn(),
+  tenancy: 'independent' as 'shared' | 'independent',
 }));
 vi.mock('@nibleaf/i18n/react', () => ({ useT: () => (key: string) => key }));
 vi.mock('@nibleaf/design-system/components/ui/confirm', () => ({ usePrompt: () => mocks.prompt }));
+vi.mock('@/hooks/use-tenancy', () => ({ useTenancy: () => mocks.tenancy }));
 vi.mock('@/services/auth-client', () => ({ authClient: { deleteUser: mocks.deleteUser, signOut: mocks.signOut } }));
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => mocks.navigate,
@@ -45,12 +47,22 @@ describe('DeleteAccountSection', () => {
     await act(async () => root.unmount());
     container.remove();
     vi.clearAllMocks();
+    mocks.tenancy = 'independent';
   });
 
   const clickDelete = async () => {
     const button = [...container.querySelectorAll('button')].find((el) => el.textContent === 'settings.account.delete.button');
     await act(async () => button?.click());
   };
+
+  it('does not promise to erase sites in shared tenancy', async () => {
+    mocks.tenancy = 'shared';
+    await act(async () => root.render(<DeleteAccountSection email={email} />));
+    mocks.prompt.mockResolvedValue(null);
+    await clickDelete();
+    expect(container.textContent).toContain('settings.account.delete.descriptionShared');
+    expect(mocks.prompt).toHaveBeenCalledWith(expect.objectContaining({ description: 'settings.account.delete.confirmShared' }));
+  });
 
   it('does not delete the account when the typed email does not match', async () => {
     mocks.prompt.mockResolvedValue('someone@example.test');

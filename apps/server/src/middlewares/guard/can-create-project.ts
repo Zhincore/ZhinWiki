@@ -6,8 +6,8 @@ import { forbidden } from '@/errors';
 import { getContextUserOrThrow, type HonoEnv } from '@/lib/hono/context';
 
 /**
- * Gate wiki creation by `canCreateWiki`: any signed-in user in multi tenancy
- * (no DB read), only platform admins in single (role read fresh from the DB).
+ * Gate wiki creation by `canCreateWiki`: any signed-in user in independent tenancy
+ * (no DB read), only platform admins in shared (role read fresh from the DB).
  * Pair this AFTER `isAuthenticated`.
  */
 export const canCreateProject: MiddlewareHandler<HonoEnv> = async (_ctx, next) => {

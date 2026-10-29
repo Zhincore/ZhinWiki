@@ -73,18 +73,21 @@ message to an external mailbox; a container health check cannot prove delivery.
 After creating the intended owners, set `DISABLE_SIGNUP=true` if registration
 should close. Existing accounts can still sign in.
 
-## Run a single-wiki instance
+## Run a shared instance
 
-`TENANCY=single` turns the instance into one shared wiki host. Sign-up creates
-an account but no workspace, and only platform admins create wikis. Editors
-join a wiki by invitation; other accounts are contributors who read public
-wikis. The platform `editor` role holds member rights on every wiki; set it by
-SQL only (`UPDATE "user" SET role='editor' WHERE email='…';`). The dashboard
-lists only wikis the user is a member of, so an editor opens other wikis by URL.
+`TENANCY=shared` makes all wikis share one community. Sign-up creates an
+account but no workspace, and only platform admins create wikis. Wiki
+members join by invitation; other accounts are contributors who read public
+wikis. Platform admins hold wiki-admin rights on every wiki, and the platform
+`editor` role holds member rights on every wiki without an invitation; both
+see every wiki in the dashboard. Set `editor` by SQL only
+(`UPDATE "user" SET role='editor' WHERE email='…';`). The production templates
+ship `TENANCY=shared`. `TENANCY=independent`, the default outside them, keeps
+each wiki on its own, and there platform roles grant no wiki rights.
 
 First run:
 
-1. Set `APP_NAME` and `TENANCY=single`, then sign up with the operator account.
+1. Set `APP_NAME`, keep `TENANCY=shared`, then sign up with the operator account.
 2. Grant that account the platform admin role:
 
    ```bash
@@ -95,7 +98,7 @@ First run:
    ```
 
    Without shell access, run `UPDATE "user" SET role='admin' WHERE email='you@example.com';`.
-3. Reload the dashboard and choose **Create wiki**. You become the owner of an
+3. Reload the dashboard and choose **Create site**. You become the owner of an
    empty wiki. Invite editors from its members settings.
 
 Keep in mind:
@@ -104,14 +107,15 @@ Keep in mind:
   from creating accounts.
 - The mode is not retroactive. Switching an existing instance keeps its
   workspaces, sites, members, and invitations; owners of older workspaces can
-  still invite anyone. Switching back to `multi` creates no workspaces.
+  still invite anyone. Switching back to `independent` creates no workspaces.
 - The demo seed (`pnpm db:seed`) relies on sign-up provisioning and fails in
-  `single`.
+  `shared`.
 - A wiki accepts up to 100 members, the authentication library's default.
 - If the last platform admin is demoted or deleted, nobody can create wikis
   until you grant the role again with the script or SQL above.
 - An account that is the only member of a wiki cannot be deleted; invite
-  another member or delete the wiki from its settings first.
+  another member and transfer ownership to them, or delete the wiki from its
+  settings first.
 - The `signup_completed` platform event counts every new account, invited
   editors included.
 

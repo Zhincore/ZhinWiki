@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   useProjects: vi.fn(),
   refetch: vi.fn(),
   search: {} as { newSite?: boolean },
-  tenancy: 'multi' as 'single' | 'multi',
+  tenancy: 'independent' as 'shared' | 'independent',
   canCreate: true,
   dialog: vi.fn(),
 }));
@@ -53,7 +53,7 @@ describe('SitesPage', () => {
   beforeEach(() => {
     i18n.locale = 'en';
     mocks.search = {};
-    mocks.tenancy = 'multi';
+    mocks.tenancy = 'independent';
     mocks.canCreate = true;
     mocks.dialog.mockReturnValue(null);
     mocks.useProjects.mockReturnValue({
@@ -137,9 +137,9 @@ describe('SitesPage', () => {
     expect(search?.value).toBe('');
   });
 
-  it('hides every create action from a single-wiki contributor and ignores ?newSite', async () => {
+  it('hides every create action from a shared-instance contributor and ignores ?newSite', async () => {
     mocks.search = { newSite: true };
-    mocks.tenancy = 'single';
+    mocks.tenancy = 'shared';
     mocks.canCreate = false;
     mocks.useProjects.mockReturnValue({ isPending: false, isError: false, data: [], refetch: mocks.refetch });
     await render();

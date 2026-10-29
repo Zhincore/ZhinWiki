@@ -12,7 +12,10 @@ const ROLE_RANK = new Map<string, number>([
 export const rankOf = (role: string): number => ROLE_RANK.get(role) ?? 0;
 
 /** Wiki role a platform role grants on every wiki in shared tenancy. */
-const PLATFORM_WIKI_GRANT = new Map<string, MemberRole>([[PlatformRole.EDITOR, MemberRole.MEMBER]]);
+const PLATFORM_WIKI_GRANT = new Map<string, MemberRole>([
+  [PlatformRole.ADMIN, MemberRole.ADMIN],
+  [PlatformRole.EDITOR, MemberRole.MEMBER],
+]);
 
 /** Wiki role the platform role grants on every wiki; null in independent
  *  tenancy, where only memberships count. */

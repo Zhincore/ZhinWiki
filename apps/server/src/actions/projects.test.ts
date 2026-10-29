@@ -142,8 +142,13 @@ describe('platform-role wiki access', () => {
     await expect(assertProjectAccess('user', 'project')).resolves.toMatchObject({ role: 'admin' });
   });
 
-  it.each(['user', 'admin'])('hides the wiki from a non-member with platform role %s', async (role) => {
-    mocks.userFindUnique.mockResolvedValue({ role, members: [] });
+  it('gives a platform admin wiki-admin rights on a wiki they do not belong to in shared tenancy', async () => {
+    mocks.userFindUnique.mockResolvedValue({ role: 'admin', members: [] });
+    await expect(assertProjectAccess('user', 'project')).resolves.toMatchObject({ organizationId: 'org', role: 'admin' });
+  });
+
+  it('hides the wiki from a non-member with platform role user', async () => {
+    mocks.userFindUnique.mockResolvedValue({ role: 'user', members: [] });
     await expect(assertProjectAccess('user', 'project')).rejects.toMatchObject({ code: 'database:not_found' });
   });
 
@@ -153,15 +158,15 @@ describe('platform-role wiki access', () => {
     await expect(assertProjectAccess('user', 'project')).rejects.toMatchObject({ code: 'database:not_found' });
   });
 
-  it('lists every wiki for a platform editor in shared tenancy', async () => {
-    mocks.userFindUnique.mockResolvedValue({ role: 'editor', members: [{ organizationId: 'org-a' }] });
+  it.each(['editor', 'admin'])('lists every wiki for a platform %s in shared tenancy', async (role) => {
+    mocks.userFindUnique.mockResolvedValue({ role, members: [{ organizationId: 'org-a' }] });
     await listProjects('user');
     expect(mocks.projectFindMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
   });
 
   it.each([
     ['editor', 'independent'],
-    ['admin', 'shared'],
+    ['admin', 'independent'],
   ] as const)('lists only member wikis for a platform %s in %s tenancy', async (role, tenancy) => {
     mocks.env.TENANCY = tenancy;
     mocks.userFindUnique.mockResolvedValue({ role, members: [{ organizationId: 'org-a' }] });

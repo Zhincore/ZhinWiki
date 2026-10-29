@@ -21,7 +21,7 @@ model User {
   email         String    @unique
   emailVerified Boolean   @default(false)
   image         String?
-  /// Platform role: "user" | "admin" (internal admin panel, apps/admin) | "editor" (member rights on every wiki in shared tenancy).
+  /// Platform role: "user" | "admin" (internal admin panel, apps/admin; wiki-admin rights on every wiki in shared tenancy) | "editor" (member rights on every wiki in shared tenancy).
   /// Separate from per-workspace Member roles. "admin" is set via the grant-admin script or the admin
   /// console, "editor" by SQL.
   role          String    @default("user")

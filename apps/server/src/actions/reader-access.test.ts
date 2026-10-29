@@ -56,10 +56,10 @@ describe('resolveViewerAccess', () => {
     await expect(resolveViewerAccess('project', 'WORKSPACE', headers())).resolves.toEqual({ kind: 'workspace', allowedPageIds: null });
   });
 
-  it.each(['user', 'admin'])('denies a non-member with platform role %s in WORKSPACE mode', async (role) => {
+  it('denies a non-member with platform role user in WORKSPACE mode', async () => {
     mocks.getSession.mockResolvedValue({ user: { id: 'user' } });
     mocks.projectFind.mockResolvedValue({ organizationId: 'org' });
-    mocks.userFind.mockResolvedValue({ role, members: [] });
+    mocks.userFind.mockResolvedValue({ role: 'user', members: [] });
     await expect(resolveViewerAccess('project', 'WORKSPACE', headers())).resolves.toBeNull();
   });
 

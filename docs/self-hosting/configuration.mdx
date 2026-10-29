@@ -78,11 +78,12 @@ should close. Existing accounts can still sign in.
 `TENANCY=shared` makes all wikis share one community. Sign-up creates an
 account but no workspace, and only platform admins create wikis. Wiki
 members join by invitation; other accounts are contributors who read public
-wikis. The platform `editor` role holds member rights on every wiki without an
-invitation and sees every wiki in the dashboard; set it by SQL only
+wikis. Platform admins hold wiki-admin rights on every wiki, and the platform
+`editor` role holds member rights on every wiki without an invitation; both
+see every wiki in the dashboard. Set `editor` by SQL only
 (`UPDATE "user" SET role='editor' WHERE email='…';`). The production templates
 ship `TENANCY=shared`. `TENANCY=independent`, the default outside them, keeps
-each wiki on its own, and there the `editor` role grants nothing.
+each wiki on its own, and there platform roles grant no wiki rights.
 
 First run:
 

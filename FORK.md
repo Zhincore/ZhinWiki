@@ -18,6 +18,7 @@ team per wiki), as upstream.
 | --- | --- | --- |
 | Sign-up | Creates a workspace and a starter wiki | Creates an account only |
 | Who creates wikis | Any signed-in user | Platform admins only |
+| Platform `admin` | No wiki rights beyond memberships | Wiki-admin rights on every wiki |
 | Platform `editor` | No wiki rights | Member rights on every wiki |
 | Account deletion | Erases wikis where the user is the sole member | Refused (`SOLE_WIKI_OWNER`) while the user is a wiki's sole member |
 
@@ -38,8 +39,9 @@ team per wiki), as upstream.
 `user.role`, separate from per-wiki member roles:
 
 - `user` (default): no platform rights.
-- `admin`: wiki creation in shared mode, plus the operator console. No
-  rights inside wikis it is not a member of.
+- `admin`: the operator console; in shared mode also wiki creation and
+  wiki-admin rights on every wiki (ownership transfer stays with the owner);
+  in independent mode no rights inside wikis it is not a member of.
 - `editor`: in shared mode, member rights on every wiki; in independent
   mode, nothing. The effective wiki role is the higher of the membership role
   and the platform grant (`effectiveWikiRole` in

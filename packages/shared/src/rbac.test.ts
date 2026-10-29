@@ -37,7 +37,13 @@ describe('effectiveWikiRole — max of membership role and platform grant', () =
     expect(effectiveWikiRole('owner', 'editor', 'shared')).toBe(MemberRole.OWNER);
     expect(effectiveWikiRole('admin', 'editor', 'shared')).toBe(MemberRole.ADMIN);
   });
-  it.each(['user', 'admin', 'constructor', '__proto__', 'toString', null, undefined])(
+  it('gives a platform admin wiki-admin rights everywhere in shared tenancy only', () => {
+    expect(effectiveWikiRole(null, 'admin', 'shared')).toBe(MemberRole.ADMIN);
+    expect(effectiveWikiRole('member', 'admin', 'shared')).toBe(MemberRole.ADMIN);
+    expect(effectiveWikiRole('owner', 'admin', 'shared')).toBe(MemberRole.OWNER);
+    expect(effectiveWikiRole(null, 'admin', 'independent')).toBeNull();
+  });
+  it.each(['user', 'constructor', '__proto__', 'toString', null, undefined])(
     'grants no wiki access to a non-member with platform role %s',
     (platformRole) => {
       expect(effectiveWikiRole(null, platformRole, 'shared')).toBeNull();
@@ -45,7 +51,7 @@ describe('effectiveWikiRole — max of membership role and platform grant', () =
     },
   );
   it('keeps the membership role when the platform role grants nothing', () => {
-    expect(effectiveWikiRole('member', 'admin', 'shared')).toBe(MemberRole.MEMBER);
+    expect(effectiveWikiRole('member', 'user', 'shared')).toBe(MemberRole.MEMBER);
   });
 });
 

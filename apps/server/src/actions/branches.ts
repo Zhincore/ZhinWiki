@@ -65,6 +65,15 @@ const forkDefaultBranch = async (
   return Object.fromEntries(sourcePages.map((p) => [p.id, contentHash(p)]));
 };
 
+/** Imports give main pages new ids, which would orphan the fork links of
+ *  tracked change requests that still have a branch. */
+const assertNoTrackedChangeRequests = async (db: Prisma.TransactionClient, projectId: string) => {
+  const open = await db.changeRequest.count({ where: { projectId, branchId: { not: null }, forkBase: { not: Prisma.DbNull } } });
+  if (open > 0) {
+    throw conflict('Merge or discard the open change requests before importing over this wiki.', { projectId, openChangeRequests: open });
+  }
+};
+
 /** Create an empty, non-default branch used to assemble an authoritative
  * importer replacement away from the editable main tree. It is promoted only
  * after the whole import succeeds; failures can delete it without touching the
@@ -72,6 +81,7 @@ const forkDefaultBranch = async (
 export const createImportReplacementBranch = async (projectId: string, source: string, preserveExisting: boolean) => {
   const name = `import-${source}-${newId()}`;
   return prisma.$transaction(async (tx) => {
+    await assertNoTrackedChangeRequests(tx, projectId);
     const branch = await tx.branch.create({ data: { projectId, name, isDefault: false } });
     if (preserveExisting) await forkDefaultBranch(tx, projectId, branch.id, false);
     return branch;
@@ -85,6 +95,7 @@ export const promoteImportReplacementBranch = async (projectId: string, id: stri
   if (branch.isDefault) throw conflict('The default branch cannot be promoted as an import replacement.');
   const main = await getDefaultBranch(projectId);
   await prisma.$transaction(async (tx) => {
+    await assertNoTrackedChangeRequests(tx, projectId);
     await tx.page.deleteMany({ where: { projectId, branchId: main.id } });
     await tx.page.updateMany({ where: { projectId, branchId: branch.id }, data: { branchId: main.id } });
     await tx.branch.delete({ where: { id: branch.id } });

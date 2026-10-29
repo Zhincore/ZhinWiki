@@ -65,7 +65,6 @@ export type MergePlan =
     };
 
 const CONTENT_FIELDS = ['kind', 'title', 'slug', 'icon', 'description', 'content', 'config', 'hidden', 'translationKey'] as const;
-const TREE_FIELDS = ['parentId', 'position'] as const;
 
 const normalize = (value: unknown): unknown => {
   if (value === null || value === undefined) return null;
@@ -91,11 +90,13 @@ const hash = (value: unknown) =>
 /** Hash of the content group (kind, title, slug, icon, description, content,
  *  config, hidden, translationKey), which decides conflicts. */
 export const contentHash = (page: Pick<MergePage, (typeof CONTENT_FIELDS)[number]>) => hash(CONTENT_FIELDS.map((field) => page[field]));
-const treeHash = (parentKey: string | null, position: number) => hash([parentKey, position]);
+const parentHash = (parentKey: string | null) => hash([parentKey]);
+const positionHash = (position: number) => hash([position]);
 
-/** `<content hash>.<tree hash>` of a page. The tree group (parent as a
- *  default-branch page id, position) is last-write-wins. */
-export const pageFingerprint = (page: MergePage, parentKey: string | null) => `${contentHash(page)}.${treeHash(parentKey, page.position)}`;
+/** `<content hash>.<parent hash>.<position hash>` of a page. Parent (as a
+ *  default-branch page id) and position are each last-write-wins. */
+export const pageFingerprint = (page: MergePage, parentKey: string | null) =>
+  `${contentHash(page)}.${parentHash(parentKey)}.${positionHash(page.position)}`;
 
 const mergedFields = (page: MergePage): MergedFields => ({
   parentId: page.parentId,
@@ -137,7 +138,7 @@ const legacyPairs = ({ main, branch }: MergeInput): LegacyPair[] => {
   return [...pairs, ...main.filter((page) => !matched.has(page.id)).map((page): LegacyPair => ({ change: 'removed', main: page, copy: undefined }))];
 };
 
-type BranchPageState = { page: MergePage; source: MergePage | undefined; contentChanged: boolean; treeChanged: boolean };
+type BranchPageState = { page: MergePage; source: MergePage | undefined; contentChanged: boolean; parentChanged: boolean; positionChanged: boolean };
 
 /** How each change-request page relates to its fork point. Pages without a
  *  fingerprint were created in the branch. */
@@ -150,12 +151,13 @@ const branchStates = ({ main, branch }: MergeInput) => {
     return parent.sourcePageId && mainById.has(parent.sourcePageId) ? parent.sourcePageId : `branch:${parent.id}`;
   };
   return branch.map((page): BranchPageState => {
-    const [forkContent, forkTree] = page.forkFingerprint?.split('.') ?? [];
+    const [forkContent, forkParent, forkPosition] = page.forkFingerprint?.split('.') ?? [];
     return {
       page,
       source: page.sourcePageId ? mainById.get(page.sourcePageId) : undefined,
       contentChanged: contentHash(page) !== forkContent,
-      treeChanged: treeHash(parentKey(page), page.position) !== forkTree,
+      parentChanged: parentHash(parentKey(page)) !== forkParent,
+      positionChanged: positionHash(page.position) !== forkPosition,
     };
   });
 };
@@ -190,10 +192,10 @@ const pageChange = (change: PageChangeKind, main: MergePage | undefined, copy: M
 /** Pages a change request adds, removes, edits or moves relative to its fork point. */
 export const summarizeChanges = (input: MergeInput): PageChange[] => {
   if (input.forkBase === null) return legacyPairs(input).map(({ change, main, copy }) => pageChange(change, main, copy));
-  const changes = branchStates(input).flatMap(({ page, source, contentChanged, treeChanged }) => {
+  const changes = branchStates(input).flatMap(({ page, source, contentChanged, parentChanged, positionChanged }) => {
     if (!page.forkFingerprint) return [pageChange('added', undefined, page)];
     if (contentChanged) return [pageChange('modified', source, page)];
-    return treeChanged && source ? [pageChange('moved', source, page)] : [];
+    return (parentChanged || positionChanged) && source ? [pageChange('moved', source, page)] : [];
   });
   return [...changes, ...deletedInBranch(input).map((page) => pageChange('removed', page, undefined))];
 };
@@ -231,7 +233,7 @@ export const planMerge = (input: MergeInput & { force: ReadonlySet<string> }): M
   const deletes = new Set<string>();
   const record: MergeRecordEntry[] = [];
 
-  for (const { page, source, contentChanged, treeChanged } of branchStates(input)) {
+  for (const { page, source, contentChanged, parentChanged, positionChanged } of branchStates(input)) {
     if (!page.forkFingerprint) {
       inserted.add(page.id);
       continue;
@@ -240,13 +242,14 @@ export const planMerge = (input: MergeInput & { force: ReadonlySet<string> }): M
       if (contentChanged && conflict(page, 'DELETED_ON_MAIN')) inserted.add(page.id);
       continue;
     }
-    if (!contentChanged && !treeChanged) continue;
+    if (!contentChanged && !parentChanged && !positionChanged) continue;
     const forkContent = page.forkFingerprint.split('.')[0];
     const mainContent = contentHash(source);
     if (contentChanged && mainContent !== forkContent && mainContent !== contentHash(page) && !conflict(source, 'BOTH_CHANGED')) continue;
     updates.set(source.id, {
       ...(contentChanged ? pick(mergedFields(page), CONTENT_FIELDS) : {}),
-      ...(treeChanged ? pick(mergedFields(page), TREE_FIELDS) : {}),
+      ...(parentChanged ? { parentId: page.parentId } : {}),
+      ...(positionChanged ? { position: page.position } : {}),
     });
   }
 
@@ -354,7 +357,7 @@ export const planMerge = (input: MergeInput & { force: ReadonlySet<string> }): M
     if (changed.length === 0 && path === before.path) continue;
     updateList.push({ id, data: { ...pick(after, changed), ...(path === before.path ? {} : { path }) } });
     if (applied.has(id) || changed.length > 0) {
-      const action = changed.every((key) => (TREE_FIELDS as readonly string[]).includes(key)) ? 'moved' : 'modified';
+      const action = changed.every((key) => key === 'parentId' || key === 'position') ? 'moved' : 'modified';
       record.push({ pageId: id, languageId, action, before: recorded(before), after: { ...after, path } });
     }
   }

@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => {
   const tx = {
     $executeRaw: vi.fn(),
     branch: { create: vi.fn(), delete: vi.fn(), findFirst: vi.fn(), findFirstOrThrow: vi.fn() },
-    changeRequest: { aggregate: vi.fn(), create: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
+    changeRequest: { aggregate: vi.fn(), count: vi.fn(), create: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
     page: { createMany: vi.fn(), deleteMany: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   };
   class PrismaClientKnownRequestError extends Error {
@@ -149,6 +149,12 @@ describe('createBranch', () => {
       expect.objectContaining({ branchId: 'new-branch', sourcePageId: 'm1', forkFingerprint: pageFingerprint(main, null) }),
     ]);
     expect(tx.changeRequest.create.mock.calls[0]?.[0].data.forkBase).toEqual({ m1: contentHash(main) });
+  });
+
+  it('refuses to import over a wiki with open tracked change requests', async () => {
+    tx.changeRequest.count.mockResolvedValueOnce(1);
+    await expect(createImportReplacementBranch('p', 'gitbook', true)).rejects.toMatchObject({ status: 409 });
+    expect(tx.branch.create).not.toHaveBeenCalled();
   });
 
   it('gives import replacement branches no change request or fork links', async () => {

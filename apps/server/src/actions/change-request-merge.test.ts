@@ -51,6 +51,17 @@ describe('planMerge', () => {
     expect(plan.deletes).toEqual([]);
   });
 
+  it('applies a reorder without undoing a move made on main', () => {
+    const groupA = page('ga');
+    const groupB = page('gb', { position: 1 });
+    const child = page('x', { parentId: 'ga', path: 'ga/x' });
+    const branch = [fork(groupA, 'ba'), fork(groupB, 'bb'), { ...fork(child, 'bx', 'ba'), position: 3 }];
+    const main = [groupA, groupB, { ...child, parentId: 'gb', path: 'gb/x' }];
+    const plan = merged(planMerge({ main, branch, forkBase: baseOf(groupA, groupB, child), force: none }));
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.updates).toEqual([{ id: 'x', data: { position: 3 } }]);
+  });
+
   it('leaves unchanged pages and main-only edits untouched', () => {
     const untouched = page('m1');
     const editedOnMain = page('m2', { position: 1 });

@@ -3,23 +3,21 @@ import { MemberRole, PlatformRole } from './constants';
 export type Tenancy = 'shared' | 'independent';
 
 /** Higher rank = more privilege. Unknown roles rank lowest. */
-const ROLE_RANK: Record<string, number> = {
-  [MemberRole.MEMBER]: 1,
-  [MemberRole.ADMIN]: 2,
-  [MemberRole.OWNER]: 3,
-};
+const ROLE_RANK = new Map<string, number>([
+  [MemberRole.MEMBER, 1],
+  [MemberRole.ADMIN, 2],
+  [MemberRole.OWNER, 3],
+]);
 
-export const rankOf = (role: string): number => ROLE_RANK[role] ?? 0;
+export const rankOf = (role: string): number => ROLE_RANK.get(role) ?? 0;
 
 /** Wiki role a platform role grants on every wiki in shared tenancy. */
-const PLATFORM_WIKI_GRANT: Record<string, MemberRole> = {
-  [PlatformRole.EDITOR]: MemberRole.MEMBER,
-};
+const PLATFORM_WIKI_GRANT = new Map<string, MemberRole>([[PlatformRole.EDITOR, MemberRole.MEMBER]]);
 
 /** Wiki role the platform role grants on every wiki; null in independent
  *  tenancy, where only memberships count. */
 export const platformWikiGrant = (tenancy: Tenancy, platformRole: string | null | undefined): MemberRole | null =>
-  (tenancy === 'shared' && platformRole && PLATFORM_WIKI_GRANT[platformRole]) || null;
+  (tenancy === 'shared' && platformRole && PLATFORM_WIKI_GRANT.get(platformRole)) || null;
 
 /** Effective wiki role: the higher of the membership role and the platform
  *  role's grant. null when the user has neither. */

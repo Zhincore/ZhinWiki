@@ -21,6 +21,7 @@ describe('rankOf', () => {
     expect(rankOf('admin')).toBeGreaterThan(rankOf('member'));
     expect(rankOf('member')).toBeGreaterThan(rankOf('viewer'));
     expect(rankOf('nonsense')).toBe(0);
+    expect(rankOf('constructor')).toBe(0);
   });
 });
 
@@ -36,10 +37,13 @@ describe('effectiveWikiRole — max of membership role and platform grant', () =
     expect(effectiveWikiRole('owner', 'editor', 'shared')).toBe(MemberRole.OWNER);
     expect(effectiveWikiRole('admin', 'editor', 'shared')).toBe(MemberRole.ADMIN);
   });
-  it.each(['user', 'admin', null, undefined])('grants no wiki access to a non-member with platform role %s', (platformRole) => {
-    expect(effectiveWikiRole(null, platformRole, 'shared')).toBeNull();
-    expect(effectiveWikiRole(null, platformRole, 'independent')).toBeNull();
-  });
+  it.each(['user', 'admin', 'constructor', '__proto__', 'toString', null, undefined])(
+    'grants no wiki access to a non-member with platform role %s',
+    (platformRole) => {
+      expect(effectiveWikiRole(null, platformRole, 'shared')).toBeNull();
+      expect(effectiveWikiRole(null, platformRole, 'independent')).toBeNull();
+    },
+  );
   it('keeps the membership role when the platform role grants nothing', () => {
     expect(effectiveWikiRole('member', 'admin', 'shared')).toBe(MemberRole.MEMBER);
   });

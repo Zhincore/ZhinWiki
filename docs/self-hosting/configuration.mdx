@@ -76,17 +76,17 @@ should close. Existing accounts can still sign in.
 ## Run a shared instance
 
 `TENANCY=shared` makes all wikis share one community. Sign-up creates an
-account but no workspace, and only platform admins create wikis. Editors join
-a wiki by invitation; other accounts are contributors who read public wikis.
-The platform `editor` role holds member rights on every wiki and sees every
-wiki in the dashboard; set it by SQL only
-(`UPDATE "user" SET role='editor' WHERE email='…';`). The default,
-`TENANCY=independent`, keeps each wiki on its own, and there the `editor` role
-grants nothing.
+account but no workspace, and only platform admins create wikis. Wiki
+members join by invitation; other accounts are contributors who read public
+wikis. The platform `editor` role holds member rights on every wiki without an
+invitation and sees every wiki in the dashboard; set it by SQL only
+(`UPDATE "user" SET role='editor' WHERE email='…';`). The production templates
+ship `TENANCY=shared`. `TENANCY=independent`, the default outside them, keeps
+each wiki on its own, and there the `editor` role grants nothing.
 
 First run:
 
-1. Set `APP_NAME` and `TENANCY=shared`, then sign up with the operator account.
+1. Set `APP_NAME`, keep `TENANCY=shared`, then sign up with the operator account.
 2. Grant that account the platform admin role:
 
    ```bash
@@ -97,7 +97,7 @@ First run:
    ```
 
    Without shell access, run `UPDATE "user" SET role='admin' WHERE email='you@example.com';`.
-3. Reload the dashboard and choose **Create wiki**. You become the owner of an
+3. Reload the dashboard and choose **Create site**. You become the owner of an
    empty wiki. Invite editors from its members settings.
 
 Keep in mind:
@@ -113,7 +113,8 @@ Keep in mind:
 - If the last platform admin is demoted or deleted, nobody can create wikis
   until you grant the role again with the script or SQL above.
 - An account that is the only member of a wiki cannot be deleted; invite
-  another member or delete the wiki from its settings first.
+  another member and transfer ownership to them, or delete the wiki from its
+  settings first.
 - The `signup_completed` platform event counts every new account, invited
   editors included.
 

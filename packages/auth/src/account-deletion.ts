@@ -50,7 +50,8 @@ export const prepareAccountDeletion = async (userId: string, tenancy: Tenancy): 
     if (soleWikis.length > 0) {
       throw new APIError('CONFLICT', {
         code: ACCOUNT_DELETION_ERROR.SOLE_WIKI_OWNER,
-        message: 'Invite another member or delete the sites where you are the only member before deleting your account.',
+        message:
+          'Invite another member and transfer ownership to them, or delete the sites where you are the only member, before deleting your account.',
         workspaces: soleWikis,
       });
     }

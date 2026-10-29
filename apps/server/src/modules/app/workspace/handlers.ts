@@ -8,8 +8,8 @@ import workspaceRoutes from './routes';
 
 const app = new Hono<HonoEnv>()
   .get('/analytics', ...workspaceRoutes.analytics, validator('query', analyticsQuery), async (ctx) => {
-    // Workspace analytics span every site the user can reach (all their orgs),
-    // not just the session's active org — see getWorkspaceAnalytics.
+    // Workspace analytics span every site the user can reach (see
+    // accessibleProjectsWhere), not just the session's active org.
     const user = getContextUserOrThrow();
     const { range, timezone } = ctx.req.valid('query');
     return ctx.json({ data: await getWorkspaceAnalytics(user.id, range, timezone) }, 200);

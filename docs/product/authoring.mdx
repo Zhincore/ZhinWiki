@@ -43,19 +43,26 @@ update internal links so readers do not spend a hop on normal navigation.
 
 ## Review a substantial change
 
-Create a branch before a migration, large rewrite, or page-tree reorganization.
-Use a name that describes the outcome. Add anchored comments to the exact block
-being reviewed, then resolve or record every blocking discussion.
+Open a change request before a migration, large rewrite, or page-tree
+reorganization. It is a private copy of the default branch and is never
+published until it is merged. Use a title that describes the outcome. Add
+anchored comments to the exact block being reviewed, then resolve or record
+every blocking discussion.
 
-Review the branch as a reader:
+Review the change request as a reader:
 
 1. Open every changed page in Preview.
 2. Test new links and paths.
 3. Search using words a reader would type.
 4. Check a narrow mobile viewport and keyboard focus.
 5. Confirm title, description, indexing, and language relationships.
-6. Merge the reviewed branch into the default draft, publish once, and verify
-   the public deployment.
+6. Merge the reviewed change request into the default draft, publish once, and
+   verify the public deployment.
+
+A merge applies each changed page onto the default draft in place, so comments
+and reader access on those pages stay, and pages added to the default draft in
+the meantime are kept. A page edited on both sides is listed as a conflict and
+is merged only when you choose to keep the change request's version.
 
 ## Recover from a bad draft
 

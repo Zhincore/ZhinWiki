@@ -211,6 +211,7 @@
   "editor_branch_mergeconfirm": "Promouvoir « {name} » dans le menu principal ? Cela remplace les pages principales par les pages de cette version et supprime la version.",
   "editor_branch_merged": "Promu « {name} » dans le menu principal",
   "editor_branch_mergeerror": "Impossible de promouvoir la version",
+  "changerequest_defaulttitle": "Modifications de {name}",
   "editor_addlanguage_title": "Ajouter une langue",
   "editor_addlanguage_desc": "Créez une nouvelle version localisée des pages de ce site.",
   "editor_addlanguage_adding": "Ajout…",

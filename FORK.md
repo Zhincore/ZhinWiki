@@ -105,6 +105,50 @@ join a wiki only by invitation; the dashboard shows them a text empty state
 row passes the member guards and exposes drafts, branches and private sites.
 Future change requests need their own guards instead of widening membership.
 
+## Change requests
+
+The fork drops docs versions. Only the default branch (`main`) is published;
+every other branch is the storage of one change request (CR), an isolated copy
+of `main` that is reviewed and merged back.
+
+- `ChangeRequest`: per-project `number` (max + 1, retried on a unique clash),
+  title, description, author, status `DRAFT | IN_REVIEW | MERGED | ARCHIVED`,
+  `branchId` (nulled when the branch is merged or deleted; the record stays),
+  merger, and `mergeRecord` (before/after of the pages the merge wrote).
+- Invariant: each non-default branch has exactly one CR. `createBranch`
+  creates both; deleting a branch archives its CR. Import replacement branches
+  (`import-*`, `createImportReplacementBranch`) are internal and get none;
+  Mintlify versions import as draft CRs. The migration turned existing
+  non-default branches into draft CRs.
+- Fork links: CR pages carry `sourcePageId` (their `main` page, `SetNull`) and
+  `forkFingerprint` = `<content hash>.<tree hash>` of that page at fork time.
+  Content: kind, title, slug, icon, description, content, config, hidden,
+  translationKey. Tree: parent (as a `main` id) and position.
+- Merge (`planMerge` in `apps/server/src/actions/change-request-merge.ts`),
+  one transaction:
+  - Edited page: written onto the same `main` row (comments, reader grants
+    and Git file state stay). Content edited on both sides → conflict
+    `BOTH_CHANGED`; tree changes are last-write-wins, taken from the CR only
+    where the CR moved the page.
+  - New CR page: moved onto `main` with its id; slug suffixed on a sibling
+    clash.
+  - Page deleted in the CR (forked before the CR's branch `createdAt`, no copy
+    left): deleted on `main`, or `DELETED_IN_BRANCH` if `main` updated it after
+    the fork. Kept children move to the nearest surviving ancestor.
+  - Page deleted on `main` but edited in the CR: `DELETED_ON_MAIN`.
+  - `main` pages created after the fork are kept.
+  - Conflicts → 409 with `{ conflicts: [{ pageId, title, path, languageId,
+    reason }] }`; `force: true` lets the CR win on those pages only.
+  - A CR with pages but no fork fingerprints, forked from a non-empty `main`
+    (pre-migration content), replaces `main` wholesale (legacy behaviour).
+- API: `/projects/:projectId/change-requests` (list `?status=`, create, get
+  with changed pages, patch title/description/status, `/:number/merge`,
+  `/:number/pages/:pageId/diff`), member role. Branch routes still work and
+  keep the invariant.
+- `buildSnapshot` and both publish paths read only the default branch.
+  Exports and the MCP `versions` resource are authenticated and still list
+  CR branches.
+
 ## Branding and runtime config
 
 - Built-in brand is ZhinWiki (`DEFAULT_BRAND`, `packages/shared/src/brand.ts`).
@@ -127,10 +171,14 @@ Fork-only files:
   `apps/app/src/components/app/empty-wikis.tsx`.
 - Brand: `packages/shared/src/brand.ts`, `apps/app/src/lib/brand.ts`,
   `apps/app/src/components/welcome-page.tsx`.
+- Change requests: `apps/server/src/actions/change-requests.ts`,
+  `apps/server/src/actions/change-request-merge.ts`,
+  `apps/server/src/modules/app/change-requests/`.
 
 Upstream files carrying fork edits: `packages/auth/src/keys.server.ts`,
 `packages/auth/src/account-deletion.ts`, `packages/shared/src/rbac.ts`,
-`packages/design-system/src/brand/`.
+`packages/design-system/src/brand/`, `apps/server/src/actions/branches.ts`,
+`packages/shared/src/site.ts` (`buildSnapshot`).
 
 Tenancy and platform roles are fork-only: they live on `main` (see
 [branches](BRANDING.md#branches)).
@@ -155,3 +203,6 @@ Tenancy and platform roles are fork-only: they live on `main` (see
 - i18n: new strings in all 12 catalogs and `message-ids.ts`; rename
   "Nibleaf" in user-facing copy.
 - Dropped upstream pages, tests and Cloud wording must not come back.
+- New page writers or branch creators: keep the CR invariant and fork links
+  (`createBranch`); new readers of non-default branches must not reach
+  public output.

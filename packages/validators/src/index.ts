@@ -621,10 +621,34 @@ export const createBranchBody = z.object({
     .string()
     .min(1)
     .max(60)
-    .regex(/^[A-Za-z0-9._/-]+$/, 'Use letters, numbers, and . _ / -'),
-  fromBranchId: z.string().optional(),
+    .regex(/^[A-Za-z0-9._/-]+$/, 'Use letters, numbers, and . _ / -')
+    .refine((name) => !name.startsWith('import-'), 'Names starting with import- are reserved.'),
 });
 export type CreateBranchBody = z.infer<typeof createBranchBody>;
+
+// ─── Change requests ─────────────────────────────────────────────────────────
+
+const openChangeRequestStatus = z.enum(['DRAFT', 'IN_REVIEW', 'ARCHIVED']);
+
+export const listChangeRequestsQuery = z.object({ status: z.enum(['DRAFT', 'IN_REVIEW', 'MERGED', 'ARCHIVED']).optional() });
+export type ListChangeRequestsQuery = z.infer<typeof listChangeRequestsQuery>;
+
+export const changeRequestParams = z.object({ number: z.coerce.number().int().positive() });
+
+export const createChangeRequestBody = z.object({
+  title: z.string().trim().max(200).optional(),
+  description: z.string().max(20_000).optional(),
+});
+export type CreateChangeRequestBody = z.infer<typeof createChangeRequestBody>;
+
+export const updateChangeRequestBody = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  description: z.string().max(20_000).nullable().optional(),
+  status: openChangeRequestStatus.optional(),
+});
+export type UpdateChangeRequestBody = z.infer<typeof updateChangeRequestBody>;
+
+export const mergeChangeRequestBody = z.object({ force: z.boolean().optional() });
 
 export const updatePageBody = z.object({
   parentId: z.string().nullable().optional(),

@@ -211,6 +211,7 @@
   "editor_branch_mergeconfirm": "\"{name}\" کو مین میں فروغ دیں؟ یہ مین کے صفحات کو اس ورژن کے صفحات سے بدل دیتا ہے اور ورژن کو ہٹا دیتا ہے۔",
   "editor_branch_merged": "\"{name}\" کو مین میں ترقی دی گئی۔",
   "editor_branch_mergeerror": "ورژن کو فروغ نہیں دیا جا سکا",
+  "changerequest_defaulttitle": "{name} کی تبدیلیاں",
   "editor_addlanguage_title": "ایک زبان شامل کریں۔",
   "editor_addlanguage_desc": "اس سائٹ کے صفحات کا ایک نیا مقامی ورژن بنائیں۔",
   "editor_addlanguage_adding": "شامل کیا جا رہا ہے…",

@@ -610,9 +610,10 @@ export const buildSnapshot = (project: ProjectRow, pages: PageRow[], generatedAt
   if (languages.length === 0 || defaultLanguages.length !== 1) {
     throw new Error(`Project ${project.id} must have exactly one default language before publishing.`);
   }
-  const branchRows = project.branches;
-  if (branchRows.length === 0) {
-    throw new Error(`Project ${project.id} must have a branch before publishing.`);
+  // Only the default branch is published; other branches hold unmerged change requests.
+  const branchRows = project.branches.filter((branch) => branch.isDefault);
+  if (branchRows.length !== 1) {
+    throw new Error(`Project ${project.id} must have exactly one default branch before publishing.`);
   }
   const usedVersionSlugs = new Set<string>();
   const versions: SnapshotVersion[] = branchRows.map((branch) => ({
@@ -621,9 +622,6 @@ export const buildSnapshot = (project: ProjectRow, pages: PageRow[], generatedAt
     slug: uniqueVersionSlug(branch.name, branch.id, usedVersionSlugs),
     isDefault: branch.isDefault,
   }));
-  if (versions.filter((version) => version.isDefault).length !== 1) {
-    throw new Error(`Project ${project.id} must have exactly one default branch before publishing.`);
-  }
   const versionById = new Map(versions.map((version) => [version.id, version]));
   // Resolve Mintlify-style `{{ variables }}` once, then bake the substituted text
   // into the snapshot so the live site, search index and SEO all see final values.
@@ -655,10 +653,10 @@ export const buildSnapshot = (project: ProjectRow, pages: PageRow[], generatedAt
       languages,
       versions,
     },
-    pages: pages.map((page) => {
+    pages: pages.flatMap((page) => {
       const version = versionById.get(page.branchId);
       if (!version) {
-        throw new Error(`Page ${page.id} references a branch outside project ${project.id}.`);
+        return [];
       }
       return {
         id: page.id,

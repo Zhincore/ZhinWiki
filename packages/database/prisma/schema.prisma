@@ -36,15 +36,17 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  sessions        Session[]
-  accounts        Account[]
-  members         Member[]
-  invitations     Invitation[]
-  comments        Comment[]
-  exportJobs      ExportJob[]      @relation("ExportJobCreator")
-  importRuns      ImportRun[]      @relation("ImportRunCreator")
-  exportSchedules ExportSchedule[] @relation("ExportScheduleCreator")
-  apiKeysCreated  ApiKey[]         @relation("ApiKeyCreator")
+  sessions               Session[]
+  accounts               Account[]
+  members                Member[]
+  invitations            Invitation[]
+  comments               Comment[]
+  exportJobs             ExportJob[]      @relation("ExportJobCreator")
+  importRuns             ImportRun[]      @relation("ImportRunCreator")
+  exportSchedules        ExportSchedule[] @relation("ExportScheduleCreator")
+  apiKeysCreated         ApiKey[]         @relation("ApiKeyCreator")
+  changeRequestsAuthored ChangeRequest[]  @relation("ChangeRequestAuthor")
+  changeRequestsMerged   ChangeRequest[]  @relation("ChangeRequestMerger")
 
   @@map("user")
 }
@@ -111,11 +113,11 @@ model Organization {
   metadata  String?
   createdAt DateTime @default(now())
 
-  members     Member[]
-  invitations Invitation[]
-  projects    Project[]
-  usagePlan          OrganizationUsagePlan?
-  usageStorageMarker UsageStorageMarker?
+  members                Member[]
+  invitations            Invitation[]
+  projects               Project[]
+  usagePlan              OrganizationUsagePlan?
+  usageStorageMarker     UsageStorageMarker?
   usageIngestCheckpoints UsageIngestCheckpoint[]
 
   @@map("organization")
@@ -124,16 +126,16 @@ model Organization {
 /// Provider-neutral commercial configuration. These rows express product
 /// policy only; payment-provider customer/subscription state does not live here.
 model UsagePlan {
-  id          String   @id @default(cuid())
-  key         String   @unique
-  name        String
-  version     Int      @default(1)
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  key       String   @unique
+  name      String
+  version   Int      @default(1)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  meters      UsagePlanMeter[]
-  entitlements UsageEntitlement[]
+  meters        UsagePlanMeter[]
+  entitlements  UsageEntitlement[]
   organizations OrganizationUsagePlan[]
 
   @@map("usage_plan")
@@ -155,28 +157,28 @@ model UsageMeter {
 }
 
 model UsagePlanMeter {
-  planId      String
-  plan        UsagePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  meterId     String
-  meter       UsageMeter @relation(fields: [meterId], references: [id], onDelete: Cascade)
-  limit       BigInt?
-  behavior    String    @default("observe")
-  warningRatio Int      @default(80)
+  planId       String
+  plan         UsagePlan  @relation(fields: [planId], references: [id], onDelete: Cascade)
+  meterId      String
+  meter        UsageMeter @relation(fields: [meterId], references: [id], onDelete: Cascade)
+  limit        BigInt?
+  behavior     String     @default("observe")
+  warningRatio Int        @default(80)
 
   @@id([planId, meterId])
   @@map("usage_plan_meter")
 }
 
 model UsageEntitlement {
-  id            String   @id @default(cuid())
+  id            String      @id @default(cuid())
   planId        String
-  plan          UsagePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  plan          UsagePlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
   capabilityKey String
   enabled       Boolean
   limit         BigInt?
   meterId       String?
   meter         UsageMeter? @relation(fields: [meterId], references: [id], onDelete: SetNull)
-  behavior      String   @default("observe")
+  behavior      String      @default("observe")
 
   @@unique([planId, capabilityKey])
   @@map("usage_entitlement")
@@ -200,21 +202,21 @@ model OrganizationUsagePlan {
 /// Durable retry/audit state for exporting finalized aggregates. It stores no
 /// provider payload, credentials, customer ids, subscription ids, or prices.
 model UsageProviderCheckpoint {
-  id               String       @id @default(cuid())
+  id               String    @id @default(cuid())
   organizationId   String
   provider         String
-  reconciliationId String       @unique
+  reconciliationId String    @unique
   meterKey         String
   periodStart      DateTime
   periodEnd        DateTime
-  quantity         Decimal  @db.Decimal(38, 0)
-  status           String       @default("pending")
-  attemptCount     Int          @default(0)
+  quantity         Decimal   @db.Decimal(38, 0)
+  status           String    @default("pending")
+  attemptCount     Int       @default(0)
   lastAttemptAt    DateTime?
   acceptedAt       DateTime?
-  hasError         Boolean      @default(false)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  hasError         Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([organizationId, periodStart, periodEnd])
   @@index([provider, status])
@@ -224,11 +226,11 @@ model UsageProviderCheckpoint {
 /// Relational evidence that this tenant has written ClickHouse usage facts at
 /// least once. Privacy erasure consults it even when analytics is later disabled.
 model UsageStorageMarker {
-  organizationId String       @id
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  firstEnqueuedAt DateTime    @default(now())
-  lastEnqueuedAt  DateTime    @default(now())
-  lastWrittenAt   DateTime?
+  organizationId    String       @id
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  firstEnqueuedAt   DateTime     @default(now())
+  lastEnqueuedAt    DateTime     @default(now())
+  lastWrittenAt     DateTime?
   deletionPendingAt DateTime?
 
   @@map("usage_storage_marker")
@@ -238,21 +240,21 @@ model UsageStorageMarker {
 /// pending row makes usage summaries partial until ClickHouse has accepted the
 /// deduplicated events and the worker records successful drainage.
 model UsageIngestCheckpoint {
-  id             String       @id
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  projectId      String
-  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  firstOccurredAt DateTime
-  lastOccurredAt DateTime
-  events          Json
-  payloadDigest   String
-  enqueuedAt     DateTime     @default(now())
-  lastQueuedAt    DateTime?
-  enqueueAttemptCount Int     @default(0)
-  writtenAt      DateTime?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id                  String       @id
+  organizationId      String
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projectId           String
+  project             Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  firstOccurredAt     DateTime
+  lastOccurredAt      DateTime
+  events              Json
+  payloadDigest       String
+  enqueuedAt          DateTime     @default(now())
+  lastQueuedAt        DateTime?
+  enqueueAttemptCount Int          @default(0)
+  writtenAt           DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   @@index([organizationId, writtenAt])
   @@index([projectId, writtenAt, firstOccurredAt, lastOccurredAt], map: "usage_ingest_project_pending_period_idx")
@@ -293,6 +295,13 @@ model Invitation {
 enum PageKind {
   PAGE
   GROUP
+}
+
+enum ChangeRequestStatus {
+  DRAFT
+  IN_REVIEW
+  MERGED
+  ARCHIVED
 }
 
 enum DeploymentStatus {
@@ -398,40 +407,41 @@ model Project {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  languages       Language[]
-  translations    ProjectTranslation[]
-  branches        Branch[]
-  pages           Page[]
-  deployments     Deployment[]
-  domains         Domain[]
-  apiKeys         ApiKey[]
-  assets          Asset[]
-  comments        Comment[]
-  analyticsEvents AnalyticsEvent[]
-  readers         Reader[]
-  audiences       Audience[]
-  audienceGrants  AudienceGrant[]
-  readerInvites   ReaderInvitation[]
-  readerSessions  ReaderSession[]
-  jwtAccess       JwtAccessProvider?
-  jwtReplays      JwtReplay[]
-  readerAuditLogs ReaderAuditLog[]
-  exportSnapshots ExportSnapshot[]
-  exportJobs      ExportJob[]
-  exportSchedules ExportSchedule[]
-  openApiDocument OpenApiDocument?
-  gitConnection   GitConnection?
-  gitPreviews     GitPreview[]
-  searchIndexRuns SearchIndexRun[]
-  importRuns      ImportRun[]
-  usageIngestCheckpoints UsageIngestCheckpoint[]
-  addons          ProjectAddon[]
-  addonAuditEvents ProjectAddonAuditEvent[]
+  languages                     Language[]
+  translations                  ProjectTranslation[]
+  branches                      Branch[]
+  changeRequests                ChangeRequest[]
+  pages                         Page[]
+  deployments                   Deployment[]
+  domains                       Domain[]
+  apiKeys                       ApiKey[]
+  assets                        Asset[]
+  comments                      Comment[]
+  analyticsEvents               AnalyticsEvent[]
+  readers                       Reader[]
+  audiences                     Audience[]
+  audienceGrants                AudienceGrant[]
+  readerInvites                 ReaderInvitation[]
+  readerSessions                ReaderSession[]
+  jwtAccess                     JwtAccessProvider?
+  jwtReplays                    JwtReplay[]
+  readerAuditLogs               ReaderAuditLog[]
+  exportSnapshots               ExportSnapshot[]
+  exportJobs                    ExportJob[]
+  exportSchedules               ExportSchedule[]
+  openApiDocument               OpenApiDocument?
+  gitConnection                 GitConnection?
+  gitPreviews                   GitPreview[]
+  searchIndexRuns               SearchIndexRun[]
+  importRuns                    ImportRun[]
+  usageIngestCheckpoints        UsageIngestCheckpoint[]
+  addons                        ProjectAddon[]
+  addonAuditEvents              ProjectAddonAuditEvent[]
   integrations                  ProjectIntegration[]
   integrationAuditEvents        IntegrationAuditEvent[]
   integrationConfirmations      IntegrationConfirmation[]
   integrationIdempotencyRecords IntegrationIdempotencyRecord[]
-  mcpAuditEvents  McpAuditEvent[]
+  mcpAuditEvents                McpAuditEvent[]
 
   @@unique([organizationId, slug])
   @@unique([slug])
@@ -461,19 +471,19 @@ model ProjectAddon {
 /// Actor ids are derived from trusted request context and intentionally have no
 /// foreign key so account/key deletion does not erase the security trail.
 model ProjectAddonAuditEvent {
-  id               String   @id @default(cuid())
-  projectId        String
-  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  addonKey         String
-  actorUserId      String?
-  actorApiKeyId    String?
-  action           String
-  previousEnabled  Boolean?
-  nextEnabled      Boolean
-  previousConfig   Json?
-  nextConfig       Json
-  revision         Int
-  createdAt        DateTime @default(now())
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  addonKey        String
+  actorUserId     String?
+  actorApiKeyId   String?
+  action          String
+  previousEnabled Boolean?
+  nextEnabled     Boolean
+  previousConfig  Json?
+  nextConfig      Json
+  revision        Int
+  createdAt       DateTime @default(now())
 
   @@index([projectId, createdAt])
   @@index([projectId, addonKey, createdAt])
@@ -512,11 +522,43 @@ model Branch {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  pages Page[]
+  pages         Page[]
+  changeRequest ChangeRequest?
 
   @@unique([projectId, name])
   @@index([projectId])
   @@map("branch")
+}
+
+/// A reviewable set of page edits stored on its own non-default branch (an
+/// isolated copy of the default branch). Every non-default branch except import
+/// replacement branches (`import-*`) has exactly one. The record outlives the
+/// branch: merging or deleting the branch nulls `branchId`.
+model ChangeRequest {
+  id          String              @id @default(cuid())
+  projectId   String
+  project     Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// Per-project sequence shown as `#n`.
+  number      Int
+  title       String
+  description String?
+  authorId    String?
+  author      User?               @relation("ChangeRequestAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  status      ChangeRequestStatus @default(DRAFT)
+  branchId    String?             @unique
+  branch      Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  mergedById  String?
+  mergedBy    User?               @relation("ChangeRequestMerger", fields: [mergedById], references: [id], onDelete: SetNull)
+  mergedAt    DateTime?
+  /// `{ pages: [{ pageId, languageId, action, before, after }] }` for the pages
+  /// the merge wrote; `before`/`after` hold the merged fields and path.
+  mergeRecord Json?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@unique([projectId, number])
+  @@index([projectId, status])
+  @@map("change_request")
 }
 
 /// Durable repository configuration for two-way authoring. Provider credentials
@@ -897,40 +939,50 @@ model ProjectTranslation {
 /// content; `kind = PAGE` is a renderable MDX page. `path` is the full slug path.
 /// Pages belong to a `Language`; the tree is scoped per (project, language).
 model Page {
-  id             String   @id @default(cuid())
-  projectId      String
-  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  languageId     String
-  language       Language @relation(fields: [languageId], references: [id], onDelete: Cascade)
-  branchId       String
-  branch         Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  parentId       String?
-  parent         Page?    @relation("PageTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children       Page[]   @relation("PageTree")
-  kind           PageKind @default(PAGE)
-  title          String
-  slug           String
-  path           String
-  icon           String?
-  description    String?
-  content        String   @default("")
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  languageId      String
+  language        Language @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  branchId        String
+  branch          Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  parentId        String?
+  parent          Page?    @relation("PageTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children        Page[]   @relation("PageTree")
+  kind            PageKind @default(PAGE)
+  title           String
+  slug            String
+  path            String
+  icon            String?
+  description     String?
+  content         String   @default("")
   /// Per-page overrides: { seo: { metaTitle, metaDescription, ogImage,
   /// canonicalUrl, noindex }, sidebarTitle, mode: 'default'|'wide'|'center',
   /// hideToc }. Layered over language.config + project.config on the live site.
-  config         Json?
+  config          Json?
   /// Links the same logical page across languages whose slugs differ (e.g. EN
   /// "introduction-merged" ↔ AR "introduction"), so hreflang alternates pair up
   /// even when paths don't match. Shared by all language variants of one page.
-  translationKey String?
-  position       Int      @default(0)
-  hidden         Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  translationKey  String?
+  position        Int      @default(0)
+  hidden          Boolean  @default(false)
+  /// On a change-request branch: the default-branch page this copy was forked
+  /// from. Nulled when that page is deleted.
+  sourcePageId    String?
+  sourcePage      Page?    @relation("PageFork", fields: [sourcePageId], references: [id], onDelete: SetNull)
+  forks           Page[]   @relation("PageFork")
+  /// `<content hash>.<tree hash>` of the source page at fork time (see
+  /// `pageFingerprint` in apps/server/src/actions/change-request-merge.ts). Set
+  /// only on forked copies, so it also marks a copy whose source was deleted.
+  forkFingerprint String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   comments       Comment[]
   audienceGrants AudienceGrant[]
 
   @@index([projectId, languageId, path])
+  @@index([sourcePageId])
   @@index([projectId, parentId])
   @@index([projectId, translationKey])
   @@index([languageId])
@@ -1335,20 +1387,20 @@ model Domain {
 }
 
 model ApiKey {
-  id           String    @id @default(cuid())
-  projectId    String
-  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name         String
-  hashedSecret String    @unique
-  lastFour     String
-  scopes       String[]
-  createdById  String?
-  createdBy    User?     @relation("ApiKeyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  id            String    @id @default(cuid())
+  projectId     String
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name          String
+  hashedSecret  String    @unique
+  lastFour      String
+  scopes        String[]
+  createdById   String?
+  createdBy     User?     @relation("ApiKeyCreator", fields: [createdById], references: [id], onDelete: SetNull)
   rotatedFromId String?
-  createdAt    DateTime  @default(now())
-  lastUsedAt   DateTime?
-  expiresAt    DateTime?
-  revokedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  lastUsedAt    DateTime?
+  expiresAt     DateTime?
+  revokedAt     DateTime?
 
   @@index([projectId])
   @@index([createdById])
@@ -1378,7 +1430,6 @@ model McpAuditEvent {
   @@index([requestId])
   @@map("mcp_audit_event")
 }
-
 
 model Asset {
   id          String   @id @default(cuid())

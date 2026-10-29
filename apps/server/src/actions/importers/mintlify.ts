@@ -1,10 +1,9 @@
 import { type Prisma, prisma } from '@nibleaf/database';
 import { slugify } from '@nibleaf/shared';
-import { instanceBrand } from '@nibleaf/shared/brand/server';
 import type { MintlifyImportBody, ProjectConfig } from '@nibleaf/validators';
 import { badRequest, ImportError } from '@/errors';
 import { importDocumentSchema } from '@/validators/importers';
-import { createImportReplacementBranch, promoteImportReplacementBranch } from '../branches';
+import { createBranch, createImportReplacementBranch, promoteImportReplacementBranch } from '../branches';
 import { createLanguage, updateLanguage } from '../languages';
 import { assertProjectInOrg } from '../projects';
 import { deriveTitle, MAX_IMPORT_FILES, parseFrontmatter, stableHash } from './content';
@@ -127,7 +126,7 @@ export const mintlifyImporter: ImporterSource<MintlifyImportBody> = {
         await importNavigation(nodes, defaultTarget, undefined, input.replaceExisting !== true, repository, baseDir, blobs, assets, summary, state);
       }
       if (state.versions.size > 0) {
-        summary.warnings.push(`Imported Mintlify versions as ${instanceBrand().name} documentation versions: ${[...state.versions].join(', ')}.`);
+        summary.warnings.push(`Imported Mintlify versions as draft change requests: ${[...state.versions].join(', ')}.`);
       }
       summary.assetsImported = assets.migrated;
       summary.assetsSkipped = assets.skipped;
@@ -189,7 +188,7 @@ const ensureVersionTarget = async (
     return defaultTarget;
   }
   const existing = await prisma.branch.findFirst({ where: { projectId, name: version.name } });
-  const branch = existing ?? (await prisma.branch.create({ data: { projectId, name: version.name, isDefault: false } }));
+  const branch = existing ?? (await createBranch(projectId, { name: version.name, title: version.name, authorId: null, fork: false }));
   return { ...defaultTarget, branchId: branch.id };
 };
 

@@ -260,26 +260,23 @@ describe('buildSnapshot', () => {
       seo: { allowIndex: false },
     });
   });
-  it('deduplicates branch version slugs while preserving exact version ids on pages', () => {
+  it('publishes only the default branch, never change-request branches', () => {
     const snap = buildSnapshot(
       {
         ...projectRow,
         branches: [
-          { id: 'branch_a', name: 'Foo Bar', isDefault: true },
-          { id: 'branch_b', name: 'foo-bar', isDefault: false },
+          { id: 'branch_main', name: 'main', isDefault: true },
+          { id: 'branch_cr', name: 'cr-1', isDefault: false },
         ],
       },
       [
-        { ...rawPage, id: 'a', branchId: 'branch_a' },
-        { ...rawPage, id: 'b', branchId: 'branch_b' },
+        { ...rawPage, id: 'a', branchId: 'branch_main' },
+        { ...rawPage, id: 'b', branchId: 'branch_cr' },
       ],
       '2026-01-01',
     );
-    expect(snap.project.versions.map((version) => version.slug)).toEqual(['foo-bar', 'foo-bar-branch_b']);
-    expect(snap.pages.map((page) => [page.id, page.versionId])).toEqual([
-      ['a', 'branch_a'],
-      ['b', 'branch_b'],
-    ]);
+    expect(snap.project.versions.map((version) => version.id)).toEqual(['branch_main']);
+    expect(snap.pages.map((page) => page.id)).toEqual(['a']);
   });
   it('interpolates {{ variables }} from config into page title/description/content at build time', () => {
     const snap = buildSnapshot(

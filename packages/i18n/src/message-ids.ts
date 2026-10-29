@@ -224,6 +224,7 @@ export const MESSAGE_IDS = {
   'editor.branch.mergeConfirm': 'editor_branch_mergeconfirm',
   'editor.branch.merged': 'editor_branch_merged',
   'editor.branch.mergeError': 'editor_branch_mergeerror',
+  'changeRequest.defaultTitle': 'changerequest_defaulttitle',
   'editor.addLanguage.title': 'editor_addlanguage_title',
   'editor.addLanguage.desc': 'editor_addlanguage_desc',
   'editor.addLanguage.adding': 'editor_addlanguage_adding',

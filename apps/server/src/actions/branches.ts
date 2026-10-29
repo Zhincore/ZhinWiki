@@ -1,7 +1,7 @@
 import { type Branch, type Prisma, prisma } from '@nibleaf/database';
 import { newId } from '@nibleaf/shared/ids';
-import type { CreateBranchBody } from '@nibleaf/validators';
 import { conflict, notFound } from '@/errors';
+import { pageFingerprint } from './change-request-merge';
 
 /** Every branch of a project, default ('main') first. */
 export const listBranches = async (projectId: string): Promise<Branch[]> =>
@@ -25,13 +25,51 @@ export const assertBranchInProject = async (projectId: string, id: string) => {
   return branch;
 };
 
+const UNIQUE_VIOLATION = 'P2002';
+const MAX_NUMBER_ATTEMPTS = 5;
+
+/** Copy every default-branch page onto `branchId` with fresh ids and remapped
+ *  parents. Change-request copies also record their source page and its fork
+ *  fingerprint so a merge can tell who changed what. */
+const forkDefaultBranch = async (tx: Prisma.TransactionClient, projectId: string, branchId: string, link: boolean) => {
+  const main = await tx.branch.findFirstOrThrow({ where: { projectId, isDefault: true }, select: { id: true } });
+  const sourcePages = await tx.page.findMany({ where: { projectId, branchId: main.id }, orderBy: { position: 'asc' } });
+  if (sourcePages.length === 0) return;
+  const idMap = new Map(sourcePages.map((p) => [p.id, newId()]));
+  await tx.page.createMany({
+    data: sourcePages.map((p) => ({
+      id: idMap.get(p.id) ?? newId(),
+      projectId,
+      branchId,
+      languageId: p.languageId,
+      parentId: p.parentId ? (idMap.get(p.parentId) ?? null) : null,
+      kind: p.kind,
+      title: p.title,
+      slug: p.slug,
+      path: p.path,
+      icon: p.icon,
+      description: p.description,
+      content: p.content,
+      config: p.config ?? undefined,
+      translationKey: p.translationKey,
+      position: p.position,
+      hidden: p.hidden,
+      ...(link ? { sourcePageId: p.id, forkFingerprint: pageFingerprint(p, p.parentId) } : {}),
+    })),
+  });
+};
+
 /** Create an empty, non-default branch used to assemble an authoritative
  * importer replacement away from the editable main tree. It is promoted only
  * after the whole import succeeds; failures can delete it without touching the
- * user's current draft. */
+ * user's current draft. Replacement branches never get a change request. */
 export const createImportReplacementBranch = async (projectId: string, source: string, preserveExisting: boolean) => {
   const name = `import-${source}-${newId()}`;
-  return preserveExisting ? createBranch(projectId, { name }) : prisma.branch.create({ data: { projectId, name, isDefault: false } });
+  return prisma.$transaction(async (tx) => {
+    const branch = await tx.branch.create({ data: { projectId, name, isDefault: false } });
+    if (preserveExisting) await forkDefaultBranch(tx, projectId, branch.id, false);
+    return branch;
+  });
 };
 
 /** Atomically replace main with a completed import branch and, when supplied,
@@ -51,77 +89,68 @@ export const promoteImportReplacementBranch = async (projectId: string, id: stri
   return main;
 };
 
-/** Create a branch by forking another branch's pages (the default by default).
- *  Pages are deep-copied with fresh ids and remapped parent links, so the new
- *  branch is an independent, editable copy across every language. */
-export const createBranch = async (projectId: string, body: CreateBranchBody) => {
-  const name = body.name.trim();
-  const clash = await prisma.branch.findFirst({ where: { projectId, name }, select: { id: true } });
-  if (clash) {
-    throw conflict('A branch with that name already exists.', { name });
-  }
-  const source = body.fromBranchId ? await assertBranchInProject(projectId, body.fromBranchId) : await getDefaultBranch(projectId);
+export type CreateBranchInput = {
+  /** Branch name; `cr-<number>` when omitted. */
+  name?: string;
+  title: string;
+  description?: string | null;
+  authorId: string | null;
+  /** Start from a copy of the default branch (default) or empty. */
+  fork?: boolean;
+};
 
-  return prisma.$transaction(async (tx) => {
-    const branch = await tx.branch.create({ data: { projectId, name, isDefault: false } });
-    const sourcePages = await tx.page.findMany({ where: { projectId, branchId: source.id }, orderBy: { position: 'asc' } });
-    // old page id → new page id, so parentId links can be remapped onto the copies.
-    const idMap = new Map<string, string>();
-    for (const p of sourcePages) {
-      idMap.set(p.id, newId());
-    }
-    if (sourcePages.length > 0) {
-      await tx.page.createMany({
-        data: sourcePages.map((p) => ({
-          id: idMap.get(p.id) ?? newId(),
-          projectId,
-          branchId: branch.id,
-          languageId: p.languageId,
-          parentId: p.parentId ? (idMap.get(p.parentId) ?? null) : null,
-          kind: p.kind,
-          title: p.title,
-          slug: p.slug,
-          path: p.path,
-          icon: p.icon,
-          description: p.description,
-          content: p.content,
-          config: p.config ?? undefined,
-          translationKey: p.translationKey,
-          position: p.position,
-          hidden: p.hidden,
-        })),
+const isUniqueViolation = (error: unknown) =>
+  typeof error === 'object' && error !== null && 'code' in error && (error as { code: unknown }).code === UNIQUE_VIOLATION;
+
+/** Create a non-default branch with its change request, numbered after the
+ *  project's highest one. A concurrent create taking the same number or name
+ *  is retried. */
+export const createBranch = async (projectId: string, input: CreateBranchInput): Promise<Branch> => {
+  const name = input.name?.trim();
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        if (name && (await tx.branch.findFirst({ where: { projectId, name }, select: { id: true } }))) {
+          throw conflict('A branch with that name already exists.', { name });
+        }
+        const latest = await tx.changeRequest.aggregate({ where: { projectId }, _max: { number: true } });
+        const number = (latest._max.number ?? 0) + 1;
+        const fallbackName = `cr-${number}`;
+        const branchName =
+          name ??
+          ((await tx.branch.findFirst({ where: { projectId, name: fallbackName }, select: { id: true } }))
+            ? `${fallbackName}-${newId()}`
+            : fallbackName);
+        const branch = await tx.branch.create({ data: { projectId, name: branchName, isDefault: false } });
+        await tx.changeRequest.create({
+          data: {
+            projectId,
+            number,
+            title: input.title,
+            description: input.description ?? null,
+            authorId: input.authorId,
+            branchId: branch.id,
+          },
+        });
+        if (input.fork !== false) await forkDefaultBranch(tx, projectId, branch.id, true);
+        return branch;
       });
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      if (attempt >= MAX_NUMBER_ATTEMPTS) throw conflict('Another change request was created at the same time. Try again.');
     }
-    return branch;
-  });
-};
-
-/** Merge a branch into the default branch ('main'): main adopts this branch's
- *  (edited) pages, then the now-consumed branch is removed. This is a squash /
- *  promote — main's prior pages are replaced, so concurrent edits made directly
- *  on main since the fork are overwritten. */
-export const mergeBranch = async (projectId: string, id: string) => {
-  const branch = await assertBranchInProject(projectId, id);
-  if (branch.isDefault) {
-    throw conflict('The default branch cannot be merged into itself.');
   }
-  const main = await getDefaultBranch(projectId);
-  await prisma.$transaction(async (tx) => {
-    // Replace main's pages with this branch's pages (which keep their ids + paths
-    // + remapped parent links), then drop the emptied branch.
-    await tx.page.deleteMany({ where: { projectId, branchId: main.id } });
-    await tx.page.updateMany({ where: { projectId, branchId: branch.id }, data: { branchId: main.id } });
-    await tx.branch.delete({ where: { id: branch.id } });
-  });
-  return main;
 };
 
-/** Delete a non-default branch (its pages cascade away). */
+/** Delete a non-default branch (its pages cascade away); its change request is archived. */
 export const deleteBranch = async (projectId: string, id: string) => {
   const branch = await assertBranchInProject(projectId, id);
   if (branch.isDefault) {
     throw conflict('You cannot delete the default branch.');
   }
-  await prisma.branch.delete({ where: { id } });
+  await prisma.$transaction([
+    prisma.changeRequest.updateMany({ where: { branchId: id, status: { not: 'MERGED' } }, data: { status: 'ARCHIVED' } }),
+    prisma.branch.delete({ where: { id } }),
+  ]);
   return { id };
 };

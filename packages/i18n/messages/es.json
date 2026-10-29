@@ -211,6 +211,7 @@
   "editor_branch_mergeconfirm": "¿Promover “{name}” a principal? Esto reemplaza las páginas principales con las páginas de esta versión y elimina la versión.",
   "editor_branch_merged": "Promovió \"{name}\" a principal",
   "editor_branch_mergeerror": "No se pudo promocionar la versión.",
+  "changerequest_defaulttitle": "Cambios de {name}",
   "editor_addlanguage_title": "Agregar un idioma",
   "editor_addlanguage_desc": "Cree una nueva versión localizada de las páginas de este sitio.",
   "editor_addlanguage_adding": "Añadiendo…",

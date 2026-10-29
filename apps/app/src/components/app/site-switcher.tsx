@@ -13,7 +13,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { Check, ChevronsUpDown, LayoutGrid, Plus } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
 import { useProjects } from '@/hooks/api';
-import { useCanCreateWiki } from '@/hooks/use-tenancy';
+import { useCanCreateWiki } from '@/hooks/use-can-create-wiki';
 
 const subscribeToHydration = () => () => undefined;
 

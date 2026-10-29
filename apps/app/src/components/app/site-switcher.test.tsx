@@ -24,7 +24,7 @@ vi.mock('@nibleaf/design-system/components/ui/sidebar', () => ({
 }));
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => vi.fn() }));
 vi.mock('@/hooks/api', () => ({ useProjects: () => ({ data: [] }) }));
-vi.mock('@/hooks/use-tenancy', () => ({ useCanCreateWiki: () => state.canCreate }));
+vi.mock('@/hooks/use-can-create-wiki', () => ({ useCanCreateWiki: () => state.canCreate }));
 
 import { SiteSwitcher } from './site-switcher';
 

@@ -10,7 +10,7 @@ import { EmptyWikis } from '@/components/app/empty-wikis';
 import { NewProjectDialog } from '@/components/app/new-project-dialog';
 import { QueryErrorState } from '@/components/query-error-state';
 import { useProjects } from '@/hooks/api';
-import { useCanCreateWiki } from '@/hooks/use-tenancy';
+import { useCanCreateWiki } from '@/hooks/use-can-create-wiki';
 import { useFormatters } from '@/lib/format';
 
 export const Route = createFileRoute('/app/(dashboard)/sites')({

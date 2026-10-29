@@ -230,7 +230,7 @@ export const planMerge = (input: MergeInput & { force: boolean }): MergePlan => 
     const parent = branchParentId ? branchById.get(branchParentId) : undefined;
     if (!parent) return null;
     if (inserted.has(parent.id)) return parent.id;
-    return parent.sourcePageId && mainById.has(parent.sourcePageId) && !deletes.has(parent.sourcePageId) ? parent.sourcePageId : null;
+    return parent.sourcePageId && mainById.has(parent.sourcePageId) ? parent.sourcePageId : null;
   };
 
   const final = new Map<string, MergedFields & { id: string; languageId: string; path: string }>();

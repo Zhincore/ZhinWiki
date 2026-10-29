@@ -42,6 +42,9 @@ x-service-env: &service-env
   BRAND_ASSETS_DIR: ${BRAND_ASSETS_DIR:-}
   # What the app root serves: welcome page (default), app, or site:<projectId>.
   HOMEPAGE: ${HOMEPAGE:-}
+  # multi: every sign-up gets its own workspace. single: platform admins create
+  # wikis. multi keeps the opt-in demo seed working.
+  TENANCY: ${TENANCY:-multi}
   POSTGRES_URL: postgresql://nibleaf:${POSTGRES_PASSWORD:-nibleaf}@postgres:5432/nibleaf
   REDIS_HOST: dragonfly
   REDIS_PORT: "6379"

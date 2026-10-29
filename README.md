@@ -36,13 +36,15 @@ your content stays in your database.
 - 🏠 **Self-hosted** — Docker Compose or Coolify, bring-your-own Postgres + S3-compatible
   storage. Your data never leaves your infrastructure.
 
-## Differences from Nibleaf
+## How ZhinWiki differs from Nibleaf
 
 - **Single-wiki instances:** with `TENANCY=single` (the production default),
   sign-up creates an account only and platform admins create wikis.
 - **Platform `editor` role:** member rights on every wiki.
 - **Safer account deletion:** in single mode, a wiki's sole member cannot
   delete their account.
+- **Runtime branding:** name, links, colors and homepage come from env
+  (`APP_NAME`, `BRAND_*`, `HOMEPAGE`); one image serves any brand.
 
 Details for developers: [FORK.md](FORK.md).
 

@@ -15,3 +15,12 @@ export const useGetInvitationInfo = (invitationId: string) =>
     queryKey: ['public', 'invitations', invitationId],
     queryFn: async () => getData(await api.public.invitations[':id'].$get({ param: { id: invitationId } }), 'invitation'),
   });
+
+/** Whether a `/<slug>` path names a wiki (current or previous slug) under shared tenancy. */
+export const useWikiSlugInUse = (slug: string, options: { enabled: boolean }) =>
+  useQuery({
+    queryKey: ['public', 'sites', 'resolve', slug],
+    enabled: options.enabled,
+    queryFn: async () => (await api.public.sites.resolve.$get({ query: { slug } })).ok,
+    staleTime: 60 * 1000,
+  });

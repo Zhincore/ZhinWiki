@@ -15,7 +15,7 @@ vi.mock('@tanstack/react-router', () => ({
 }));
 vi.mock('@/services/auth-client', () => ({ useSession: () => ({ data: state.session, isPending: state.isPending }) }));
 
-import { useCanCreateWiki } from './use-tenancy';
+import { useCanCreateWiki } from './use-can-create-wiki';
 
 describe('useCanCreateWiki', () => {
   beforeEach(() => {

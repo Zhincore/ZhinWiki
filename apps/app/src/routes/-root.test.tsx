@@ -31,7 +31,7 @@ vi.mock('@tanstack/react-router', () => ({
 }));
 vi.mock('@/functions/brand', () => ({ getBrandFn: vi.fn() }));
 vi.mock('@/functions/tenancy', () => ({ getTenancyFn: vi.fn(async () => 'shared') }));
-vi.mock('@/lib/site-origin', () => ({ currentHomepage: vi.fn() }));
+vi.mock('@/lib/site-origin', () => ({ currentHomepage: vi.fn(), slugSiteBasePath: vi.fn() }));
 vi.mock('@/lib/public-urls', () => ({
   PUBLIC_URL_META: { appUrl: 'nibleaf-app-url', siteBaseDomain: 'nibleaf-site-base-domain' },
   publicUrls: vi.fn(),

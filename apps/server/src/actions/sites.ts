@@ -1,3 +1,4 @@
+import { rememberingSlug } from '@nibleaf/auth/wiki-slugs';
 import type { PublicAnalyticsEvent } from '@nibleaf/clickhouse';
 import { prisma } from '@nibleaf/database';
 import type { SearchHit, SearchScope } from '@nibleaf/search';
@@ -25,6 +26,7 @@ import {
   type SnapshotVersion,
   withOpenApiNav,
 } from '@nibleaf/shared/site';
+import { RESERVED_WIKI_SLUGS, withoutSlugHistory } from '@nibleaf/shared/wiki-paths';
 import { getContext } from 'hono/context-storage';
 import { env } from '@/env';
 import { AppError, notFound } from '@/errors';
@@ -63,6 +65,7 @@ interface PublishedSite {
 /** The live, non-versioned site chrome fields read off the Project row. */
 interface LiveChromeRow {
   name: string;
+  slug: string;
   description: string | null;
   icon: string | null;
   config: unknown;
@@ -123,6 +126,7 @@ const getLiveChrome = async (projectId: string): Promise<LiveChromeRow | null> =
     where: { id: projectId },
     select: {
       name: true,
+      slug: true,
       description: true,
       icon: true,
       config: true,
@@ -189,10 +193,11 @@ const overlayLiveChrome = (project: SnapshotProject, live: LiveChromeRow | null)
   // so they never appear publicly until the next publish, and the frozen
   // label/direction/isDefault keep the exactly-one-default invariant intact.
   const liveByCode = new Map(live.languages.map((language) => [language.code, language]));
-  const liveConfig = projectConfigWithAddons(live.config, projectAddonRowsForDelivery(live.addons, live.organization.usagePlan));
+  const liveConfig = withoutSlugHistory(projectConfigWithAddons(live.config, projectAddonRowsForDelivery(live.addons, live.organization.usagePlan)));
   return {
     ...project,
     name: live.name,
+    slug: live.slug,
     description: live.description,
     icon: live.icon,
     config: overlayLiveConfigPreservingPublishedRedirects(project.config, liveConfig),
@@ -920,6 +925,29 @@ export const getSiteLlmsFullTxt = async (identifier: string): Promise<SiteTextDo
   llmsFullTxtCache.set(cacheKey, body);
   return { body, isPrivate };
 };
+
+/** Resolve a `/<slug>` path (shared tenancy) to its published wiki by current or
+ *  previous slug, with the current slug so the app edge can redirect a previous one. */
+export const resolveSiteSlug = async (slug: string): Promise<{ projectId: string; slug: string } | null> => {
+  if (env.TENANCY !== 'shared') {
+    return null;
+  }
+  const published = { takedownAt: null, deployments: { some: { status: 'READY' } } } as const;
+  const current = await prisma.project.findFirst({ where: { slug, ...published }, select: { id: true, slug: true } });
+  const project =
+    current ??
+    (await prisma.project.findFirst({
+      where: { ...rememberingSlug(slug), ...published },
+      select: { id: true, slug: true },
+      orderBy: { createdAt: 'asc' },
+    }));
+  return project ? { projectId: project.id, slug: project.slug } : null;
+};
+
+/** Wikis whose slug names an app path (created before shared tenancy or before
+ *  the path existed). They stay reachable at `/sites/:id` until renamed. */
+export const reservedSlugWikis = (): Promise<{ id: string; slug: string }[]> =>
+  prisma.project.findMany({ where: { slug: { in: [...RESERVED_WIKI_SLUGS] } }, select: { id: true, slug: true } });
 
 /** Resolve a request Host (a connected, verified custom domain) to its project
  *  id — used by the app edge to serve custom domains at their own root. Returns

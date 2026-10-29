@@ -5,6 +5,7 @@ import { Textarea } from '@nibleaf/design-system/components/ui/textarea';
 import { cn } from '@nibleaf/design-system/lib/utils';
 import { useT } from '@nibleaf/i18n/react';
 import { slugify } from '@nibleaf/shared/utils';
+import { isReservedWikiSlug, WIKI_SLUG_PATTERN } from '@nibleaf/shared/wiki-paths';
 import { useForm } from '@tanstack/react-form';
 import { Ban, CirclePlus } from 'lucide-react';
 import { useState } from 'react';
@@ -28,9 +29,12 @@ import {
 /** A small curated set of emoji icons the project can use as its avatar glyph. */
 const ICON_CHOICES = ['📘', '📕', '📗', '🚀', '⚡', '🛠️', '🧩', '🔌', '📦', '🌐', '🔭', '✨'];
 
-const deploymentNameError = (value: string, message: string) => {
-  if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(value)) {
-    return message;
+const deploymentNameError = (value: string, messages: { invalid: string; reserved?: string }) => {
+  if (!WIKI_SLUG_PATTERN.test(value)) {
+    return messages.invalid;
+  }
+  if (messages.reserved && isReservedWikiSlug(value)) {
+    return messages.reserved;
   }
 };
 
@@ -55,8 +59,8 @@ export function GeneralSection({ project }: { project: Project }) {
   const [icon, setIcon] = useState<string | null>(project.icon ?? null);
   const [iconOpen, setIconOpen] = useState(false);
   // Without a configured base domain the free-subdomain host would 404, so the
-  // preview falls back to the working /sites/:id path.
-  const { siteBaseDomain } = publicUrls();
+  // preview falls back to /<slug> under shared tenancy, else /sites/:id.
+  const { siteBaseDomain, wikiSlugPaths } = publicUrls();
   // Localized site name/description per NON-default language (Translations
   // group below). Drafts are keyed by language id and survive switching the
   // selected language; untouched languages read straight from their stored config.
@@ -348,7 +352,16 @@ export function GeneralSection({ project }: { project: Project }) {
         </>
       )}
 
-      <form.Field name="slug" validators={{ onChange: ({ value }) => deploymentNameError(value, t('settings.general.url.error')) }}>
+      <form.Field
+        name="slug"
+        validators={{
+          onChange: ({ value }) =>
+            deploymentNameError(value, {
+              invalid: t('settings.general.url.error'),
+              reserved: wikiSlugPaths ? t('settings.general.url.reserved') : undefined,
+            }),
+        }}
+      >
         {(field) => (
           <Field hint={t('settings.general.url.hint')} htmlFor="set-slug" label={t('settings.general.url.label')}>
             {/* Hostnames are always LTR: pin the group so the ".<base>" suffix
@@ -373,7 +386,13 @@ export function GeneralSection({ project }: { project: Project }) {
             </div>
             <FieldError errors={field.state.meta.errors} />
             <div className="mt-1.5 font-mono text-[12px] text-muted-foreground rtl:text-end" dir="ltr">
-              {siteBaseDomain ? (field.state.value ? `${field.state.value}.${siteBaseDomain}` : `.${siteBaseDomain}`) : `/sites/${project.id}`}
+              {siteBaseDomain
+                ? field.state.value
+                  ? `${field.state.value}.${siteBaseDomain}`
+                  : `.${siteBaseDomain}`
+                : wikiSlugPaths
+                  ? `/${field.state.value}`
+                  : `/sites/${project.id}`}
             </div>
           </Field>
         )}

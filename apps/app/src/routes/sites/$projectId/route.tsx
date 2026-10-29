@@ -3,7 +3,7 @@ import { THEME_STORAGE_KEY } from '@nibleaf/design-system/theme';
 import { resolveLocale } from '@nibleaf/i18n/locales';
 import { deploy_close } from '@nibleaf/i18n/messages';
 import { siteT } from '@nibleaf/i18n/site';
-import { createFileRoute, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
+import { createFileRoute, Outlet, rootRouteId, useLoaderData, useNavigate, useRouterState } from '@tanstack/react-router';
 import { BookOpen, ExternalLink, Link2, Moon, Search, Sun } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
@@ -21,10 +21,11 @@ import { VersionSwitcher } from '@/components/site/version-switcher';
 import { getSiteFn } from '@/functions/site';
 import { ApiResponseError } from '@/hooks/api/client-helpers';
 import type { ProjectConfig } from '@/hooks/api/types';
+import { useTenancy } from '@/hooks/use-tenancy';
 import { QueryProvider } from '@/integrations/tanstack-query/root-provider';
 import { loadedBrand, useBrand } from '@/lib/brand';
 import { useSearchShortcutLabel } from '@/lib/shortcut';
-import { useSiteLinkNavigation } from '@/lib/site-link-navigation';
+import { siteRootSegments, useSiteLinkNavigation } from '@/lib/site-link-navigation';
 import { customDomainOrigin } from '@/lib/site-origin';
 import { siteHref, siteLanguageParam } from '@/lib/site-paths';
 import { siteFaviconHref, siteHead } from '@/lib/site-seo';
@@ -92,7 +93,15 @@ function SiteChrome() {
   const { lang } = Route.useSearch();
   const { site } = Route.useLoaderData();
   const navigate = useNavigate({ from: Route.fullPath });
-  useSiteLinkNavigation(projectId);
+  const tenancy = useTenancy();
+  const { homepage } = useLoaderData({ from: rootRouteId });
+  // A shared-tenancy home wiki shares the root with other wikis' `/<slug>` paths.
+  const ownsRootSegment = useMemo(() => {
+    if (!site || tenancy !== 'shared' || homepage.mode !== 'site' || homepage.projectId !== projectId) return;
+    const segments = siteRootSegments(site);
+    return (segment: string) => segments.has(segment);
+  }, [site, tenancy, homepage, projectId]);
+  useSiteLinkNavigation(projectId, ownsRootSegment);
   const brand = useBrand();
   const [searchOpen, setSearchOpen] = useState(false);
   const [pageAlternates, setPageAlternates] = useState<SiteLanguageAlternate[]>([]);

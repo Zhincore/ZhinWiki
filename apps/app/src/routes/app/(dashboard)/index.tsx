@@ -14,7 +14,7 @@ import { NewProjectDialog } from '@/components/app/new-project-dialog';
 import { QueryErrorState } from '@/components/query-error-state';
 import type { AnalyticsRange } from '@/hooks/api';
 import { useProjects, useWorkspaceAnalytics } from '@/hooks/api';
-import { useCanCreateWiki } from '@/hooks/use-tenancy';
+import { useCanCreateWiki } from '@/hooks/use-can-create-wiki';
 import { useFormatters, viewsTrend } from '@/lib/format';
 
 export const Route = createFileRoute('/app/(dashboard)/')({

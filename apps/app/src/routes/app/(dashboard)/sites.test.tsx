@@ -34,7 +34,8 @@ vi.mock('@tanstack/react-router', () => ({
 }));
 vi.mock('@/hooks/api', () => ({ useProjects: mocks.useProjects }));
 vi.mock('@/components/app/new-project-dialog', () => ({ NewProjectDialog: mocks.dialog }));
-vi.mock('@/hooks/use-tenancy', () => ({ useTenancy: () => mocks.tenancy, useCanCreateWiki: () => mocks.canCreate }));
+vi.mock('@/hooks/use-tenancy', () => ({ useTenancy: () => mocks.tenancy }));
+vi.mock('@/hooks/use-can-create-wiki', () => ({ useCanCreateWiki: () => mocks.canCreate }));
 
 import { Route } from './sites';
 

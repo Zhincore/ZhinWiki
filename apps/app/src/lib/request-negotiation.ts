@@ -1,3 +1,5 @@
+import { APP_OWNED_ROOT_SEGMENTS } from '@nibleaf/shared/wiki-paths';
+
 export type DocumentRepresentation = 'text/html' | 'application/xhtml+xml' | 'text/markdown';
 
 interface AcceptEntry {
@@ -97,12 +99,14 @@ export function isDocumentPath(pathname: string): boolean {
   return !/\.[a-z0-9]{1,12}$/i.test(lastSegment);
 }
 
+const APP_OWNED_PATH = new RegExp(`^/(?:(?:${APP_OWNED_ROOT_SEGMENTS.join('|')})(?:/|$)|favicon(?:-\\d+x\\d+)?\\.[a-z0-9]+$|_)`);
+
 /** Paths owned by the application runtime must never be rewritten beneath a
  * published site's custom-domain route: whole `/api`, `/assets` and `/sites`
  * segments, favicon files, and every `/_*` runtime path (e.g. `/_serverFn/*`).
  * Slugs such as `/api-reference` stay published content. */
 export function isAppOwnedPath(pathname: string): boolean {
-  return /^\/(?:(?:api|assets|sites)(?:\/|$)|favicon(?:-\d+x\d+)?\.[a-z0-9]+$|_)/.test(pathname);
+  return APP_OWNED_PATH.test(pathname);
 }
 
 export function notAcceptableHtmlResponse(): Response {

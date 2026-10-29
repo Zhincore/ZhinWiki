@@ -119,6 +119,28 @@ Keep in mind:
 - The `signup_completed` platform event counts every new account, invited
   editors included.
 
+### Wiki addresses
+
+In shared mode each published wiki is served on the dashboard origin at
+`/<deployment name>`, for example `https://wiki.example.com/handbook`.
+Custom domains and `<name>.<SITE_BASE_DOMAIN>` subdomains keep working; the
+canonical URL is the primary custom domain, else the subdomain, else this path.
+
+- `/sites/<id>/…` stays the internal address and redirects (301) to
+  `/<name>/…`, query string included.
+- Renaming a wiki keeps redirecting its 10 most recent previous names. No other
+  wiki can take a name while it is remembered; the wiki itself can take it back.
+  Deleting the wiki frees its names.
+- Names used by the app (`app`, `api`, `assets`, `sites`, `sign-in`, `sign-up`,
+  `terms`, `privacy` and the other dashboard pages) are rejected. A wiki that
+  already has such a name stays at `/sites/<id>` until renamed; the API logs
+  these wikis at startup.
+- With `HOMEPAGE=site:<id>`, the home wiki is served at `/` and its own name
+  redirects there. Another wiki's name wins over a home-wiki page with the same
+  top-level path; the page editor warns about such pages.
+
+`TENANCY=independent` serves wikis at `/sites/<id>` only, as before.
+
 ## Preserve the client address behind a proxy
 
 Forward the original host and HTTPS scheme. Configure `TRUSTED_PROXY_HOPS` only

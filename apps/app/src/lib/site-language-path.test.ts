@@ -9,7 +9,7 @@ const ARABIC_SLUG = 'دليل-البدء';
 const ENCODED_ARABIC_SLUG = encodeURIComponent(ARABIC_SLUG);
 
 const resolve = (splat: string, overrides: Partial<Parameters<typeof resolveLanguagePathRedirect>[0]> = {}) =>
-  resolveLanguagePathRedirect({ splat, languages, projectId: 'p1', isCustomDomain: false, ...overrides });
+  resolveLanguagePathRedirect({ splat, languages, basePath: '/sites/p1', ...overrides });
 
 describe('matchSiteLanguage', () => {
   it('matches a site language code case-insensitively', () => {
@@ -72,10 +72,10 @@ describe('resolveLanguagePathRedirect', () => {
   });
 
   it('uses the domain root on a custom domain', () => {
-    expect(resolve('ar', { isCustomDomain: true })).toBe('/?lang=ar');
-    expect(resolve('ar/guides/intro', { isCustomDomain: true })).toBe('/guides/intro?lang=ar');
-    expect(resolve('en', { isCustomDomain: true })).toBe('/');
-    expect(resolve('en/guides', { isCustomDomain: true })).toBe('/guides');
+    expect(resolve('ar', { basePath: '' })).toBe('/?lang=ar');
+    expect(resolve('ar/guides/intro', { basePath: '' })).toBe('/guides/intro?lang=ar');
+    expect(resolve('en', { basePath: '' })).toBe('/');
+    expect(resolve('en/guides', { basePath: '' })).toBe('/guides');
   });
 
   it('redirects with the site language code, not the typed segment', () => {

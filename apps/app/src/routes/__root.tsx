@@ -7,17 +7,19 @@ import type { ReactNode } from 'react';
 import { getBrandFn } from '@/functions/brand';
 import { getTenancyFn } from '@/functions/tenancy';
 import type { SiteShell } from '@/hooks/api/types';
+import { SITE_BASE_META } from '@/lib/custom-domain-rewrite';
 import { formatHomepage } from '@/lib/homepage';
 import { PUBLIC_URL_META, publicUrls } from '@/lib/public-urls';
-import { currentHomepage } from '@/lib/site-origin';
+import { currentHomepage, slugSiteBasePath } from '@/lib/site-origin';
 import { siteThemeNoFlashScript } from '@/lib/site-theme';
 import appCss from '@/styles.css?url';
 
 export const Route = createRootRoute({
   // The brand, tenancy, homepage and public URLs come from runtime env; they never change while the app runs.
+  // A `/<slug>` wiki document also carries its base path, fixed for the document's lifetime.
   loader: async () => {
     const [brand, tenancy] = await Promise.all([getBrandFn(), getTenancyFn()]);
-    return { brand, tenancy, homepage: currentHomepage(), urls: publicUrls() };
+    return { brand, tenancy, homepage: currentHomepage(), urls: publicUrls(), siteBase: slugSiteBasePath() };
   },
   staleTime: Number.POSITIVE_INFINITY,
   head: ({ loaderData }) => {
@@ -73,15 +75,17 @@ function RootDocument({ children }: { children: ReactNode }) {
     },
   });
   const siteThemeBootstrap = siteProjectId ? siteThemeNoFlashScript(siteProjectId, siteThemeDefault ?? 'light') : null;
-  const { homepage, urls } = Route.useLoaderData();
+  const { homepage, urls, siteBase } = Route.useLoaderData();
   return (
     <html lang={lang} dir={dir} suppressHydrationWarning>
       <head>
         {nonce ? <meta property="csp-nonce" content={nonce} /> : null}
         {siteProjectId ? <meta name="nibleaf-site-project" content={siteProjectId} /> : null}
+        {siteBase ? <meta name={SITE_BASE_META} content={siteBase} /> : null}
         {homepage.mode !== 'welcome' ? <meta name="nibleaf-homepage" content={formatHomepage(homepage)} /> : null}
         <meta name={PUBLIC_URL_META.appUrl} content={urls.appUrl} />
         {urls.siteBaseDomain ? <meta name={PUBLIC_URL_META.siteBaseDomain} content={urls.siteBaseDomain} /> : null}
+        {urls.wikiSlugPaths ? <meta name={PUBLIC_URL_META.wikiSlugPaths} content="true" /> : null}
         <HeadContent />
         {/* Published sites keep their own theme accent. */}
         {siteProjectId ? null : <BrandAccentStyle />}

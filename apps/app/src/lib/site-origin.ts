@@ -1,5 +1,6 @@
 import { createIsomorphicFn } from '@tanstack/react-start';
 import { getRequest } from '@tanstack/react-start/server';
+import { SITE_BASE_META } from '@/lib/custom-domain-rewrite';
 import { type Homepage, parseHomepage } from '@/lib/homepage';
 
 /** Marker the server entry sets on a home-site request it rewrote onto `/sites/:id`. */
@@ -32,12 +33,12 @@ export const currentHomepage = createIsomorphicFn()
   });
 
 /**
- * The custom-domain origin the server entry (src/server.ts) stamped on a
- * rewritten request, e.g. "https://docs.acme.com". Returns undefined for
- * app-origin requests and on the client (where window.location.origin already
- * is the right origin). Used so a custom domain's SSR canonical / og:url /
- * hreflang point at the domain root instead of the internal
- * http://localhost:4310/sites/:id origin.
+ * The public base URL the server entry (src/server.ts) stamped on a rewritten
+ * request: a custom domain or home-wiki origin (e.g. "https://docs.acme.com"),
+ * or a shared-tenancy wiki's app-origin path ("https://wiki.example.com/guide").
+ * Returns undefined for internal `/sites/:id` requests and on the client (where
+ * window.location already is the right origin). Used so SSR canonical / og:url /
+ * hreflang point at the public base instead of the internal /sites/:id path.
  *
  * Built with createIsomorphicFn so the server-only `getRequest` import is kept
  * out of the client bundle (TanStack Start's import-protection plugin).
@@ -50,4 +51,13 @@ export const customDomainOrigin = createIsomorphicFn()
     } catch {
       return undefined;
     }
+  });
+
+/** The `/<slug>` path a shared-tenancy wiki document is served under: the path of
+ *  the stamped base URL on the server, the root route's marker on the client. */
+export const slugSiteBasePath = createIsomorphicFn()
+  .client((): string | undefined => document.querySelector<HTMLMetaElement>(`meta[name="${SITE_BASE_META}"]`)?.content || undefined)
+  .server((): string | undefined => {
+    const base = customDomainOrigin();
+    return base ? new URL(base).pathname.replace(/\/+$/, '') || undefined : undefined;
   });

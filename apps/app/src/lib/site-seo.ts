@@ -1,7 +1,10 @@
 import { markdownAlternateUrl } from '@nibleaf/shared/markdown-discovery';
 import { isPublicMarkdownPage } from '@nibleaf/shared/public-markdown';
+import { isWikiPathSlug } from '@nibleaf/shared/wiki-paths';
 import type { ProjectConfig, SitePage, SiteShell } from '@/hooks/api/types';
+import type { Homepage } from '@/lib/homepage';
 import { publicUrls } from '@/lib/public-urls';
+import { currentHomepage } from '@/lib/site-origin';
 
 /**
  * Public origin the site is served from: the real origin on the client, the
@@ -18,22 +21,28 @@ export interface SiteUrlOptions {
   primaryDomain?: string | null;
   /** Project slug, for the free `<slug>.<SITE_BASE_DOMAIN>` subdomain. */
   slug?: string | null;
-  /** The custom-domain origin the request actually arrived on (stamped by
-   *  src/server.ts as x-nibleaf-site-origin). Used only when neither a primary
-   *  domain nor a subdomain base is known. */
+  /** The public base URL the request actually arrived on: a custom domain or
+   *  home-wiki origin, or `<app origin>/<slug>` (stamped by src/server.ts as
+   *  x-nibleaf-site-origin). Used only when neither a primary domain nor a
+   *  subdomain base is known. */
   requestOrigin?: string;
   /** Override the configured base domain (tests). `null` disables it. */
   baseDomain?: string | null;
+  /** Override whether wikis are served at `/<slug>` on the app origin (tests). */
+  wikiSlugPaths?: boolean;
+  /** Override the `HOMEPAGE` mode (tests). */
+  homepage?: Homepage;
 }
 
 /**
  * The single canonical base URL for a published site. Every origin a site is
- * reachable on (app-origin /sites/:id, slug subdomain, secondary domains)
- * canonicalizes to the SAME base so search equity isn't split:
+ * reachable on (app-origin /sites/:id or /<slug>, slug subdomain, secondary
+ * domains) canonicalizes to the SAME base so search equity isn't split:
  *   1. the verified primary custom domain,
  *   2. else the `<slug>.<SITE_BASE_DOMAIN>` subdomain,
- *   3. else the origin the request arrived on (custom-domain serving),
- *   4. else the app origin's internal /sites/:id path.
+ *   3. else the base the request arrived on (custom domain, home wiki, `/<slug>`),
+ *   4. else, under shared tenancy, the app origin root for the home wiki or `/<slug>`,
+ *   5. else the app origin's internal /sites/:id path.
  */
 export function canonicalSiteBase(projectId: string, options: SiteUrlOptions = {}): string {
   const primary = options.primaryDomain?.trim().toLowerCase();
@@ -47,6 +56,15 @@ export function canonicalSiteBase(projectId: string, options: SiteUrlOptions = {
   }
   if (options.requestOrigin) {
     return options.requestOrigin;
+  }
+  if (options.wikiSlugPaths ?? publicUrls().wikiSlugPaths) {
+    const homepage = options.homepage ?? currentHomepage();
+    if (homepage.mode === 'site' && homepage.projectId === projectId) {
+      return publicOrigin();
+    }
+    if (slug && isWikiPathSlug(slug)) {
+      return `${publicOrigin()}/${slug}`;
+    }
   }
   return `${publicOrigin()}/sites/${projectId}`;
 }

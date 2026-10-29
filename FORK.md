@@ -21,6 +21,7 @@ team per wiki), as upstream.
 | Platform `admin` | No wiki rights beyond memberships | Wiki-admin rights on every wiki |
 | Platform `editor` | No wiki rights | Member rights on every wiki |
 | Account deletion | Erases wikis where the user is the sole member | Refused (`SOLE_WIKI_OWNER`) while the user is a wiki's sole member |
+| Published wiki URL | `/sites/<id>` | `/<slug>` on the app origin; `/sites/<id>` 301s there |
 
 - Code default, `.env.example` and `docker-compose.yml` stay `independent`
   (the demo seed needs it). `.env.production.example`, `docker-compose.prod.yml`
@@ -33,6 +34,33 @@ team per wiki), as upstream.
 - The creator of a wiki becomes its owner; dashboard-created wikis start
   empty in both modes.
 - A wiki holds up to 100 members (better-auth's `membershipLimit` default).
+
+## Wiki slug paths
+
+Shared tenancy only (`WIKI_SLUG_PATHS` in `apps/app/src/server.ts`).
+
+- Edge: the first path segment, when it is a valid unreserved slug, resolves
+  through `GET /api/public/sites/resolve?slug=` (published wikis, current or previous slug;
+  404 in independent mode), cached 30 s including misses, so a rename or a new
+  wiki can take up to 30 s to route. A hit is rewritten to `/sites/<id>/*`
+  with `x-nibleaf-site-origin: <origin>/<slug>`; a previous slug 301s to the
+  current one. Public GETs of `/sites/<id>/*` 301 to `/<slug>/*`.
+- Order on the app origin: legal redirects → `/<slug>` → `HOMEPAGE=site`
+  rewrite → `/sites/<id>`. The home wiki's own slug and `/sites/<home id>`
+  301 to `/`.
+- Client: one base path per document (`siteBasePath`: `''`, `/<slug>`,
+  `/sites/<id>`), carried by the `nibleaf-site-base` meta for the router
+  rewrite. A shared-tenancy home wiki routes clicks client-side only for
+  top-level segments its navigation owns; others load as documents so the
+  server decides.
+- Previous slugs: `project.config.previousSlugs` (newest first, at most 10),
+  written only by the slug update, never through the config API, and stripped
+  from snapshots and site shells. While remembered, another wiki cannot take
+  the slug (`wikiSlugUnavailable` in `packages/auth/src/wiki-slugs.ts`).
+- Reserved slugs: `DASHBOARD_ROOT_SEGMENTS` ∪ `APP_OWNED_ROOT_SEGMENTS`
+  (`packages/shared/src/wiki-paths.ts`), which also build `isDashboardPath`
+  and `isAppOwnedPath`; a test fails when a new top-level route is missing.
+  Existing clashes are logged at API boot and stay at `/sites/<id>`.
 
 ## Platform roles
 

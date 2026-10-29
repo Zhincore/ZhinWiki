@@ -1,5 +1,6 @@
+import { DASHBOARD_ROOT_SEGMENTS } from '@nibleaf/shared/wiki-paths';
 import type { LocationRewrite } from '@tanstack/react-router';
-import { rewriteCustomDomainInput, rewriteCustomDomainOutput } from '@/lib/custom-domain-rewrite';
+import { rewriteSiteInput, rewriteSiteOutput } from '@/lib/custom-domain-rewrite';
 import { isAppOwnedPath } from '@/lib/request-negotiation';
 
 /** What the app origin serves at `/` (env `HOMEPAGE`). */
@@ -19,8 +20,7 @@ export function parseHomepage(value?: string): Homepage {
 export const formatHomepage = (homepage: Homepage): string =>
   homepage.mode === 'site' ? `site:${homepage.projectId}` : homepage.mode === 'app' ? 'app' : '';
 
-const DASHBOARD_PATH =
-  /^\/(?:app|sign-in|sign-up|forgot-password|reset-password|verify-email|accept-invite|git-preview|brand-assets|health|terms|privacy)(?:\/|$)/;
+const DASHBOARD_PATH = new RegExp(`^/(?:${DASHBOARD_ROOT_SEGMENTS.join('|')})(?:/|$)`);
 
 /** Dashboard, auth, legal and runtime paths the app owns at its root; never part of a home wiki. */
 export const isDashboardPath = (pathname: string): boolean => DASHBOARD_PATH.test(pathname) || isAppOwnedPath(pathname);
@@ -50,8 +50,8 @@ export function homepageRewrite(homepage: Homepage, homeDocument: boolean): Loca
   if (homepage.mode === 'site') {
     const { projectId } = homepage;
     return {
-      input: ({ url }) => (isDashboardPath(url.pathname) ? url : rewriteCustomDomainInput(url, projectId)),
-      output: homeDocument ? ({ url }) => rewriteCustomDomainOutput(url, projectId) : undefined,
+      input: ({ url }) => (isDashboardPath(url.pathname) ? url : rewriteSiteInput(url, projectId)),
+      output: homeDocument ? ({ url }) => rewriteSiteOutput(url, projectId) : undefined,
     };
   }
   return undefined;

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   projectFindUnique: vi.fn(),
+  projectFindFirst: vi.fn(),
   deploymentFindFirst: vi.fn(),
   deploymentFindUnique: vi.fn(),
   searchDocs: vi.fn(),
@@ -12,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@nibleaf/database', () => ({
   prisma: {
-    project: { findUnique: mocks.projectFindUnique },
+    project: { findUnique: mocks.projectFindUnique, findFirst: mocks.projectFindFirst },
     deployment: { findFirst: mocks.deploymentFindFirst, findUnique: mocks.deploymentFindUnique },
   },
 }));
@@ -30,7 +31,8 @@ vi.mock('./analytics', () => ({ trackProjectEvent: vi.fn() }));
 vi.mock('./notifications', () => ({ createNotificationsForOrgMembers: vi.fn() }));
 vi.mock('./reader-access', () => ({ resolveViewerAccess: vi.fn(async () => ({ kind: 'public', allowedPageIds: null })) }));
 
-import { getSitePage, getSitePageMarkdown, invalidatePublishedSiteConfig, searchSite } from './sites';
+import { env } from '@/env';
+import { getSitePage, getSitePageMarkdown, invalidatePublishedSiteConfig, resolveSiteSlug, searchSite } from './sites';
 
 const page = (over: Partial<SnapshotPage> & Pick<SnapshotPage, 'id' | 'path' | 'position'>): SnapshotPage => ({
   parentId: null,
@@ -77,6 +79,7 @@ describe('getSitePage lede vs excerpt', () => {
       'name' in select
         ? {
             name: 'Docs',
+            slug: 'docs',
             description: null,
             icon: null,
             config: {},
@@ -126,6 +129,7 @@ describe('getSitePage lede vs excerpt', () => {
       'name' in select
         ? {
             name: 'Docs',
+            slug: 'docs',
             description: null,
             icon: null,
             config: {},
@@ -184,6 +188,7 @@ describe('getSitePage lede vs excerpt', () => {
       'name' in select
         ? {
             name: 'Docs',
+            slug: 'docs',
             description: null,
             icon: null,
             config: {},
@@ -207,6 +212,7 @@ describe('getSitePage lede vs excerpt', () => {
       'name' in select
         ? {
             name: 'Docs',
+            slug: 'docs',
             description: null,
             icon: null,
             config: {},
@@ -257,6 +263,7 @@ describe('searchSite multilingual scope', () => {
       'name' in select
         ? {
             name: 'Docs',
+            slug: 'docs',
             description: null,
             icon: null,
             config: {},
@@ -305,5 +312,32 @@ describe('searchSite multilingual scope', () => {
     expect(mocks.getCachedIndex).toHaveBeenCalledTimes(1);
     expect(mocks.getCachedIndex.mock.calls[0]?.[2]).toBe('ar');
     expect(result.hits).toEqual([expect.objectContaining({ id: 'page-ar', language: 'ar' })]);
+  });
+});
+
+describe('resolveSiteSlug', () => {
+  type Where = { slug?: string; config?: { array_contains: string[] }; takedownAt?: null; deployments?: unknown };
+  /** `p1` is published as `handbook` and still remembers `guide`. */
+  const published = async ({ where }: { where: Where }) => {
+    if (where.takedownAt !== null || !where.deployments) return null;
+    return where.slug === 'handbook' || where.config?.array_contains[0] === 'guide' ? { id: 'p1', slug: 'handbook' } : null;
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.projectFindFirst.mockImplementation(published);
+  });
+
+  it('resolves nothing outside shared tenancy', async () => {
+    Object.assign(env, { TENANCY: 'independent' });
+    await expect(resolveSiteSlug('handbook')).resolves.toBeNull();
+    expect(mocks.projectFindFirst).not.toHaveBeenCalled();
+  });
+
+  it('resolves only a published wiki, by its current or a previous slug', async () => {
+    Object.assign(env, { TENANCY: 'shared' });
+    await expect(resolveSiteSlug('handbook')).resolves.toEqual({ projectId: 'p1', slug: 'handbook' });
+    await expect(resolveSiteSlug('guide')).resolves.toEqual({ projectId: 'p1', slug: 'handbook' });
+    await expect(resolveSiteSlug('missing')).resolves.toBeNull();
   });
 });

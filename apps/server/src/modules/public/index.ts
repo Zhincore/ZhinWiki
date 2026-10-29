@@ -12,12 +12,12 @@ import sites from './sites/handlers';
 
 /** Machine/edge traffic that must not compete with human page views for the
  *  per-IP budget: the cheap crawler files (sitemap.xml, robots.txt), the app
- *  edge's host→project resolution, and the instance meta probe. Cheap to serve,
+ *  edge's host/slug→project resolution, and the instance meta probe. Cheap to serve,
  *  and starving them breaks custom-domain serving and crawl health for everyone
  *  behind that IP. llms.txt / llms-full.txt are deliberately NOT here: building
  *  them re-serializes every page's Markdown (llms-full is the single most
  *  expensive public response), so they stay on the standard limiter. */
-const LOW_COST_PATH = /(\/sitemap\.xml|\/robots\.txt)$|\/api\/public\/domains\/resolve$|\/api\/public\/meta\/?$/;
+const LOW_COST_PATH = /(\/sitemap\.xml|\/robots\.txt)$|\/api\/public\/(?:domains|sites)\/resolve$|\/api\/public\/meta\/?$/;
 
 const publicPerMinute = envExtras.RATE_LIMIT_PUBLIC_PER_MIN;
 const standardLimiter = rateLimit({ windowMs: 60_000, max: publicPerMinute });

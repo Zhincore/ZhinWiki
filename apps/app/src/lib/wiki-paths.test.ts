@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { isReservedWikiSlug, WIKI_SLUG_PATTERN } from '@nibleaf/shared/wiki-paths';
+import { isWikiPathSlug, WIKI_SLUG_PATTERN } from '@nibleaf/shared/wiki-paths';
 import { describe, expect, it } from 'vitest';
 
 const routeTree = readFileSync(new URL('../routeTree.gen.ts', import.meta.url), 'utf8');
@@ -10,12 +10,11 @@ describe('reserved wiki slugs', () => {
     const segments = new Set([...fullPaths.matchAll(/'\/([^/'$]+)/g)].map((match) => match[1] ?? ''));
     expect(segments.size).toBeGreaterThan(0);
     for (const segment of segments) {
-      expect(isReservedWikiSlug(segment) || !WIKI_SLUG_PATTERN.test(segment), segment).toBe(true);
+      expect(isWikiPathSlug(segment), segment).toBe(false);
     }
   });
 
-  it('leave root files unreachable as wiki slugs', () => {
-    const files = [...readdirSync(new URL('../../public', import.meta.url)), 'robots.txt', 'sitemap.xml', 'llms.txt', 'llms-full.txt', '.well-known'];
-    for (const file of files) expect(WIKI_SLUG_PATTERN.test(file), file).toBe(false);
+  it('leave public root files unreachable as wiki slugs', () => {
+    for (const file of readdirSync(new URL('../../public', import.meta.url))) expect(WIKI_SLUG_PATTERN.test(file), file).toBe(false);
   });
 });

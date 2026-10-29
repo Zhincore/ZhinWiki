@@ -1,6 +1,9 @@
-import { prisma } from '@nibleaf/database';
+import { type Prisma, prisma } from '@nibleaf/database';
 import type { Tenancy } from '@nibleaf/shared/rbac';
 import { isReservedWikiSlug } from '@nibleaf/shared/wiki-paths';
+
+/** Projects that remember `slug` in their `config.previousSlugs`. */
+export const rememberingSlug = (slug: string): Prisma.ProjectWhereInput => ({ config: { path: ['previousSlugs'], array_contains: [slug] } });
 
 /**
  * Whether a wiki may not take `slug`: another wiki uses it, or, under shared
@@ -14,7 +17,7 @@ export async function wikiSlugUnavailable(slug: string, tenancy: Tenancy, projec
   const current = await prisma.project.findFirst({ where: { slug, ...others }, select: { id: true } });
   if (current || tenancy !== 'shared') return Boolean(current);
   const previous = await prisma.project.findFirst({
-    where: { config: { path: ['previousSlugs'], array_contains: [slug] }, ...others },
+    where: { ...rememberingSlug(slug), ...others },
     select: { id: true },
   });
   return Boolean(previous);

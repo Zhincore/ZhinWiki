@@ -304,11 +304,14 @@ describe('canonicalSiteBase priority', () => {
     expect(canonicalSiteBase('p1', { baseDomain: null })).toBe('http://localhost:4310/sites/p1');
   });
 
-  it('falls back to /<slug> on the app origin under shared tenancy, unless the slug clashes with an app path', () => {
+  it('falls back to /<slug> (the root for the home wiki) on the app origin under shared tenancy, unless the slug clashes with an app path', () => {
     expect(canonicalSiteBase('p1', { slug: 'acme', baseDomain: null, wikiSlugPaths: true })).toBe('http://localhost:4310/acme');
     expect(canonicalSiteBase('p1', { slug: 'acme', baseDomain: 'nibleaf.site', wikiSlugPaths: true })).toBe('https://acme.nibleaf.site');
     expect(canonicalSiteBase('p1', { slug: 'app', baseDomain: null, wikiSlugPaths: true })).toBe('http://localhost:4310/sites/p1');
     expect(canonicalSiteBase('p1', { slug: 'acme', baseDomain: null, wikiSlugPaths: false })).toBe('http://localhost:4310/sites/p1');
+    expect(canonicalSiteBase('p1', { slug: 'acme', baseDomain: null, wikiSlugPaths: true, homepage: { mode: 'site', projectId: 'p1' } })).toBe(
+      'http://localhost:4310',
+    );
   });
 
   it('normalizes the primary domain host', () => {

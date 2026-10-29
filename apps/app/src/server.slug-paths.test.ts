@@ -90,6 +90,8 @@ describe('wiki slug paths under shared tenancy', () => {
     expect(internal.status).toBe(301);
     expect(internal.headers.get('location')).toBe('http://localhost:4310/handbook/guide?tab=cli');
     expect(rendered).toBeUndefined();
+
+    expect((await get(server, '/old-handbook.md')).headers.get('location')).toBe('http://localhost:4310/handbook.md');
   });
 
   it('keeps a wiki whose slug clashes with an app path at /sites/:id', async () => {
@@ -108,11 +110,11 @@ describe('wiki slug paths under shared tenancy', () => {
     expect(rendered?.pathname).toBe('/app/sites');
   });
 
-  it('rebases the machine files onto /<slug>', async () => {
+  it('rebases the machine files onto /<slug>, also under the internal path', async () => {
     const server = await loadServer('shared');
-    const response = await get(server, '/handbook/sitemap.xml');
 
-    expect(await response.text()).toBe('<loc>http://localhost:4310/handbook/guide</loc>');
+    expect(await (await get(server, '/handbook/sitemap.xml')).text()).toBe('<loc>http://localhost:4310/handbook/guide</loc>');
+    expect(await (await get(server, '/sites/p1/sitemap.xml')).text()).toBe('<loc>http://localhost:4310/handbook/guide</loc>');
   });
 
   it('lets another wiki slug win over a home-wiki path and moves the home wiki to the root', async () => {
@@ -128,6 +130,10 @@ describe('wiki slug paths under shared tenancy', () => {
     expect(ownSlug.headers.get('location')).toBe('http://localhost:4310/getting-started');
     const internal = await get(server, '/sites/home');
     expect(internal.headers.get('location')).toBe('http://localhost:4310/');
+
+    for (const alias of ['/home-wiki.md', '/sites/home.md']) {
+      expect((await get(server, alias)).headers.get('location'), alias).toBe('http://localhost:4310/_index.md');
+    }
   });
 });
 

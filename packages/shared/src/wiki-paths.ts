@@ -21,10 +21,16 @@ export const APP_OWNED_ROOT_SEGMENTS = ['api', 'assets', 'sites'] as const;
  *  such as `robots.txt`, `favicon.ico` or `.well-known` can never match. */
 export const WIKI_SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
-const RESERVED_WIKI_SLUGS: ReadonlySet<string> = new Set([...DASHBOARD_ROOT_SEGMENTS, ...APP_OWNED_ROOT_SEGMENTS]);
+/** Slugs naming an app path at the app root, so a wiki cannot be served at `/<slug>`. */
+export const RESERVED_WIKI_SLUGS: readonly string[] = [...DASHBOARD_ROOT_SEGMENTS, ...APP_OWNED_ROOT_SEGMENTS];
+
+const reservedWikiSlugs: ReadonlySet<string> = new Set(RESERVED_WIKI_SLUGS);
 
 /** Whether a slug names an app path at the app root, so a wiki cannot be served at `/<slug>`. */
-export const isReservedWikiSlug = (slug: string): boolean => RESERVED_WIKI_SLUGS.has(slug);
+export const isReservedWikiSlug = (slug: string): boolean => reservedWikiSlugs.has(slug);
+
+/** Whether a wiki with this slug can be served at `/<slug>` on the app origin. */
+export const isWikiPathSlug = (slug: string): boolean => WIKI_SLUG_PATTERN.test(slug) && !isReservedWikiSlug(slug);
 
 /** Previous slugs a wiki keeps for redirects: newest first, capped. */
 export const MAX_PREVIOUS_WIKI_SLUGS = 10;

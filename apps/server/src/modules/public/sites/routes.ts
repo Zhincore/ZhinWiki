@@ -8,7 +8,7 @@ const sitesRoutes = {
   resolve: createRouteConfig({
     guard: passthrough,
     tags: ['public'],
-    description: 'Resolve a wiki path slug, current or previous, to its project id and current slug (shared tenancy only).',
+    description: 'Resolve a published wiki path slug, current or previous, to its project id and current slug (shared tenancy only).',
     responses: ok,
   }),
   site: createRouteConfig({ guard: passthrough, tags: ['public'], description: 'Published site shell (branding + navigation).', responses: ok }),

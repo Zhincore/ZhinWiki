@@ -59,7 +59,7 @@ export function GeneralSection({ project }: { project: Project }) {
   const [icon, setIcon] = useState<string | null>(project.icon ?? null);
   const [iconOpen, setIconOpen] = useState(false);
   // Without a configured base domain the free-subdomain host would 404, so the
-  // preview falls back to the working /sites/:id path.
+  // preview falls back to /<slug> under shared tenancy, else /sites/:id.
   const { siteBaseDomain, wikiSlugPaths } = publicUrls();
   // Localized site name/description per NON-default language (Translations
   // group below). Drafts are keyed by language id and survive switching the

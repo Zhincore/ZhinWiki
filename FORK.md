@@ -124,6 +124,9 @@ of `main` that is reviewed and merged back.
   `forkFingerprint` = `<content hash>.<tree hash>` of that page at fork time.
   Content: kind, title, slug, icon, description, content, config, hidden,
   translationKey. Tree: parent (as a `main` id) and position.
+- Fork base: `ChangeRequest.forkBase` maps every `main` page copied at fork
+  time to its content hash. Null means untracked (migrated branches, empty
+  Mintlify version imports); cleared on merge.
 - Merge (`planMerge` in `apps/server/src/actions/change-request-merge.ts`),
   one transaction:
   - Edited page: written onto the same `main` row (comments, reader grants
@@ -132,22 +135,28 @@ of `main` that is reviewed and merged back.
     where the CR moved the page.
   - New CR page: moved onto `main` with its id; slug suffixed on a sibling
     clash.
-  - Page deleted in the CR (forked before the CR's branch `createdAt`, no copy
-    left): deleted on `main`, or `DELETED_IN_BRANCH` if `main` updated it after
-    the fork. Kept children move to the nearest surviving ancestor.
+  - Page deleted in the CR (in the fork base, no copy left): deleted on
+    `main`, or `DELETED_IN_BRANCH` if its `main` content changed since the
+    fork. Kept children move to the nearest surviving ancestor; CR pages under
+    a parent deleted on `main` likewise.
+  - A move on each side that would close a parent loop keeps `main`'s parent
+    for the page the CR moved.
   - Page deleted on `main` but edited in the CR: `DELETED_ON_MAIN`.
   - `main` pages created after the fork are kept.
   - Conflicts → 409 with `{ conflicts: [{ pageId, title, path, languageId,
-    reason }] }`; `force: true` lets the CR win on those pages only.
-  - A CR with pages but no fork fingerprints, forked from a non-empty `main`
-    (pre-migration content), replaces `main` wholesale (legacy behaviour).
+    reason }] }`; `force: [pageId…]` lets the CR win on those pages only and
+    answers 409 again if any other conflict exists.
+  - Untracked CRs (null fork base) replace `main` wholesale (legacy
+    behaviour); the merge record pairs pages by language and path.
+  - Merges take a per-project advisory lock and lock `main`'s rows.
 - API: `/projects/:projectId/change-requests` (list `?status=`, create, get
   with changed pages, patch title/description/status, `/:number/merge`,
   `/:number/pages/:pageId/diff`), member role. Branch routes still work and
   keep the invariant.
-- `buildSnapshot` and both publish paths read only the default branch.
-  Exports and the MCP `versions` resource are authenticated and still list
-  CR branches.
+- `buildSnapshot` and both publish paths read only the default branch;
+  `defaultVersionOnly` also strips other versions from older snapshots when
+  served, rolled back to or indexed. Exports and the MCP `versions` resource
+  are authenticated and still list CR branches.
 
 ## Branding and runtime config
 

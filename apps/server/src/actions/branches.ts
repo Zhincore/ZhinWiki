@@ -1,7 +1,7 @@
-import { type Branch, type Prisma, prisma } from '@nibleaf/database';
+import { type Branch, Prisma, prisma } from '@nibleaf/database';
 import { newId } from '@nibleaf/shared/ids';
 import { conflict, notFound } from '@/errors';
-import { pageFingerprint } from './change-request-merge';
+import { contentHash, type ForkBase, pageFingerprint } from './change-request-merge';
 
 /** Every branch of a project, default ('main') first. */
 export const listBranches = async (projectId: string): Promise<Branch[]> =>
@@ -30,11 +30,16 @@ const MAX_NUMBER_ATTEMPTS = 5;
 
 /** Copy every default-branch page onto `branchId` with fresh ids and remapped
  *  parents. Change-request copies also record their source page and its fork
- *  fingerprint so a merge can tell who changed what. */
-const forkDefaultBranch = async (tx: Prisma.TransactionClient, projectId: string, branchId: string, link: boolean) => {
+ *  fingerprint so a merge can tell who changed what. Returns the fork base. */
+const forkDefaultBranch = async (
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  branchId: string,
+  link: boolean,
+): Promise<NonNullable<ForkBase>> => {
   const main = await tx.branch.findFirstOrThrow({ where: { projectId, isDefault: true }, select: { id: true } });
   const sourcePages = await tx.page.findMany({ where: { projectId, branchId: main.id }, orderBy: { position: 'asc' } });
-  if (sourcePages.length === 0) return;
+  if (sourcePages.length === 0) return {};
   const idMap = new Map(sourcePages.map((p) => [p.id, newId()]));
   await tx.page.createMany({
     data: sourcePages.map((p) => ({
@@ -57,6 +62,7 @@ const forkDefaultBranch = async (tx: Prisma.TransactionClient, projectId: string
       ...(link ? { sourcePageId: p.id, forkFingerprint: pageFingerprint(p, p.parentId) } : {}),
     })),
   });
+  return Object.fromEntries(sourcePages.map((p) => [p.id, contentHash(p)]));
 };
 
 /** Create an empty, non-default branch used to assemble an authoritative
@@ -95,7 +101,8 @@ export type CreateBranchInput = {
   title: string;
   description?: string | null;
   authorId: string | null;
-  /** Start from a copy of the default branch (default) or empty. */
+  /** Start from a copy of the default branch (default) or empty; an empty
+   *  branch is untracked and merges by replacing the default branch. */
   fork?: boolean;
 };
 
@@ -122,6 +129,7 @@ export const createBranch = async (projectId: string, input: CreateBranchInput):
             ? `${fallbackName}-${newId()}`
             : fallbackName);
         const branch = await tx.branch.create({ data: { projectId, name: branchName, isDefault: false } });
+        const forkBase = input.fork === false ? null : await forkDefaultBranch(tx, projectId, branch.id, true);
         await tx.changeRequest.create({
           data: {
             projectId,
@@ -130,9 +138,9 @@ export const createBranch = async (projectId: string, input: CreateBranchInput):
             description: input.description ?? null,
             authorId: input.authorId,
             branchId: branch.id,
+            forkBase: forkBase ?? Prisma.DbNull,
           },
         });
-        if (input.fork !== false) await forkDefaultBranch(tx, projectId, branch.id, true);
         return branch;
       });
     } catch (error) {

@@ -6,7 +6,7 @@ import { createLogger } from '@nibleaf/logger';
 import { getQdrantClient, type QdrantFilter, type QdrantIndexedPoint, type QdrantPoint } from '@nibleaf/qdrant';
 import { chunkSearchDocument, OpenRouterEmbeddingProvider, type SearchChunk, type SearchChunkSource, sparseVectorForChunk } from '@nibleaf/search';
 import { instanceBrand } from '@nibleaf/shared/brand/server';
-import { extractHeadings, type SiteSnapshot } from '@nibleaf/shared/site';
+import { defaultVersionOnly, extractHeadings, type SiteSnapshot } from '@nibleaf/shared/site';
 import { buildUsageEvent, deterministicUsageEventId } from '@nibleaf/usage';
 import type { Job } from 'bullmq';
 import { z } from 'zod';
@@ -349,7 +349,7 @@ export async function handleSearchJobs(job: Job<ReindexProjectJobData>) {
       }),
     ]);
     if (!project) throw new SearchIndexFailure('project_not_found', 0, []);
-    const snapshot = deployment.snapshot as unknown as SiteSnapshot;
+    const snapshot = defaultVersionOnly(deployment.snapshot as unknown as SiteSnapshot);
     const provider = new OpenRouterEmbeddingProvider({
       apiKey: env.OPENROUTER_API_KEY,
       model: env.SEARCH_EMBEDDING_MODEL,

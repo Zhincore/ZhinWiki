@@ -57,7 +57,7 @@ const app = new Hono<HonoEnv>()
     async (ctx) => {
       const projectId = await projectScope(ctx);
       const { number } = ctx.req.valid('param');
-      const data = await mergeChangeRequest(projectId, number, getContextUserOrThrow().id, ctx.req.valid('json').force === true);
+      const data = await mergeChangeRequest(projectId, number, getContextUserOrThrow().id, ctx.req.valid('json').force ?? []);
       return ctx.json({ data }, 200);
     },
   )

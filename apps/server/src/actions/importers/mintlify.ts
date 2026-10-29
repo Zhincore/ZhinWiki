@@ -206,21 +206,17 @@ const importNavigation = async (
   languageNavigation: readonly MintlifyLanguageNavigation[] = [],
 ) => {
   const { unversioned, versions } = partitionMintlifyVersions(sourceNodes);
-  const partitions =
-    versions.length === 0
-      ? [{ nodes: [...unversioned], target: defaultTarget, versionName: undefined }]
-      : await Promise.all(
-          [...versions]
-            .sort((left, right) => Number(right.isDefault) - Number(left.isDefault))
-            .map(async (version) => {
-              state.versions.add(version.name);
-              return {
-                nodes: version.isDefault ? [...unversioned, ...version.nodes] : [...version.nodes],
-                target: await ensureVersionTarget(defaultTarget.projectId, defaultTarget, version, summary),
-                versionName: version.name,
-              };
-            }),
-        );
+  const partitions: { nodes: NavNode[]; target: ImportTarget; versionName: string | undefined }[] = [];
+  if (versions.length === 0) partitions.push({ nodes: [...unversioned], target: defaultTarget, versionName: undefined });
+  // Sequential: each version becomes a change request numbered after the previous one.
+  for (const version of [...versions].sort((left, right) => Number(right.isDefault) - Number(left.isDefault))) {
+    state.versions.add(version.name);
+    partitions.push({
+      nodes: version.isDefault ? [...unversioned, ...version.nodes] : [...version.nodes],
+      target: await ensureVersionTarget(defaultTarget.projectId, defaultTarget, version, summary),
+      versionName: version.name,
+    });
+  }
   for (const partition of partitions) {
     if (includeLinkedPages) await addLinkedPages(partition.nodes, languageCode, repository, baseDir, blobs, summary);
     const removedPlaceholders = await removeImportPlaceholders(partition.target);

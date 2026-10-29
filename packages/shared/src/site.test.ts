@@ -3,6 +3,7 @@ import {
   buildNavTree,
   buildSnapshot,
   defaultLanguage,
+  defaultVersionOnly,
   explicitPageDescription,
   extractHeadings,
   interpolateVariables,
@@ -277,6 +278,20 @@ describe('buildSnapshot', () => {
     );
     expect(snap.project.versions.map((version) => version.id)).toEqual(['branch_main']);
     expect(snap.pages.map((page) => page.id)).toEqual(['a']);
+  });
+  it('rejects pages from a branch outside the project', () => {
+    expect(() => buildSnapshot(projectRow, [{ ...rawPage, id: 'x', branchId: 'branch_elsewhere' }], '2026-01-01')).toThrow(/outside project/);
+  });
+  it('strips non-default versions from an older snapshot', () => {
+    const snap = buildSnapshot(projectRow, [{ ...rawPage, id: 'a', branchId: 'branch_main' }], '2026-01-01');
+    const old = {
+      ...snap,
+      project: { ...snap.project, versions: [...snap.project.versions, { id: 'v2', name: 'v2', slug: 'v2', isDefault: false }] },
+      pages: [...snap.pages, { ...(snap.pages[0] as SnapshotPage), id: 'draft', versionId: 'v2' }],
+    };
+    const stripped = defaultVersionOnly(old);
+    expect(stripped.project.versions).toEqual(snap.project.versions);
+    expect(stripped.pages.map((page) => page.id)).toEqual(['a']);
   });
   it('interpolates {{ variables }} from config into page title/description/content at build time', () => {
     const snap = buildSnapshot(

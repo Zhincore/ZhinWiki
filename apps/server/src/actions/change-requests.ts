@@ -3,8 +3,8 @@ import type { Locale } from '@nibleaf/i18n/locales';
 import { changerequest_defaulttitle } from '@nibleaf/i18n/messages';
 import type { CreateChangeRequestBody, UpdateChangeRequestBody } from '@nibleaf/validators';
 import { badRequest, conflict, notFound } from '@/errors';
-import { assertBranchInProject, createBranch, getDefaultBranch } from './branches';
-import { type MergedFields, type MergePage, type MergeRecordEntry, mergedFields, planMerge, summarizeChanges } from './change-request-merge';
+import { createBranch, getDefaultBranch } from './branches';
+import { type ForkBase, type MergedFields, type MergePage, type MergeRecordEntry, planMerge, summarizeChanges } from './change-request-merge';
 
 const MERGE_TIMEOUT_MS = 60_000;
 
@@ -25,11 +25,12 @@ const mergePageSelect = {
   hidden: true,
   sourcePageId: true,
   forkFingerprint: true,
-  createdAt: true,
-  updatedAt: true,
 } satisfies Prisma.PageSelect;
 
 const userSelect = { select: { id: true, name: true, image: true } } as const;
+
+/** Merge bookkeeping columns, left out of API responses. */
+const internalColumns = { mergeRecord: true, forkBase: true } as const;
 
 /** Default title of a change request opened by `name`, in the caller's interface locale. */
 export const defaultChangeRequestTitle = (name: string, locale?: Locale) => changerequest_defaulttitle({ name }, { locale });
@@ -44,7 +45,7 @@ export const listChangeRequests = async (projectId: string, status?: ChangeReque
   prisma.changeRequest.findMany({
     where: { projectId, ...(status ? { status } : {}) },
     orderBy: { number: 'desc' },
-    omit: { mergeRecord: true },
+    omit: internalColumns,
     include: { author: userSelect },
   });
 
@@ -60,11 +61,13 @@ export const createChangeRequest = async (
     description: body.description ?? null,
     authorId: author.id,
   });
-  return prisma.changeRequest.findUniqueOrThrow({ where: { branchId: branch.id }, omit: { mergeRecord: true }, include: { author: userSelect } });
+  return prisma.changeRequest.findUniqueOrThrow({ where: { branchId: branch.id }, omit: internalColumns, include: { author: userSelect } });
 };
 
 const loadPages = (projectId: string, branchId: string, client: Prisma.TransactionClient = prisma): Promise<MergePage[]> =>
   client.page.findMany({ where: { projectId, branchId }, select: mergePageSelect, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] });
+
+const recordEntries = (mergeRecord: Prisma.JsonValue | null) => (mergeRecord as { pages?: MergeRecordEntry[] } | null)?.pages ?? [];
 
 /** A change request with the pages it changes: compared against the default
  *  branch while open, read from the merge record once merged. */
@@ -74,22 +77,25 @@ export const getChangeRequest = async (projectId: string, number: number) => {
     include: { author: userSelect, mergedBy: userSelect, branch: true },
   });
   if (!changeRequest) throw notFound('changeRequest', { number });
-  const { mergeRecord, branch, ...rest } = changeRequest;
+  const { mergeRecord, forkBase, branch, ...rest } = changeRequest;
   if (!branch) {
-    const entries = (mergeRecord as { pages?: MergeRecordEntry[] } | null)?.pages ?? [];
-    const changes = entries.map((entry) => ({
-      change: entry.action,
-      mainPageId: entry.pageId,
-      branchPageId: null,
-      title: (entry.after ?? entry.before)?.title ?? '',
-      languageId: entry.languageId,
-    }));
+    const changes = recordEntries(mergeRecord).map((entry) => {
+      const page = entry.after ?? entry.before;
+      return {
+        change: entry.action,
+        mainPageId: entry.pageId,
+        branchPageId: null,
+        title: page?.title ?? '',
+        path: page?.path ?? '',
+        languageId: entry.languageId,
+      };
+    });
     return { ...rest, changes, conflicts: [] };
   }
   const main = await getDefaultBranch(projectId);
   const [mainPages, branchPages] = await Promise.all([loadPages(projectId, main.id), loadPages(projectId, branch.id)]);
-  const input = { main: mainPages, branch: branchPages, forkedAt: branch.createdAt };
-  const plan = planMerge({ ...input, force: false });
+  const input = { main: mainPages, branch: branchPages, forkBase: forkBase as ForkBase };
+  const plan = planMerge({ ...input, force: new Set() });
   return { ...rest, changes: summarizeChanges(input), conflicts: plan.legacy ? [] : plan.conflicts };
 };
 
@@ -108,7 +114,7 @@ export const updateChangeRequest = async (projectId: string, number: number, bod
       ...(body.description === undefined ? {} : { description: body.description }),
       ...(body.status === undefined ? {} : { status: body.status }),
     },
-    omit: { mergeRecord: true },
+    omit: internalColumns,
     include: { author: userSelect },
   });
 };
@@ -122,46 +128,29 @@ const pageData = <T extends Partial<MergedFields>>(data: T) => {
 
 /**
  * Merge a change request into the default branch page by page, then delete its
- * branch. Pages edited on both sides since the fork are refused with a 409
- * listing them, unless `force` lets the branch win on those pages.
+ * branch. Conflicting pages are refused with a 409 listing them unless every
+ * one of them is named in `force`, which lets the branch win on those pages.
  */
-export const mergeChangeRequest = async (projectId: string, number: number, userId: string, force: boolean) => {
-  const changeRequest = await findChangeRequest(projectId, number);
-  if (changeRequest.status === 'MERGED') throw conflict('This change request is already merged.');
-  if (changeRequest.status === 'ARCHIVED') throw conflict('Reopen this change request before merging it.');
-  if (!changeRequest.branchId) throw conflict('This change request has no branch to merge.');
-  const branch = await assertBranchInProject(projectId, changeRequest.branchId);
+export const mergeChangeRequest = async (projectId: string, number: number, userId: string, force: readonly string[]) => {
+  const { id } = await findChangeRequest(projectId, number);
   const main = await getDefaultBranch(projectId);
   return prisma.$transaction(
     async (tx) => {
-      const [mainPages, branchPages] = await Promise.all([loadPages(projectId, main.id, tx), loadPages(projectId, branch.id, tx)]);
-      const plan = planMerge({ main: mainPages, branch: branchPages, forkedAt: branch.createdAt, force });
-      let record: MergeRecordEntry[];
+      // Serialize merges per project and hold main's rows against concurrent edits until commit.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${projectId}))`;
+      await tx.$executeRaw`SELECT 1 FROM "page" WHERE "branchId" = ${main.id} ORDER BY "id" FOR UPDATE`;
+      const changeRequest = await tx.changeRequest.findUniqueOrThrow({ where: { id } });
+      if (changeRequest.status === 'MERGED') throw conflict('This change request is already merged.');
+      if (changeRequest.status === 'ARCHIVED') throw conflict('Reopen this change request before merging it.');
+      if (!changeRequest.branchId) throw conflict('This change request has no branch to merge.');
+      const branchId = changeRequest.branchId;
+      const [mainPages, branchPages] = await Promise.all([loadPages(projectId, main.id, tx), loadPages(projectId, branchId, tx)]);
+      const plan = planMerge({ main: mainPages, branch: branchPages, forkBase: changeRequest.forkBase as ForkBase, force: new Set(force) });
       if (plan.legacy) {
-        record = [
-          ...mainPages.map(
-            (page): MergeRecordEntry => ({
-              pageId: page.id,
-              languageId: page.languageId,
-              action: 'removed',
-              before: mergedFields(page),
-              after: null,
-            }),
-          ),
-          ...branchPages.map(
-            (page): MergeRecordEntry => ({
-              pageId: page.id,
-              languageId: page.languageId,
-              action: 'added',
-              before: null,
-              after: mergedFields(page),
-            }),
-          ),
-        ];
         await tx.page.deleteMany({ where: { projectId, branchId: main.id } });
-        await tx.page.updateMany({ where: { projectId, branchId: branch.id }, data: { branchId: main.id } });
+        await tx.page.updateMany({ where: { projectId, branchId }, data: { branchId: main.id } });
       } else {
-        if (plan.conflicts.length > 0 && !force) {
+        if (plan.blocked) {
           throw conflict('Some pages changed on both sides since this change request was opened.', { conflicts: plan.conflicts });
         }
         for (const insert of plan.inserts) {
@@ -174,18 +163,18 @@ export const mergeChangeRequest = async (projectId: string, number: number, user
           await tx.page.update({ where: { id: update.id }, data: pageData(update.data) });
         }
         if (plan.deletes.length > 0) await tx.page.deleteMany({ where: { id: { in: plan.deletes }, branchId: main.id } });
-        record = plan.record;
       }
-      await tx.branch.delete({ where: { id: branch.id } });
+      await tx.branch.delete({ where: { id: branchId } });
       return tx.changeRequest.update({
-        where: { id: changeRequest.id },
+        where: { id },
         data: {
           status: 'MERGED',
           mergedById: userId,
           mergedAt: new Date(),
-          mergeRecord: { pages: record } as unknown as Prisma.InputJsonValue,
+          forkBase: Prisma.DbNull,
+          mergeRecord: { pages: plan.record } as unknown as Prisma.InputJsonValue,
         },
-        omit: { mergeRecord: true },
+        omit: internalColumns,
         include: { author: userSelect, mergedBy: userSelect },
       });
     },
@@ -195,15 +184,15 @@ export const mergeChangeRequest = async (projectId: string, number: number, user
 
 type DiffSide = { id: string; title: string; path: string; content: string } | null;
 
-const diffSide = (page: { id: string; title: string; path?: string; slug?: string; content: string } | null | undefined): DiffSide =>
-  page ? { id: page.id, title: page.title, path: page.path ?? page.slug ?? '', content: page.content } : null;
+const diffSide = (page: { id: string; title: string; path: string; content: string } | null | undefined): DiffSide =>
+  page ? { id: page.id, title: page.title, path: page.path, content: page.content } : null;
 
 /** Raw Markdown of one page on the default branch and in the change request.
  *  `pageId` may name either side; a merged request answers from its record. */
 export const getChangeRequestPageDiff = async (projectId: string, number: number, pageId: string) => {
   const changeRequest = await findChangeRequest(projectId, number);
   if (!changeRequest.branchId) {
-    const entry = ((changeRequest.mergeRecord as { pages?: MergeRecordEntry[] } | null)?.pages ?? []).find((item) => item.pageId === pageId);
+    const entry = recordEntries(changeRequest.mergeRecord).find((item) => item.pageId === pageId);
     if (!entry) throw notFound('page', { id: pageId });
     return { main: diffSide(entry.before && { id: pageId, ...entry.before }), change: diffSide(entry.after && { id: pageId, ...entry.after }) };
   }

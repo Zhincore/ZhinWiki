@@ -17,6 +17,7 @@ CREATE TABLE "change_request" (
     "branchId" TEXT,
     "mergedById" TEXT,
     "mergedAt" TIMESTAMP(3),
+    "forkBase" JSONB,
     "mergeRecord" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

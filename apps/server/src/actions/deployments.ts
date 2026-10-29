@@ -4,7 +4,7 @@ import { Prisma, prisma } from '@nibleaf/database';
 import { projectAddonRowsForDelivery } from '@nibleaf/shared/addons';
 import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { type RedirectValidationIssue, summarizeRedirectIssues, validateSnapshotRedirects } from '@nibleaf/shared/redirects';
-import { buildSnapshot, type SiteSnapshot, type SnapshotPage } from '@nibleaf/shared/site';
+import { buildSnapshot, defaultVersionOnly, type SiteSnapshot, type SnapshotPage } from '@nibleaf/shared/site';
 import type { CreateDeploymentBody } from '@nibleaf/validators';
 import { diffLines } from 'diff';
 import { badRequest, notFound } from '@/errors';
@@ -488,14 +488,15 @@ export const rollbackDeployment = async (organizationId: string, projectId: stri
   if (target.status !== 'READY' || !target.snapshot) {
     throw badRequest('Only a published deployment with a snapshot can be rolled back to.', { id: deploymentId });
   }
+  const snapshot = defaultVersionOnly(target.snapshot as unknown as SiteSnapshot);
   return createWithNextVersion(projectId, (version) =>
     prisma.deployment.create({
       data: {
         projectId,
         version,
         status: 'READY',
-        snapshot: target.snapshot as Prisma.InputJsonValue,
-        pagesCount: target.pagesCount,
+        snapshot: snapshot as unknown as Prisma.InputJsonValue,
+        pagesCount: snapshot.pages.filter((page) => page.kind === 'PAGE').length,
         commitMessage: `Rollback to v${target.version}`,
         createdById: userId,
         completedAt: new Date(),

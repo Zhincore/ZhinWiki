@@ -67,7 +67,7 @@ const mocks = vi.hoisted(() => ({
     id: 'deployment-a',
     version: 2,
     snapshot: {
-      project: { versions: [{ id: 'version-main', slug: 'main' }] },
+      project: { versions: [{ id: 'version-main', slug: 'main', isDefault: true }] },
       pages: [
         {
           id: 'page-ar',

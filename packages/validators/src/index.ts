@@ -648,7 +648,8 @@ export const updateChangeRequestBody = z.object({
 });
 export type UpdateChangeRequestBody = z.infer<typeof updateChangeRequestBody>;
 
-export const mergeChangeRequestBody = z.object({ force: z.boolean().optional() });
+/** `force` names the conflicting page ids (as listed in the 409) the change request wins on. */
+export const mergeChangeRequestBody = z.object({ force: z.array(z.string().min(1).max(64)).max(10_000).optional() });
 
 export const updatePageBody = z.object({
   parentId: z.string().nullable().optional(),

@@ -9,6 +9,7 @@ import { isPublicMarkdownPage } from '@nibleaf/shared/public-markdown';
 import {
   buildNavTree,
   defaultLanguage,
+  defaultVersionOnly,
   explicitPageDescription,
   extractHeadings,
   isPageTranslation,
@@ -255,7 +256,7 @@ const getPublished = async (identifier: string): Promise<PublishedSite> => {
     if (!row?.snapshot) {
       throw notFound('site', { identifier, reason: 'not_published' });
     }
-    frozen = row.snapshot as unknown as SiteSnapshot;
+    frozen = defaultVersionOnly(row.snapshot as unknown as SiteSnapshot);
     snapshotCache.set(deployment.id, frozen);
   }
   // Overlay the LIVE site chrome (branding, styling, navbar/footer, SEO,

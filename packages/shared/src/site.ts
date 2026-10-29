@@ -588,6 +588,15 @@ type PageRow = Omit<SnapshotPage, 'config' | 'versionId'> & {
 };
 
 /** Compose an immutable site snapshot from a project + its pages (publish time). */
+/** The snapshot limited to its default version. Snapshots published before
+ *  change requests may carry other branches as versions; those are drafts now. */
+export const defaultVersionOnly = (snapshot: SiteSnapshot): SiteSnapshot => {
+  const versions = snapshot.project.versions.filter((version) => version.isDefault);
+  if (versions.length === snapshot.project.versions.length) return snapshot;
+  const kept = new Set(versions.map((version) => version.id));
+  return { ...snapshot, project: { ...snapshot.project, versions }, pages: snapshot.pages.filter((page) => kept.has(page.versionId)) };
+};
+
 export const buildSnapshot = (project: ProjectRow, pages: PageRow[], generatedAt: string): SiteSnapshot => {
   const languages: SnapshotLanguage[] = project.languages.map((l) => {
     const translation = l.projectTranslations?.[0];
@@ -623,6 +632,7 @@ export const buildSnapshot = (project: ProjectRow, pages: PageRow[], generatedAt
     isDefault: branch.isDefault,
   }));
   const versionById = new Map(versions.map((version) => [version.id, version]));
+  const draftBranchIds = new Set(project.branches.filter((branch) => !branch.isDefault).map((branch) => branch.id));
   // Resolve Mintlify-style `{{ variables }}` once, then bake the substituted text
   // into the snapshot so the live site, search index and SEO all see final values.
   const variables = variablesFromConfig(project.config);
@@ -656,7 +666,8 @@ export const buildSnapshot = (project: ProjectRow, pages: PageRow[], generatedAt
     pages: pages.flatMap((page) => {
       const version = versionById.get(page.branchId);
       if (!version) {
-        return [];
+        if (draftBranchIds.has(page.branchId)) return [];
+        throw new Error(`Page ${page.id} references a branch outside project ${project.id}.`);
       }
       return {
         id: page.id,

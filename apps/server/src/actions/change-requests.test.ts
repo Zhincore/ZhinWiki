@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MergePage } from './change-request-merge';
-import { pageFingerprint } from './change-request-merge';
+import { contentHash, pageFingerprint } from './change-request-merge';
 
 const mocks = vi.hoisted(() => {
   const tx = {
+    $executeRaw: vi.fn(),
     branch: { create: vi.fn(), delete: vi.fn(), findFirst: vi.fn(), findFirstOrThrow: vi.fn() },
-    changeRequest: { aggregate: vi.fn(), create: vi.fn(), update: vi.fn() },
+    changeRequest: { aggregate: vi.fn(), create: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
     page: { createMany: vi.fn(), deleteMany: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   };
   return {
@@ -18,16 +19,13 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('@nibleaf/database', () => ({ Prisma: { JsonNull: 'JsonNull' }, prisma: mocks.prisma }));
+vi.mock('@nibleaf/database', () => ({ Prisma: { DbNull: 'DbNull', JsonNull: 'JsonNull' }, prisma: mocks.prisma }));
 
 import { createBranch, createImportReplacementBranch } from './branches';
 import { mergeChangeRequest } from './change-requests';
 
 const { tx, prisma } = mocks;
-const forkedAt = new Date('2026-10-02T00:00:00Z');
-const later = new Date('2026-10-03T00:00:00Z');
 const mainBranch = { id: 'main', projectId: 'p', isDefault: true };
-const crBranch = { id: 'cr', projectId: 'p', isDefault: false, createdAt: forkedAt };
 
 const page = (id: string, overrides: Partial<MergePage> = {}): MergePage => ({
   id,
@@ -46,8 +44,6 @@ const page = (id: string, overrides: Partial<MergePage> = {}): MergePage => ({
   hidden: false,
   sourcePageId: null,
   forkFingerprint: null,
-  createdAt: new Date('2026-10-01T00:00:00Z'),
-  updatedAt: new Date('2026-10-01T00:00:00Z'),
   ...overrides,
 });
 
@@ -57,15 +53,18 @@ const givenPages = (main: MergePage[], branch: MergePage[]) =>
 describe('mergeChangeRequest', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    prisma.changeRequest.findUnique.mockResolvedValue({ id: 'cr-1', number: 1, status: 'IN_REVIEW', branchId: 'cr' });
-    prisma.branch.findFirst.mockResolvedValue(crBranch);
+    prisma.changeRequest.findUnique.mockResolvedValue({ id: 'cr-1' });
     prisma.branch.findMany.mockResolvedValue([mainBranch]);
   });
 
+  const givenChangeRequest = (forkBase: Record<string, string> | null) =>
+    tx.changeRequest.findUniqueOrThrow.mockResolvedValue({ id: 'cr-1', number: 1, status: 'IN_REVIEW', branchId: 'cr', forkBase });
+
   it('writes an edited page onto the same main row and records the merge', async () => {
     const main = page('m1');
+    givenChangeRequest({ m1: contentHash(main) });
     givenPages([main], [{ ...main, id: 'b1', sourcePageId: 'm1', forkFingerprint: pageFingerprint(main, null), content: '# edited' }]);
-    await mergeChangeRequest('p', 1, 'user-1', false);
+    await mergeChangeRequest('p', 1, 'user-1', []);
     expect(tx.page.update).toHaveBeenCalledWith({ where: { id: 'm1' }, data: { content: '# edited' } });
     expect(tx.page.deleteMany).not.toHaveBeenCalled();
     expect(tx.branch.delete).toHaveBeenCalledWith({ where: { id: 'cr' } });
@@ -83,11 +82,12 @@ describe('mergeChangeRequest', () => {
 
   it('answers 409 with the conflicting pages and writes nothing', async () => {
     const main = page('m1');
+    givenChangeRequest({ m1: contentHash(main) });
     givenPages(
-      [{ ...main, content: '# main', updatedAt: later }],
+      [{ ...main, content: '# main' }],
       [{ ...main, id: 'b1', sourcePageId: 'm1', forkFingerprint: pageFingerprint(main, null), content: '# branch' }],
     );
-    await expect(mergeChangeRequest('p', 1, 'user-1', false)).rejects.toMatchObject({
+    await expect(mergeChangeRequest('p', 1, 'user-1', [])).rejects.toMatchObject({
       status: 409,
       details: { conflicts: [expect.objectContaining({ pageId: 'm1', reason: 'BOTH_CHANGED' })] },
     });
@@ -96,9 +96,16 @@ describe('mergeChangeRequest', () => {
     expect(tx.changeRequest.update).not.toHaveBeenCalled();
   });
 
-  it('replaces main wholesale for a branch without fork links', async () => {
-    givenPages([page('m1')], [page('b1', { createdAt: later })]);
-    await mergeChangeRequest('p', 1, 'user-1', false);
+  it('refuses a change request merged in the meantime', async () => {
+    tx.changeRequest.findUniqueOrThrow.mockResolvedValue({ id: 'cr-1', status: 'MERGED', branchId: null, forkBase: null });
+    await expect(mergeChangeRequest('p', 1, 'user-1', [])).rejects.toMatchObject({ status: 409 });
+    expect(tx.branch.delete).not.toHaveBeenCalled();
+  });
+
+  it('replaces main wholesale for an untracked change request', async () => {
+    givenChangeRequest(null);
+    givenPages([page('m1')], [page('b1')]);
+    await mergeChangeRequest('p', 1, 'user-1', []);
     expect(tx.page.deleteMany).toHaveBeenCalledWith({ where: { projectId: 'p', branchId: 'main' } });
     expect(tx.page.updateMany).toHaveBeenCalledWith({ where: { projectId: 'p', branchId: 'cr' }, data: { branchId: 'main' } });
   });
@@ -129,6 +136,7 @@ describe('createBranch', () => {
     expect(tx.page.createMany.mock.calls[0]?.[0].data).toEqual([
       expect.objectContaining({ branchId: 'new-branch', sourcePageId: 'm1', forkFingerprint: pageFingerprint(main, null) }),
     ]);
+    expect(tx.changeRequest.create.mock.calls[0]?.[0].data.forkBase).toEqual({ m1: contentHash(main) });
   });
 
   it('gives import replacement branches no change request or fork links', async () => {

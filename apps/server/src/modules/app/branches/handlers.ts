@@ -32,7 +32,7 @@ const app = new Hono<HonoEnv>()
   .post('/:id/merge', ...branchesRoutes.merge, async (ctx) => {
     const projectId = await projectScope(ctx);
     const number = await changeRequestNumberForBranch(projectId, ctx.req.param('id'));
-    await mergeChangeRequest(projectId, number, getContextUserOrThrow().id, false);
+    await mergeChangeRequest(projectId, number, getContextUserOrThrow().id, []);
     return ctx.json({ data: await getDefaultBranch(projectId) }, 200);
   })
   .delete('/:id', ...branchesRoutes.remove, async (ctx) => {

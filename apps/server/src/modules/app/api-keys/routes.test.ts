@@ -7,7 +7,6 @@ vi.mock('@nibleaf/database', () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     project: { findUnique: vi.fn() },
-    member: { findUnique: vi.fn() },
   },
 }));
 
@@ -35,14 +34,14 @@ describe('API-key lifecycle route permissions', () => {
   });
 
   it.each(guardedRoutes)('rejects project members from %s', async (_name, route) => {
-    vi.mocked(prisma.member.findUnique).mockResolvedValue({ role: MemberRole.MEMBER } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ suspendedAt: null, role: 'user', members: [{ role: MemberRole.MEMBER }] } as never);
     const next = vi.fn();
     await expect(route[1](context(), next)).rejects.toMatchObject({ code: 'auth:insufficient_role' });
     expect(next).not.toHaveBeenCalled();
   });
 
   it.each(guardedRoutes)('allows project admins to %s', async (_name, route) => {
-    vi.mocked(prisma.member.findUnique).mockResolvedValue({ role: MemberRole.ADMIN } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ suspendedAt: null, role: 'user', members: [{ role: MemberRole.ADMIN }] } as never);
     const next = vi.fn(async () => undefined);
     await route[1](context(), next);
     expect(next).toHaveBeenCalledOnce();

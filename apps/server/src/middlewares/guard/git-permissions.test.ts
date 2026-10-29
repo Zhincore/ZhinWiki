@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { requireProjectRole } from './index';
 
 vi.mock('@nibleaf/database', () => ({
-  prisma: { project: { findUnique: vi.fn() }, member: { findUnique: vi.fn() } },
+  prisma: { project: { findUnique: vi.fn() }, user: { findUnique: vi.fn() } },
 }));
 
 const context = () => {
@@ -22,19 +22,19 @@ describe('Git route permissions', () => {
   });
 
   it('allows members to queue authoring operations', async () => {
-    vi.mocked(prisma.member.findUnique).mockResolvedValue({ role: MemberRole.MEMBER } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ role: 'user', members: [{ role: MemberRole.MEMBER }] } as never);
     const next = vi.fn(async () => undefined);
     await requireProjectRole(MemberRole.MEMBER)(context(), next);
     expect(next).toHaveBeenCalledOnce();
   });
 
   it('rejects members from credential administration', async () => {
-    vi.mocked(prisma.member.findUnique).mockResolvedValue({ role: MemberRole.MEMBER } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ role: 'user', members: [{ role: MemberRole.MEMBER }] } as never);
     await expect(requireProjectRole(MemberRole.ADMIN)(context(), vi.fn())).rejects.toMatchObject({ code: 'auth:insufficient_role' });
   });
 
   it('allows admins to rotate credentials and webhook secrets', async () => {
-    vi.mocked(prisma.member.findUnique).mockResolvedValue({ role: MemberRole.ADMIN } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ role: 'user', members: [{ role: MemberRole.ADMIN }] } as never);
     const next = vi.fn(async () => undefined);
     await requireProjectRole(MemberRole.ADMIN)(context(), next);
     expect(next).toHaveBeenCalledOnce();

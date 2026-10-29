@@ -1,4 +1,6 @@
-import { MemberRole } from './constants';
+import { MemberRole, PlatformRole } from './constants';
+
+export type Tenancy = 'single' | 'multi';
 
 /** Higher rank = more privilege. Unknown roles rank lowest. */
 const ROLE_RANK: Record<string, number> = {
@@ -8,6 +10,26 @@ const ROLE_RANK: Record<string, number> = {
 };
 
 export const rankOf = (role: string): number => ROLE_RANK[role] ?? 0;
+
+/** Wiki role a platform role grants on every wiki, if any. */
+const PLATFORM_WIKI_GRANT: Record<string, MemberRole> = {
+  [PlatformRole.EDITOR]: MemberRole.MEMBER,
+};
+
+/** Effective wiki role: the higher of the membership role and the platform
+ *  role's grant. null when the user has neither. */
+export const effectiveWikiRole = (membershipRole: string | null | undefined, platformRole: string | null | undefined): MemberRole | null => {
+  const granted = platformRole ? PLATFORM_WIKI_GRANT[platformRole] : undefined;
+  const member = membershipRole as MemberRole | null | undefined;
+  if (!member) {
+    return granted ?? null;
+  }
+  return granted && rankOf(granted) > rankOf(member) ? granted : member;
+};
+
+/** Who may create a wiki: anyone signed in on a multi-tenant instance, only
+ *  platform admins on a single-tenant one. */
+export const canCreateWiki = (tenancy: Tenancy, platformRole?: string | null): boolean => tenancy === 'multi' || platformRole === PlatformRole.ADMIN;
 
 /** Whether `role` is at least as privileged as `required`. */
 export const roleAtLeast = (role: string, required: MemberRole): boolean => rankOf(role) >= rankOf(required);

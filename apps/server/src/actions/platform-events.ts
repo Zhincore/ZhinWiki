@@ -3,7 +3,8 @@ import { activationTiming } from '@/lib/activation-metrics';
 
 /**
  * Platform-level product events (activation funnel), written to `platform_event`.
- * Types in use: `signup_completed` (packages/auth provisionWorkspace),
+ * Types in use: `signup_completed` (packages/auth sign-up: workspace
+ * provisioning in multi tenancy; every new account in single, invitees included),
  * `page_edited` (first content edit per user+project), `publish_clicked`
  * (createDeployment; `metadata.auto` distinguishes the system starter publish),
  * and `publish_ready` / `publish_failed` (worker publish transitions).

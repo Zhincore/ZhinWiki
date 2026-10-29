@@ -2,6 +2,7 @@ import { eraseProjectOrganization, TenantErasureProjectNotFoundError, TenantUsag
 import { assignDefaultUsagePlan, type Prisma, prisma } from '@nibleaf/database';
 import { addonDefinitions, defaultProjectAddonProvisioning, projectConfigWithAddons } from '@nibleaf/shared/addons';
 import { MemberRole } from '@nibleaf/shared/constants';
+import { effectiveWikiRole } from '@nibleaf/shared/rbac';
 import { THEME_PRESETS, THEME_SCHEMA_VERSION } from '@nibleaf/shared/themes';
 import { slugify } from '@nibleaf/shared/utils';
 import type { CreateProjectBody, ProjectConfigUpdate, UpdateProjectBody } from '@nibleaf/validators';
@@ -32,25 +33,33 @@ export const assertProjectInOrg = async (organizationId: string, projectId: stri
   return project;
 };
 
+/** The user's effective role in an organization: membership or a platform-role
+ *  grant, whichever ranks higher; null when neither applies. */
+export const resolveWikiRole = async (userId: string, organizationId: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, members: { where: { organizationId }, select: { role: true } } },
+  });
+  return effectiveWikiRole(user?.members[0]?.role, user?.role);
+};
+
 /**
- * Resolve a project's own organization and the user's role in it. Because each
- * site owns its org (1:1), this IS the per-site access check: membership in the
- * project's org = access to the site. Throws notFound (not forbidden) for
- * non-members so we never leak that a site exists.
+ * Resolve a project's own organization and the user's effective role in it.
+ * Because each site owns its org (1:1), this IS the per-site access check:
+ * membership in the project's org, or a platform role that grants wiki rights,
+ * = access to the site. Throws notFound (not forbidden) otherwise so we never
+ * leak that a site exists.
  */
 export const assertProjectAccess = async (userId: string, projectId: string) => {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) {
     throw notFound('project', { id: projectId });
   }
-  const member = await prisma.member.findUnique({
-    where: { organizationId_userId: { organizationId: project.organizationId, userId } },
-    select: { role: true },
-  });
-  if (!member) {
+  const role = await resolveWikiRole(userId, project.organizationId);
+  if (!role) {
     throw notFound('project', { id: projectId });
   }
-  return { project, organizationId: project.organizationId, role: member.role as MemberRole };
+  return { project, organizationId: project.organizationId, role };
 };
 
 const candidateSlug = (base: string, index: number) => {

@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   memberFindMany: vi.fn(),
   projectFindMany: vi.fn(),
   projectFindFirst: vi.fn(),
+  projectFindUnique: vi.fn(),
+  userFindUnique: vi.fn(),
   tx: {
     organization: { create: vi.fn() },
     member: { create: vi.fn() },
@@ -26,12 +28,13 @@ vi.mock('@nibleaf/database', () => ({
   assignDefaultUsagePlan: vi.fn(),
   prisma: {
     member: { findMany: mocks.memberFindMany },
-    project: { findMany: mocks.projectFindMany, findFirst: mocks.projectFindFirst },
+    project: { findMany: mocks.projectFindMany, findFirst: mocks.projectFindFirst, findUnique: mocks.projectFindUnique },
+    user: { findUnique: mocks.userFindUnique },
     $transaction: (run: (tx: typeof mocks.tx) => Promise<unknown>) => run(mocks.tx),
   },
 }));
 
-import { createProject, getProject, listProjects } from './projects';
+import { assertProjectAccess, createProject, getProject, listProjects } from './projects';
 
 /** The one definition of "pages" shared by the workspace overview, the sites
  *  list and the MCP project DTO: content pages on the default branch across
@@ -118,5 +121,27 @@ describe('createProject', () => {
     expect(mocks.tx.language.create).toHaveBeenCalledWith({
       data: { projectId: 'project-new', code: 'en', label: 'English', direction: 'LTR', isDefault: true, position: 0 },
     });
+  });
+});
+
+describe('assertProjectAccess effective role', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.projectFindUnique.mockResolvedValue({ id: 'project', organizationId: 'org' });
+  });
+
+  it('gives a platform editor member rights on a wiki they do not belong to', async () => {
+    mocks.userFindUnique.mockResolvedValue({ role: 'editor', members: [] });
+    await expect(assertProjectAccess('user', 'project')).resolves.toMatchObject({ organizationId: 'org', role: 'member' });
+  });
+
+  it('keeps a higher membership role over the editor grant', async () => {
+    mocks.userFindUnique.mockResolvedValue({ role: 'editor', members: [{ role: 'admin' }] });
+    await expect(assertProjectAccess('user', 'project')).resolves.toMatchObject({ role: 'admin' });
+  });
+
+  it.each(['user', 'admin'])('hides the wiki from a non-member with platform role %s', async (role) => {
+    mocks.userFindUnique.mockResolvedValue({ role, members: [] });
+    await expect(assertProjectAccess('user', 'project')).rejects.toMatchObject({ code: 'database:not_found' });
   });
 });

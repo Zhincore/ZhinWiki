@@ -9,6 +9,15 @@ export const MemberRole = {
 } as const;
 export type MemberRole = (typeof MemberRole)[keyof typeof MemberRole];
 
+/** Platform (instance-wide) roles stored on `user.role`. `admin` runs the
+ *  operator console; `editor` holds member rights on every wiki. */
+export const PlatformRole = {
+  ADMIN: 'admin',
+  EDITOR: 'editor',
+  USER: 'user',
+} as const;
+export type PlatformRole = (typeof PlatformRole)[keyof typeof PlatformRole];
+
 /** Documentation tree node kind (mirrors the Prisma `PageKind` enum). */
 export const PageKind = {
   PAGE: 'PAGE',

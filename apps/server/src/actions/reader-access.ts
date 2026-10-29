@@ -17,6 +17,7 @@ import { env } from '@/env';
 import { badRequest, conflict, notFound } from '@/errors';
 import type { HonoEnv } from '@/lib/hono/context';
 import { assertPublicJwksUrl, claimAt, claimStrings, isJwtVerificationError, jwtReplayHash, verifyReaderJwt } from '@/lib/reader-jwt';
+import { resolveWikiRole } from './projects';
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60_000;
 const DEFAULT_SESSION_TTL_MS = 7 * 24 * 60 * 60_000;
@@ -75,17 +76,12 @@ const workspaceViewer = async (projectId: string, headers: Headers): Promise<boo
   if (!result?.user?.id) return false;
   const project = await prisma.project.findUnique({ where: { id: projectId }, select: { organizationId: true } });
   if (!project) return false;
-  return Boolean(
-    await prisma.member.findUnique({
-      where: { organizationId_userId: { organizationId: project.organizationId, userId: result.user.id } },
-      select: { id: true },
-    }),
-  );
+  return (await resolveWikiRole(result.user.id, project.organizationId)) !== null;
 };
 
 /** Central authorization boundary shared by pages, search, machine-readable
- * documents, changelog, assets, and metadata. A workspace member always retains
- * emergency/preview access to their own site. */
+ * documents, changelog, assets, and metadata. A workspace member (or a platform
+ * editor) always retains emergency/preview access to the site. */
 export const resolveViewerAccess = async (
   projectId: string,
   accessMode: 'PUBLIC' | 'WORKSPACE' | 'READERS',

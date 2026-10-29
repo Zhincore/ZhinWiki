@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   projectFind: vi.fn(),
-  memberFind: vi.fn(),
+  userFind: vi.fn(),
   sessionFind: vi.fn(),
   sessionUpdate: vi.fn(),
   readerUpdate: vi.fn(),
@@ -15,7 +15,7 @@ vi.mock('@nibleaf/database', () => ({
   Prisma: { JsonNull: null },
   prisma: {
     project: { findUnique: mocks.projectFind },
-    member: { findUnique: mocks.memberFind },
+    user: { findUnique: mocks.userFind },
     readerSession: { findFirst: mocks.sessionFind, update: mocks.sessionUpdate },
     reader: { update: mocks.readerUpdate },
   },
@@ -45,8 +45,22 @@ describe('resolveViewerAccess', () => {
   it('grants full private access to an owning workspace member', async () => {
     mocks.getSession.mockResolvedValue({ user: { id: 'user' } });
     mocks.projectFind.mockResolvedValue({ organizationId: 'org' });
-    mocks.memberFind.mockResolvedValue({ id: 'member' });
+    mocks.userFind.mockResolvedValue({ role: 'user', members: [{ role: 'owner' }] });
     await expect(resolveViewerAccess('project', 'READERS', headers())).resolves.toEqual({ kind: 'workspace', allowedPageIds: null });
+  });
+
+  it('grants a platform editor workspace access to a wiki they are not a member of', async () => {
+    mocks.getSession.mockResolvedValue({ user: { id: 'user' } });
+    mocks.projectFind.mockResolvedValue({ organizationId: 'org' });
+    mocks.userFind.mockResolvedValue({ role: 'editor', members: [] });
+    await expect(resolveViewerAccess('project', 'WORKSPACE', headers())).resolves.toEqual({ kind: 'workspace', allowedPageIds: null });
+  });
+
+  it.each(['user', 'admin'])('denies a non-member with platform role %s in WORKSPACE mode', async (role) => {
+    mocks.getSession.mockResolvedValue({ user: { id: 'user' } });
+    mocks.projectFind.mockResolvedValue({ organizationId: 'org' });
+    mocks.userFind.mockResolvedValue({ role, members: [] });
+    await expect(resolveViewerAccess('project', 'WORKSPACE', headers())).resolves.toBeNull();
   });
 
   it('returns only page ids granted through the active reader audiences', async () => {

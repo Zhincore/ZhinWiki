@@ -25,6 +25,7 @@ import { requireAuthEmailEnqueue, trackRequiredAuthEmail, withRequiredAuthEmailS
 import { deliverAuthOtpEmail } from './auth-email-expiry';
 import { keys } from './keys.server';
 import { googleOAuthEnabled } from './providers';
+import { onUserCreated, organizationTenancyOptions } from './tenancy';
 
 const env = keys();
 const log = createLogger({ module: 'auth' });
@@ -699,6 +700,12 @@ async function provisionWorkspace(user: { id: string; name?: string | null; emai
   }
 }
 
+const handleUserCreated = onUserCreated(env.TENANCY, {
+  provision: provisionWorkspace,
+  logSignup: (userId) => logPlatformEvent('signup_completed', { userId }),
+  onLogFailure: (error, userId) => log.error({ error, userId }, 'sign-up event logging failed'),
+});
+
 const authInstance = betterAuth({
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
   hooks: { after: requireAuthEmailEnqueue },
@@ -785,6 +792,7 @@ const authInstance = betterAuth({
       },
     }),
     organization({
+      ...organizationTenancyOptions(env.TENANCY),
       // Workspaces are erased only through eraseProjectOrganization (analytics, search,
       // storage, usage); the plugin's own delete endpoint would skip all of it.
       disableOrganizationDeletion: true,
@@ -863,7 +871,7 @@ const authInstance = betterAuth({
   databaseHooks: {
     user: {
       create: {
-        after: (user, context) => provisionWorkspace(user, resolveRequestLocale(context?.headers)),
+        after: (user, context) => handleUserCreated(user, resolveRequestLocale(context?.headers)),
       },
     },
     // New sign-in alert — only on a sign-in from an IP we haven't seen for this user

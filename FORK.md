@@ -40,7 +40,7 @@ team per wiki), as upstream.
 Shared tenancy only (`WIKI_SLUG_PATHS` in `apps/app/src/server.ts`).
 
 - Edge: the first path segment, when it is a valid unreserved slug, resolves
-  through `GET /api/public/sites/resolve?slug=` (current or previous slug;
+  through `GET /api/public/sites/resolve?slug=` (published wikis, current or previous slug;
   404 in independent mode), cached 30 s including misses, so a rename or a new
   wiki can take up to 30 s to route. A hit is rewritten to `/sites/<id>/*`
   with `x-nibleaf-site-origin: <origin>/<slug>`; a previous slug 301s to the

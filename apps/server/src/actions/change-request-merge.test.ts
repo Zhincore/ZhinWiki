@@ -171,6 +171,16 @@ describe('planMerge', () => {
     expect(plan.inserts).toEqual([{ id: 'b1', data: expect.objectContaining({ slug: 'faq-2', path: 'faq-2' }) }]);
   });
 
+  it('renames a kept child that moves up beside a sibling with its slug', () => {
+    const parent = page('m1');
+    const lateChild = page('m2', { parentId: 'm1', slug: 'faq', path: 'm1/faq' });
+    const rootFaq = page('m3', { slug: 'faq', path: 'faq', position: 1 });
+    const plan = merged(
+      planMerge({ main: [parent, lateChild, rootFaq], branch: [fork(rootFaq, 'b3')], forkBase: baseOf(parent, rootFaq), force: none }),
+    );
+    expect(plan.updates).toEqual([{ id: 'm2', data: { parentId: null, slug: 'faq-2', path: 'faq-2' } }]);
+  });
+
   it('merges a rewrite that replaced every forked page per page', () => {
     const old = page('m1');
     const late = page('m2', { position: 1 });

@@ -587,7 +587,6 @@ type PageRow = Omit<SnapshotPage, 'config' | 'versionId'> & {
   branchId: string;
 };
 
-/** Compose an immutable site snapshot from a project + its pages (publish time). */
 /** The snapshot limited to its default version. Snapshots published before
  *  change requests may carry other branches as versions; those are drafts now. */
 export const defaultVersionOnly = (snapshot: SiteSnapshot): SiteSnapshot => {
@@ -597,6 +596,7 @@ export const defaultVersionOnly = (snapshot: SiteSnapshot): SiteSnapshot => {
   return { ...snapshot, project: { ...snapshot.project, versions }, pages: snapshot.pages.filter((page) => kept.has(page.versionId)) };
 };
 
+/** Compose an immutable site snapshot from a project + its pages (publish time). */
 export const buildSnapshot = (project: ProjectRow, pages: PageRow[], generatedAt: string): SiteSnapshot => {
   const languages: SnapshotLanguage[] = project.languages.map((l) => {
     const translation = l.projectTranslations?.[0];

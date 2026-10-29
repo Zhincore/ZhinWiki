@@ -318,8 +318,13 @@ export const planMerge = (input: MergeInput & { force: ReadonlySet<string> }): M
   const applied = new Set([...updates.keys(), ...inserted]);
   const siblingKey = (page: { languageId: string; parentId: string | null; slug: string }) =>
     `${page.languageId}\u0000${page.parentId ?? ''}\u0000${page.slug}`;
-  const takenSlugs = new Set([...final.values()].filter((page) => !applied.has(page.id)).map(siblingKey));
-  for (const id of applied) {
+  // Pages the branch wrote or that land under a new parent yield their slug to pages already there.
+  const placed = new Set([
+    ...applied,
+    ...[...final.values()].filter((page) => page.parentId !== mainById.get(page.id)?.parentId).map((page) => page.id),
+  ]);
+  const takenSlugs = new Set([...final.values()].filter((page) => !placed.has(page.id)).map(siblingKey));
+  for (const id of placed) {
     const page = final.get(id);
     if (!page) continue;
     const base = page.slug;

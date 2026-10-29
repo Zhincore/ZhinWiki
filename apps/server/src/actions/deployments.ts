@@ -329,8 +329,8 @@ export const getDeploymentDiff = async (projectId: string, id: string) => {
     orderBy: { version: 'desc' },
   });
 
-  const currentSnapshot = deployment.snapshot as unknown as SiteSnapshot;
-  const previousSnapshot = previousDeployment?.snapshot ? (previousDeployment.snapshot as unknown as SiteSnapshot) : null;
+  const currentSnapshot = defaultVersionOnly(deployment.snapshot as unknown as SiteSnapshot);
+  const previousSnapshot = previousDeployment?.snapshot ? defaultVersionOnly(previousDeployment.snapshot as unknown as SiteSnapshot) : null;
   const previousPages = previousSnapshot ? previousSnapshot.pages : [];
   const previousById = new Map(previousPages.map((page) => [page.id, page]));
   const currentIds = new Set(currentSnapshot.pages.map((page) => page.id));
@@ -377,7 +377,7 @@ export const getPendingChanges = async (projectId: string): Promise<PendingChang
     };
   }
 
-  const snap = latest.snapshot as unknown as SiteSnapshot;
+  const snap = defaultVersionOnly(latest.snapshot as unknown as SiteSnapshot);
   const prevById = new Map(snap.pages.map((p) => [p.id, p]));
   const currentIds = new Set(current.map((p) => p.id));
   const changes: PendingChange[] = [];

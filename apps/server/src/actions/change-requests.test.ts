@@ -9,8 +9,17 @@ const mocks = vi.hoisted(() => {
     changeRequest: { aggregate: vi.fn(), create: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
     page: { createMany: vi.fn(), deleteMany: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   };
+  class PrismaClientKnownRequestError extends Error {
+    constructor(
+      message: string,
+      readonly code: string,
+    ) {
+      super(message);
+    }
+  }
   return {
     tx,
+    PrismaClientKnownRequestError,
     prisma: {
       $transaction: vi.fn(async (run: (client: typeof tx) => unknown) => run(tx)),
       branch: { findFirst: vi.fn(), findMany: vi.fn() },
@@ -19,7 +28,10 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('@nibleaf/database', () => ({ Prisma: { DbNull: 'DbNull', JsonNull: 'JsonNull' }, prisma: mocks.prisma }));
+vi.mock('@nibleaf/database', () => ({
+  Prisma: { DbNull: 'DbNull', JsonNull: 'JsonNull', PrismaClientKnownRequestError: mocks.PrismaClientKnownRequestError },
+  prisma: mocks.prisma,
+}));
 
 import { createBranch, createImportReplacementBranch } from './branches';
 import { mergeChangeRequest } from './change-requests';
@@ -122,7 +134,7 @@ describe('createBranch', () => {
 
   it('numbers the change request after the highest one and retries a taken number', async () => {
     tx.changeRequest.aggregate.mockResolvedValueOnce({ _max: { number: 4 } }).mockResolvedValueOnce({ _max: { number: 5 } });
-    tx.changeRequest.create.mockRejectedValueOnce(Object.assign(new Error('unique'), { code: 'P2002' })).mockResolvedValueOnce({});
+    tx.changeRequest.create.mockRejectedValueOnce(new mocks.PrismaClientKnownRequestError('unique', 'P2002')).mockResolvedValueOnce({});
     await createBranch('p', { title: 'Ada’s changes', authorId: 'user-1' });
     expect(tx.changeRequest.create.mock.calls.map(([args]) => args.data.number)).toEqual([5, 6]);
     expect(tx.branch.create).toHaveBeenLastCalledWith({ data: { projectId: 'p', name: 'cr-6', isDefault: false } });

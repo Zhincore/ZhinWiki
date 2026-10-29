@@ -106,8 +106,7 @@ export type CreateBranchInput = {
   fork?: boolean;
 };
 
-const isUniqueViolation = (error: unknown) =>
-  typeof error === 'object' && error !== null && 'code' in error && (error as { code: unknown }).code === UNIQUE_VIOLATION;
+const isUniqueViolation = (error: unknown) => error instanceof Prisma.PrismaClientKnownRequestError && error.code === UNIQUE_VIOLATION;
 
 /** Create a non-default branch with its change request, numbered after the
  *  project's highest one. A concurrent create taking the same number or name

@@ -101,22 +101,24 @@ export const getChangeRequest = async (projectId: string, number: number) => {
 
 export const updateChangeRequest = async (projectId: string, number: number, body: UpdateChangeRequestBody) => {
   const changeRequest = await findChangeRequest(projectId, number);
-  if (body.status && body.status !== changeRequest.status) {
+  const statusChange = body.status !== undefined && body.status !== changeRequest.status;
+  if (statusChange) {
     if (changeRequest.status === 'MERGED') throw conflict('A merged change request cannot change status.');
     if (changeRequest.status === 'ARCHIVED' && !changeRequest.branchId) {
       throw conflict('This change request lost its branch and cannot be reopened.');
     }
   }
-  return prisma.changeRequest.update({
-    where: { id: changeRequest.id },
+  // A status change applies only if no merge or branch deletion changed the status since it was read.
+  const { count } = await prisma.changeRequest.updateMany({
+    where: { id: changeRequest.id, ...(statusChange ? { status: changeRequest.status, branchId: changeRequest.branchId } : {}) },
     data: {
       ...(body.title === undefined ? {} : { title: body.title.trim() }),
       ...(body.description === undefined ? {} : { description: body.description }),
       ...(body.status === undefined ? {} : { status: body.status }),
     },
-    omit: internalColumns,
-    include: { author: userSelect },
   });
+  if (count === 0) throw conflict('This change request changed meanwhile. Reload and try again.');
+  return prisma.changeRequest.findUniqueOrThrow({ where: { id: changeRequest.id }, omit: internalColumns, include: { author: userSelect } });
 };
 
 const jsonValue = (value: unknown) => (value === null || value === undefined ? Prisma.JsonNull : (value as Prisma.InputJsonValue));

@@ -1,5 +1,5 @@
 import { isDashboardPath } from '@/lib/homepage';
-import { customDomainOrigin } from '@/lib/site-origin';
+import { customDomainOrigin, slugSiteBasePath } from '@/lib/site-origin';
 
 const cleanPath = (path = ''): string => path.replace(/^\/+|\/+$/g, '');
 
@@ -30,24 +30,26 @@ const splitPath = (path: string): { pathname: string; query: string; fragment: s
   };
 };
 
-export function isCustomDomainSite(projectId?: string): boolean {
-  if (customDomainOrigin()) {
-    return true;
-  }
+/**
+ * The pathname the current document's site URLs hang off: `/sites/:projectId`
+ * for the internal route (and dashboard previews), `/<slug>` for a
+ * shared-tenancy wiki on the app origin, and the root on a custom domain or
+ * home wiki.
+ */
+export function siteBasePath(projectId: string): string {
+  const internal = `/sites/${projectId}`;
+  const slugBase = slugSiteBasePath();
   if (typeof window === 'undefined') {
-    return false;
+    return slugBase ?? (customDomainOrigin() ? '' : internal);
   }
   const pathname = window.location.pathname;
   if (isDashboardPath(pathname)) {
-    return false;
+    return internal;
   }
-  return projectId ? !pathname.startsWith(`/sites/${projectId}`) : !pathname.startsWith('/sites/');
-}
-
-/** The pathname a site's URLs hang off: the domain root on a custom domain,
- *  `/sites/:projectId` on the app origin. */
-export function siteBasePath(projectId: string, customDomain: boolean): string {
-  return customDomain ? '' : `/sites/${projectId}`;
+  if (slugBase && (pathname === slugBase || pathname.startsWith(`${slugBase}/`))) {
+    return slugBase;
+  }
+  return '';
 }
 
 /** Omit only a known default language; explicit authored query strings stay intact. */
@@ -58,7 +60,7 @@ export function siteLanguageParam(code?: string, defaultCode?: string): string |
 export function siteHref(projectId: string, path = '', options?: { lang?: string; version?: string }): string {
   const { pathname, query, fragment } = splitPath(path);
   const fullPath = [options?.version, cleanPath(pathname)].filter(Boolean).join('/').split('/').filter(Boolean).map(encodeSegment).join('/');
-  const prefix = siteBasePath(projectId, isCustomDomainSite(projectId));
+  const prefix = siteBasePath(projectId);
   const langParam = options?.lang && !new URLSearchParams(query).has('lang') ? `lang=${encodeURIComponent(options.lang)}` : '';
   const search = langParam ? `${query ? `${query}&` : '?'}${langParam}` : query;
   const href = `${prefix}${fullPath ? `/${fullPath}` : ''}` || '/';

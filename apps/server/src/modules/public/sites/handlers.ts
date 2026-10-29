@@ -15,6 +15,7 @@ import {
   getSiteRobots,
   getSiteSitemap,
   recordSiteEvent,
+  resolveSiteSlug,
   type SiteTextDocument,
   searchSite,
 } from '@/actions/sites';
@@ -48,6 +49,11 @@ const textDocument = (ctx: Context<HonoEnv>, doc: SiteTextDocument, contentType:
   });
 
 const app = new Hono<HonoEnv>()
+  // Before `/:id`: the app edge resolves shared-tenancy `/<slug>` paths here.
+  .get('/resolve', ...sitesRoutes.resolve, validator('query', z.object({ slug: z.string().min(1).max(63) })), async (ctx) => {
+    const site = await resolveSiteSlug(ctx.req.valid('query').slug);
+    return site ? ctx.json({ data: site }, 200) : ctx.json({ data: null }, 404);
+  })
   .get('/:id', ...sitesRoutes.site, validator('query', siteQuery), async (ctx) => {
     const { lang, version } = ctx.req.valid('query');
     const data = await getSite(ctx.req.param('id'), lang, version);

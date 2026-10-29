@@ -6,7 +6,9 @@ import type { PageNode } from '@/hooks/api/types';
 import { PageSettingsDialog } from './page-settings-dialog';
 
 vi.mock('@nibleaf/i18n/react', () => ({ useT: () => (key: string) => key }));
-vi.mock('@/hooks/api', () => ({ useUpdatePage: () => ({ isPending: false, mutate: vi.fn() }) }));
+vi.mock('@/hooks/api', () => ({ useUpdatePage: () => ({ isPending: false, mutate: vi.fn() }), useWikiSlugInUse: () => ({ data: false }) }));
+vi.mock('@/hooks/use-tenancy', () => ({ useTenancy: () => 'independent' }));
+vi.mock('@tanstack/react-router', () => ({ rootRouteId: '__root__', useLoaderData: () => ({ homepage: { mode: 'welcome' } }) }));
 
 const page: PageNode = {
   id: 'page-a',

@@ -1,3 +1,4 @@
+import { wikiSlugUnavailable } from '@nibleaf/auth/wiki-slugs';
 import { assignDefaultUsagePlan, type Prisma, prisma } from '@nibleaf/database';
 import { slugify } from '@nibleaf/shared';
 import { addonDefinitions, defaultProjectAddonProvisioning, projectConfigWithAddons } from '@nibleaf/shared/addons';
@@ -24,8 +25,7 @@ async function uniqueAdminProjectSlug(desired: string): Promise<string> {
   for (let index = 0; index < 100; index++) {
     const suffix = index === 0 ? '' : `-${index + 1}`;
     const candidate = `${base.slice(0, MAX_PROJECT_SLUG_LENGTH - suffix.length).replace(/-+$/g, '')}${suffix}`;
-    const clash = await prisma.project.findUnique({ where: { slug: candidate }, select: { id: true } });
-    if (!clash) {
+    if (!(await wikiSlugUnavailable(candidate, env.TENANCY))) {
       return candidate;
     }
   }

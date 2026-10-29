@@ -1,6 +1,7 @@
 import GithubSlugger from 'github-slugger';
 import { isAddonId, parseAddonConfigRecord, projectConfigWithAddons } from './addons';
 import { excerpt, stripMarkdownLinks } from './utils';
+import { withoutSlugHistory } from './wiki-paths';
 
 /** Per-page SEO + behaviour overrides baked into the snapshot. Mirrors
  *  `pageConfigSchema` in @nibleaf/validators (kept inline to avoid a dep). */
@@ -650,7 +651,7 @@ export const buildSnapshot = (project: ProjectRow, pages: PageRow[], generatedAt
       slug: project.slug,
       description: project.description,
       icon: project.icon,
-      config: addonConfig,
+      config: withoutSlugHistory(addonConfig),
       languages,
       versions,
     },

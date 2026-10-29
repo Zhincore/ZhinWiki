@@ -25,6 +25,7 @@ import {
   type SnapshotVersion,
   withOpenApiNav,
 } from '@nibleaf/shared/site';
+import { APP_OWNED_ROOT_SEGMENTS, DASHBOARD_ROOT_SEGMENTS, withoutSlugHistory } from '@nibleaf/shared/wiki-paths';
 import { getContext } from 'hono/context-storage';
 import { env } from '@/env';
 import { AppError, notFound } from '@/errors';
@@ -189,7 +190,7 @@ const overlayLiveChrome = (project: SnapshotProject, live: LiveChromeRow | null)
   // so they never appear publicly until the next publish, and the frozen
   // label/direction/isDefault keep the exactly-one-default invariant intact.
   const liveByCode = new Map(live.languages.map((language) => [language.code, language]));
-  const liveConfig = projectConfigWithAddons(live.config, projectAddonRowsForDelivery(live.addons, live.organization.usagePlan));
+  const liveConfig = withoutSlugHistory(projectConfigWithAddons(live.config, projectAddonRowsForDelivery(live.addons, live.organization.usagePlan)));
   return {
     ...project,
     name: live.name,
@@ -920,6 +921,28 @@ export const getSiteLlmsFullTxt = async (identifier: string): Promise<SiteTextDo
   llmsFullTxtCache.set(cacheKey, body);
   return { body, isPrivate };
 };
+
+/** Resolve a `/<slug>` path (shared tenancy) to its wiki by current or previous
+ *  slug, with the current slug so the app edge can redirect a previous one. */
+export const resolveSiteSlug = async (slug: string): Promise<{ projectId: string; slug: string } | null> => {
+  if (env.TENANCY !== 'shared') {
+    return null;
+  }
+  const current = await prisma.project.findUnique({ where: { slug }, select: { id: true, slug: true } });
+  const project =
+    current ??
+    (await prisma.project.findFirst({
+      where: { config: { path: ['previousSlugs'], array_contains: [slug] } },
+      select: { id: true, slug: true },
+      orderBy: { createdAt: 'asc' },
+    }));
+  return project ? { projectId: project.id, slug: project.slug } : null;
+};
+
+/** Wikis whose slug names an app path (created before shared tenancy or before
+ *  the path existed). They stay reachable at `/sites/:id` until renamed. */
+export const reservedSlugWikis = (): Promise<{ id: string; slug: string }[]> =>
+  prisma.project.findMany({ where: { slug: { in: [...DASHBOARD_ROOT_SEGMENTS, ...APP_OWNED_ROOT_SEGMENTS] } }, select: { id: true, slug: true } });
 
 /** Resolve a request Host (a connected, verified custom domain) to its project
  *  id — used by the app edge to serve custom domains at their own root. Returns

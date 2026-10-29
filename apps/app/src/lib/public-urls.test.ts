@@ -18,16 +18,18 @@ describe('publicUrls on the server', () => {
   it('reads APP_URL and SITE_BASE_DOMAIN at runtime', async () => {
     vi.stubEnv('APP_URL', 'https://docs.example.org');
     vi.stubEnv('SITE_BASE_DOMAIN', '*.sites.example.org.');
+    vi.stubEnv('TENANCY', 'shared');
     expect(await loadPublicUrls()).toEqual({
       appUrl: 'https://docs.example.org',
       siteBaseDomain: 'sites.example.org',
+      wikiSlugPaths: true,
     });
   });
 
   it('defaults to the local development origins', async () => {
     vi.stubEnv('APP_URL', '');
     vi.stubEnv('SITE_BASE_DOMAIN', '');
-    expect(await loadPublicUrls()).toEqual({ appUrl: 'http://localhost:4310', siteBaseDomain: undefined });
+    expect(await loadPublicUrls()).toEqual({ appUrl: 'http://localhost:4310', siteBaseDomain: undefined, wikiSlugPaths: false });
   });
 
   it.each([
@@ -45,10 +47,12 @@ describe('readPublicUrls', () => {
     const doc = documentWith({
       [PUBLIC_URL_META.appUrl]: 'https://docs.example.org',
       [PUBLIC_URL_META.siteBaseDomain]: 'sites.example.org',
+      [PUBLIC_URL_META.wikiSlugPaths]: 'true',
     });
     expect(readPublicUrls(doc)).toEqual({
       appUrl: 'https://docs.example.org',
       siteBaseDomain: 'sites.example.org',
+      wikiSlugPaths: true,
     });
   });
 

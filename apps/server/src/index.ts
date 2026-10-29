@@ -9,6 +9,7 @@ import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { configureUploadCors, ensureBucket } from '@nibleaf/storage';
 import { Scalar } from '@scalar/hono-api-reference';
 import { openAPIRouteHandler } from 'hono-openapi';
+import { reservedSlugWikis } from './actions/sites';
 import { env } from './env';
 import app from './routes';
 
@@ -69,6 +70,12 @@ async function main() {
   // doubles as the producer readiness gate; do not route traffic to an API
   // whose publish/email/export jobs would only fail after accepting requests.
   await scheduleAnalyticsRollup();
+  if (env.TENANCY === 'shared') {
+    const clashes = await reservedSlugWikis().catch(() => []);
+    if (clashes.length > 0) {
+      logger.warn({ wikis: clashes }, 'wiki slugs clash with app paths; these wikis stay at /sites/<id> until renamed');
+    }
+  }
   ready = true;
   logger.info({ revision: process.env.NIBLEAF_REVISION ?? 'development' }, 'API ready');
 }

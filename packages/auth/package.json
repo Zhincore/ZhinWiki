@@ -12,6 +12,7 @@
     "./client": "./src/client.ts",
     "./server": "./src/server.ts",
     "./tenant-erasure": "./src/tenant-erasure.ts",
+    "./wiki-slugs": "./src/wiki-slugs.ts",
     "./keys.server": "./src/keys.server.ts",
     "./providers": "./src/providers.ts"
   },

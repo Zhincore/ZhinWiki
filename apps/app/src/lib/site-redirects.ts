@@ -1,7 +1,7 @@
 import { normalizeRedirectPath, resolveRedirectTarget } from '@nibleaf/validators/redirects';
 import { redirect } from '@tanstack/react-router';
 import { getSiteFn } from '@/functions/site';
-import { isCustomDomainSite } from '@/lib/site-paths';
+import { siteBasePath } from '@/lib/site-paths';
 import { buildSiteRedirectHref } from '@/lib/site-redirect-href';
 
 /**
@@ -11,7 +11,7 @@ import { buildSiteRedirectHref } from '@/lib/site-redirect-href';
  *
  * Runs in the page route loader, so during SSR the thrown redirect becomes an
  * actual HTTP 308 (crawler-visible) and on the client a normal navigation.
- * Works for both app-origin (`/sites/:id/*`) and custom-domain (root) serving.
+ * Works for app-origin (`/sites/:id/*`, `/<slug>/*`) and custom-domain (root) serving.
  */
 export async function redirectIfConfigured(projectId: string, path: string, lang?: string): Promise<void> {
   let from: string;
@@ -39,7 +39,7 @@ export async function redirectIfConfigured(projectId: string, path: string, lang
   }
   let href: string;
   try {
-    href = buildSiteRedirectHref({ projectId, target: to, lang, customDomain: isCustomDomainSite(projectId) });
+    href = buildSiteRedirectHref({ target: to, lang, basePath: siteBasePath(projectId) });
   } catch {
     return;
   }

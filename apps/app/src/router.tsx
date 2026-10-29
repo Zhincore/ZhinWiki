@@ -3,7 +3,7 @@ import { createIsomorphicFn } from '@tanstack/react-start';
 import { ErrorPage } from '@/components/error-page';
 import { NotFound } from '@/components/not-found';
 import { PageLoader } from '@/components/page-loader';
-import { hydratedCustomDomainProjectId, rewriteCustomDomainInput, rewriteCustomDomainOutput } from '@/lib/custom-domain-rewrite';
+import { hydratedSiteDocument, rewriteSiteInput, rewriteSiteOutput } from '@/lib/custom-domain-rewrite';
 import { homepageRewrite, isHomeSiteDocument } from '@/lib/homepage';
 import { currentHomepage } from '@/lib/site-origin';
 import { ssrNonce } from '@/lib/ssr-nonce.server';
@@ -13,18 +13,19 @@ const requestNonce = createIsomorphicFn()
   .server(() => ssrNonce.getStore())
   .client(() => undefined);
 
-/** URL rewrite for the configured homepage, else a custom domain's mapping of every path onto `/sites/:projectId`. */
+/** URL rewrite mapping a site document's public paths onto `/sites/:projectId`:
+ *  a `/<slug>` wiki first, else the configured homepage, else a custom domain. */
 const siteRewrite = () => {
-  const homepage = currentHomepage();
-  const homeRewrite = homepageRewrite(homepage, isHomeSiteDocument(homepage));
-  if (homeRewrite) return homeRewrite;
-  const customDomainProjectId = hydratedCustomDomainProjectId();
-  return customDomainProjectId
+  const site = hydratedSiteDocument();
+  const documentRewrite = site
     ? {
-        input: ({ url }: { url: URL }) => rewriteCustomDomainInput(url, customDomainProjectId),
-        output: ({ url }: { url: URL }) => rewriteCustomDomainOutput(url, customDomainProjectId),
+        input: ({ url }: { url: URL }) => rewriteSiteInput(url, site.projectId, site.basePath),
+        output: ({ url }: { url: URL }) => rewriteSiteOutput(url, site.projectId, site.basePath),
       }
     : undefined;
+  if (site?.basePath) return documentRewrite;
+  const homepage = currentHomepage();
+  return homepageRewrite(homepage, isHomeSiteDocument(homepage)) ?? documentRewrite;
 };
 
 export function getRouter() {

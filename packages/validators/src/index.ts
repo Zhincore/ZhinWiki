@@ -1,5 +1,6 @@
 import { MCP_SCOPES } from '@nibleaf/shared/mcp';
 import { MAX_REDIRECT_RULES, validateRedirectGraph } from '@nibleaf/shared/redirects';
+import { MAX_PREVIOUS_WIKI_SLUGS, WIKI_SLUG_PATTERN } from '@nibleaf/shared/wiki-paths';
 import { z } from 'zod';
 
 import { isUploadableAssetContentType, MAX_SVG_BYTES, normalizeAssetContentType, SVG_CONTENT_TYPE } from './assets';
@@ -356,14 +357,16 @@ export const projectConfigSchema = z
       .optional(),
     redirects: redirectsSchema.optional(),
     variables: z.array(kvPair).max(100).optional(),
+    /** Slugs the wiki used before, newest first; server-managed under shared tenancy. */
+    previousSlugs: z.array(z.string()).max(MAX_PREVIOUS_WIKI_SLUGS).optional(),
   })
   .strict();
 export type ProjectConfig = z.infer<typeof projectConfigSchema>;
 
 /** Project settings that remain owned by the generic config endpoint. Add-on
  * state/config and the legacy cookie-consent projection are action-owned and
- * cannot be written through this compatibility surface. */
-export const projectConfigUpdateSchema = projectConfigSchema.omit({ addons: true }).extend({
+ * cannot be written through this compatibility surface, nor can the slug history. */
+export const projectConfigUpdateSchema = projectConfigSchema.omit({ addons: true, previousSlugs: true }).extend({
   analytics: projectConfigSchema.shape.analytics.unwrap().omit({ cookieConsent: true }).optional(),
 });
 export type ProjectConfigUpdate = z.infer<typeof projectConfigUpdateSchema>;
@@ -493,12 +496,7 @@ export type CreateProjectBody = z.infer<typeof createProjectBody>;
 export const updateProjectBody = z
   .object({
     name: z.string().min(1).max(120).optional(),
-    slug: z
-      .string()
-      .min(1)
-      .max(63)
-      .regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/, 'Use lowercase letters, numbers, and hyphens.')
-      .optional(),
+    slug: z.string().min(1).max(63).regex(WIKI_SLUG_PATTERN, 'Use lowercase letters, numbers, and hyphens.').optional(),
     description: z.string().max(500).nullable().optional(),
     icon: z.string().max(64).nullable().optional(),
     config: projectConfigUpdateSchema.optional(),

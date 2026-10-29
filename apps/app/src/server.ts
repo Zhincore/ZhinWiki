@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync } from 'node:fs';
+import { keys as authKeys } from '@nibleaf/auth/keys.server';
 import { setMessageBrand } from '@nibleaf/i18n/brand';
 import { brandAssetResponse, instanceBrand } from '@nibleaf/shared/brand/server';
 import {
@@ -10,6 +11,7 @@ import {
   markdownAlternateUrl,
   markdownDiscoveryLinkHeader,
 } from '@nibleaf/shared/markdown-discovery';
+import { isReservedWikiSlug, WIKI_SLUG_PATTERN } from '@nibleaf/shared/wiki-paths';
 import type { Register } from '@tanstack/react-router';
 import { createStartHandler, defaultStreamHandler, type RequestHandler } from '@tanstack/react-start/server';
 import { createServerEntry } from '@tanstack/react-start/server-entry';
@@ -78,6 +80,8 @@ const ownHosts = new Set(
 setMessageBrand(instanceBrand());
 /** What the app origin serves at its root; fails fast on an invalid value. */
 const HOMEPAGE = parseHomepage(process.env.HOMEPAGE);
+/** Shared tenancy serves published wikis at `/<slug>` on the app origin. */
+const WIKI_SLUG_PATHS = authKeys().TENANCY === 'shared';
 
 const REVISION = process.env.NIBLEAF_REVISION ?? 'development';
 const DRAIN_FILE = process.env.NIBLEAF_DRAIN_FILE ?? '/tmp/nibleaf-draining';
@@ -270,6 +274,46 @@ async function resolveHost(host: string): Promise<string | null> {
   }
 }
 
+// ─── Wiki slug → project resolution (shared tenancy) ─────────────────────────
+
+interface SlugSite {
+  projectId: string;
+  /** The wiki's current slug; differs from the requested one for a previous slug. */
+  slug: string;
+}
+
+const slugCache = new Map<string, { site: SlugSite | null; at: number }>();
+
+/** Resolve a `/<slug>` path segment (current or previous slug) to its wiki. Misses are
+ *  cached too, so a home wiki's own top-level paths cost one lookup per TTL. */
+async function resolveWikiSlug(slug: string): Promise<SlugSite | null> {
+  const hit = slugCache.get(slug);
+  if (hit && Date.now() - hit.at < TTL) {
+    return hit.site;
+  }
+  try {
+    const response = await got(`${SELF}/api/public/sites/resolve?slug=${encodeURIComponent(slug)}`, {
+      headers: publicMachineRequestHeaders(),
+      responseType: 'json',
+      retry: { limit: 0 },
+      throwHttpErrors: false,
+      timeout: { request: 5000 },
+    });
+    if (!(response.ok || response.statusCode === 404)) return null;
+    const parsed = z.object({ data: z.object({ projectId: z.string(), slug: z.string() }) }).safeParse(response.body);
+    const site = response.ok && parsed.success ? parsed.data.data : null;
+    if (slugCache.size > 500) slugCache.clear();
+    slugCache.set(slug, { site, at: Date.now() });
+    return site;
+  } catch {
+    return null;
+  }
+}
+
+/** The public app-origin path of a wiki: `/<slug>`, or `/sites/:id` when its slug clashes with an app path. */
+const wikiPublicPath = (site: SlugSite): string =>
+  WIKI_SLUG_PATTERN.test(site.slug) && !isReservedWikiSlug(site.slug) ? `/${site.slug}` : `/sites/${site.projectId}`;
+
 // ─── Published-site metadata (privacy + primary domain) ──────────────────────
 
 /** What the edge needs to know about a published site: whether its HTML may be
@@ -278,6 +322,7 @@ interface SiteMeta {
   /** Verified primary custom domain, when configured. */
   primaryDomain: string | null;
   isPrivate: boolean;
+  slug: string | null;
 }
 
 const siteMetaCache = new Map<string, { meta: SiteMeta | null; at: number }>();
@@ -326,6 +371,7 @@ async function loadSiteMeta(projectId: string, requestHasCredentials: boolean): 
                 .object({
                   config: z.looseObject({ visibility: z.string().optional() }).nullable().optional(),
                   primaryDomain: z.string().nullable(),
+                  slug: z.string().optional(),
                 })
                 .optional(),
             })
@@ -338,6 +384,7 @@ async function loadSiteMeta(projectId: string, requestHasCredentials: boolean): 
         meta = {
           primaryDomain: primary || null,
           isPrivate: (project.config as { visibility?: string } | null)?.visibility === 'private',
+          slug: project.slug ?? null,
         };
       }
     }
@@ -637,6 +684,8 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
     return Response.redirect(`${proto}://${host}${url.pathname.replace(/\/+$/, '')}${url.search}`, 308);
   }
 
+  // Redirects keep the requested form, `.md` alias included.
+  const requestedPathname = url.pathname;
   // Stable `.md` aliases render the same published document as the canonical HTML path.
   const markdownAliasCanonical = isGetLike ? canonicalPathFromMarkdownAlias(url.pathname) : null;
   const isMarkdownAlias = markdownAliasCanonical !== null;
@@ -688,16 +737,51 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
     return addMarkdownDiscovery(rendered, canonicalUrl, llmsUrlForBase(base), isMarkdownAlias);
   };
 
+  const appOrigin = () => `${request.headers.get('x-forwarded-proto') || url.protocol.slice(0, -1)}://${host}`;
+
+  /** Shared tenancy: serve `/<slug>/*` as that wiki, 301 a previous slug to the
+   *  current one and the home wiki's slug to the root. Null when the first
+   *  segment names no wiki, so the home wiki and app routes keep the path. */
+  const serveWikiSlugPath = async (): Promise<Response | null> => {
+    const segment = url.pathname.split('/')[1] ?? '';
+    if (!WIKI_SLUG_PATTERN.test(segment) || isReservedWikiSlug(segment)) return null;
+    const site = await resolveWikiSlug(segment);
+    if (!site) return null;
+    const rest = url.pathname.slice(segment.length + 1);
+    const isHome = HOMEPAGE.mode === 'site' && HOMEPAGE.projectId === site.projectId;
+    if (isGetLike && (isHome || site.slug !== segment)) {
+      const requestedRest = requestedPathname.slice(segment.length + 1);
+      const target = isHome ? requestedRest || '/' : `${wikiPublicPath(site)}${requestedRest}`;
+      return Response.redirect(`${appOrigin()}${target}${url.search}`, 301);
+    }
+    const base = `${appOrigin()}/${site.slug}`;
+    if (isGetLike && DOMAIN_SEO_FILE.test(rest)) {
+      return withoutHeadBody(await serveDomainSeo(rest, site.projectId, base), request.method);
+    }
+    if (request.method === 'GET') {
+      const meta = await resolveSiteMeta(site.projectId);
+      if (meta?.primaryDomain && meta.primaryDomain !== bare) {
+        return Response.redirect(`https://${meta.primaryDomain}${rest || '/'}${url.search}`, 301);
+      }
+    }
+    url.pathname = `/sites/${site.projectId}${rest}`;
+    const rewritten = new Request(url, routedRequest);
+    rewritten.headers.set('x-nibleaf-site-origin', base);
+    return renderHtml(rewritten);
+  };
+
   const serve = async (): Promise<Response> => {
     if (!isCustomDomain) {
       const legalRedirect = isGetLike ? legalPageRedirect(url) : null;
       if (legalRedirect) {
         return new Response(null, { status: 302, headers: { location: legalRedirect } });
       }
+      const wikiResponse = WIKI_SLUG_PATHS ? await serveWikiSlugPath() : null;
+      if (wikiResponse) return wikiResponse;
       // Home wiki: the configured site is served at the app root like a custom
       // domain, around the dashboard paths and the app's security.txt.
       if (HOMEPAGE.mode === 'site' && !isDashboardPath(url.pathname) && url.pathname !== '/.well-known/security.txt') {
-        const origin = `${request.headers.get('x-forwarded-proto') || url.protocol.slice(0, -1)}://${host}`;
+        const origin = appOrigin();
         if (isGetLike && DOMAIN_SEO_FILE.test(url.pathname)) {
           const seo = await serveDomainSeo(url.pathname, HOMEPAGE.projectId, origin);
           return withoutHeadBody(url.pathname === '/robots.txt' ? await withDashboardDisallows(seo) : seo, request.method);
@@ -734,6 +818,16 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
           // domain itself the request is a custom-domain request, not this branch.
           if (meta?.primaryDomain && meta.primaryDomain !== bare) {
             return Response.redirect(`https://${meta.primaryDomain}${siteMatch[2] || '/'}${url.search}`, 301);
+          }
+          // Shared tenancy: the internal path 301s to the public one (the root for
+          // the home wiki); a wiki whose slug clashes with an app path stays here.
+          if (WIKI_SLUG_PATHS && meta?.slug) {
+            const site = { projectId: siteMatch[1], slug: meta.slug };
+            const publicPath = HOMEPAGE.mode === 'site' && HOMEPAGE.projectId === site.projectId ? '' : wikiPublicPath(site);
+            if (!publicPath.startsWith('/sites/')) {
+              const requestedRest = requestedPathname.slice(`/sites/${site.projectId}`.length);
+              return Response.redirect(`${appOrigin()}${publicPath}${requestedRest || (publicPath ? '' : '/')}${url.search}`, 301);
+            }
           }
           return renderHtml(routedRequest);
         }

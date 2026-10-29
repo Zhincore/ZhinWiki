@@ -26,6 +26,7 @@ import { deliverAuthOtpEmail } from './auth-email-expiry';
 import { keys } from './keys.server';
 import { googleOAuthEnabled } from './providers';
 import { onUserCreated, organizationTenancyOptions } from './tenancy';
+import { wikiSlugUnavailable } from './wiki-slugs';
 
 const env = keys();
 const log = createLogger({ module: 'auth' });
@@ -474,8 +475,7 @@ self-hostable documentation platform. Source at
 async function uniqueStarterSlug(): Promise<string> {
   for (let i = 0; i < 100; i++) {
     const candidate = i === 0 ? 'docs' : `docs-${i + 1}`;
-    const clash = await prisma.project.findFirst({ where: { slug: candidate }, select: { id: true } });
-    if (!clash) {
+    if (!(await wikiSlugUnavailable(candidate, env.TENANCY))) {
       return candidate;
     }
   }

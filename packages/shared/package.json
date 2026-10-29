@@ -22,6 +22,7 @@
     "./redirects": "./src/redirects.ts",
     "./crypto": "./src/crypto.ts",
     "./site": "./src/site.ts",
+    "./wiki-paths": "./src/wiki-paths.ts",
     "./documentation-components": "./src/documentation-components.ts",
     "./themes": "./src/themes.ts",
     "./theme-repository": "./src/theme-repository.ts",

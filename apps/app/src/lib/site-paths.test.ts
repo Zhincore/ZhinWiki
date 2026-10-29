@@ -1,19 +1,27 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { isCustomDomainSite, siteBasePath, siteHref, siteLanguageParam } from './site-paths';
+import { siteBasePath, siteHref, siteLanguageParam } from './site-paths';
 
-// site-origin reads the custom-domain origin the server entry stamped on the
-// request; swap it for a controllable value so both serving modes are covered.
+// site-origin reads the base URL the server entry stamped on the request;
+// swap it for a controllable value so every serving mode is covered.
 const origin = vi.hoisted(() => ({ value: undefined as string | undefined }));
-vi.mock('@/lib/site-origin', () => ({ customDomainOrigin: () => origin.value }));
+vi.mock('@/lib/site-origin', () => ({
+  customDomainOrigin: () => origin.value,
+  slugSiteBasePath: () => (origin.value ? new URL(origin.value).pathname.replace(/\/+$/, '') || undefined : undefined),
+}));
 
 afterEach(() => {
   origin.value = undefined;
 });
 
 describe('siteBasePath', () => {
-  it('hangs app-origin sites off /sites/:projectId and custom domains off the root', () => {
-    expect(siteBasePath('p1', false)).toBe('/sites/p1');
-    expect(siteBasePath('p1', true)).toBe('');
+  it('hangs internal requests off /sites/:projectId, custom domains off the root and slug paths off /<slug>', () => {
+    expect(siteBasePath('p1')).toBe('/sites/p1');
+    origin.value = 'https://docs.acme.com';
+    expect(siteBasePath('p1')).toBe('');
+    origin.value = 'https://wiki.example.com/handbook';
+    expect(siteBasePath('p1')).toBe('/handbook');
+    expect(siteHref('p1', 'guides/intro', { lang: 'ar' })).toBe('/handbook/guides/intro?lang=ar');
+    expect(siteHref('p1')).toBe('/handbook');
   });
 });
 
@@ -73,13 +81,11 @@ describe('siteHref', () => {
 
   it('uses the domain root when the request arrived on a custom domain', () => {
     origin.value = 'https://docs.acme.com';
-    expect(isCustomDomainSite('p1')).toBe(true);
     expect(siteHref('p1')).toBe('/');
     expect(siteHref('p1', 'guides/intro', { lang: 'ar' })).toBe('/guides/intro?lang=ar');
   });
 
   it('treats a server request without a stamped origin as app-origin serving', () => {
-    expect(isCustomDomainSite('p1')).toBe(false);
     expect(siteHref('p1', 'guides')).toBe('/sites/p1/guides');
   });
 });

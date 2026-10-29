@@ -1,13 +1,15 @@
 import { eraseProjectOrganization, TenantErasureProjectNotFoundError, TenantUsageDeletionPendingError } from '@nibleaf/auth/tenant-erasure';
+import { wikiSlugUnavailable } from '@nibleaf/auth/wiki-slugs';
 import { assignDefaultUsagePlan, type Prisma, prisma } from '@nibleaf/database';
 import { addonDefinitions, defaultProjectAddonProvisioning, projectConfigWithAddons } from '@nibleaf/shared/addons';
 import { MemberRole } from '@nibleaf/shared/constants';
 import { effectiveWikiRole, platformWikiGrant } from '@nibleaf/shared/rbac';
 import { THEME_PRESETS, THEME_SCHEMA_VERSION } from '@nibleaf/shared/themes';
 import { slugify } from '@nibleaf/shared/utils';
+import { isReservedWikiSlug, nextPreviousSlugs } from '@nibleaf/shared/wiki-paths';
 import type { CreateProjectBody, ProjectConfigUpdate, UpdateProjectBody } from '@nibleaf/validators';
 import { env } from '@/env';
-import { conflict, notFound } from '@/errors';
+import { badRequest, conflict, notFound } from '@/errors';
 import { mutateProjectConfig } from './project-config';
 
 const MAX_PROJECT_SLUG_LENGTH = 63;
@@ -75,8 +77,7 @@ const uniqueProjectSlug = async (desired: string) => {
   const base = slugify(desired) || 'docs';
   for (let i = 0; i < 100; i++) {
     const candidate = candidateSlug(base, i);
-    const existing = await prisma.project.findFirst({ where: { slug: candidate }, select: { id: true } });
-    if (!existing) {
+    if (!(await wikiSlugUnavailable(candidate, env.TENANCY))) {
       return candidate;
     }
   }
@@ -179,12 +180,20 @@ const mergeConfig = (existing: Record<string, unknown>, incoming: ProjectConfigU
 
 export const updateProject = async (organizationId: string, id: string, body: UpdateProjectBody) => {
   const project = await assertProjectInOrg(organizationId, id);
-  if (body.slug !== undefined && body.slug !== project.slug) {
-    const existing = await prisma.project.findFirst({ where: { slug: body.slug, id: { not: id } }, select: { id: true } });
-    if (existing) {
-      throw conflict('That deployment name is already in use.', { slug: body.slug });
+  const newSlug = body.slug !== undefined && body.slug !== project.slug ? body.slug : undefined;
+  if (newSlug !== undefined) {
+    if (env.TENANCY === 'shared' && isReservedWikiSlug(newSlug)) {
+      throw badRequest('That deployment name is reserved.', { slug: newSlug, reason: 'reserved_slug' });
+    }
+    if (await wikiSlugUnavailable(newSlug, env.TENANCY, id)) {
+      throw conflict('That deployment name is already in use.', { slug: newSlug });
     }
   }
+  // Shared tenancy serves wikis at `/<slug>`; the old slug keeps redirecting.
+  const previousSlugs =
+    newSlug !== undefined && env.TENANCY === 'shared'
+      ? nextPreviousSlugs((project.config as { previousSlugs?: unknown } | null)?.previousSlugs, project.slug, newSlug)
+      : undefined;
 
   const projectData = {
     ...(body.name === undefined ? {} : { name: body.name }),
@@ -194,7 +203,7 @@ export const updateProject = async (organizationId: string, id: string, body: Up
   };
 
   const config = body.config;
-  if (config === undefined) {
+  if (config === undefined && previousSlugs === undefined) {
     return prisma.project.update({ where: { id }, data: projectData });
   }
 
@@ -202,7 +211,10 @@ export const updateProject = async (organizationId: string, id: string, body: Up
     if (Object.keys(projectData).length > 0) {
       await tx.project.update({ where: { id }, data: projectData });
     }
-    await mutateProjectConfig(tx, organizationId, id, (current) => mergeConfig(current, config));
+    await mutateProjectConfig(tx, organizationId, id, (current) => ({
+      ...(config === undefined ? current : mergeConfig(current, config)),
+      ...(previousSlugs === undefined ? {} : { previousSlugs }),
+    }));
     const updated = await tx.project.findFirst({ where: { id, organizationId } });
     if (!updated) throw notFound('project', { id });
     return updated;

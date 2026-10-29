@@ -1,3 +1,4 @@
+import { keys } from '@nibleaf/auth/keys.server';
 import { createIsomorphicFn } from '@tanstack/react-start';
 import { serverEnv } from '@/env.server';
 
@@ -7,12 +8,15 @@ export interface PublicUrls {
   appUrl: string;
   /** Free-subdomain base (`SITE_BASE_DOMAIN`), when configured. */
   siteBaseDomain?: string;
+  /** Published wikis are served at `/<slug>` on the app origin (`TENANCY=shared`). */
+  wikiSlugPaths: boolean;
 }
 
 /** `<meta name>` the root document renders for each public URL. */
 export const PUBLIC_URL_META = {
   appUrl: 'nibleaf-app-url',
   siteBaseDomain: 'nibleaf-site-base-domain',
+  wikiSlugPaths: 'nibleaf-wiki-slug-paths',
 } as const satisfies Record<keyof PublicUrls, string>;
 
 /** A base domain without its wildcard prefix or trailing dot. */
@@ -25,7 +29,11 @@ export function readPublicUrls(doc: Pick<Document, 'querySelector'>): PublicUrls
   if (!appUrl) {
     throw new Error('The document is missing its public URL meta tags.');
   }
-  return { appUrl, siteBaseDomain: normalizeBaseDomain(read(PUBLIC_URL_META.siteBaseDomain)) };
+  return {
+    appUrl,
+    siteBaseDomain: normalizeBaseDomain(read(PUBLIC_URL_META.siteBaseDomain)),
+    wikiSlugPaths: read(PUBLIC_URL_META.wikiSlugPaths) === 'true',
+  };
 }
 
 /** Server: validated runtime env. Client: the meta tags the root route rendered from it. */
@@ -34,6 +42,7 @@ export const publicUrls = createIsomorphicFn()
     (): PublicUrls => ({
       appUrl: serverEnv.APP_URL,
       siteBaseDomain: normalizeBaseDomain(serverEnv.SITE_BASE_DOMAIN),
+      wikiSlugPaths: keys().TENANCY === 'shared',
     }),
   )
   .client((): PublicUrls => readPublicUrls(document));

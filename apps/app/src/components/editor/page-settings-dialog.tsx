@@ -17,11 +17,14 @@ import { cn } from '@nibleaf/design-system/lib/utils';
 import type { MessageKey } from '@nibleaf/i18n';
 import { useT } from '@nibleaf/i18n/react';
 import { slugify } from '@nibleaf/shared/utils';
+import { isReservedWikiSlug, WIKI_SLUG_PATTERN } from '@nibleaf/shared/wiki-paths';
+import { rootRouteId, useLoaderData } from '@tanstack/react-router';
 import { CirclePlus, type LucideIcon, PanelsTopLeft, SearchCheck } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { PageConfig, PageNode } from '@/hooks/api';
-import { useUpdatePage } from '@/hooks/api';
+import { useUpdatePage, useWikiSlugInUse } from '@/hooks/api';
+import { useTenancy } from '@/hooks/use-tenancy';
 
 type PageMode = 'default' | 'wide' | 'center';
 type PageSettingsSection = 'general' | 'seo' | 'behaviour';
@@ -33,6 +36,22 @@ const PAGE_SETTINGS_SECTIONS = [
 ] as const satisfies ReadonlyArray<{ id: PageSettingsSection; labelKey: MessageKey; icon: LucideIcon }>;
 
 const PLACEHOLDER_SLUG_RE = /^(?:untitled|new-group)(?:-\d+)?$/;
+
+/** Whether a home wiki's top-level page slug is shadowed at the app root under
+ *  shared tenancy: an app path or another wiki's `/<slug>` wins over the page. */
+function useHomeWikiSlugClash(projectId: string, topLevelSlug: string): boolean {
+  const tenancy = useTenancy();
+  const { homepage } = useLoaderData({ from: rootRouteId });
+  const [checkedSlug, setCheckedSlug] = useState(topLevelSlug);
+  useEffect(() => {
+    const timer = setTimeout(() => setCheckedSlug(topLevelSlug), 300);
+    return () => clearTimeout(timer);
+  }, [topLevelSlug]);
+  const applies = tenancy === 'shared' && homepage.mode === 'site' && homepage.projectId === projectId && WIKI_SLUG_PATTERN.test(checkedSlug);
+  const reserved = applies && isReservedWikiSlug(checkedSlug);
+  const { data: inUse } = useWikiSlugInUse(checkedSlug, { enabled: applies && !reserved });
+  return reserved || (applies && inUse === true);
+}
 
 /** Per-page settings — General (nav metadata), SEO override, and Behaviour
  *  (layout). The SEO + behaviour fields persist to `page.config`, layered over
@@ -75,6 +94,7 @@ export function PageSettingsDialog({
   const [mode, setMode] = useState<PageMode>(page.config?.mode ?? 'default');
   const [hideToc, setHideToc] = useState(page.config?.hideToc ?? false);
   const [section, setSection] = useState<PageSettingsSection>('general');
+  const slugClash = useHomeWikiSlugClash(projectId, page.parentId === null ? slug : '');
   // One array feeds both the trigger label (`items`) and the rendered options so they can't drift.
   const modeOptions = [
     { value: 'default', label: t('editor.pageSettings.mode.default') },
@@ -241,6 +261,7 @@ export function PageSettingsDialog({
                       }}
                       placeholder="getting-started"
                     />
+                    {slugClash ? <p className="mt-1.5 text-[12px] text-warning">{t('editor.pageSettings.slugClash')}</p> : null}
                   </Field>
                   <Field label={t('editor.pageSettings.sidebarTitle')} hint={t('editor.pageSettings.sidebarTitleHint')} htmlFor="page-sidebar">
                     <Input id="page-sidebar" value={sidebarTitle} onChange={(e) => setSidebarTitle(e.target.value)} placeholder={page.title} />

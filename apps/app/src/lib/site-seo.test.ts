@@ -4,7 +4,7 @@ import { canonicalSiteBase, changelogFeedUrl, pageHead, siteHead } from './site-
 
 const urls = vi.hoisted(() => ({ siteBaseDomain: undefined as string | undefined }));
 vi.mock('@/lib/public-urls', () => ({
-  publicUrls: () => ({ appUrl: 'http://localhost:4310', siteBaseDomain: urls.siteBaseDomain }),
+  publicUrls: () => ({ appUrl: 'http://localhost:4310', siteBaseDomain: urls.siteBaseDomain, wikiSlugPaths: false }),
 }));
 
 beforeEach(() => {
@@ -302,6 +302,13 @@ describe('canonicalSiteBase priority', () => {
     );
     expect(canonicalSiteBase('p1', { slug: 'acme', baseDomain: null, requestOrigin: 'https://x.example' })).toBe('https://x.example');
     expect(canonicalSiteBase('p1', { baseDomain: null })).toBe('http://localhost:4310/sites/p1');
+  });
+
+  it('falls back to /<slug> on the app origin under shared tenancy, unless the slug clashes with an app path', () => {
+    expect(canonicalSiteBase('p1', { slug: 'acme', baseDomain: null, wikiSlugPaths: true })).toBe('http://localhost:4310/acme');
+    expect(canonicalSiteBase('p1', { slug: 'acme', baseDomain: 'nibleaf.site', wikiSlugPaths: true })).toBe('https://acme.nibleaf.site');
+    expect(canonicalSiteBase('p1', { slug: 'app', baseDomain: null, wikiSlugPaths: true })).toBe('http://localhost:4310/sites/p1');
+    expect(canonicalSiteBase('p1', { slug: 'acme', baseDomain: null, wikiSlugPaths: false })).toBe('http://localhost:4310/sites/p1');
   });
 
   it('normalizes the primary domain host', () => {

@@ -6,7 +6,7 @@ import { ApiResponseError } from '@/hooks/api/client-helpers';
 import type { SitePage } from '@/hooks/api/types';
 import { resolveLanguagePathRedirect } from '@/lib/site-language-path';
 import { customDomainOrigin } from '@/lib/site-origin';
-import { isCustomDomainSite } from '@/lib/site-paths';
+import { siteBasePath } from '@/lib/site-paths';
 import { redirectIfConfigured } from '@/lib/site-redirects';
 import { pageHead } from '@/lib/site-seo';
 
@@ -44,8 +44,7 @@ export const Route = createFileRoute('/sites/$projectId/$')({
         languageRedirect = resolveLanguagePathRedirect({
           splat: path,
           languages: site.languages,
-          projectId: params.projectId,
-          isCustomDomain: isCustomDomainSite(params.projectId),
+          basePath: siteBasePath(params.projectId),
           search: location.searchStr,
         });
       } catch {
@@ -86,7 +85,7 @@ export const Route = createFileRoute('/sites/$projectId/$')({
     if (requestedContent && safeDecode(requestedContent) !== page.page.path) {
       const target = [prefix, page.page.path].filter(Boolean).join('/');
       const query = deps.lang ? `?lang=${encodeURIComponent(deps.lang)}` : '';
-      const href = isCustomDomainSite(params.projectId) ? `/${target}${query}` : `/sites/${params.projectId}/${target}${query}`;
+      const href = `${siteBasePath(params.projectId)}/${target}${query}`;
       throw redirect({ href, statusCode: 302 });
     }
     return { kind: 'page' as const, page, lang: deps.lang, version, siteOrigin: customDomainOrigin() };

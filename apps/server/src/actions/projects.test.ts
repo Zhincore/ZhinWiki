@@ -7,11 +7,14 @@ const mocks = vi.hoisted(() => ({
   projectFindMany: vi.fn(),
   projectFindFirst: vi.fn(),
   projectFindUnique: vi.fn(),
+  projectUpdate: vi.fn(),
   userFindUnique: vi.fn(),
+  wikiSlugUnavailable: vi.fn(),
+  mutateProjectConfig: vi.fn(),
   tx: {
     organization: { create: vi.fn() },
     member: { create: vi.fn() },
-    project: { create: vi.fn() },
+    project: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn() },
     projectAddon: { createMany: vi.fn() },
     projectAddonAuditEvent: { createMany: vi.fn() },
     language: { create: vi.fn() },
@@ -25,16 +28,18 @@ vi.mock('@nibleaf/auth/tenant-erasure', () => ({
   TenantUsageDeletionPendingError: class extends Error {},
   TenantErasureProjectNotFoundError: class extends Error {},
 }));
+vi.mock('@nibleaf/auth/wiki-slugs', () => ({ wikiSlugUnavailable: mocks.wikiSlugUnavailable }));
+vi.mock('./project-config', () => ({ mutateProjectConfig: mocks.mutateProjectConfig }));
 vi.mock('@nibleaf/database', () => ({
   assignDefaultUsagePlan: vi.fn(),
   prisma: {
-    project: { findMany: mocks.projectFindMany, findFirst: mocks.projectFindFirst, findUnique: mocks.projectFindUnique },
+    project: { findMany: mocks.projectFindMany, findFirst: mocks.projectFindFirst, findUnique: mocks.projectFindUnique, update: mocks.projectUpdate },
     user: { findUnique: mocks.userFindUnique },
     $transaction: (run: (tx: typeof mocks.tx) => Promise<unknown>) => run(mocks.tx),
   },
 }));
 
-import { assertProjectAccess, createProject, getProject, listProjects } from './projects';
+import { assertProjectAccess, createProject, getProject, listProjects, updateProject } from './projects';
 
 /** The one definition of "pages" shared by the workspace overview, the sites
  *  list and the MCP project DTO: content pages on the default branch across
@@ -172,5 +177,42 @@ describe('platform-role wiki access', () => {
     mocks.userFindUnique.mockResolvedValue({ role, members: [{ organizationId: 'org-a' }] });
     await listProjects('user');
     expect(mocks.projectFindMany).toHaveBeenCalledWith(expect.objectContaining({ where: { organizationId: { in: ['org-a'] } } }));
+  });
+});
+
+describe('updateProject slug changes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.env.TENANCY = 'shared';
+    mocks.projectFindFirst.mockResolvedValue({ id: 'p1', organizationId: 'org-a', slug: 'guide', config: { previousSlugs: ['manual'] } });
+    mocks.tx.project.findFirst.mockResolvedValue({ id: 'p1', slug: 'handbook' });
+    mocks.wikiSlugUnavailable.mockResolvedValue(false);
+  });
+
+  it('rejects a slug that names an app path under shared tenancy', async () => {
+    await expect(updateProject('org-a', 'p1', { slug: 'app' })).rejects.toMatchObject({ details: { reason: 'reserved_slug' } });
+    expect(mocks.projectUpdate).not.toHaveBeenCalled();
+  });
+
+  it('rejects a slug another wiki uses or still redirects from', async () => {
+    mocks.wikiSlugUnavailable.mockResolvedValue(true);
+    await expect(updateProject('org-a', 'p1', { slug: 'handbook' })).rejects.toThrow('already in use');
+    expect(mocks.wikiSlugUnavailable).toHaveBeenCalledWith('handbook', 'shared', 'p1');
+  });
+
+  it('remembers the previous slug under shared tenancy', async () => {
+    await updateProject('org-a', 'p1', { slug: 'handbook' });
+
+    const createNext = mocks.mutateProjectConfig.mock.calls[0]?.[3] as (current: Record<string, unknown>) => Record<string, unknown>;
+    expect(createNext({ visibility: 'public', previousSlugs: ['manual'] })).toEqual({ visibility: 'public', previousSlugs: ['guide', 'manual'] });
+    expect(mocks.tx.project.update).toHaveBeenCalledWith({ where: { id: 'p1' }, data: { slug: 'handbook' } });
+  });
+
+  it('keeps no slug history and allows app path names under independent tenancy', async () => {
+    mocks.env.TENANCY = 'independent';
+    await updateProject('org-a', 'p1', { slug: 'app' });
+
+    expect(mocks.mutateProjectConfig).not.toHaveBeenCalled();
+    expect(mocks.projectUpdate).toHaveBeenCalledWith({ where: { id: 'p1' }, data: { slug: 'app' } });
   });
 });

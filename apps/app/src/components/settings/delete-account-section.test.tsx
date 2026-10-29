@@ -92,6 +92,26 @@ describe('DeleteAccountSection', () => {
     expect(mocks.assign).not.toHaveBeenCalled();
   });
 
+  it('lists wikis where the user is the only member with a link to their settings', async () => {
+    mocks.prompt.mockResolvedValue(email);
+    mocks.deleteUser.mockResolvedValue({
+      data: null,
+      error: {
+        status: 409,
+        code: 'SOLE_WIKI_OWNER',
+        message: 'blocked',
+        workspaces: [{ organizationId: 'org-1', projectId: 'project-1', name: 'Solo wiki' }],
+      },
+    });
+    await clickDelete();
+    expect(container.textContent).toContain('settings.account.delete.soleMember');
+    expect(container.textContent).toContain('Solo wiki');
+    const link = container.querySelector('a');
+    expect(link?.getAttribute('href')).toBe('/app/projects/project-1/settings?section=danger');
+    expect(link?.textContent).toBe('settings.account.delete.siteSettings');
+    expect(mocks.assign).not.toHaveBeenCalled();
+  });
+
   it('asks the user to sign in again when the session is no longer fresh', async () => {
     mocks.prompt.mockResolvedValue(email);
     mocks.deleteUser.mockResolvedValue({ data: null, error: { status: 400, code: 'SESSION_EXPIRED', message: 'expired' } });

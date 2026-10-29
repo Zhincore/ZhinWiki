@@ -194,7 +194,9 @@ after typing their email. The request needs a session younger than Better
 Auth's `session.freshAge` (one day by default); older sessions must sign in
 again. Deletion is refused with `OWNS_SHARED_WORKSPACES` while the user owns a
 workspace that has other members, until ownership is transferred to an admin
-or the other members are removed. Otherwise every workspace where the user is
+or the other members are removed. With `TENANCY=single`, deletion is also
+refused with `SOLE_WIKI_OWNER` while the user is the only member of a wiki,
+and nothing is erased. Otherwise every workspace where the user is
 the only member goes through the erasure workflow above, which returns a
 retryable `WORKSPACE_ERASURE_PENDING` conflict while usage is still draining.
 The user's `platform_event` and `notification` rows are then deleted, and

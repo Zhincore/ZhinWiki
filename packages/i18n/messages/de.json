@@ -2482,6 +2482,8 @@
   "settings_account_delete_pending": "Workspace-Daten werden noch verarbeitet. Versuche es in ein paar Minuten erneut.",
   "settings_account_delete_blocked": "Du besitzt Workspaces mit weiteren Mitgliedern. Übertrage die Inhaberschaft an einen Admin oder entferne die anderen Mitglieder, bevor du dein Konto löschst:",
   "settings_account_delete_transfer": "Inhaberschaft übertragen",
+  "settings_account_delete_solemember": "Du bist das einzige Mitglied dieser Sites. Lade ein weiteres Mitglied ein oder lösche diese Sites, bevor du dein Konto löschst:",
+  "settings_account_delete_sitesettings": "Site-Einstellungen",
   "settings_account_delete_sessionexpired": "Melde dich zu deiner Sicherheit erneut an, bevor du dein Konto löschst.",
   "settings_account_delete_signinagain": "Erneut anmelden"
 }

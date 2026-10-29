@@ -42,7 +42,7 @@ describe('Better Auth account deletion', () => {
   it('erases sole-member workspaces and removes the user product events and notifications', async () => {
     mocks.memberFindMany.mockResolvedValue([membership('org-a', 'owner', 1), membership('org-b', 'editor', 3)]);
 
-    await prepareAccountDeletion('user-a');
+    await prepareAccountDeletion('user-a', 'multi');
 
     expect(mocks.eraseProjectOrganization).toHaveBeenCalledTimes(1);
     expect(mocks.eraseProjectOrganization).toHaveBeenCalledWith('org-a');
@@ -57,7 +57,7 @@ describe('Better Auth account deletion', () => {
       membership('org-shared', 'owner', 2, { id: 'project-shared', name: 'Shared docs' }),
     ]);
 
-    const error = await prepareAccountDeletion('user-a').catch((caught: unknown) => caught);
+    const error = await prepareAccountDeletion('user-a', 'multi').catch((caught: unknown) => caught);
 
     expect(error).toMatchObject({
       statusCode: 409,
@@ -74,7 +74,7 @@ describe('Better Auth account deletion', () => {
     mocks.memberFindMany.mockResolvedValue([membership('org-a', 'owner', 1)]);
     mocks.eraseProjectOrganization.mockRejectedValue(new mocks.PendingError('pending'));
 
-    await expect(prepareAccountDeletion('user-a')).rejects.toMatchObject({
+    await expect(prepareAccountDeletion('user-a', 'multi')).rejects.toMatchObject({
       statusCode: 409,
       body: { code: ACCOUNT_DELETION_ERROR.ERASURE_PENDING },
     });
@@ -85,7 +85,35 @@ describe('Better Auth account deletion', () => {
     mocks.memberFindMany.mockResolvedValue([membership('org-a', 'owner', 1)]);
     mocks.eraseProjectOrganization.mockRejectedValue(new Error('clickhouse unavailable'));
 
-    await expect(prepareAccountDeletion('user-a')).rejects.toThrow('clickhouse unavailable');
+    await expect(prepareAccountDeletion('user-a', 'multi')).rejects.toThrow('clickhouse unavailable');
     expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it('refuses deletion in single tenancy while the user is the only member of a wiki, before erasing anything', async () => {
+    mocks.memberFindMany.mockResolvedValue([
+      membership('org-solo', 'owner', 1, { id: 'project-solo', name: 'Solo wiki' }),
+      membership('org-team', 'editor', 3),
+    ]);
+
+    const error = await prepareAccountDeletion('user-a', 'single').catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({
+      statusCode: 409,
+      body: {
+        code: ACCOUNT_DELETION_ERROR.SOLE_WIKI_OWNER,
+        workspaces: [{ organizationId: 'org-solo', projectId: 'project-solo', name: 'Solo wiki' }],
+      },
+    });
+    expect(mocks.eraseProjectOrganization).not.toHaveBeenCalled();
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it('deletes a single-tenancy account whose wikis all have other members without erasing them', async () => {
+    mocks.memberFindMany.mockResolvedValue([membership('org-team', 'editor', 3)]);
+
+    await prepareAccountDeletion('user-a', 'single');
+
+    expect(mocks.eraseProjectOrganization).not.toHaveBeenCalled();
+    expect(mocks.transaction).toHaveBeenCalledWith(['delete-events', 'delete-notifications']);
   });
 });

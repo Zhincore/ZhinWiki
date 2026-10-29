@@ -2482,6 +2482,8 @@
   "settings_account_delete_pending": "वर्कस्पेस का डेटा अभी भी प्रोसेस हो रहा है। कुछ मिनट बाद फिर से कोशिश करें।",
   "settings_account_delete_blocked": "आप ऐसे वर्कस्पेस के मालिक हैं जिनमें अन्य सदस्य हैं। खाता हटाने से पहले किसी एडमिन को स्वामित्व सौंपें या अन्य सदस्यों को हटाएँ:",
   "settings_account_delete_transfer": "स्वामित्व सौंपें",
+  "settings_account_delete_solemember": "आप इन साइटों के एकमात्र सदस्य हैं। खाता हटाने से पहले किसी अन्य सदस्य को आमंत्रित करें या इन साइटों को हटाएँ:",
+  "settings_account_delete_sitesettings": "साइट सेटिंग्स",
   "settings_account_delete_sessionexpired": "आपकी सुरक्षा के लिए, खाता हटाने से पहले फिर से साइन इन करें।",
   "settings_account_delete_signinagain": "फिर से साइन इन करें"
 }

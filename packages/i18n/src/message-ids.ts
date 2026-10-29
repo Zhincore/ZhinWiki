@@ -1716,6 +1716,8 @@ export const MESSAGE_IDS = {
   'settings.account.delete.pending': 'settings_account_delete_pending',
   'settings.account.delete.blocked': 'settings_account_delete_blocked',
   'settings.account.delete.transfer': 'settings_account_delete_transfer',
+  'settings.account.delete.soleMember': 'settings_account_delete_solemember',
+  'settings.account.delete.siteSettings': 'settings_account_delete_sitesettings',
   'settings.account.delete.sessionExpired': 'settings_account_delete_sessionexpired',
   'settings.account.delete.signInAgain': 'settings_account_delete_signinagain',
   'editor.slash.basicBlocks': 'editor_slash_basicblocks',

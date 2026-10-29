@@ -14,7 +14,7 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('@/hooks/api/public', () => ({
   useGetPublicMeta: () => ({ isPending: false, data: { signupDisabled: false, providers: { google: false } } }),
 }));
-vi.mock('@/hooks/use-tenancy', () => ({ useTenancy: () => 'multi' }));
+vi.mock('@/hooks/use-tenancy', () => ({ useTenancy: () => 'independent' }));
 vi.mock('@/layouts/auth', () => ({ AuthLayout: ({ children }: { children: ReactNode }) => <div>{children}</div> }));
 vi.mock('@/services/auth-client', () => ({ authClient: {}, signIn: {} }));
 vi.mock('@/lib/invitations', () => ({ readPendingInvitation: () => null }));

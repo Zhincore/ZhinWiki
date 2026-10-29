@@ -34,9 +34,9 @@ export const keys = () =>
         .string()
         .optional()
         .transform((value) => value === 'true' || value === '1'),
-      // `multi`: every sign-up gets its own workspace. `single`: one shared
-      // instance where only platform admins create wikis.
-      TENANCY: z.enum(['single', 'multi']).default('multi'),
+      // `independent`: every sign-up gets its own workspace. `shared`: one
+      // community where only platform admins create wikis.
+      TENANCY: z.enum(['shared', 'independent']).default('independent'),
     },
     runtimeEnv: process.env,
     emptyStringAsUndefined: true,

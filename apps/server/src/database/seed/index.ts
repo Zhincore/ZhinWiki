@@ -11,8 +11,8 @@ async function seed() {
   if (env.NODE_ENV === 'production' && !env.ALLOW_SEED) {
     throw new Error('Refusing to seed in production. Set ALLOW_SEED=1 to override.');
   }
-  if (env.TENANCY === 'single') {
-    throw new Error('The demo seed relies on sign-up provisioning; run it with TENANCY=multi.');
+  if (env.TENANCY === 'shared') {
+    throw new Error('The demo seed relies on sign-up provisioning; run it with TENANCY=independent.');
   }
 
   // Use the same passwordless provisioning path as customer sign-up. Creating

@@ -27,7 +27,7 @@ export const Route = createFileRoute('/(auth)/sign-in')({
 
 function SignInPage() {
   const t = useT();
-  const subtitle = t(useTenancy() === 'single' ? 'auth.signIn.subtitleSingle' : 'auth.signIn.subtitle');
+  const subtitle = t(useTenancy() === 'shared' ? 'auth.signIn.subtitleShared' : 'auth.signIn.subtitle');
   const navigate = useNavigate();
   const search = Route.useSearch();
   const [email, setEmail] = useState(search.email ?? '');

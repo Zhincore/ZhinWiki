@@ -15,7 +15,7 @@ const toBlockingWorkspace = ({ organization }: Membership): BlockingWorkspace =>
 
 /**
  * Better Auth `beforeDelete` hook. Refuses deletion while the user owns a
- * workspace with other members; in single tenancy also while the user is the
+ * workspace with other members; in shared tenancy also while the user is the
  * only member of a wiki. Otherwise erases sole-member workspaces through the
  * shared tenant erasure workflow, then removes the user's product events and
  * notifications. Memberships, sessions, and accounts cascade with the user row.
@@ -45,7 +45,7 @@ export const prepareAccountDeletion = async (userId: string, tenancy: Tenancy): 
     });
   }
 
-  if (tenancy === 'single') {
+  if (tenancy === 'shared') {
     const soleWikis = memberships.filter(({ organization }) => organization._count.members === 1).map(toBlockingWorkspace);
     if (soleWikis.length > 0) {
       throw new APIError('CONFLICT', {

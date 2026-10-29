@@ -33,7 +33,7 @@ export const Route = createFileRoute('/(auth)/sign-up')({
 
 function SignUpPage() {
   const t = useT();
-  const subtitle = t(useTenancy() === 'single' ? 'auth.signUp.subtitleSingle' : 'auth.signUp.subtitle');
+  const subtitle = t(useTenancy() === 'shared' ? 'auth.signUp.subtitleShared' : 'auth.signUp.subtitle');
   const navigate = useNavigate();
   const search = Route.useSearch();
   const lockedEmail = Boolean(search.email);

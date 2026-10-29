@@ -3,7 +3,7 @@ import { type CreateProjectBody, projectConfigSchema } from '@nibleaf/validators
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  memberFindMany: vi.fn(),
+  env: { TENANCY: 'shared' as 'shared' | 'independent' },
   projectFindMany: vi.fn(),
   projectFindFirst: vi.fn(),
   projectFindUnique: vi.fn(),
@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
+vi.mock('@/env', () => ({ env: mocks.env }));
 vi.mock('@nibleaf/auth/tenant-erasure', () => ({
   eraseProjectOrganization: vi.fn(),
   TenantUsageDeletionPendingError: class extends Error {},
@@ -27,7 +28,6 @@ vi.mock('@nibleaf/auth/tenant-erasure', () => ({
 vi.mock('@nibleaf/database', () => ({
   assignDefaultUsagePlan: vi.fn(),
   prisma: {
-    member: { findMany: mocks.memberFindMany },
     project: { findMany: mocks.projectFindMany, findFirst: mocks.projectFindFirst, findUnique: mocks.projectFindUnique },
     user: { findUnique: mocks.userFindUnique },
     $transaction: (run: (tx: typeof mocks.tx) => Promise<unknown>) => run(mocks.tx),
@@ -48,7 +48,7 @@ describe('project page counts', () => {
   });
 
   it('lists the sites a user can reach with a default-branch content-page count', async () => {
-    mocks.memberFindMany.mockResolvedValue([{ organizationId: 'org-a' }, { organizationId: 'org-b' }]);
+    mocks.userFindUnique.mockResolvedValue({ role: 'user', members: [{ organizationId: 'org-a' }, { organizationId: 'org-b' }] });
     mocks.projectFindMany.mockResolvedValue([{ id: 'project-a', _count: { pages: 58, deployments: 3 } }]);
 
     const projects = await listProjects('user-1');
@@ -124,13 +124,15 @@ describe('createProject', () => {
   });
 });
 
-describe('assertProjectAccess effective role', () => {
+describe('platform-role wiki access', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.env.TENANCY = 'shared';
     mocks.projectFindUnique.mockResolvedValue({ id: 'project', organizationId: 'org' });
+    mocks.projectFindMany.mockResolvedValue([]);
   });
 
-  it('gives a platform editor member rights on a wiki they do not belong to', async () => {
+  it('gives a platform editor member rights on a wiki they do not belong to in shared tenancy', async () => {
     mocks.userFindUnique.mockResolvedValue({ role: 'editor', members: [] });
     await expect(assertProjectAccess('user', 'project')).resolves.toMatchObject({ organizationId: 'org', role: 'member' });
   });
@@ -143,5 +145,27 @@ describe('assertProjectAccess effective role', () => {
   it.each(['user', 'admin'])('hides the wiki from a non-member with platform role %s', async (role) => {
     mocks.userFindUnique.mockResolvedValue({ role, members: [] });
     await expect(assertProjectAccess('user', 'project')).rejects.toMatchObject({ code: 'database:not_found' });
+  });
+
+  it('hides the wiki from a non-member platform editor in independent tenancy', async () => {
+    mocks.env.TENANCY = 'independent';
+    mocks.userFindUnique.mockResolvedValue({ role: 'editor', members: [] });
+    await expect(assertProjectAccess('user', 'project')).rejects.toMatchObject({ code: 'database:not_found' });
+  });
+
+  it('lists every wiki for a platform editor in shared tenancy', async () => {
+    mocks.userFindUnique.mockResolvedValue({ role: 'editor', members: [{ organizationId: 'org-a' }] });
+    await listProjects('user');
+    expect(mocks.projectFindMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
+  });
+
+  it.each([
+    ['editor', 'independent'],
+    ['admin', 'shared'],
+  ] as const)('lists only member wikis for a platform %s in %s tenancy', async (role, tenancy) => {
+    mocks.env.TENANCY = tenancy;
+    mocks.userFindUnique.mockResolvedValue({ role, members: [{ organizationId: 'org-a' }] });
+    await listProjects('user');
+    expect(mocks.projectFindMany).toHaveBeenCalledWith(expect.objectContaining({ where: { organizationId: { in: ['org-a'] } } }));
   });
 });

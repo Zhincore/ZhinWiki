@@ -16,7 +16,7 @@ import { prisma } from '@nibleaf/database';
 import { createLogger } from '@nibleaf/logger';
 import type { AnalyticsRange, ProjectConfig } from '@nibleaf/validators';
 import { enqueueAnalyticsEvent } from '@/lib/usage-ingest';
-import { assertProjectInOrg } from './projects';
+import { accessibleProjectsWhere, assertProjectInOrg } from './projects';
 
 const log = createLogger({ action: 'analytics' });
 
@@ -109,16 +109,14 @@ const getRelationalAnalyticsOverview = async (organizationId: string, projectId:
   };
 };
 
-/** Aggregate analytics across every site the user can reach — i.e. across all
- *  the organizations they belong to. Each site owns its own org (1:1), so this
+/** Aggregate analytics across every site the user can reach (see
+ *  `accessibleProjectsWhere`). Each site owns its own org (1:1), so this
  *  is the correct scope for the multi-site "Your sites" overview; scoping to a
  *  single active org would show zeros for anyone with more than one site. */
 const getRelationalWorkspaceAnalytics = async (userId: string, range: AnalyticsRange, timezone: string) => {
   const since = rangeStart(range);
-  const memberships = await prisma.member.findMany({ where: { userId }, select: { organizationId: true } });
-  const organizationIds = memberships.map((m) => m.organizationId);
   const projects = await prisma.project.findMany({
-    where: { organizationId: { in: organizationIds } },
+    where: await accessibleProjectsWhere(userId),
     select: { id: true, name: true, config: true },
   });
   const projectIds = projects.map((p) => p.id);
@@ -259,10 +257,8 @@ export const getAnalyticsOverview = async (organizationId: string, projectId: st
 export const getWorkspaceAnalytics = async (userId: string, range: AnalyticsRange, timezone = 'UTC') => {
   const config = clickHouseKeys();
   if (!clickHouseReadsEnabled(config.ANALYTICS_MODE)) return getRelationalWorkspaceAnalytics(userId, range, timezone);
-  const memberships = await prisma.member.findMany({ where: { userId }, select: { organizationId: true } });
-  const organizationIds = memberships.map(({ organizationId }) => organizationId);
   const projects = await prisma.project.findMany({
-    where: { organizationId: { in: organizationIds } },
+    where: await accessibleProjectsWhere(userId),
     select: { id: true, name: true, organizationId: true, config: true },
   });
   const clickhouse = await queryWorkspaceAnalytics(

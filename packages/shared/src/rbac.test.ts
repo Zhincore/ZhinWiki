@@ -25,29 +25,34 @@ describe('rankOf', () => {
 });
 
 describe('effectiveWikiRole — max of membership role and platform grant', () => {
-  it('gives a platform editor member rights on a wiki they do not belong to', () => {
-    expect(effectiveWikiRole(null, 'editor')).toBe(MemberRole.MEMBER);
+  it('gives a platform editor member rights on a wiki they do not belong to in shared tenancy', () => {
+    expect(effectiveWikiRole(null, 'editor', 'shared')).toBe(MemberRole.MEMBER);
+  });
+  it('grants a platform editor nothing in independent tenancy', () => {
+    expect(effectiveWikiRole(null, 'editor', 'independent')).toBeNull();
+    expect(effectiveWikiRole('admin', 'editor', 'independent')).toBe(MemberRole.ADMIN);
   });
   it('keeps a higher membership role over the editor grant', () => {
-    expect(effectiveWikiRole('owner', 'editor')).toBe(MemberRole.OWNER);
-    expect(effectiveWikiRole('admin', 'editor')).toBe(MemberRole.ADMIN);
+    expect(effectiveWikiRole('owner', 'editor', 'shared')).toBe(MemberRole.OWNER);
+    expect(effectiveWikiRole('admin', 'editor', 'shared')).toBe(MemberRole.ADMIN);
   });
   it.each(['user', 'admin', null, undefined])('grants no wiki access to a non-member with platform role %s', (platformRole) => {
-    expect(effectiveWikiRole(null, platformRole)).toBeNull();
+    expect(effectiveWikiRole(null, platformRole, 'shared')).toBeNull();
+    expect(effectiveWikiRole(null, platformRole, 'independent')).toBeNull();
   });
   it('keeps the membership role when the platform role grants nothing', () => {
-    expect(effectiveWikiRole('member', 'admin')).toBe(MemberRole.MEMBER);
+    expect(effectiveWikiRole('member', 'admin', 'shared')).toBe(MemberRole.MEMBER);
   });
 });
 
 describe('canCreateWiki', () => {
-  it.each(['admin', 'editor', 'user', null, undefined])('lets any signed-in user create in multi (role %s)', (role) => {
-    expect(canCreateWiki('multi', role)).toBe(true);
+  it.each(['admin', 'editor', 'user', null, undefined])('lets any signed-in user create in independent (role %s)', (role) => {
+    expect(canCreateWiki('independent', role)).toBe(true);
   });
-  it('lets only platform admins create in single', () => {
-    expect(canCreateWiki('single', 'admin')).toBe(true);
+  it('lets only platform admins create in shared', () => {
+    expect(canCreateWiki('shared', 'admin')).toBe(true);
     for (const role of ['editor', 'user', null, undefined]) {
-      expect(canCreateWiki('single', role)).toBe(false);
+      expect(canCreateWiki('shared', role)).toBe(false);
     }
   });
 });

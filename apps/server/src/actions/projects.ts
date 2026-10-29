@@ -2,10 +2,11 @@ import { eraseProjectOrganization, TenantErasureProjectNotFoundError, TenantUsag
 import { assignDefaultUsagePlan, type Prisma, prisma } from '@nibleaf/database';
 import { addonDefinitions, defaultProjectAddonProvisioning, projectConfigWithAddons } from '@nibleaf/shared/addons';
 import { MemberRole } from '@nibleaf/shared/constants';
-import { effectiveWikiRole } from '@nibleaf/shared/rbac';
+import { effectiveWikiRole, platformWikiGrant } from '@nibleaf/shared/rbac';
 import { THEME_PRESETS, THEME_SCHEMA_VERSION } from '@nibleaf/shared/themes';
 import { slugify } from '@nibleaf/shared/utils';
 import type { CreateProjectBody, ProjectConfigUpdate, UpdateProjectBody } from '@nibleaf/validators';
+import { env } from '@/env';
 import { conflict, notFound } from '@/errors';
 import { mutateProjectConfig } from './project-config';
 
@@ -34,13 +35,13 @@ export const assertProjectInOrg = async (organizationId: string, projectId: stri
 };
 
 /** The user's effective role in an organization: membership or a platform-role
- *  grant, whichever ranks higher; null when neither applies. */
+ *  grant (shared tenancy only), whichever ranks higher; null when neither applies. */
 export const resolveWikiRole = async (userId: string, organizationId: string) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { role: true, members: { where: { organizationId }, select: { role: true } } },
   });
-  return effectiveWikiRole(user?.members[0]?.role, user?.role);
+  return effectiveWikiRole(user?.members[0]?.role, user?.role, env.TENANCY);
 };
 
 /**
@@ -83,16 +84,23 @@ const uniqueProjectSlug = async (desired: string) => {
   return `${base.slice(0, MAX_PROJECT_SLUG_LENGTH - suffix.length).replace(/-+$/g, '') || 'docs'}${suffix}`;
 };
 
-/** List every site the user can reach — i.e. across all the orgs they belong to. */
-export const listProjects = async (userId: string) => {
-  const memberships = await prisma.member.findMany({ where: { userId }, select: { organizationId: true } });
-  const organizationIds = memberships.map((m) => m.organizationId);
-  return prisma.project.findMany({
-    where: { organizationId: { in: organizationIds } },
+/** Projects the user reaches with an effective role: every wiki when their
+ *  platform role grants wiki rights, otherwise the wikis they are a member of. */
+export const accessibleProjectsWhere = async (userId: string): Promise<Prisma.ProjectWhereInput> => {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, members: { select: { organizationId: true } } } });
+  if (platformWikiGrant(env.TENANCY, user?.role)) {
+    return {};
+  }
+  return { organizationId: { in: user?.members.map((m) => m.organizationId) ?? [] } };
+};
+
+/** List every site the user can reach. */
+export const listProjects = async (userId: string) =>
+  prisma.project.findMany({
+    where: await accessibleProjectsWhere(userId),
     orderBy: { updatedAt: 'desc' },
     include: { _count: { select: { pages: { where: contentPagesWhere }, deployments: true } } },
   });
-};
 
 export const createProject = async (userId: string, body: CreateProjectBody) => {
   const slug = await uniqueProjectSlug(body.name);

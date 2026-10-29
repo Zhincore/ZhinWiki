@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   analytics: vi.fn(),
   refetch: vi.fn(),
   search: {} as { newSite?: boolean },
-  tenancy: 'multi' as 'single' | 'multi',
+  tenancy: 'independent' as 'shared' | 'independent',
   canCreate: true,
   dialog: vi.fn(),
 }));
@@ -42,7 +42,7 @@ describe('dashboard request recovery', () => {
 
   beforeEach(() => {
     mocks.search = {};
-    mocks.tenancy = 'multi';
+    mocks.tenancy = 'independent';
     mocks.canCreate = true;
     mocks.dialog.mockReturnValue(null);
     mocks.projects.mockReturnValue({
@@ -107,7 +107,7 @@ describe('dashboard wiki creation gate', () => {
 
   beforeEach(() => {
     mocks.search = { newSite: true };
-    mocks.tenancy = 'single';
+    mocks.tenancy = 'shared';
     mocks.canCreate = false;
     mocks.dialog.mockReturnValue(null);
     mocks.projects.mockReturnValue({ isPending: false, data: [], refetch: mocks.refetch });

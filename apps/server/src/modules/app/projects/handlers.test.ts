@@ -7,7 +7,7 @@ import type { HonoEnv } from '@/lib/hono/context';
 const mocks = vi.hoisted(() => ({
   member: { role: 'member' } as { role: string } | null,
   platformRole: 'user',
-  tenancy: 'multi' as 'single' | 'multi',
+  tenancy: 'independent' as 'shared' | 'independent',
   createProject: vi.fn(async () => ({ id: 'new-project' })),
   exportProjectThemeRepository: vi.fn(async () => ({ fileName: 'theme.zip', data: new Uint8Array([80, 75]) })),
   getProjectThemeCatalog: vi.fn(async () => ({ schemaVersion: 1, authoring: [] })),
@@ -124,21 +124,21 @@ describe('wiki creation by tenancy', () => {
     vi.clearAllMocks();
   });
 
-  it('lets any signed-in user create a site in multi tenancy', async () => {
-    mocks.tenancy = 'multi';
+  it('lets any signed-in user create a site in independent tenancy', async () => {
+    mocks.tenancy = 'independent';
     expect((await create()).status).toBe(201);
     expect(mocks.createProject).toHaveBeenCalledOnce();
   });
 
-  it.each(['user', 'editor'])('forbids a platform %s from creating a wiki in single tenancy', async (role) => {
-    mocks.tenancy = 'single';
+  it.each(['user', 'editor'])('forbids a platform %s from creating a wiki in shared tenancy', async (role) => {
+    mocks.tenancy = 'shared';
     mocks.platformRole = role;
     expect((await create()).status).toBe(403);
     expect(mocks.createProject).not.toHaveBeenCalled();
   });
 
-  it('lets a platform admin create a wiki in single tenancy', async () => {
-    mocks.tenancy = 'single';
+  it('lets a platform admin create a wiki in shared tenancy', async () => {
+    mocks.tenancy = 'shared';
     mocks.platformRole = 'admin';
     expect((await create()).status).toBe(201);
     expect(mocks.createProject).toHaveBeenCalledOnce();

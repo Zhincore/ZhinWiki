@@ -20,7 +20,7 @@ vi.mock('@nibleaf/database', () => ({
     reader: { update: mocks.readerUpdate },
   },
 }));
-vi.mock('@/env', () => ({ env: { APP_URL: 'https://docs.example.com' } }));
+vi.mock('@/env', () => ({ env: { APP_URL: 'https://docs.example.com', TENANCY: 'shared' } }));
 
 import { resolveViewerAccess } from './reader-access';
 
@@ -49,7 +49,7 @@ describe('resolveViewerAccess', () => {
     await expect(resolveViewerAccess('project', 'READERS', headers())).resolves.toEqual({ kind: 'workspace', allowedPageIds: null });
   });
 
-  it('grants a platform editor workspace access to a wiki they are not a member of', async () => {
+  it('grants a platform editor workspace access to a wiki they are not a member of in shared tenancy', async () => {
     mocks.getSession.mockResolvedValue({ user: { id: 'user' } });
     mocks.projectFind.mockResolvedValue({ organizationId: 'org' });
     mocks.userFind.mockResolvedValue({ role: 'editor', members: [] });

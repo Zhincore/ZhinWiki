@@ -73,18 +73,20 @@ message to an external mailbox; a container health check cannot prove delivery.
 After creating the intended owners, set `DISABLE_SIGNUP=true` if registration
 should close. Existing accounts can still sign in.
 
-## Run a single-wiki instance
+## Run a shared instance
 
-`TENANCY=single` turns the instance into one shared wiki host. Sign-up creates
-an account but no workspace, and only platform admins create wikis. Editors
-join a wiki by invitation; other accounts are contributors who read public
-wikis. The platform `editor` role holds member rights on every wiki; set it by
-SQL only (`UPDATE "user" SET role='editor' WHERE email='…';`). The dashboard
-lists only wikis the user is a member of, so an editor opens other wikis by URL.
+`TENANCY=shared` makes all wikis share one community. Sign-up creates an
+account but no workspace, and only platform admins create wikis. Editors join
+a wiki by invitation; other accounts are contributors who read public wikis.
+The platform `editor` role holds member rights on every wiki and sees every
+wiki in the dashboard; set it by SQL only
+(`UPDATE "user" SET role='editor' WHERE email='…';`). The default,
+`TENANCY=independent`, keeps each wiki on its own, and there the `editor` role
+grants nothing.
 
 First run:
 
-1. Set `APP_NAME` and `TENANCY=single`, then sign up with the operator account.
+1. Set `APP_NAME` and `TENANCY=shared`, then sign up with the operator account.
 2. Grant that account the platform admin role:
 
    ```bash
@@ -104,9 +106,9 @@ Keep in mind:
   from creating accounts.
 - The mode is not retroactive. Switching an existing instance keeps its
   workspaces, sites, members, and invitations; owners of older workspaces can
-  still invite anyone. Switching back to `multi` creates no workspaces.
+  still invite anyone. Switching back to `independent` creates no workspaces.
 - The demo seed (`pnpm db:seed`) relies on sign-up provisioning and fails in
-  `single`.
+  `shared`.
 - A wiki accepts up to 100 members, the authentication library's default.
 - If the last platform admin is demoted or deleted, nobody can create wikis
   until you grant the role again with the script or SQL above.

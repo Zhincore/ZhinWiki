@@ -1,6 +1,6 @@
 import { type Branch, Prisma, prisma } from '@nibleaf/database';
 import { newId } from '@nibleaf/shared/ids';
-import { conflict, notFound } from '@/errors';
+import { AppError, conflict, notFound } from '@/errors';
 import { contentHash, type ForkBase, pageFingerprint } from './change-request-merge';
 
 /** Every branch of a project, default ('main') first. */
@@ -23,6 +23,22 @@ export const assertBranchInProject = async (projectId: string, id: string) => {
     throw notFound('branch', { id });
   }
   return branch;
+};
+
+/**
+ * Members edit pages only inside change requests: refuse a write that targets
+ * the default branch. `pageIds` are the pages written (or the parent a page is
+ * created under); without them `branchId` (default: main) is the target.
+ * System writers (imports, Git sync, merges) call the page actions directly.
+ */
+export const assertPagesEditable = async (projectId: string, target: { branchId?: string; pageIds?: readonly string[] }) => {
+  const main = await getDefaultBranch(projectId);
+  const locked = target.pageIds
+    ? (await prisma.page.count({ where: { projectId, id: { in: [...target.pageIds] }, branchId: main.id } })) > 0
+    : (target.branchId ?? main.id) === main.id;
+  if (locked) {
+    throw new AppError({ code: 'pages:main_read_only', message: 'Pages on main are read-only. Open a change request to edit them.' });
+  }
 };
 
 const UNIQUE_VIOLATION = 'P2002';

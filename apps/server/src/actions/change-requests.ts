@@ -185,19 +185,41 @@ export const mergeChangeRequest = async (projectId: string, number: number, user
   );
 };
 
-type DiffSide = { id: string; title: string; path: string; content: string } | null;
+type DiffPage = {
+  id: string;
+  title: string;
+  slug: string;
+  path: string;
+  icon: string | null;
+  description: string | null;
+  hidden: boolean;
+  position: number;
+  content: string;
+};
 
-const diffSide = (page: { id: string; title: string; path: string; content: string } | null | undefined): DiffSide =>
-  page ? { id: page.id, title: page.title, path: page.path, content: page.content } : null;
+const diffSide = (page: DiffPage | null | undefined) =>
+  page
+    ? {
+        id: page.id,
+        title: page.title,
+        slug: page.slug,
+        path: page.path,
+        icon: page.icon,
+        description: page.description,
+        hidden: page.hidden,
+        position: page.position,
+        content: page.content,
+      }
+    : null;
 
-/** Raw Markdown of one page on the default branch and in the change request.
+/** Markdown and metadata of one page on the default branch and in the change request.
  *  `pageId` may name either side; a merged request answers from its record. */
 export const getChangeRequestPageDiff = async (projectId: string, number: number, pageId: string) => {
   const changeRequest = await findChangeRequest(projectId, number);
   if (!changeRequest.branchId) {
     const entry = recordEntries(changeRequest.mergeRecord).find((item) => item.pageId === pageId);
     if (!entry) throw notFound('page', { id: pageId });
-    return { main: diffSide(entry.before && { id: pageId, ...entry.before }), change: diffSide(entry.after && { id: pageId, ...entry.after }) };
+    return { main: diffSide(entry.before && { ...entry.before, id: pageId }), change: diffSide(entry.after && { ...entry.after, id: pageId }) };
   }
   const main = await getDefaultBranch(projectId);
   const page = await prisma.page.findFirst({ where: { id: pageId, projectId, branchId: { in: [main.id, changeRequest.branchId] } } });

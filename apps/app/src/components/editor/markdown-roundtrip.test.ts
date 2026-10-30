@@ -118,6 +118,27 @@ describe('block boundaries after images', () => {
     const output = expectStable('![](https://example.com/a.png)\n\nNext paragraph.');
     expect(output).toBe('![](https://example.com/a.png)\n\nNext paragraph.');
   });
+
+  const after = { type: 'paragraph', content: [{ type: 'text', text: 'After.' }] };
+
+  it('keeps parentheses, quotes and a trailing backslash in image titles', () => {
+    const attrs = { src: 'https://example.com/a(1).png', alt: 'Diagram', title: 'Say "hi" \\' };
+    editor.commands.setContent({ type: 'doc', content: [{ type: 'image', attrs }, after] }, { emitUpdate: false });
+    const markdown = getMarkdown(editor);
+
+    expect(expectStable(markdown)).toBe(markdown);
+    editor.commands.setContent(markdown, { emitUpdate: false });
+    expect(editor.getJSON().content?.find((node) => node.type === 'image')?.attrs).toMatchObject(attrs);
+  });
+
+  it('does not let a trailing backslash in an image source swallow its closing parenthesis', () => {
+    const image = { type: 'image', attrs: { src: 'https://example.com/a\\', alt: 'A' } };
+    editor.commands.setContent({ type: 'doc', content: [image, after] }, { emitUpdate: false });
+
+    const output = expectStable(getMarkdown(editor));
+    editor.commands.setContent(output, { emitUpdate: false });
+    expect(editor.getJSON().content?.map((node) => node.type)).toEqual(['image', 'paragraph']);
+  });
 });
 
 describe('text alignment (why the align buttons were removed)', () => {

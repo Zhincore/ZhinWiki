@@ -614,18 +614,6 @@ export type CreatePageBody = z.infer<typeof createPageBody>;
 export const listPagesQuery = z.object({ languageId: z.string().optional(), branchId: z.string().optional() });
 export type ListPagesQuery = z.infer<typeof listPagesQuery>;
 
-// ─── Branch ──────────────────────────────────────────────────────────────────
-
-export const createBranchBody = z.object({
-  name: z
-    .string()
-    .min(1)
-    .max(60)
-    .regex(/^[A-Za-z0-9._/-]+$/, 'Use letters, numbers, and . _ / -')
-    .refine((name) => !name.startsWith('import-'), 'Names starting with import- are reserved.'),
-});
-export type CreateBranchBody = z.infer<typeof createBranchBody>;
-
 // ─── Change requests ─────────────────────────────────────────────────────────
 
 const openChangeRequestStatus = z.enum(['DRAFT', 'IN_REVIEW', 'ARCHIVED']);

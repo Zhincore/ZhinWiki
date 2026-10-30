@@ -2,7 +2,7 @@ import { type ChangeRequestStatus, Prisma, prisma } from '@nibleaf/database';
 import type { Locale } from '@nibleaf/i18n/locales';
 import { changerequest_defaulttitle } from '@nibleaf/i18n/messages';
 import type { CreateChangeRequestBody, UpdateChangeRequestBody } from '@nibleaf/validators';
-import { badRequest, conflict, notFound } from '@/errors';
+import { conflict, notFound } from '@/errors';
 import { assertNoTrackedChangeRequests, createBranch, getDefaultBranch } from './branches';
 import { type ForkBase, type MergedFields, type MergePage, type MergeRecordEntry, planMerge, summarizeChanges } from './change-request-merge';
 
@@ -33,7 +33,7 @@ const userSelect = { select: { id: true, name: true, image: true } } as const;
 const internalColumns = { mergeRecord: true, forkBase: true } as const;
 
 /** Default title of a change request opened by `name`, in the caller's interface locale. */
-export const defaultChangeRequestTitle = (name: string, locale?: Locale) => changerequest_defaulttitle({ name }, { locale });
+const defaultChangeRequestTitle = (name: string, locale?: Locale) => changerequest_defaulttitle({ name }, { locale });
 
 const findChangeRequest = async (projectId: string, number: number) => {
   const changeRequest = await prisma.changeRequest.findUnique({ where: { projectId_number: { projectId, number } } });
@@ -185,19 +185,41 @@ export const mergeChangeRequest = async (projectId: string, number: number, user
   );
 };
 
-type DiffSide = { id: string; title: string; path: string; content: string } | null;
+type DiffPage = {
+  id: string;
+  title: string;
+  slug: string;
+  path: string;
+  icon: string | null;
+  description: string | null;
+  hidden: boolean;
+  position: number;
+  content: string;
+};
 
-const diffSide = (page: { id: string; title: string; path: string; content: string } | null | undefined): DiffSide =>
-  page ? { id: page.id, title: page.title, path: page.path, content: page.content } : null;
+const diffSide = (page: DiffPage | null | undefined) =>
+  page
+    ? {
+        id: page.id,
+        title: page.title,
+        slug: page.slug,
+        path: page.path,
+        icon: page.icon,
+        description: page.description,
+        hidden: page.hidden,
+        position: page.position,
+        content: page.content,
+      }
+    : null;
 
-/** Raw Markdown of one page on the default branch and in the change request.
+/** Markdown and metadata of one page on the default branch and in the change request.
  *  `pageId` may name either side; a merged request answers from its record. */
 export const getChangeRequestPageDiff = async (projectId: string, number: number, pageId: string) => {
   const changeRequest = await findChangeRequest(projectId, number);
   if (!changeRequest.branchId) {
     const entry = recordEntries(changeRequest.mergeRecord).find((item) => item.pageId === pageId);
     if (!entry) throw notFound('page', { id: pageId });
-    return { main: diffSide(entry.before && { id: pageId, ...entry.before }), change: diffSide(entry.after && { id: pageId, ...entry.after }) };
+    return { main: diffSide(entry.before && { ...entry.before, id: pageId }), change: diffSide(entry.after && { ...entry.after, id: pageId }) };
   }
   const main = await getDefaultBranch(projectId);
   const page = await prisma.page.findFirst({ where: { id: pageId, projectId, branchId: { in: [main.id, changeRequest.branchId] } } });
@@ -208,11 +230,4 @@ export const getChangeRequestPageDiff = async (projectId: string, number: number
   }
   const source = page.sourcePageId ? await prisma.page.findFirst({ where: { id: page.sourcePageId, projectId, branchId: main.id } }) : null;
   return { main: diffSide(source), change: diffSide(page) };
-};
-
-/** The change request backed by a branch; every non-default branch except import replacements has one. */
-export const changeRequestNumberForBranch = async (projectId: string, branchId: string) => {
-  const changeRequest = await prisma.changeRequest.findFirst({ where: { projectId, branchId }, select: { number: true } });
-  if (!changeRequest) throw badRequest('This branch has no change request to merge.', { branchId });
-  return changeRequest.number;
 };

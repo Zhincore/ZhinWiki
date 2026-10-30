@@ -13,18 +13,6 @@ const branchesRoutes = {
     description: "List a project's branches.",
     responses: ok,
   }),
-  create: createRouteConfig({
-    guard: [...editor],
-    tags: ['branches'],
-    description: 'Create a branch (a copy of the default branch) with its change request.',
-    responses: { 201: { description: 'created' }, ...errorResponses },
-  }),
-  merge: createRouteConfig({
-    guard: [...editor],
-    tags: ['branches'],
-    description: "Merge a branch's change request into the default branch ('main').",
-    responses: ok,
-  }),
   remove: createRouteConfig({ guard: [...editor], tags: ['branches'], description: 'Delete a non-default branch.', responses: ok }),
 };
 

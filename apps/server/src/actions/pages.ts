@@ -34,6 +34,7 @@ export const listPages = async (projectId: string, languageId?: string, branchId
       translationKey: true,
       position: true,
       hidden: true,
+      sourcePageId: true,
       updatedAt: true,
     },
   });

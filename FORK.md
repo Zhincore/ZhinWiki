@@ -156,8 +156,21 @@ of `main` that is reviewed and merged back.
   - Merges take a per-project advisory lock and lock `main`'s rows.
 - API: `/projects/:projectId/change-requests` (list `?status=`, create, get
   with changed pages, patch title/description/status, `/:number/merge`,
-  `/:number/pages/:pageId/diff`), member role. Branch routes still work and
-  keep the invariant.
+  `/:number/pages/:pageId/diff`), member role. Branch routes only list and
+  delete.
+- Pages are edited only in open CRs: the page routes (create, update, delete,
+  reorder) call `assertPagesEditable` and answer 409 `pages:main_read_only`
+  for a write to a `main` page or under one, `pages:branch_read_only` for a
+  merged/archived CR or an import branch. Check and write are separate
+  queries; a write racing a merge can still land (deferred). System writers (import, Git sync,
+  merge, starter) call the page actions directly. MCP has no page writers;
+  AI drafts return text only. Project settings, chrome, themes, languages and
+  domains stay editable on `main`.
+- UI: editor on `main` is read-only with **Edit** (opens a CR) and a CR menu;
+  `?cr=<n>` binds it to an open CR. CR list `/app/projects/:id/changes`, CR
+  page `/changes/:n` (Overview, `?tab=changes`). Block diff:
+  `apps/app/src/lib/block-diff.ts` (mdast top-level blocks aligned with
+  `diff`), lazy-loaded so it stays out of public-site chunks.
 - `buildSnapshot` and both publish paths read only the default branch;
   `defaultVersionOnly` also strips other versions from older snapshots when
   served, rolled back to or indexed. Exports and the MCP `versions` resource
@@ -187,7 +200,9 @@ Fork-only files:
   `apps/app/src/components/welcome-page.tsx`.
 - Change requests: `apps/server/src/actions/change-requests.ts`,
   `apps/server/src/actions/change-request-merge.ts`,
-  `apps/server/src/modules/app/change-requests/`.
+  `apps/server/src/modules/app/change-requests/`,
+  `apps/app/src/components/change-requests/`, `apps/app/src/lib/block-diff.ts`,
+  `apps/app/src/routes/app/projects/$projectId/changes.*.tsx`.
 
 Upstream files carrying fork edits: `packages/auth/src/keys.server.ts`,
 `packages/auth/src/account-deletion.ts`, `packages/shared/src/rbac.ts`,

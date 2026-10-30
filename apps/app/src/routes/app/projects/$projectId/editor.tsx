@@ -17,11 +17,13 @@ import {
   FolderPlus,
   Languages,
   Loader2,
+  Lock,
   MessageSquare,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRight,
   Pencil,
+  PenLine,
   Plus,
   Settings2,
   SlidersHorizontal,
@@ -32,9 +34,10 @@ import {
 import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { ChangeRequestHeader, isChangeRequestEditable } from '@/components/change-requests/change-request-header';
+import { ChangeRequestsMenu } from '@/components/change-requests/change-requests-menu';
 import { AddLanguageDialog } from '@/components/editor/add-language-dialog';
 import { AiAssist } from '@/components/editor/ai-assist';
-import { BranchSwitcher } from '@/components/editor/branch-switcher';
 import { CommentsPanel } from '@/components/editor/comments-panel';
 import { nextHydration, type ServerSnapshot, shouldAutosave, shouldFlushDraft } from '@/components/editor/editor-draft';
 import { resolveEditorLayout } from '@/components/editor/editor-layout';
@@ -49,7 +52,7 @@ import { detectUnsupportedMdxTags } from '@/components/editor/unsupported-mdx';
 import { ConfigDirtyProvider } from '@/components/project-settings/shared';
 import type { Language, PageNode } from '@/hooks/api';
 import {
-  useBranches,
+  useChangeRequests,
   useComments,
   useCreatePage,
   useDeletePage,
@@ -59,20 +62,24 @@ import {
   usePages,
   useProject,
   useReorderPages,
+  useStartChangeRequest,
   useUpdatePage,
   useUploadAsset,
 } from '@/hooks/api';
 import { PublishControl } from '@/layouts/project';
 import { draftPreviewHref } from '@/lib/draft-preview';
 import { typographyVars } from '@/lib/typography';
+import { useSession } from '@/services/auth-client';
 
 export const Route = createFileRoute('/app/projects/$projectId/editor')({
   component: EditorPage,
   // Deep links from the dashboard: `?page=<id>` opens a specific page (e.g. a
   // publish-check issue), `?publish=true` opens the publish flow directly.
+  // `?cr=<n>` binds the editor to change request #n; without it main is read-only.
   validateSearch: (search) =>
     z
       .object({
+        cr: z.coerce.number().int().positive().optional().catch(undefined),
         page: z.string().min(1).optional().catch(undefined),
         publish: z.preprocess((value) => (value === true || value === 'true' || value === '1' ? true : undefined), z.literal(true).optional()),
       })
@@ -82,7 +89,8 @@ export const Route = createFileRoute('/app/projects/$projectId/editor')({
 function EditorPage() {
   const t = useT();
   const { projectId } = Route.useParams();
-  const { page: pageParam, publish: publishParam } = Route.useSearch();
+  const { cr, page: pageParam, publish: publishParam } = Route.useSearch();
+  const { data: session } = useSession();
   const { data: project } = useProject(projectId);
   const { data: publicMeta } = useGetPublicMeta();
   const aiDraft = publicMeta?.ai.draft === true;
@@ -91,22 +99,25 @@ function EditorPage() {
   const [view, setView] = useState<'content' | 'config'>('content');
   const [configSection, setConfigSection] = useState<ConfigSectionId>('branding');
 
-  // ─── Branches: the editor works on one branch at a time (default 'main') ─────
-  const { data: branches } = useBranches(projectId);
-  const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
-  useEffect(() => {
-    if (!branches || branches.length === 0 || activeBranchId) {
-      return;
-    }
-    const fallback = branches.find((b) => b.isDefault) ?? branches[0];
-    if (fallback) {
-      setActiveBranchId(fallback.id);
-    }
-  }, [branches, activeBranchId]);
+  // ─── Change request: pages are edited only in one; main is read-only ─────────
+  const { data: changeRequests, isFetching: changeRequestsFetching } = useChangeRequests(projectId);
+  const changeRequest = cr === undefined ? undefined : changeRequests?.find((c) => c.number === cr);
+  const changeRequestUnavailable =
+    cr !== undefined && (changeRequest ? !isChangeRequestEditable(changeRequest) : changeRequests !== undefined && !changeRequestsFetching);
+  const activeBranchId = changeRequest && !changeRequestUnavailable ? changeRequest.branchId : null;
+  // Pages are writable only once the change request's branch is known.
+  const readOnly = !activeBranchId;
+  // Entering or leaving a change request starts on its content.
+  const [viewCr, setViewCr] = useState(cr);
+  if (viewCr !== cr) {
+    setViewCr(cr);
+    setView('content');
+  }
+  const startChangeRequest = useStartChangeRequest(projectId);
 
-  // ─── Data: all languages + all pages on the active branch (every language) ───
+  // ─── Data: all languages + all pages of main or the change request (every language) ───
   const { data: languages } = useLanguages(projectId);
-  const { data: allPages, isPending } = usePages(projectId, undefined, activeBranchId ?? undefined);
+  const { data: allPages, isPending } = usePages(cr === undefined || activeBranchId ? projectId : undefined, undefined, activeBranchId ?? undefined);
   const createPage = useCreatePage(projectId);
   const deletePage = useDeletePage(projectId);
   const updatePage = useUpdatePage(projectId);
@@ -165,6 +176,23 @@ function EditorPage() {
   }, [pageParam]);
   const firstPageId = useMemo(() => (allPages ?? []).find((p) => p.kind === 'PAGE')?.id ?? null, [allPages]);
   const selectedNode = useMemo(() => (allPages ?? []).find((p) => p.id === selectedId) ?? null, [allPages, selectedId]);
+  // Without a selection the first page opens; selecting it keeps it open across the switch below.
+  useEffect(() => {
+    if (!selectedId && firstPageId) setSelectedId(firstPageId);
+  }, [selectedId, firstPageId]);
+  // Switching between main and change requests keeps the open page: ids map
+  // through the main page a change-request copy was made from.
+  const selectedMainId = useRef<{ id: string; mainId: string } | null>(null);
+  useEffect(() => {
+    if (selectedNode) selectedMainId.current = { id: selectedNode.id, mainId: selectedNode.sourcePageId ?? selectedNode.id };
+  }, [selectedNode]);
+  useEffect(() => {
+    if (!allPages || !selectedId || allPages.some((p) => p.id === selectedId)) return;
+    const known = selectedMainId.current;
+    const mainId = known?.id === selectedId ? known.mainId : selectedId;
+    const mappedId = allPages.find((p) => p.id === mainId || p.sourcePageId === mainId)?.id ?? null;
+    setSelectedId((current) => (current === selectedId ? mappedId : current));
+  }, [allPages, selectedId]);
   const selectedGroup = selectedNode?.kind === 'GROUP' ? selectedNode : null;
   const activeId = selectedGroup ? null : (selectedId ?? firstPageId);
   const activeTreeId = selectedId ?? activeId;
@@ -173,11 +201,12 @@ function EditorPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [requestedRailTab, setRailTab] = useState<'comments' | 'ai'>('comments');
-  const railTab = aiDraft ? requestedRailTab : 'comments';
+  const aiRail = aiDraft && !readOnly;
+  const railTab = aiRail ? requestedRailTab : 'comments';
   // The comments/AI rail starts closed (an empty "No comments yet" panel would
   // otherwise claim 300px on the first visit); the author's toggle is persisted.
   const [railOpen, setRailOpen] = useState(false);
-  const railLabel = railOpen ? t(aiDraft ? 'editor.hideRail' : 'editor.hideComments') : t(aiDraft ? 'editor.showRail' : 'editor.showComments');
+  const railLabel = railOpen ? t(aiRail ? 'editor.hideRail' : 'editor.hideComments') : t(aiRail ? 'editor.showRail' : 'editor.showComments');
   useEffect(() => {
     try {
       setRailOpen(window.localStorage.getItem('nibleaf.editor.railOpen') === '1');
@@ -212,7 +241,7 @@ function EditorPage() {
   // Unknown JSX components are represented by local opaque nodes. Inventory
   // them for the explanatory banner without locking the rest of the page.
   const unsupportedTags = useMemo(() => detectUnsupportedMdxTags(content), [content]);
-  const effectiveMode = editorMode;
+  const effectiveMode = readOnly ? 'visual' : editorMode;
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [addLangOpen, setAddLangOpen] = useState(false);
   // The page whose settings dialog is open — independent of the active editor
@@ -365,17 +394,18 @@ function EditorPage() {
 
   // Hydration pins every draft to its page, including intentional empty bodies.
   useEffect(() => {
-    if (!page || !shouldAutosave({ synced, draft: { title, content } }, page)) {
+    if (readOnly || !page || !shouldAutosave({ synced, draft: { title, content } }, page)) {
       // Undoing back to the server copy must cancel an older queued draft.
       saveDraft.cancel();
       return;
     }
     setStatus('saving');
     saveDraft.maybeExecute({ id: page.id, title, content });
-  }, [title, content, page, synced, saveDraft]);
+  }, [title, content, page, synced, saveDraft, readOnly]);
 
   const flushCurrentDraft = async () => {
     saveDraft.cancel();
+    if (readOnly) return;
     let current = draftRef.current;
     if (!current.page || current.synced?.id !== current.page.id) {
       await saveQueue.settled();
@@ -425,7 +455,8 @@ function EditorPage() {
         return true;
       }
     },
-    enableBeforeUnload: () => shouldAutosave(draftRef.current, draftRef.current.page) || status === 'saving' || configDirtySources.current.size > 0,
+    enableBeforeUnload: () =>
+      (!readOnly && shouldAutosave(draftRef.current, draftRef.current.page)) || status === 'saving' || configDirtySources.current.size > 0,
   });
 
   const configIsSaved = () => {
@@ -571,7 +602,9 @@ function EditorPage() {
   }, [treeOverlay, closeFocusedTree]);
 
   // Comments on the active page — anchored highlights in the editor + the rail.
-  const { data: pageComments } = useComments(projectId, activeId ?? undefined);
+  // A change-request copy shares its main page's comments, which a merge keeps.
+  const commentPageId = (activeId && (allPages ?? []).find((p) => p.id === activeId)?.sourcePageId) || activeId;
+  const { data: pageComments } = useComments(projectId, commentPageId ?? undefined);
   const commentMarkers = useMemo(
     () => (pageComments ?? []).filter((c) => c.anchor?.quote).map((c) => ({ id: c.id, quote: c.anchor?.quote ?? '', resolved: c.resolved })),
     [pageComments],
@@ -588,6 +621,20 @@ function EditorPage() {
     setCommentMode(next);
   };
 
+  const saveStatus = (
+    <span className="hidden items-center gap-1.5 text-muted-foreground text-xs lg:flex">
+      {status === 'saving' ? (
+        <>
+          <Loader2 className="size-3 animate-spin" /> {t('editor.savingShort')}
+        </>
+      ) : status === 'saved' ? (
+        <>
+          <Check className="size-3 text-primary" /> {t('editor.savedShort')}
+        </>
+      ) : null}
+    </span>
+  );
+
   const pageTitleInput = (
     <input
       aria-label={t('editor.pageTitlePlaceholder')}
@@ -596,81 +643,103 @@ function EditorPage() {
       lang={activeLanguage?.code}
       onChange={(event) => setTitle(event.target.value)}
       placeholder={t('editor.pageTitlePlaceholder')}
+      readOnly={readOnly}
       value={title}
     />
   );
 
+  // Top bar. Main: back + change requests on the left, Edit / configure /
+  // preview / publish on the right. A change request gets its own header.
+  const header = changeRequest ? (
+    <ChangeRequestHeader
+      projectId={projectId}
+      changeRequest={changeRequest}
+      tab="editor"
+      back={{ to: '/app/projects/$projectId/editor', label: t('changeRequest.backToMain') }}
+    >
+      {saveStatus}
+      <Button aria-label={t('project.preview')} onClick={() => void openDraftPreview()} size="sm" variant="outline" className="cursor-pointer">
+        <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
+      </Button>
+    </ChangeRequestHeader>
+  ) : (
+    <header className="flex h-14 shrink-0 items-center gap-1.5 border-border border-b bg-background px-2 sm:gap-2.5 sm:px-3">
+      <Link
+        to="/app/projects/$projectId"
+        params={{ projectId }}
+        className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        title={t('editor.backToDashboard')}
+      >
+        <ChevronLeft className="size-4 rtl:-scale-x-100" />
+        {project?.name ? <span className="hidden max-w-[200px] truncate font-medium text-foreground text-sm sm:inline">{project.name}</span> : null}
+      </Link>
+      {/* Divider only once the project name is loaded — otherwise it dangles next to the chevron. */}
+      {project?.name ? <span className="hidden h-5 w-px bg-border sm:block" /> : null}
+      {cr === undefined ? (
+        <span className="hidden items-center gap-1.5 text-muted-foreground text-xs sm:flex" title={t('changeRequest.mainReadOnlyHint')}>
+          <Lock className="size-3" /> {t('changeRequest.mainReadOnly')}
+        </span>
+      ) : null}
+      <div className="ms-auto flex items-center gap-1 sm:gap-2">
+        <ChangeRequestsMenu projectId={projectId} userId={session?.user.id} />
+        <Button
+          aria-label={t('editor.mode.configuration')}
+          size="sm"
+          variant={view === 'config' ? 'secondary' : 'ghost'}
+          className="cursor-pointer"
+          onClick={async () => {
+            const nextView = view === 'config' ? 'content' : 'config';
+            if (view === 'config' && !(await guardConfigChanges())) return;
+            setView(nextView);
+            if (nextView === 'config') {
+              setSidebarCollapsed(false);
+              setMobileSidebarOpen(true);
+            }
+          }}
+        >
+          <SlidersHorizontal className="size-3.5" /> <span className="hidden md:inline">{t('editor.mode.configuration')}</span>
+        </Button>
+        <Button aria-label={t('project.preview')} onClick={() => void openDraftPreview()} size="sm" variant="outline" className="cursor-pointer">
+          <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
+        </Button>
+        {project ? <PublishControl project={project} initialPublishOpen={publishParam} beforePublish={preparePublish} /> : null}
+        <Button size="sm" className="cursor-pointer" onClick={startChangeRequest.start} disabled={cr !== undefined || startChangeRequest.isPending}>
+          {startChangeRequest.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <PenLine className="size-3.5" />} {t('changeRequest.edit')}
+        </Button>
+      </div>
+    </header>
+  );
+
+  if (changeRequestUnavailable) {
+    return (
+      <div className="flex h-screen flex-col">
+        {header}
+        <section className="grid flex-1 place-items-center px-6 text-center">
+          <div className="max-w-sm">
+            <Lock className="mx-auto size-7 text-muted-foreground" />
+            <p className="mt-3 font-medium">{t('changeRequest.closed')}</p>
+            <div className="mt-4 flex justify-center gap-2">
+              <Button variant="outline" nativeButton={false} render={<Link to="/app/projects/$projectId/editor" params={{ projectId }} />}>
+                {t('changeRequest.backToMain')}
+              </Button>
+              <Button nativeButton={false} render={<Link to="/app/projects/$projectId/changes" params={{ projectId }} />}>
+                {t('changeRequest.backToList')}
+              </Button>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen flex-col">
-      {/* Top bar — workspace controls (Mintlify-style): back + branch on the left,
-          configure / preview / publish on the right. No breadcrumb. */}
-      <header className="flex h-14 shrink-0 items-center gap-1.5 border-border border-b bg-background px-2 sm:gap-2.5 sm:px-3">
-        <Link
-          to="/app/projects/$projectId"
-          params={{ projectId }}
-          className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          title={t('editor.backToDashboard')}
-        >
-          <ChevronLeft className="size-4 rtl:-scale-x-100" />
-          {project?.name ? <span className="hidden max-w-[200px] truncate font-medium text-foreground text-sm sm:inline">{project.name}</span> : null}
-        </Link>
-        {/* Divider only once the project name is loaded — otherwise it dangles next to the chevron. */}
-        {project?.name ? <span className="hidden h-5 w-px bg-border sm:block" /> : null}
-        <BranchSwitcher
-          projectId={projectId}
-          branches={branches ?? []}
-          activeBranchId={activeBranchId}
-          beforeChange={flushCurrentDraft}
-          onSwitch={(id) => {
-            void runAfterSavingDraft({
-              action: () => {
-                setActiveBranchId(id);
-                setSelectedId(null);
-                setSynced(null);
-              },
-            });
-          }}
-        />
-        <span className="hidden items-center gap-1.5 text-muted-foreground text-xs lg:flex">
-          {status === 'saving' ? (
-            <>
-              <Loader2 className="size-3 animate-spin" /> {t('editor.savingShort')}
-            </>
-          ) : status === 'saved' ? (
-            <>
-              <Check className="size-3 text-primary" /> {t('editor.savedShort')}
-            </>
-          ) : null}
-        </span>
-        <div className="ms-auto flex items-center gap-1 sm:gap-2">
-          <Button
-            aria-label={t('editor.mode.configuration')}
-            size="sm"
-            variant={view === 'config' ? 'secondary' : 'ghost'}
-            className="cursor-pointer"
-            onClick={async () => {
-              const nextView = view === 'config' ? 'content' : 'config';
-              if (view === 'config' && !(await guardConfigChanges())) return;
-              setView(nextView);
-              if (nextView === 'config') {
-                setSidebarCollapsed(false);
-                setMobileSidebarOpen(true);
-              }
-            }}
-          >
-            <SlidersHorizontal className="size-3.5" /> <span className="hidden md:inline">{t('editor.mode.configuration')}</span>
-          </Button>
-          <Button aria-label={t('project.preview')} onClick={() => void openDraftPreview()} size="sm" variant="outline" className="cursor-pointer">
-            <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
-          </Button>
-          {project ? <PublishControl project={project} initialPublishOpen={publishParam} beforePublish={preparePublish} /> : null}
-        </div>
-      </header>
+      {header}
 
       {/* Editor grid: page-tree sidebar + canvas (+ comments rail). The single row is
-          pinned to the container height (minmax(0,1fr)) so each column is bounded and
-          its own overflow-y-auto scrolls — an implicit `auto` row would grow to the
-          tallest column's content and break scrolling. */}
+        pinned to the container height (minmax(0,1fr)) so each column is bounded and
+        its own overflow-y-auto scrolls — an implicit `auto` row would grow to the
+        tallest column's content and break scrolling. */}
       <div
         className={cn(
           'relative grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)]',
@@ -767,8 +836,8 @@ function EditorPage() {
                             />
                             <Languages className="size-3.5 shrink-0 text-muted-foreground" />
                             {/* The label owns the row's flexible space: the code lives in its
-                              tooltip and the badge never shrinks, so "English" only truncates
-                              when the sidebar is genuinely too narrow for it. */}
+                            tooltip and the badge never shrinks, so "English" only truncates
+                            when the sidebar is genuinely too narrow for it. */}
                             <span className="min-w-0 truncate" title={`${lang.label} (${lang.code})`}>
                               {lang.label}
                             </span>
@@ -779,44 +848,50 @@ function EditorPage() {
                             ) : null}
                           </button>
                           <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-                            <Button
-                              size="icon-xs"
-                              variant="ghost"
-                              className="cursor-pointer"
-                              onClick={() => setLangSettings(lang)}
-                              aria-label={t('editor.langSettings.settings')}
-                              title={t('editor.langSettings.settings')}
-                            >
-                              <Settings2 className="size-3" />
-                            </Button>
-                            <Button
-                              size="icon-xs"
-                              variant="ghost"
-                              className="cursor-pointer"
-                              onClick={() => {
-                                expandLang(lang.id);
-                                addGroup(lang.id);
-                              }}
-                              aria-label={t('editor.newGroup')}
-                              title={t('editor.newGroup')}
-                              disabled={createPage.isPending}
-                            >
-                              <FolderPlus className="size-3" />
-                            </Button>
-                            <Button
-                              size="icon-xs"
-                              variant="ghost"
-                              className="cursor-pointer"
-                              onClick={() => {
-                                expandLang(lang.id);
-                                addPage(null, lang.id);
-                              }}
-                              aria-label={t('editor.newPage')}
-                              title={t('editor.newPage')}
-                              disabled={createPage.isPending}
-                            >
-                              <Plus className="size-3" />
-                            </Button>
+                            {readOnly ? (
+                              <Button
+                                size="icon-xs"
+                                variant="ghost"
+                                className="cursor-pointer"
+                                onClick={() => setLangSettings(lang)}
+                                aria-label={t('editor.langSettings.settings')}
+                                title={t('editor.langSettings.settings')}
+                              >
+                                <Settings2 className="size-3" />
+                              </Button>
+                            ) : null}
+                            {readOnly ? null : (
+                              <>
+                                <Button
+                                  size="icon-xs"
+                                  variant="ghost"
+                                  className="cursor-pointer"
+                                  onClick={() => {
+                                    expandLang(lang.id);
+                                    addGroup(lang.id);
+                                  }}
+                                  aria-label={t('editor.newGroup')}
+                                  title={t('editor.newGroup')}
+                                  disabled={createPage.isPending}
+                                >
+                                  <FolderPlus className="size-3" />
+                                </Button>
+                                <Button
+                                  size="icon-xs"
+                                  variant="ghost"
+                                  className="cursor-pointer"
+                                  onClick={() => {
+                                    expandLang(lang.id);
+                                    addPage(null, lang.id);
+                                  }}
+                                  aria-label={t('editor.newPage')}
+                                  title={t('editor.newPage')}
+                                  disabled={createPage.isPending}
+                                >
+                                  <Plus className="size-3" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </div>
 
@@ -840,9 +915,9 @@ function EditorPage() {
                                     },
                                   });
                                 }}
-                                onAddChild={(parentId) => addPage(parentId, lang.id)}
-                                onSettings={(id) => void runAfterSavingDraft({ action: () => setSettingsForId(id) })}
-                                onMove={(items) => reorderPages.mutate({ items })}
+                                onAddChild={readOnly ? undefined : (parentId) => addPage(parentId, lang.id)}
+                                onSettings={readOnly ? undefined : (id) => void runAfterSavingDraft({ action: () => setSettingsForId(id) })}
+                                onMove={readOnly ? undefined : (items) => reorderPages.mutate({ items })}
                               />
                             )}
                           </div>
@@ -852,13 +927,15 @@ function EditorPage() {
                   })}
 
                   {/* Add a language */}
-                  <button
-                    type="button"
-                    onClick={() => setAddLangOpen(true)}
-                    className="mt-2 flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-muted-foreground text-sm hover:bg-muted hover:text-foreground"
-                  >
-                    <Plus className="size-3.5" /> {t('editor.addLanguage')}
-                  </button>
+                  {readOnly ? (
+                    <button
+                      type="button"
+                      onClick={() => setAddLangOpen(true)}
+                      className="mt-2 flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-muted-foreground text-sm hover:bg-muted hover:text-foreground"
+                    >
+                      <Plus className="size-3.5" /> {t('editor.addLanguage')}
+                    </button>
+                  ) : null}
                 </>
               )}
             </div>
@@ -889,7 +966,7 @@ function EditorPage() {
         {view === 'config' ? (
           <section className="min-h-0 min-w-0 overflow-y-auto">
             {/* A muted overline so it reads as "Site configuration › <section>"
-              rather than competing with each section's own heading. */}
+            rather than competing with each section's own heading. */}
             <div className="border-border border-b px-6 py-3">
               <span className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">{t('editor.config.heading')}</span>
             </div>
@@ -911,16 +988,18 @@ function EditorPage() {
               <FolderPlus className="mx-auto size-7 text-muted-foreground" />
               <h1 className="mt-3 font-semibold text-xl tracking-tight">{selectedGroup.title}</h1>
               <p className="mt-1 text-muted-foreground text-sm">{t('editor.groupSelectedHint')}</p>
-              <div className="mt-4 flex justify-center gap-2">
-                <Button variant="outline" onClick={() => void runAfterSavingDraft({ action: () => setSettingsForId(selectedGroup.id) })}>
-                  <Settings2 className="size-4" /> {t('editor.pageSettings.title')}
-                </Button>
-                {selectedGroup.languageId ? (
-                  <Button disabled={createPage.isPending} onClick={() => addPage(selectedGroup.id, selectedGroup.languageId)}>
-                    <Plus className="size-4" /> {t('editor.newPage')}
+              {readOnly ? null : (
+                <div className="mt-4 flex justify-center gap-2">
+                  <Button variant="outline" onClick={() => void runAfterSavingDraft({ action: () => setSettingsForId(selectedGroup.id) })}>
+                    <Settings2 className="size-4" /> {t('editor.pageSettings.title')}
                   </Button>
-                ) : null}
-              </div>
+                  {selectedGroup.languageId ? (
+                    <Button disabled={createPage.isPending} onClick={() => addPage(selectedGroup.id, selectedGroup.languageId)}>
+                      <Plus className="size-4" /> {t('editor.newPage')}
+                    </Button>
+                  ) : null}
+                </div>
+              )}
             </div>
           </section>
         ) : activeId && !page ? (
@@ -943,7 +1022,7 @@ function EditorPage() {
               </div>
             ) : null}
             {/* Editor toolbar: re-expand affordance (when the sidebar is collapsed) + the
-              document mode/view controls. */}
+            document mode/view controls. */}
             <div className="flex min-h-12 flex-wrap items-center gap-1 border-border border-b px-2 py-1.5 sm:gap-2 sm:px-4 sm:py-0">
               {markdownFocused ? (
                 // The focused layout hides the tree; this floats it over the canvas so
@@ -975,17 +1054,21 @@ function EditorPage() {
                   <PanelLeftOpen className="size-4 rtl:-scale-x-100" />
                 </Button>
               ) : null}
-              <SegmentedControl density="compact" className="ms-auto">
-                <SegButton active={effectiveMode === 'visual'} onClick={() => setEditorMode('visual')} icon={<Pencil className="size-3.5" />}>
-                  {t('editor.mode.visual')}
-                </SegButton>
-                <SegButton active={effectiveMode === 'wysiwyg'} onClick={() => setEditorMode('wysiwyg')} icon={<TypeIcon className="size-3.5" />}>
-                  {t('editor.mode.wysiwyg')}
-                </SegButton>
-                <SegButton active={effectiveMode === 'markdown'} onClick={() => setEditorMode('markdown')} icon={<Code2 className="size-3.5" />}>
-                  {t('editor.mode.markdown')}
-                </SegButton>
-              </SegmentedControl>
+              {readOnly ? (
+                <span className="ms-auto" />
+              ) : (
+                <SegmentedControl density="compact" className="ms-auto">
+                  <SegButton active={effectiveMode === 'visual'} onClick={() => setEditorMode('visual')} icon={<Pencil className="size-3.5" />}>
+                    {t('editor.mode.visual')}
+                  </SegButton>
+                  <SegButton active={effectiveMode === 'wysiwyg'} onClick={() => setEditorMode('wysiwyg')} icon={<TypeIcon className="size-3.5" />}>
+                    {t('editor.mode.wysiwyg')}
+                  </SegButton>
+                  <SegButton active={effectiveMode === 'markdown'} onClick={() => setEditorMode('markdown')} icon={<Code2 className="size-3.5" />}>
+                    {t('editor.mode.markdown')}
+                  </SegButton>
+                </SegmentedControl>
+              )}
               <Button
                 size="sm"
                 variant={commentMode ? 'secondary' : 'ghost'}
@@ -997,42 +1080,46 @@ function EditorPage() {
                 <MessageSquare className="size-4" />
                 <span className="hidden md:inline">{commentMode ? t('editor.comments.commenting') : t('editor.comments.mode')}</span>
               </Button>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                className="cursor-pointer"
-                onClick={() => activeId && void runAfterSavingDraft({ action: () => setSettingsForId(activeId) })}
-                aria-label={t('editor.pageSettings.title')}
-                title={t('editor.pageSettings.title')}
-              >
-                <Settings2 className="size-4" />
-              </Button>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                className="cursor-pointer"
-                aria-label={t('editor.deletePage')}
-                title={t('editor.deletePage')}
-                onClick={async () => {
-                  const ok = await confirm({
-                    title: t('editor.deletePage'),
-                    description: t('editor.deletePageConfirm'),
-                    confirmLabel: t('editor.deletePage'),
-                    destructive: true,
-                  });
-                  if (ok) {
-                    void runAfterSavingDraft({
-                      action: () =>
-                        deletePage.mutate(page.id, {
-                          onSuccess: () => setSelectedId(null),
-                          onError: (error) => toast.error(error.message),
-                        }),
-                    });
-                  }
-                }}
-              >
-                <Trash2 className="size-4" />
-              </Button>
+              {readOnly ? null : (
+                <>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    className="cursor-pointer"
+                    onClick={() => activeId && void runAfterSavingDraft({ action: () => setSettingsForId(activeId) })}
+                    aria-label={t('editor.pageSettings.title')}
+                    title={t('editor.pageSettings.title')}
+                  >
+                    <Settings2 className="size-4" />
+                  </Button>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    className="cursor-pointer"
+                    aria-label={t('editor.deletePage')}
+                    title={t('editor.deletePage')}
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: t('editor.deletePage'),
+                        description: t('editor.deletePageConfirm'),
+                        confirmLabel: t('editor.deletePage'),
+                        destructive: true,
+                      });
+                      if (ok) {
+                        void runAfterSavingDraft({
+                          action: () =>
+                            deletePage.mutate(page.id, {
+                              onSuccess: () => setSelectedId(null),
+                              onError: (error) => toast.error(error.message),
+                            }),
+                        });
+                      }
+                    }}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </>
+              )}
               {!markdownFocused ? (
                 <Button
                   aria-label={railLabel}
@@ -1071,7 +1158,7 @@ function EditorPage() {
                 </div>
               ) : null}
               {/* Visual mode keeps its reading measure. Rich Text and Markdown
-                render their toolbar and title inside their full-height canvas. */}
+              render their toolbar and title inside their full-height canvas. */}
               {effectiveMode === 'visual' ? <div className="mx-auto max-w-[720px]">{pageTitleInput}</div> : null}
               {effectiveMode === 'visual' || effectiveMode === 'wysiwyg' ? (
                 // .ProseMirror self-centers at the 720px measure (tiptap.css), leaving a
@@ -1082,6 +1169,7 @@ function EditorPage() {
                   key={page.id}
                   value={content}
                   onChange={setContent}
+                  editable={!readOnly || commentMode}
                   className={effectiveMode === 'wysiwyg' ? 'min-h-0 flex-1' : undefined}
                   dir={activeLangDir}
                   lang={activeLanguage?.code}
@@ -1117,7 +1205,7 @@ function EditorPage() {
               <FileText className="mx-auto size-7 text-muted-foreground" />
               <p className="mt-3 font-medium">{t('editor.noPageSelected')}</p>
               <p className="mt-1 text-muted-foreground text-sm">{t('editor.noPageSelectedHint')}</p>
-              {defaultLanguageId ? (
+              {defaultLanguageId && !readOnly ? (
                 <Button className="mt-4 cursor-pointer" disabled={createPage.isPending} onClick={() => addPage(null, defaultLanguageId)}>
                   <Plus className="size-4" /> {t('editor.newPage')}
                 </Button>
@@ -1130,16 +1218,16 @@ function EditorPage() {
         {showRail && activeId ? (
           <aside className="hidden min-h-0 flex-col overflow-hidden border-border border-s bg-sidebar/40 xl:flex">
             <Tabs value={railTab} onValueChange={(value) => setRailTab(value === 'ai' ? 'ai' : 'comments')} className="flex min-h-0 flex-1 flex-col">
-              {aiDraft ? (
+              {aiRail ? (
                 <TabsList className="m-2 self-start">
                   <TabsTrigger value="comments">{t('editor.comments')}</TabsTrigger>
                   <TabsTrigger value="ai">{t('editor.ai')}</TabsTrigger>
                 </TabsList>
               ) : null}
-              <div className={cn('min-h-0 flex-1 overflow-y-auto p-4', aiDraft && 'pt-0')}>
+              <div className={cn('min-h-0 flex-1 overflow-y-auto p-4', aiRail && 'pt-0')}>
                 {railTab === 'comments' ? (
                   <CommentsPanel
-                    pageId={activeId}
+                    pageId={commentPageId}
                     projectId={projectId}
                     pendingAnchor={pendingAnchor}
                     onClearPending={() => setPendingAnchor(null)}

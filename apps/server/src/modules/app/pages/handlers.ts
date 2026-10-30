@@ -1,5 +1,6 @@
 import { createPageBody, listPagesQuery, reorderPagesBody, updatePageBody } from '@nibleaf/validators';
 import { Hono } from 'hono';
+import { assertPagesEditable } from '@/actions/branches';
 import { createPage, deletePage, getPage, listPages, reorderPages, updatePage } from '@/actions/pages';
 import { assertProjectInOrg } from '@/actions/projects';
 import { getContextOrganizationIdOrThrow, getContextUserOrThrow, type HonoEnv } from '@/lib/hono/context';
@@ -21,12 +22,16 @@ const app = new Hono<HonoEnv>()
   })
   .post('/', ...pagesRoutes.create, validator('json', createPageBody), async (ctx) => {
     const projectId = await projectScope(ctx);
-    const page = await createPage(projectId, ctx.req.valid('json'), getContextUserOrThrow().id);
+    const body = ctx.req.valid('json');
+    await assertPagesEditable(projectId, body.parentId ? { pageIds: [body.parentId] } : { branchId: body.branchId });
+    const page = await createPage(projectId, body, getContextUserOrThrow().id);
     return ctx.json({ data: page }, 201);
   })
   .post('/reorder', ...pagesRoutes.reorder, validator('json', reorderPagesBody), async (ctx) => {
     const projectId = await projectScope(ctx);
-    return ctx.json({ data: await reorderPages(projectId, ctx.req.valid('json')) }, 200);
+    const body = ctx.req.valid('json');
+    await assertPagesEditable(projectId, { pageIds: body.items.map((item) => item.id) });
+    return ctx.json({ data: await reorderPages(projectId, body) }, 200);
   })
   .get('/:id', ...pagesRoutes.get, async (ctx) => {
     const projectId = await projectScope(ctx);
@@ -34,11 +39,13 @@ const app = new Hono<HonoEnv>()
   })
   .patch('/:id', ...pagesRoutes.update, validator('json', updatePageBody), async (ctx) => {
     const projectId = await projectScope(ctx);
+    await assertPagesEditable(projectId, { pageIds: [ctx.req.param('id')] });
     const page = await updatePage(projectId, ctx.req.param('id'), ctx.req.valid('json'), getContextUserOrThrow().id);
     return ctx.json({ data: page }, 200);
   })
   .delete('/:id', ...pagesRoutes.remove, async (ctx) => {
     const projectId = await projectScope(ctx);
+    await assertPagesEditable(projectId, { pageIds: [ctx.req.param('id')] });
     return ctx.json({ data: await deletePage(projectId, ctx.req.param('id')) }, 200);
   });
 

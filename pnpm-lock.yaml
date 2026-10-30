@@ -276,6 +276,9 @@ importers:
       '@tiptap/suggestion':
         specifier: 3.31.0
         version: 3.31.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.31.0(@tiptap/pm@3.31.0))(@tiptap/pm@3.31.0)
+      diff:
+        specifier: ^9.0.0
+        version: 9.0.0
       got:
         specifier: 16.0.0
         version: 16.0.0
@@ -291,6 +294,9 @@ importers:
       lucide-react:
         specifier: ^1.39.0
         version: 1.39.0(react@19.2.8)
+      mdast-util-from-markdown:
+        specifier: ^2.0.3
+        version: 2.0.3
       mermaid:
         specifier: ^11.17.2
         version: 11.17.2

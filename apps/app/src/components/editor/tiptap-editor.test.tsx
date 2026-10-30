@@ -140,6 +140,21 @@ describe('TiptapEditor', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('treats normalization of the source as the baseline, not an edit', async () => {
+    const onChange = vi.fn();
+    const source = 'A paragraph wrapped\nacross two lines.\n\n<Warning>\nKeep keys on\nthe server.\n</Warning>\n';
+    const { prose } = await mount(<TiptapEditor value={source} onChange={onChange} />);
+    await settle();
+    expect(onChange).not.toHaveBeenCalled();
+
+    const editor = (prose() as (Element & { editor?: Editor }) | null)?.editor;
+    await act(async () => {
+      editor?.commands.insertContentAt(1, 'Edited ');
+    });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0]?.[0]).toContain('Edited A paragraph wrapped across two lines.');
+  });
+
   it('a fresh instance (keyed remount) never sees the previous document', async () => {
     const onChange = vi.fn();
     const { root, prose } = await mount(<TiptapEditor key="page-a" value="Page A body" onChange={onChange} />);

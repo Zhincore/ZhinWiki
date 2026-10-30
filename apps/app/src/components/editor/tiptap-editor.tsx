@@ -639,6 +639,19 @@ export function TiptapEditor({
     onAddCommentRef.current = onAddComment;
   }, [activeCommentId, commentMode, comments, onAddComment, onChange, onUpload, value]);
 
+  // Seeding normalizes the source (e.g. unwraps lines); that is not an edit, so
+  // updates fired before or while seeding are ignored and the result becomes the baseline.
+  const seeding = useRef(true);
+  const seed = useCallback((editor: Editor, markdown: string) => {
+    seeding.current = true;
+    try {
+      seedMarkdown(editor, markdown);
+    } finally {
+      seeding.current = false;
+    }
+    lastEmitted.current = getMarkdown(editor);
+  }, []);
+
   // Upload an image file and insert it at the current selection.
   const insertUploadedImage = (file: File) => {
     const upload = onUploadRef.current;
@@ -667,6 +680,7 @@ export function TiptapEditor({
       content: value,
       onCreate: ({ editor }) => {
         editorRef.current = editor;
+        seeding.current = true;
         // Seed once with the markdown source (StarterKit treats string content as HTML;
         // tiptap-markdown's setContent parses markdown). Defer to a microtask so the React
         // NodeViews (callout/mdx blocks) this mounts don't flushSync inside React's commit.
@@ -674,12 +688,14 @@ export function TiptapEditor({
           if (editor.isDestroyed) {
             return;
           }
-          seedMarkdown(editor, valueRef.current);
-          lastEmitted.current = getMarkdown(editor);
+          seed(editor, valueRef.current);
         });
       },
       onUpdate: ({ editor }) => {
         const markdown = getMarkdown(editor);
+        if (seeding.current || markdown === lastEmitted.current) {
+          return;
+        }
         lastEmitted.current = markdown;
         onChangeRef.current(markdown);
       },
@@ -741,11 +757,11 @@ export function TiptapEditor({
       // Reads the latest value so an earlier queued re-seed can't win over a newer one.
       queueMicrotask(() => {
         if (!editor.isDestroyed) {
-          seedMarkdown(editor, valueRef.current);
+          seed(editor, valueRef.current);
         }
       });
     }
-  }, [value, editor]);
+  }, [value, editor, seed]);
 
   // Keep editability in sync. Review mode stays contenteditable so ProseMirror
   // receives exact text selections; mutation handlers above make it read-only.

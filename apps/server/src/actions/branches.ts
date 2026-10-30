@@ -1,6 +1,6 @@
 import { type Branch, Prisma, prisma } from '@nibleaf/database';
 import { newId } from '@nibleaf/shared/ids';
-import { conflict, notFound } from '@/errors';
+import { AppError, conflict, notFound } from '@/errors';
 import { contentHash, type ForkBase, pageFingerprint } from './change-request-merge';
 
 /** Every branch of a project, default ('main') first. */
@@ -23,6 +23,35 @@ export const assertBranchInProject = async (projectId: string, id: string) => {
     throw notFound('branch', { id });
   }
   return branch;
+};
+
+/**
+ * Members edit pages only inside open (draft or in-review) change requests.
+ * `pageIds` are the pages written (or the parent a page is created under);
+ * without them `branchId` (default: main) is the target. System writers
+ * (imports, Git sync, merges) call the page actions directly.
+ */
+export const assertPagesEditable = async (projectId: string, target: { branchId?: string; pageIds?: readonly string[] }) => {
+  const main = await getDefaultBranch(projectId);
+  const branchIds = target.pageIds
+    ? (
+        await prisma.page.findMany({
+          where: { projectId, id: { in: [...target.pageIds] } },
+          select: { branchId: true },
+          distinct: ['branchId'],
+        })
+      ).map((page) => page.branchId)
+    : [target.branchId ?? main.id];
+  if (branchIds.includes(main.id)) {
+    throw new AppError({ code: 'pages:main_read_only', message: 'Pages on main are read-only. Open a change request to edit them.' });
+  }
+  if (branchIds.length === 0) return;
+  const open = await prisma.changeRequest.count({
+    where: { projectId, branchId: { in: branchIds }, status: { in: ['DRAFT', 'IN_REVIEW'] } },
+  });
+  if (open < branchIds.length) {
+    throw new AppError({ code: 'pages:branch_read_only', message: 'Pages are edited only in an open change request.' });
+  }
 };
 
 const UNIQUE_VIOLATION = 'P2002';

@@ -26,18 +26,31 @@ export const assertBranchInProject = async (projectId: string, id: string) => {
 };
 
 /**
- * Members edit pages only inside change requests: refuse a write that targets
- * the default branch. `pageIds` are the pages written (or the parent a page is
- * created under); without them `branchId` (default: main) is the target.
- * System writers (imports, Git sync, merges) call the page actions directly.
+ * Members edit pages only inside open (draft or in-review) change requests.
+ * `pageIds` are the pages written (or the parent a page is created under);
+ * without them `branchId` (default: main) is the target. System writers
+ * (imports, Git sync, merges) call the page actions directly.
  */
 export const assertPagesEditable = async (projectId: string, target: { branchId?: string; pageIds?: readonly string[] }) => {
   const main = await getDefaultBranch(projectId);
-  const locked = target.pageIds
-    ? (await prisma.page.count({ where: { projectId, id: { in: [...target.pageIds] }, branchId: main.id } })) > 0
-    : (target.branchId ?? main.id) === main.id;
-  if (locked) {
+  const branchIds = target.pageIds
+    ? (
+        await prisma.page.findMany({
+          where: { projectId, id: { in: [...target.pageIds] } },
+          select: { branchId: true },
+          distinct: ['branchId'],
+        })
+      ).map((page) => page.branchId)
+    : [target.branchId ?? main.id];
+  if (branchIds.includes(main.id)) {
     throw new AppError({ code: 'pages:main_read_only', message: 'Pages on main are read-only. Open a change request to edit them.' });
+  }
+  if (branchIds.length === 0) return;
+  const open = await prisma.changeRequest.count({
+    where: { projectId, branchId: { in: branchIds }, status: { in: ['DRAFT', 'IN_REVIEW'] } },
+  });
+  if (open < branchIds.length) {
+    throw new AppError({ code: 'pages:branch_read_only', message: 'Pages are edited only in an open change request.' });
   }
 };
 

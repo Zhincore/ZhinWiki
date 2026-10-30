@@ -156,11 +156,13 @@ of `main` that is reviewed and merged back.
   - Merges take a per-project advisory lock and lock `main`'s rows.
 - API: `/projects/:projectId/change-requests` (list `?status=`, create, get
   with changed pages, patch title/description/status, `/:number/merge`,
-  `/:number/pages/:pageId/diff`), member role. Branch routes still work and
-  keep the invariant.
-- Main is read-only for page edits: the page routes (create, update, delete,
+  `/:number/pages/:pageId/diff`), member role. Branch routes only list and
+  delete.
+- Pages are edited only in open CRs: the page routes (create, update, delete,
   reorder) call `assertPagesEditable` and answer 409 `pages:main_read_only`
-  for a write to a `main` page or under one. System writers (import, Git sync,
+  for a write to a `main` page or under one, `pages:branch_read_only` for a
+  merged/archived CR or an import branch. Check and write are separate
+  queries; a write racing a merge can still land (deferred). System writers (import, Git sync,
   merge, starter) call the page actions directly. MCP has no page writers;
   AI drafts return text only. Project settings, chrome, themes, languages and
   domains stay editable on `main`.

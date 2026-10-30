@@ -7,10 +7,12 @@ export type BlockDiffSegment = { kind: 'rows'; rows: BlockDiffRow[] } | { kind: 
 
 const COMPONENT_TAG = /<(\/?)([A-Z][\w.]*)\b[^>]*?(\/?)>/g;
 
-/** Net count of component tags (`<Card>` … `</Card>`) an HTML block leaves open. */
-const openComponentTags = (html: string) => {
+const INLINE_CODE = /`[^`\n]*`/g;
+
+/** Net count of component tags (`<Card>` … `</Card>`) a block's source leaves open, outside inline code. */
+const openComponentTags = (markdown: string) => {
   let open = 0;
-  for (const [, closing, , selfClosing] of html.matchAll(COMPONENT_TAG)) {
+  for (const [, closing, , selfClosing] of markdown.replace(INLINE_CODE, '').matchAll(COMPONENT_TAG)) {
     if (closing) open -= 1;
     else if (!selfClosing) open += 1;
   }
@@ -28,7 +30,7 @@ export function splitBlocks(source: string): string[] {
     const end = node.position?.end.offset;
     if (start === undefined || end === undefined) continue;
     groupStart ??= start;
-    if (node.type === 'html') open = Math.max(0, open + openComponentTags(node.value));
+    if (node.type !== 'code') open = Math.max(0, open + openComponentTags(source.slice(start, end)));
     if (open === 0) {
       blocks.push(source.slice(groupStart, end).trim());
       groupStart = null;

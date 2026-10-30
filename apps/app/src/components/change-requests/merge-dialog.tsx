@@ -12,7 +12,7 @@ import { Switch } from '@nibleaf/design-system/components/ui/switch';
 import type { MessageKey } from '@nibleaf/i18n';
 import { useT } from '@nibleaf/i18n/react';
 import { GitMerge, Loader2, TriangleAlert } from 'lucide-react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { toast } from 'sonner';
 import { type MergeConflict, type MergeConflictReason, useMergeChangeRequest } from '@/hooks/api';
 import { conflictsFromError, forceList } from './merge-conflicts';
@@ -42,6 +42,7 @@ export function MergeDialog({
   const merge = useMergeChangeRequest(projectId, number);
   const [refused, setRefused] = useState<MergeConflict[] | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
+  const hintId = useId();
   const conflicts = refused ?? initialConflicts;
   const force = forceList(conflicts, picked);
   const unresolved = conflicts.length - force.length;
@@ -104,13 +105,15 @@ export function MergeDialog({
                       id={id}
                       checked={picked.has(conflict.pageId)}
                       onCheckedChange={(checked) => toggle(conflict.pageId, checked)}
-                      aria-label={t('changeRequest.mergeDialog.useChangeRequest')}
+                      aria-describedby={hintId}
                     />
                   </li>
                 );
               })}
             </ul>
-            <p className="text-muted-foreground text-xs">{t('changeRequest.mergeDialog.useChangeRequest')}</p>
+            <p id={hintId} className="text-muted-foreground text-xs">
+              {t('changeRequest.mergeDialog.useChangeRequest')}
+            </p>
           </div>
         ) : null}
         <DialogFooter>

@@ -15,11 +15,12 @@ export const useChangeRequests = (projectId: string | undefined) =>
     queryFn: async () => getData<ChangeRequest[]>(await changeRequests.$get({ param: { projectId: projectId ?? '' }, query: {} }), 'change requests'),
   });
 
-/** One change request with the pages it changes and its current merge conflicts. */
+/** One change request with the pages it changes and its current merge conflicts; refetched on mount since editor saves change it. */
 export const useChangeRequest = (projectId: string, number: number | undefined) =>
   useQuery({
     queryKey: queryKeys.changeRequests.detail(projectId, number ?? 0),
     enabled: number !== undefined,
+    staleTime: 0,
     queryFn: async () =>
       getData<ChangeRequestDetail>(await changeRequests[':number'].$get({ param: { projectId, number: String(number) } }), 'change request'),
   });
@@ -28,6 +29,7 @@ export const useChangeRequestPageDiff = (projectId: string, number: number, page
   useQuery({
     queryKey: queryKeys.changeRequests.pageDiff(projectId, number, pageId ?? ''),
     enabled: Boolean(pageId),
+    staleTime: 0,
     queryFn: async () =>
       getData<ChangeRequestPageDiff>(
         await changeRequests[':number'].pages[':pageId'].diff.$get({ param: { projectId, number: String(number), pageId: pageId ?? '' } }),
@@ -40,7 +42,8 @@ export const useCreateChangeRequest = (projectId: string) => {
   return useMutation({
     mutationFn: async (body: CreateChangeRequestBody) =>
       mutateData<ChangeRequest>(await changeRequests.$post({ param: { projectId }, json: body }), 'Could not open a change request.'),
-    onSuccess: () => {
+    onSuccess: (created) => {
+      qc.setQueryData<ChangeRequest[]>(queryKeys.changeRequests.all(projectId), (list) => (list ? [created, ...list] : list));
       qc.invalidateQueries({ queryKey: queryKeys.changeRequests.all(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.branches.all(projectId) });
     },

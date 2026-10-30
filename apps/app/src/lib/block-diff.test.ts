@@ -19,6 +19,14 @@ describe('splitBlocks', () => {
     ]);
   });
 
+  it('closes a component whose closing tag follows a paragraph line', () => {
+    expect(splitBlocks('<Card>\n\nInside text\n</Card>\n\nAfter\n\nMore')).toEqual(['<Card>\n\nInside text\n</Card>', 'After', 'More']);
+  });
+
+  it('ignores component tags inside inline code and fenced code', () => {
+    expect(splitBlocks('Use `<Card>` here\n\n```\n<Steps>\n```\n\nAfter')).toEqual(['Use `<Card>` here', '```\n<Steps>\n```', 'After']);
+  });
+
   it('ends an unclosed component at the end of the document', () => {
     expect(splitBlocks('Before\n\n<Steps>\n\nStep one\n')).toEqual(['Before', '<Steps>\n\nStep one']);
   });

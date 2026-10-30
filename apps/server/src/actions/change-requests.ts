@@ -2,7 +2,7 @@ import { type ChangeRequestStatus, Prisma, prisma } from '@nibleaf/database';
 import type { Locale } from '@nibleaf/i18n/locales';
 import { changerequest_defaulttitle } from '@nibleaf/i18n/messages';
 import type { CreateChangeRequestBody, UpdateChangeRequestBody } from '@nibleaf/validators';
-import { badRequest, conflict, notFound } from '@/errors';
+import { conflict, notFound } from '@/errors';
 import { assertNoTrackedChangeRequests, createBranch, getDefaultBranch } from './branches';
 import { type ForkBase, type MergedFields, type MergePage, type MergeRecordEntry, planMerge, summarizeChanges } from './change-request-merge';
 
@@ -33,7 +33,7 @@ const userSelect = { select: { id: true, name: true, image: true } } as const;
 const internalColumns = { mergeRecord: true, forkBase: true } as const;
 
 /** Default title of a change request opened by `name`, in the caller's interface locale. */
-export const defaultChangeRequestTitle = (name: string, locale?: Locale) => changerequest_defaulttitle({ name }, { locale });
+const defaultChangeRequestTitle = (name: string, locale?: Locale) => changerequest_defaulttitle({ name }, { locale });
 
 const findChangeRequest = async (projectId: string, number: number) => {
   const changeRequest = await prisma.changeRequest.findUnique({ where: { projectId_number: { projectId, number } } });
@@ -230,11 +230,4 @@ export const getChangeRequestPageDiff = async (projectId: string, number: number
   }
   const source = page.sourcePageId ? await prisma.page.findFirst({ where: { id: page.sourcePageId, projectId, branchId: main.id } }) : null;
   return { main: diffSide(source), change: diffSide(page) };
-};
-
-/** The change request backed by a branch; every non-default branch except import replacements has one. */
-export const changeRequestNumberForBranch = async (projectId: string, branchId: string) => {
-  const changeRequest = await prisma.changeRequest.findFirst({ where: { projectId, branchId }, select: { number: true } });
-  if (!changeRequest) throw badRequest('This branch has no change request to merge.', { branchId });
-  return changeRequest.number;
 };

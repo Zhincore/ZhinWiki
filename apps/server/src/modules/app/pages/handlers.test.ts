@@ -5,8 +5,8 @@ import { AppError } from '@/errors';
 import type { HonoEnv } from '@/lib/hono/context';
 
 const mocks = vi.hoisted(() => ({
-  /** Ids of the pages that live on the default branch. */
-  mainPages: new Set<string>(),
+  /** Branch of each page; `cr` is open, `archived` and `import` are not. */
+  pageBranches: new Map<string, string>(),
   createPage: vi.fn(async () => ({ id: 'new' })),
   updatePage: vi.fn(async () => ({ id: 'page' })),
   deletePage: vi.fn(async () => ({ id: 'page' })),
@@ -19,7 +19,12 @@ vi.mock('@nibleaf/database', () => ({
     project: { findUnique: vi.fn(async () => ({ id: 'project', organizationId: 'org' })) },
     branch: { findMany: vi.fn(async () => [{ id: 'main', isDefault: true }]) },
     page: {
-      count: vi.fn(async ({ where }: { where: { id: { in: string[] } } }) => where.id.in.filter((id) => mocks.mainPages.has(id)).length),
+      findMany: vi.fn(async ({ where }: { where: { id: { in: string[] } } }) =>
+        [...new Set(where.id.in.flatMap((id) => mocks.pageBranches.get(id) ?? []))].map((branchId) => ({ branchId })),
+      ),
+    },
+    changeRequest: {
+      count: vi.fn(async ({ where }: { where: { branchId: { in: string[] } } }) => where.branchId.in.filter((id) => id === 'cr').length),
     },
   },
 }));
@@ -60,15 +65,22 @@ const send = (method: string, path: string, body?: unknown) =>
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 
-const expectLocked = async (response: Response) => {
+const expectLocked = async (response: Response, code = 'pages:main_read_only') => {
   expect(response.status).toBe(409);
-  expect(await response.json()).toMatchObject({ error: { code: 'pages:main_read_only' } });
+  expect(await response.json()).toMatchObject({ error: { code } });
 };
 
 describe('page writes on the default branch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.mainPages = new Set(['main-page', 'main-parent']);
+    mocks.pageBranches = new Map([
+      ['main-page', 'main'],
+      ['main-parent', 'main'],
+      ['cr-page', 'cr'],
+      ['cr-parent', 'cr'],
+      ['archived-page', 'archived'],
+      ['import-page', 'import'],
+    ]);
   });
 
   it('refuses creating a page on main, directly or under a main parent', async () => {
@@ -107,5 +119,24 @@ describe('page writes on the default branch', () => {
     expect(mocks.updatePage).toHaveBeenCalledOnce();
     expect(mocks.deletePage).toHaveBeenCalledOnce();
     expect(mocks.reorderPages).toHaveBeenCalledOnce();
+  });
+
+  it('refuses writes to pages of closed change requests and branches without one', async () => {
+    await expectLocked(await send('PATCH', '/archived-page', { title: 'Edited' }), 'pages:branch_read_only');
+    await expectLocked(await send('DELETE', '/import-page'), 'pages:branch_read_only');
+    await expectLocked(await send('POST', '', { title: 'New', languageId: 'en', branchId: 'archived' }), 'pages:branch_read_only');
+    await expectLocked(
+      await send('POST', '/reorder', {
+        items: [
+          { id: 'cr-page', parentId: null, position: 0 },
+          { id: 'archived-page', parentId: null, position: 1 },
+        ],
+      }),
+      'pages:branch_read_only',
+    );
+    expect(mocks.createPage).not.toHaveBeenCalled();
+    expect(mocks.updatePage).not.toHaveBeenCalled();
+    expect(mocks.deletePage).not.toHaveBeenCalled();
+    expect(mocks.reorderPages).not.toHaveBeenCalled();
   });
 });

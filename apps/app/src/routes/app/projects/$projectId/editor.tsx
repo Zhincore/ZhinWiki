@@ -185,6 +185,10 @@ function EditorPage() {
   }, [pageParam]);
   const firstPageId = useMemo(() => (allPages ?? []).find((p) => p.kind === 'PAGE')?.id ?? null, [allPages]);
   const selectedNode = useMemo(() => (allPages ?? []).find((p) => p.id === selectedId) ?? null, [allPages, selectedId]);
+  // Without a selection the first page opens; selecting it keeps it open across the switch below.
+  useEffect(() => {
+    if (!selectedId && firstPageId) setSelectedId(firstPageId);
+  }, [selectedId, firstPageId]);
   // Switching between main and change requests keeps the open page: ids map
   // through the main page a change-request copy was made from.
   const selectedMainId = useRef<{ id: string; mainId: string } | null>(null);

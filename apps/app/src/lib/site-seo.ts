@@ -16,7 +16,7 @@ function publicOrigin(): string {
   const configured = env?.APP_URL ?? 'http://localhost:4310';
   try {
     const parsed = new URL(configured);
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return configured;
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.origin;
   } catch {
     // Preserve head rendering when an SSR environment has no usable app origin.
   }

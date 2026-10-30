@@ -16,6 +16,7 @@ export const Route = createFileRoute('/sites/$projectId/changelog')({
     let site: SiteShell;
     try {
       const parent = await parentMatchPromise;
+      if (parent?.status === 'error') throw parent.error;
       const parentSite = (parent?.loaderData as { site?: SiteShell | null } | undefined)?.site;
       if (parentSite === null) throw notFound();
       site = parentSite ?? (await getSiteFn({ data: { projectId: params.projectId, language: deps.lang } }));

@@ -91,6 +91,19 @@ it('reuses the loaded parent shell without another getSite call', async () => {
   expect(mocks.getSite).not.toHaveBeenCalled();
 });
 
+it('rethrows a failed parent load without another shell lookup', async () => {
+  const failure = new Error('rate limited');
+  const loader = Route.options.loader as (input: {
+    params: { projectId: string };
+    deps: { lang: string };
+    parentMatchPromise: Promise<{ status: string; error: unknown }>;
+  }) => Promise<unknown>;
+  await expect(
+    loader({ params: { projectId: 'qa-site' }, deps: { lang: 'ar' }, parentMatchPromise: Promise.resolve({ status: 'error', error: failure }) }),
+  ).rejects.toBe(failure);
+  expect(mocks.getSite).not.toHaveBeenCalled();
+});
+
 it('returns notFound for a privacy-hidden parent without another shell lookup', async () => {
   const loader = Route.options.loader as (input: {
     params: { projectId: string };

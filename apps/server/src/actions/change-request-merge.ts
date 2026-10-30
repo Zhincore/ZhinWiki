@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { markdownKey } from '@nibleaf/shared/markdown-key';
 import { joinPath } from '@nibleaf/shared/utils';
 
 /** The page columns a change-request merge reads. */
@@ -88,8 +89,10 @@ const hash = (value: unknown) =>
     .slice(0, 32);
 
 /** Hash of the content group (kind, title, slug, icon, description, content,
- *  config, hidden, translationKey), which decides conflicts. */
-export const contentHash = (page: Pick<MergePage, (typeof CONTENT_FIELDS)[number]>) => hash(CONTENT_FIELDS.map((field) => page[field]));
+ *  config, hidden, translationKey), which decides conflicts. Content is hashed
+ *  by its Markdown key, so re-wrapped paragraphs count as unchanged. */
+export const contentHash = (page: Pick<MergePage, (typeof CONTENT_FIELDS)[number]>) =>
+  hash(CONTENT_FIELDS.map((field) => (field === 'content' ? markdownKey(page.content) : page[field])));
 const parentHash = (parentKey: string | null) => hash([parentKey]);
 const positionHash = (position: number) => hash([position]);
 

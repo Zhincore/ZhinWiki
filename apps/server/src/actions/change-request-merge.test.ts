@@ -114,6 +114,20 @@ describe('planMerge', () => {
     expect(plan.updates).toEqual([]);
   });
 
+  it('treats re-wrapped paragraphs as unchanged on either side', () => {
+    const wrapped = 'First line\nwrapped.\n\nSecond.\n';
+    const rewrapped = page('m1', { content: wrapped });
+    const edited = page('m2', { content: wrapped, position: 1 });
+    const branch = [
+      { ...fork(rewrapped, 'b1'), content: 'First line wrapped.\n\nSecond.' },
+      { ...fork(edited, 'b2'), content: 'First line wrapped.\n\nSecond, edited.' },
+    ];
+    const main = [rewrapped, { ...edited, content: 'First line wrapped.\n\nSecond.' }];
+    const plan = merged(planMerge({ main, branch, forkBase: baseOf(rewrapped, edited), force: none }));
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.updates).toEqual([{ id: 'm2', data: expect.objectContaining({ content: 'First line wrapped.\n\nSecond, edited.' }) }]);
+  });
+
   it('reports deletions that race an edit on the other side', () => {
     const editedOnMain = page('m1');
     const deletedOnMain = page('m2', { position: 1 });

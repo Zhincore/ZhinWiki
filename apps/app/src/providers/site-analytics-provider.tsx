@@ -5,6 +5,8 @@ import { readSiteStorage, writeSiteStorage } from '@/lib/site-storage';
 
 export type { PublicAnalyticsPayload, SiteAnalyticsConsent } from '@/hooks/api/site-events';
 
+const viewedDocuments = new WeakSet<Document>();
+
 const randomIdFn = (): string => {
   if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   const words = new Uint32Array(4);
@@ -63,27 +65,37 @@ export function SiteAnalyticsProvider({
   );
 
   useEffect(() => {
-    if (path) track({ name: 'page_view', path, referrer: document.referrer || undefined, language });
+    if (!path) return;
+    const referrer = viewedDocuments.has(document) ? undefined : document.referrer || undefined;
+    viewedDocuments.add(document);
+    track({ name: 'page_view', path, referrer, language });
   }, [language, path, track]);
 
   useEffect(() => {
     if (!path) return;
     const started = performance.now();
     let sent = false;
+    let scrollDepth = 0;
+    const measureScroll = () => {
+      const scrollable = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      scrollDepth = Math.max(scrollDepth, Math.min(100, Math.max(0, Math.round((window.scrollY / scrollable) * 100))));
+    };
+    measureScroll();
+    window.addEventListener('scroll', measureScroll, { passive: true });
+    window.addEventListener('resize', measureScroll);
     const sendEngagement = () => {
       if (sent) return;
       const engagementMs = Math.round(performance.now() - started);
       if (engagementMs < 1000) return;
       sent = true;
-      const root = document.documentElement;
-      const scrollable = Math.max(1, root.scrollHeight - window.innerHeight);
-      const scrollDepth = Math.min(100, Math.max(0, Math.round((window.scrollY / scrollable) * 100)));
       track({ name: 'page_engaged', path, language, engagementMs, scrollDepth });
     };
     const onVisibility = () => document.visibilityState === 'hidden' && sendEngagement();
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('scroll', measureScroll);
+      window.removeEventListener('resize', measureScroll);
       sendEngagement();
     };
   }, [language, path, track]);

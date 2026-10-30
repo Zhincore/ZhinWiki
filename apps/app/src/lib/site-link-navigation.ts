@@ -19,7 +19,12 @@ export function siteNavigationHref(
   const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null;
   if (!(anchor instanceof HTMLAnchorElement) || (anchor.target && anchor.target !== '_self') || anchor.hasAttribute('download')) return null;
 
-  const url = new URL(anchor.href, location.href);
+  let url: URL;
+  try {
+    url = new URL(anchor.href, location.href);
+  } catch {
+    return null;
+  }
   if (url.origin !== location.origin || !isDocumentPath(url.pathname)) return null;
   if (url.hash && url.pathname === location.pathname && url.search === location.search) return null;
 
@@ -36,6 +41,28 @@ export function siteNavigationHref(
 export function useSiteLinkNavigation(projectId: string): void {
   const router = useRouter();
   useEffect(() => {
+    let frame = 0;
+    let focusOwner: Element | null = null;
+    let dialogOwnedFocus = false;
+    const beforeNavigate = router.subscribe('onBeforeNavigate', () => {
+      cancelAnimationFrame(frame);
+      focusOwner = document.activeElement;
+      dialogOwnedFocus = !!focusOwner?.closest('[role="dialog"], [role="alertdialog"], dialog');
+    });
+    const rendered = router.subscribe('onRendered', ({ fromLocation, toLocation }) => {
+      if (!fromLocation || (fromLocation.pathname === toLocation.pathname && fromLocation.searchStr === toLocation.searchStr)) return;
+      // Fragment navigation and dialogs retain their own scroll/focus behavior.
+      if (toLocation.hash || dialogOwnedFocus) return;
+      frame = requestAnimationFrame(() => {
+        const active = document.activeElement;
+        if (active !== document.body && active !== focusOwner && active?.isConnected) return;
+        const main = document.querySelector<HTMLElement>('main');
+        const target = main?.querySelector<HTMLElement>('h1') ?? main;
+        if (!target) return;
+        target.tabIndex = -1;
+        target.focus({ preventScroll: true });
+      });
+    });
     const onClick = (event: MouseEvent) => {
       const href = siteNavigationHref(event, projectId, window.location);
       if (!href) return;
@@ -43,6 +70,11 @@ export function useSiteLinkNavigation(projectId: string): void {
       void router.navigate({ href });
     };
     document.addEventListener('click', onClick);
-    return () => document.removeEventListener('click', onClick);
+    return () => {
+      document.removeEventListener('click', onClick);
+      beforeNavigate();
+      rendered();
+      cancelAnimationFrame(frame);
+    };
   }, [router, projectId]);
 }

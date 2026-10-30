@@ -24,7 +24,10 @@ function ReaderContent() {
   );
 }
 
-beforeEach(() => mocks.createEvent.mockReset());
+beforeEach(() => {
+  mocks.createEvent.mockReset();
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+});
 afterEach(async () => {
   for (const root of roots.splice(0)) await act(async () => root.unmount());
   document.body.replaceChildren();
@@ -81,4 +84,63 @@ it('omits a new session ID when session storage cannot write', async () => {
   });
   await render();
   expect(mocks.createEvent).toHaveBeenCalledWith(expect.objectContaining({ consentState: 'not_required', sessionId: undefined }));
+});
+
+it('omits document referrer on client views, including provider remounts', async () => {
+  // A fresh document has not yet emitted a page view.
+  const fresh = document.implementation.createHTMLDocument();
+  Object.defineProperty(fresh, 'referrer', { value: 'https://example.test/source' });
+  vi.stubGlobal('document', fresh);
+  try {
+    await render();
+    expect(mocks.createEvent.mock.lastCall?.[0].payload.referrer).toBe('https://example.test/source');
+    await act(async () =>
+      roots[0]?.render(
+        <SiteAnalyticsProvider projectId="docs" path="next">
+          <ReaderContent />
+        </SiteAnalyticsProvider>,
+      ),
+    );
+    expect(mocks.createEvent.mock.lastCall?.[0].payload.referrer).toBeUndefined();
+    await render();
+    expect(mocks.createEvent.mock.lastCall?.[0].payload.referrer).toBeUndefined();
+    for (const root of roots.splice(0)) await act(async () => root.unmount());
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it('reports the old page maximum scroll depth without reading replacement geometry at cleanup', async () => {
+  let now = 0;
+  vi.spyOn(performance, 'now').mockImplementation(() => now);
+  vi.spyOn(document.documentElement, 'scrollHeight', 'get').mockReturnValue(2000);
+  vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(1000);
+  const scroll = vi.spyOn(window, 'scrollY', 'get').mockReturnValue(0);
+  await render();
+  scroll.mockReturnValue(750);
+  window.dispatchEvent(new Event('scroll'));
+  scroll.mockReturnValue(250);
+  window.dispatchEvent(new Event('scroll'));
+  now = 1500;
+  vi.spyOn(document.documentElement, 'scrollHeight', 'get').mockReturnValue(1000);
+  scroll.mockReturnValue(0);
+  await act(async () =>
+    roots[0]?.render(
+      <SiteAnalyticsProvider projectId="docs" path="next">
+        <ReaderContent />
+      </SiteAnalyticsProvider>,
+    ),
+  );
+  const engagement = mocks.createEvent.mock.calls.map(([event]) => event.payload).find((payload) => payload.name === 'page_engaged');
+  expect(engagement).toMatchObject({ path: 'start', engagementMs: 1500, scrollDepth: 75 });
+  now = 2000;
+  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+  document.dispatchEvent(new Event('visibilitychange'));
+  expect(mocks.createEvent.mock.calls.filter(([event]) => event.payload.name === 'page_engaged')).toHaveLength(1);
+  now = 3000;
+  document.dispatchEvent(new Event('visibilitychange'));
+  expect(mocks.createEvent.mock.lastCall?.[0].payload).toMatchObject({ name: 'page_engaged', path: 'next', scrollDepth: 0 });
+  document.dispatchEvent(new Event('visibilitychange'));
+  expect(mocks.createEvent.mock.calls.filter(([event]) => event.payload.name === 'page_engaged')).toHaveLength(2);
+  Reflect.deleteProperty(document, 'visibilityState');
 });

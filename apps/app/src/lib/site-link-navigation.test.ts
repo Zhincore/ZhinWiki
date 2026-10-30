@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+const router = vi.hoisted(() => ({ subscribe: vi.fn(), navigate: vi.fn() }));
+vi.mock('@tanstack/react-router', () => ({ useRouter: () => router }));
 
 const custom = vi.hoisted(() => ({ domain: false }));
 vi.mock('@/lib/site-paths', () => ({ isCustomDomainSite: () => custom.domain }));
 
-import { siteNavigationHref } from './site-link-navigation';
+import { siteNavigationHref, useSiteLinkNavigation } from './site-link-navigation';
 
 const appHost = { href: 'http://app.test/sites/p1/guide', origin: 'http://app.test', pathname: '/sites/p1/guide', search: '' };
 const domain = { href: 'https://docs.acme.test/guide', origin: 'https://docs.acme.test', pathname: '/guide', search: '' };
@@ -63,4 +68,69 @@ describe('siteNavigationHref', () => {
     Object.defineProperty(event, 'target', { value: anchor });
     expect(siteNavigationHref(event, 'p1', appHost)).toBeNull();
   });
+});
+
+it('leaves malformed URLs to the browser', () => {
+  const anchor = document.createElement('a');
+  anchor.setAttribute('href', 'http://[');
+  const event = new MouseEvent('click', { button: 0 });
+  Object.defineProperty(event, 'target', { value: anchor });
+  expect(siteNavigationHref(event, 'p1', appHost)).toBeNull();
+});
+
+it('focuses rendered headings without moving scroll, respecting fragments and dialog focus', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const listeners: Record<string, (event?: unknown) => void> = {};
+  router.subscribe.mockImplementation((name, callback) => {
+    listeners[name] = callback;
+    return vi.fn();
+  });
+  vi.stubGlobal('requestAnimationFrame', (callback: () => void) => {
+    callback();
+    return 1;
+  });
+  vi.stubGlobal('cancelAnimationFrame', vi.fn());
+  const host = document.createElement('div');
+  document.body.append(host);
+  function Reader() {
+    useSiteLinkNavigation('p1');
+    return null;
+  }
+  const root = createRoot(host);
+  await act(async () => root.render(createElement(Reader)));
+  host.innerHTML = '<main><h1>New page</h1></main>';
+  const heading = host.querySelector('h1');
+  if (!heading) throw new Error('Missing fixture heading');
+  expect(document.activeElement).not.toBe(heading);
+  const render = (hash = '', pathname = '/new') =>
+    listeners.onRendered?.({
+      fromLocation: { pathname: '/old', searchStr: '' },
+      toLocation: { pathname, searchStr: '', hash },
+    });
+  listeners.onBeforeNavigate?.();
+  render();
+  expect(document.activeElement).toBe(heading);
+  expect(heading.tabIndex).toBe(-1);
+  heading.blur();
+  listeners.onBeforeNavigate?.();
+  render('section');
+  expect(document.activeElement).not.toBe(heading);
+  render('', '/old');
+  expect(document.activeElement).not.toBe(heading);
+  const dialog = document.createElement('div');
+  dialog.setAttribute('role', 'dialog');
+  dialog.innerHTML = '<input />';
+  document.body.append(dialog);
+  dialog.querySelector('input')?.focus();
+  listeners.onBeforeNavigate?.();
+  dialog.remove();
+  render();
+  expect(document.activeElement).not.toBe(heading);
+  heading.remove();
+  listeners.onBeforeNavigate?.();
+  render();
+  expect(document.activeElement).toBe(host.querySelector('main'));
+  await act(async () => root.unmount());
+  host.remove();
+  vi.unstubAllGlobals();
 });

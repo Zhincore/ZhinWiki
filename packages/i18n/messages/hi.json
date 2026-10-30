@@ -211,6 +211,7 @@
   "editor_branch_mergeconfirm": "\"{name}\" को मुख्य में प्रचारित करें? यह मुख्य पृष्ठों को इस संस्करण के पृष्ठों से बदल देता है और संस्करण को हटा देता है।",
   "editor_branch_merged": "\"{name}\" को मुख्य रूप से प्रचारित किया गया",
   "editor_branch_mergeerror": "संस्करण का प्रचार नहीं किया जा सका",
+  "changerequest_defaulttitle": "{name} के बदलाव",
   "editor_addlanguage_title": "एक भाषा जोड़ें",
   "editor_addlanguage_desc": "इस साइट के पृष्ठों का एक नया स्थानीय संस्करण बनाएं।",
   "editor_addlanguage_adding": "जोड़ा जा रहा है...",

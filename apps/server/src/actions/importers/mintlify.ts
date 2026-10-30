@@ -1,10 +1,9 @@
 import { type Prisma, prisma } from '@nibleaf/database';
 import { slugify } from '@nibleaf/shared';
-import { instanceBrand } from '@nibleaf/shared/brand/server';
 import type { MintlifyImportBody, ProjectConfig } from '@nibleaf/validators';
 import { badRequest, ImportError } from '@/errors';
 import { importDocumentSchema } from '@/validators/importers';
-import { createImportReplacementBranch, promoteImportReplacementBranch } from '../branches';
+import { createBranch, createImportReplacementBranch, promoteImportReplacementBranch } from '../branches';
 import { createLanguage, updateLanguage } from '../languages';
 import { assertProjectInOrg } from '../projects';
 import { deriveTitle, MAX_IMPORT_FILES, parseFrontmatter, stableHash } from './content';
@@ -127,7 +126,7 @@ export const mintlifyImporter: ImporterSource<MintlifyImportBody> = {
         await importNavigation(nodes, defaultTarget, undefined, input.replaceExisting !== true, repository, baseDir, blobs, assets, summary, state);
       }
       if (state.versions.size > 0) {
-        summary.warnings.push(`Imported Mintlify versions as ${instanceBrand().name} documentation versions: ${[...state.versions].join(', ')}.`);
+        summary.warnings.push(`Imported Mintlify versions as draft change requests: ${[...state.versions].join(', ')}.`);
       }
       summary.assetsImported = assets.migrated;
       summary.assetsSkipped = assets.skipped;
@@ -189,7 +188,7 @@ const ensureVersionTarget = async (
     return defaultTarget;
   }
   const existing = await prisma.branch.findFirst({ where: { projectId, name: version.name } });
-  const branch = existing ?? (await prisma.branch.create({ data: { projectId, name: version.name, isDefault: false } }));
+  const branch = existing ?? (await createBranch(projectId, { name: version.name, title: version.name, authorId: null, fork: false }));
   return { ...defaultTarget, branchId: branch.id };
 };
 
@@ -207,21 +206,17 @@ const importNavigation = async (
   languageNavigation: readonly MintlifyLanguageNavigation[] = [],
 ) => {
   const { unversioned, versions } = partitionMintlifyVersions(sourceNodes);
-  const partitions =
-    versions.length === 0
-      ? [{ nodes: [...unversioned], target: defaultTarget, versionName: undefined }]
-      : await Promise.all(
-          [...versions]
-            .sort((left, right) => Number(right.isDefault) - Number(left.isDefault))
-            .map(async (version) => {
-              state.versions.add(version.name);
-              return {
-                nodes: version.isDefault ? [...unversioned, ...version.nodes] : [...version.nodes],
-                target: await ensureVersionTarget(defaultTarget.projectId, defaultTarget, version, summary),
-                versionName: version.name,
-              };
-            }),
-        );
+  const partitions: { nodes: NavNode[]; target: ImportTarget; versionName: string | undefined }[] = [];
+  if (versions.length === 0) partitions.push({ nodes: [...unversioned], target: defaultTarget, versionName: undefined });
+  // Sequential: each version becomes a change request numbered after the previous one.
+  for (const version of [...versions].sort((left, right) => Number(right.isDefault) - Number(left.isDefault))) {
+    state.versions.add(version.name);
+    partitions.push({
+      nodes: version.isDefault ? [...unversioned, ...version.nodes] : [...version.nodes],
+      target: await ensureVersionTarget(defaultTarget.projectId, defaultTarget, version, summary),
+      versionName: version.name,
+    });
+  }
   for (const partition of partitions) {
     if (includeLinkedPages) await addLinkedPages(partition.nodes, languageCode, repository, baseDir, blobs, summary);
     const removedPlaceholders = await removeImportPlaceholders(partition.target);

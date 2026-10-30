@@ -4,7 +4,7 @@ import { Prisma, prisma } from '@nibleaf/database';
 import { projectAddonRowsForDelivery } from '@nibleaf/shared/addons';
 import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { type RedirectValidationIssue, summarizeRedirectIssues, validateSnapshotRedirects } from '@nibleaf/shared/redirects';
-import { buildSnapshot, type SiteSnapshot, type SnapshotPage } from '@nibleaf/shared/site';
+import { buildSnapshot, defaultVersionOnly, type SiteSnapshot, type SnapshotPage } from '@nibleaf/shared/site';
 import type { CreateDeploymentBody } from '@nibleaf/validators';
 import { diffLines } from 'diff';
 import { badRequest, notFound } from '@/errors';
@@ -90,7 +90,7 @@ export const getCurrentSnapshot = async (projectId: string): Promise<SiteSnapsho
     where: { id: projectId },
     include: {
       languages: { orderBy: { position: 'asc' }, include: { projectTranslations: { take: 1 } } },
-      branches: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] },
+      branches: { where: { isDefault: true } },
       openApiDocument: true,
       addons: { select: { key: true, enabled: true, config: true } },
       organization: {
@@ -329,8 +329,8 @@ export const getDeploymentDiff = async (projectId: string, id: string) => {
     orderBy: { version: 'desc' },
   });
 
-  const currentSnapshot = deployment.snapshot as unknown as SiteSnapshot;
-  const previousSnapshot = previousDeployment?.snapshot ? (previousDeployment.snapshot as unknown as SiteSnapshot) : null;
+  const currentSnapshot = defaultVersionOnly(deployment.snapshot as unknown as SiteSnapshot);
+  const previousSnapshot = previousDeployment?.snapshot ? defaultVersionOnly(previousDeployment.snapshot as unknown as SiteSnapshot) : null;
   const previousPages = previousSnapshot ? previousSnapshot.pages : [];
   const previousById = new Map(previousPages.map((page) => [page.id, page]));
   const currentIds = new Set(currentSnapshot.pages.map((page) => page.id));
@@ -377,7 +377,7 @@ export const getPendingChanges = async (projectId: string): Promise<PendingChang
     };
   }
 
-  const snap = latest.snapshot as unknown as SiteSnapshot;
+  const snap = defaultVersionOnly(latest.snapshot as unknown as SiteSnapshot);
   const prevById = new Map(snap.pages.map((p) => [p.id, p]));
   const currentIds = new Set(current.map((p) => p.id));
   const changes: PendingChange[] = [];
@@ -488,14 +488,15 @@ export const rollbackDeployment = async (organizationId: string, projectId: stri
   if (target.status !== 'READY' || !target.snapshot) {
     throw badRequest('Only a published deployment with a snapshot can be rolled back to.', { id: deploymentId });
   }
+  const snapshot = defaultVersionOnly(target.snapshot as unknown as SiteSnapshot);
   return createWithNextVersion(projectId, (version) =>
     prisma.deployment.create({
       data: {
         projectId,
         version,
         status: 'READY',
-        snapshot: target.snapshot as Prisma.InputJsonValue,
-        pagesCount: target.pagesCount,
+        snapshot: snapshot as unknown as Prisma.InputJsonValue,
+        pagesCount: snapshot.pages.filter((page) => page.kind === 'PAGE').length,
         commitMessage: `Rollback to v${target.version}`,
         createdById: userId,
         completedAt: new Date(),

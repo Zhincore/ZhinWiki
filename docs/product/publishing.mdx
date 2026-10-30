@@ -27,8 +27,9 @@ Check the pages that changed:
 - Title, description, slug, indexing, and language relationships are correct.
 - Failure recovery is documented for destructive or operational tasks.
 
-For a large change, merge a reviewed documentation branch into the default
-draft before selecting **Publish**.
+For a large change, merge a reviewed change request into the default draft
+before selecting **Publish**. Only the default branch is published; open change
+requests never reach the public site, search, sitemap, or `llms.txt`.
 
 When the CI-check add-on is enabled, the worker runs the configured local gates
 before creating a ready deployment. Enabled broken-link checks always block on

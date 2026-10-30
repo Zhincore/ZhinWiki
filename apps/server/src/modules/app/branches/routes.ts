@@ -16,13 +16,13 @@ const branchesRoutes = {
   create: createRouteConfig({
     guard: [...editor],
     tags: ['branches'],
-    description: 'Create a branch by forking another.',
+    description: 'Create a branch (a copy of the default branch) with its change request.',
     responses: { 201: { description: 'created' }, ...errorResponses },
   }),
   merge: createRouteConfig({
     guard: [...editor],
     tags: ['branches'],
-    description: "Merge a branch into the default branch ('main').",
+    description: "Merge a branch's change request into the default branch ('main').",
     responses: ok,
   }),
   remove: createRouteConfig({ guard: [...editor], tags: ['branches'], description: 'Delete a non-default branch.', responses: ok }),

@@ -28,7 +28,8 @@ prefers `docs.json`, resolves repository-local `.json` `$ref` files, reads
 languages, versions, products, tabs, menu items, groups, group roots, and pages relative to that file, imports linked
 internal pages omitted from navigation, and preserves existing target settings
 when they are already populated. Mintlify languages become Nibleaf languages,
-and Mintlify versions become Nibleaf documentation versions backed by branches.
+and Mintlify versions become draft change requests, because only the default
+branch is published.
 A single import creates at most 500 navigation
 nodes, including groups and pages; sources above that boundary must be split and
 their totals reconciled before cutover.

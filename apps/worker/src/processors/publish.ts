@@ -362,7 +362,7 @@ export async function handlePublishJobs(job: Job<PublishDeploymentJobData>): Pro
       where: { id: projectId },
       include: {
         languages: { orderBy: { position: 'asc' }, include: { projectTranslations: { take: 1 } } },
-        branches: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] },
+        branches: { where: { isDefault: true } },
         openApiDocument: true,
         addons: { select: { key: true, enabled: true, config: true } },
         organization: {
@@ -399,8 +399,7 @@ export async function handlePublishJobs(job: Job<PublishDeploymentJobData>): Pro
     if (project.takedownAt) {
       throw new Error('This site has been taken down by the platform moderators and cannot be published.');
     }
-    // Publish every branch as an addressable docs version. This keeps v1 live
-    // while v2 is being authored, and visitors can switch versions on the site.
+    // Only the default branch is published; other branches hold unmerged change requests.
     const branchIds = project.branches.map((branch) => branch.id);
     const pages = await prisma.page.findMany({
       where: { projectId, branchId: { in: branchIds } },

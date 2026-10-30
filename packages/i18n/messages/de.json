@@ -211,6 +211,7 @@
   "editor_branch_mergeconfirm": "„{name}“ in „main“ hochstufen? Dadurch werden die Hauptseiten durch die Seiten dieser Version ersetzt und die Version entfernt.",
   "editor_branch_merged": "„{name}“ in die Hauptdatei hochgestuft",
   "editor_branch_mergeerror": "Die Version konnte nicht hochgestuft werden",
+  "changerequest_defaulttitle": "Änderungen von {name}",
   "editor_addlanguage_title": "Fügen Sie eine Sprache hinzu",
   "editor_addlanguage_desc": "Erstellen Sie eine neue lokalisierte Version der Seiten dieser Website.",
   "editor_addlanguage_adding": "Hinzufügen…",

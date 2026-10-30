@@ -211,6 +211,7 @@
   "editor_branch_mergeconfirm": "Продвигать «{name}» в главную? Это заменяет главные страницы страницами этой версии и удаляет версию.",
   "editor_branch_merged": "«{name}» повышен до основного.",
   "editor_branch_mergeerror": "Не удалось продвигать версию",
+  "changerequest_defaulttitle": "Изменения {name}",
   "editor_addlanguage_title": "Добавить язык",
   "editor_addlanguage_desc": "Создайте новую локализованную версию страниц этого сайта.",
   "editor_addlanguage_adding": "Добавление…",

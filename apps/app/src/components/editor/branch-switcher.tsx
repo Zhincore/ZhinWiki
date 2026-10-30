@@ -91,7 +91,7 @@ export function BranchSwitcher({
       return;
     }
     create.mutate(
-      { name: trimmed, fromBranchId: active?.id },
+      { name: trimmed },
       {
         onSuccess: (branch) => {
           toast.success(t('editor.branch.created', { name: branch.name }));

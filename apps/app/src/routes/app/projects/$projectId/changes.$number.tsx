@@ -369,7 +369,13 @@ function ChangesTab({
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-[820px]">
             <Suspense fallback={diffSkeleton}>
-              <PageDiff projectId={projectId} number={changeRequest.number} pageId={changeKey(active)} dir={languageDir(languages, active)} />
+              <PageDiff
+                key={changeKey(active)}
+                projectId={projectId}
+                number={changeRequest.number}
+                pageId={changeKey(active)}
+                dir={languageDir(languages, active)}
+              />
             </Suspense>
           </div>
         </div>

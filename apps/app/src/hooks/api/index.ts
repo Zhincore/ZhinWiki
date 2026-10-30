@@ -1,4 +1,5 @@
 export * from './analytics';
+export * from './change-requests';
 export * from './exports';
 export * from './git-workflow';
 export * from './imports';

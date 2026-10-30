@@ -4,7 +4,6 @@ import type {
   AddDomainBody,
   AiDraftBody,
   CreateApiKeyBody,
-  CreateBranchBody,
   CreateCommentBody,
   CreateLanguageBody,
   CreatePageBody,
@@ -503,29 +502,6 @@ export const useDeleteLanguage = (projectId: string) => {
       qc.invalidateQueries({ queryKey: queryKeys.languages.all(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
-    },
-  });
-};
-
-// ─── Branches ────────────────────────────────────────────────────────────────
-
-export const useCreateBranch = (projectId: string) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (body: CreateBranchBody) =>
-      mutateData(await api.app.projects[':projectId'].branches.$post({ param: { projectId }, json: body }), 'Could not create the branch.'),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.branches.all(projectId) }),
-  });
-};
-
-export const useMergeBranch = (projectId: string) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) =>
-      mutateData(await api.app.projects[':projectId'].branches[':id'].merge.$post({ param: { projectId, id } }), 'Could not merge the branch.'),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.branches.all(projectId) });
-      qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
     },
   });
 };

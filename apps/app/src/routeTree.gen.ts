@@ -37,6 +37,8 @@ import { Route as AppProjectsProjectIdAnalyticsRouteImport } from './routes/app/
 import { Route as AppProjectsProjectIdEditorRouteImport } from './routes/app/projects/$projectId/editor'
 import { Route as AppProjectsProjectIdPreviewRouteImport } from './routes/app/projects/$projectId/preview'
 import { Route as AppProjectsProjectIdSettingsRouteImport } from './routes/app/projects/$projectId/settings'
+import { Route as AppProjectsProjectIdChangesIndexRouteImport } from './routes/app/projects/$projectId/changes.index'
+import { Route as AppProjectsProjectIdChangesNumberRouteImport } from './routes/app/projects/$projectId/changes.$number'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -183,6 +185,18 @@ const AppProjectsProjectIdSettingsRoute =
     path: '/settings',
     getParentRoute: () => AppProjectsProjectIdRouteRoute,
   } as any)
+const AppProjectsProjectIdChangesIndexRoute =
+  AppProjectsProjectIdChangesIndexRouteImport.update({
+    id: '/changes/',
+    path: '/changes/',
+    getParentRoute: () => AppProjectsProjectIdRouteRoute,
+  } as any)
+const AppProjectsProjectIdChangesNumberRoute =
+  AppProjectsProjectIdChangesNumberRouteImport.update({
+    id: '/changes/$number',
+    path: '/changes/$number',
+    getParentRoute: () => AppProjectsProjectIdRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -211,6 +225,8 @@ export interface FileRoutesByFullPath {
   '/app/projects/$projectId/preview': typeof AppProjectsProjectIdPreviewRoute
   '/app/projects/$projectId/settings': typeof AppProjectsProjectIdSettingsRoute
   '/app/projects/$projectId/': typeof AppProjectsProjectIdIndexRoute
+  '/app/projects/$projectId/changes/$number': typeof AppProjectsProjectIdChangesNumberRoute
+  '/app/projects/$projectId/changes/': typeof AppProjectsProjectIdChangesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -236,6 +252,8 @@ export interface FileRoutesByTo {
   '/app/projects/$projectId/preview': typeof AppProjectsProjectIdPreviewRoute
   '/app/projects/$projectId/settings': typeof AppProjectsProjectIdSettingsRoute
   '/app/projects/$projectId': typeof AppProjectsProjectIdIndexRoute
+  '/app/projects/$projectId/changes/$number': typeof AppProjectsProjectIdChangesNumberRoute
+  '/app/projects/$projectId/changes': typeof AppProjectsProjectIdChangesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -267,6 +285,8 @@ export interface FileRoutesById {
   '/app/projects/$projectId/preview': typeof AppProjectsProjectIdPreviewRoute
   '/app/projects/$projectId/settings': typeof AppProjectsProjectIdSettingsRoute
   '/app/projects/$projectId/': typeof AppProjectsProjectIdIndexRoute
+  '/app/projects/$projectId/changes/$number': typeof AppProjectsProjectIdChangesNumberRoute
+  '/app/projects/$projectId/changes/': typeof AppProjectsProjectIdChangesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -297,6 +317,8 @@ export interface FileRouteTypes {
     | '/app/projects/$projectId/preview'
     | '/app/projects/$projectId/settings'
     | '/app/projects/$projectId/'
+    | '/app/projects/$projectId/changes/$number'
+    | '/app/projects/$projectId/changes/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -322,6 +344,8 @@ export interface FileRouteTypes {
     | '/app/projects/$projectId/preview'
     | '/app/projects/$projectId/settings'
     | '/app/projects/$projectId'
+    | '/app/projects/$projectId/changes/$number'
+    | '/app/projects/$projectId/changes'
   id:
     | '__root__'
     | '/'
@@ -352,6 +376,8 @@ export interface FileRouteTypes {
     | '/app/projects/$projectId/preview'
     | '/app/projects/$projectId/settings'
     | '/app/projects/$projectId/'
+    | '/app/projects/$projectId/changes/$number'
+    | '/app/projects/$projectId/changes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -563,6 +589,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProjectsProjectIdSettingsRouteImport
       parentRoute: typeof AppProjectsProjectIdRouteRoute
     }
+    '/app/projects/$projectId/changes/': {
+      id: '/app/projects/$projectId/changes/'
+      path: '/changes'
+      fullPath: '/app/projects/$projectId/changes/'
+      preLoaderRoute: typeof AppProjectsProjectIdChangesIndexRouteImport
+      parentRoute: typeof AppProjectsProjectIdRouteRoute
+    }
+    '/app/projects/$projectId/changes/$number': {
+      id: '/app/projects/$projectId/changes/$number'
+      path: '/changes/$number'
+      fullPath: '/app/projects/$projectId/changes/$number'
+      preLoaderRoute: typeof AppProjectsProjectIdChangesNumberRouteImport
+      parentRoute: typeof AppProjectsProjectIdRouteRoute
+    }
   }
 }
 
@@ -611,6 +651,8 @@ interface AppProjectsProjectIdRouteRouteChildren {
   AppProjectsProjectIdPreviewRoute: typeof AppProjectsProjectIdPreviewRoute
   AppProjectsProjectIdSettingsRoute: typeof AppProjectsProjectIdSettingsRoute
   AppProjectsProjectIdIndexRoute: typeof AppProjectsProjectIdIndexRoute
+  AppProjectsProjectIdChangesNumberRoute: typeof AppProjectsProjectIdChangesNumberRoute
+  AppProjectsProjectIdChangesIndexRoute: typeof AppProjectsProjectIdChangesIndexRoute
 }
 
 const AppProjectsProjectIdRouteRouteChildren: AppProjectsProjectIdRouteRouteChildren =
@@ -620,6 +662,10 @@ const AppProjectsProjectIdRouteRouteChildren: AppProjectsProjectIdRouteRouteChil
     AppProjectsProjectIdPreviewRoute: AppProjectsProjectIdPreviewRoute,
     AppProjectsProjectIdSettingsRoute: AppProjectsProjectIdSettingsRoute,
     AppProjectsProjectIdIndexRoute: AppProjectsProjectIdIndexRoute,
+    AppProjectsProjectIdChangesNumberRoute:
+      AppProjectsProjectIdChangesNumberRoute,
+    AppProjectsProjectIdChangesIndexRoute:
+      AppProjectsProjectIdChangesIndexRoute,
   }
 
 const AppProjectsProjectIdRouteRouteWithChildren =

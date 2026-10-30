@@ -12,7 +12,7 @@ import {
 import type { MessageKey } from '@nibleaf/i18n';
 import { useLocale } from '@nibleaf/i18n/react';
 import { Link, useRouterState } from '@tanstack/react-router';
-import { BarChart3, LayoutDashboard, type LucideIcon, PenLine, Settings as SettingsIcon } from 'lucide-react';
+import { BarChart3, GitPullRequest, LayoutDashboard, type LucideIcon, PenLine, Settings as SettingsIcon } from 'lucide-react';
 import { SidebarAccountFooter } from '@/components/app/sidebar-account-footer';
 import { SiteSwitcher } from '@/components/app/site-switcher';
 
@@ -29,6 +29,12 @@ export function ProjectSidebar({ projectId }: { projectId: string }) {
   const nav: NavItem[] = [
     { labelKey: 'project.overview', to: '/app/projects/$projectId', icon: LayoutDashboard, isActive: pathname === base },
     { labelKey: 'project.editor', to: '/app/projects/$projectId/editor', icon: PenLine, isActive: pathname.startsWith(`${base}/editor`) },
+    {
+      labelKey: 'changeRequest.title',
+      to: '/app/projects/$projectId/changes',
+      icon: GitPullRequest,
+      isActive: pathname.startsWith(`${base}/changes`),
+    },
     { labelKey: 'project.analytics', to: '/app/projects/$projectId/analytics', icon: BarChart3, isActive: pathname.startsWith(`${base}/analytics`) },
     { labelKey: 'project.settings', to: '/app/projects/$projectId/settings', icon: SettingsIcon, isActive: pathname.startsWith(`${base}/settings`) },
   ];

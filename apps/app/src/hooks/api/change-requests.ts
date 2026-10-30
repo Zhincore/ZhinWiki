@@ -1,0 +1,78 @@
+import type { CreateChangeRequestBody, UpdateChangeRequestBody } from '@nibleaf/validators';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/services/api';
+import { getData, mutateData } from './client-helpers';
+import { queryKeys } from './query-keys';
+import type { ChangeRequest, ChangeRequestDetail, ChangeRequestPageDiff } from './types';
+
+const changeRequests = api.app.projects[':projectId']['change-requests'];
+
+/** Every change request of a project, newest first. */
+export const useChangeRequests = (projectId: string | undefined) =>
+  useQuery({
+    queryKey: queryKeys.changeRequests.all(projectId ?? ''),
+    enabled: Boolean(projectId),
+    queryFn: async () => getData<ChangeRequest[]>(await changeRequests.$get({ param: { projectId: projectId ?? '' }, query: {} }), 'change requests'),
+  });
+
+/** One change request with the pages it changes and its current merge conflicts. */
+export const useChangeRequest = (projectId: string, number: number | undefined) =>
+  useQuery({
+    queryKey: queryKeys.changeRequests.detail(projectId, number ?? 0),
+    enabled: number !== undefined,
+    queryFn: async () =>
+      getData<ChangeRequestDetail>(await changeRequests[':number'].$get({ param: { projectId, number: String(number) } }), 'change request'),
+  });
+
+export const useChangeRequestPageDiff = (projectId: string, number: number, pageId: string | undefined) =>
+  useQuery({
+    queryKey: queryKeys.changeRequests.pageDiff(projectId, number, pageId ?? ''),
+    enabled: Boolean(pageId),
+    queryFn: async () =>
+      getData<ChangeRequestPageDiff>(
+        await changeRequests[':number'].pages[':pageId'].diff.$get({ param: { projectId, number: String(number), pageId: pageId ?? '' } }),
+        'page changes',
+      ),
+  });
+
+export const useCreateChangeRequest = (projectId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: CreateChangeRequestBody) =>
+      mutateData<ChangeRequest>(await changeRequests.$post({ param: { projectId }, json: body }), 'Could not open a change request.'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.changeRequests.all(projectId) });
+      qc.invalidateQueries({ queryKey: queryKeys.branches.all(projectId) });
+    },
+  });
+};
+
+export const useUpdateChangeRequest = (projectId: string, number: number) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: UpdateChangeRequestBody) =>
+      mutateData<ChangeRequest>(
+        await changeRequests[':number'].$patch({ param: { projectId, number: String(number) }, json: body }),
+        'Could not update the change request.',
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.changeRequests.all(projectId) }),
+  });
+};
+
+/** Merge into main. A 409 carries `details.conflicts`; `force` names the conflicting pages the change request wins on. */
+export const useMergeChangeRequest = (projectId: string, number: number) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (force: string[]) =>
+      mutateData<ChangeRequest>(
+        await changeRequests[':number'].merge.$post({ param: { projectId, number: String(number) }, json: { force } }),
+        'Could not merge the change request.',
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.changeRequests.all(projectId) });
+      qc.invalidateQueries({ queryKey: queryKeys.branches.all(projectId) });
+      qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
+      qc.invalidateQueries({ queryKey: queryKeys.deployments.changes(projectId) });
+    },
+  });
+};

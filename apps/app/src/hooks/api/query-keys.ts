@@ -20,6 +20,11 @@ export const queryKeys = {
   branches: {
     all: (projectId: string) => ['branches', projectId] as const,
   },
+  changeRequests: {
+    all: (projectId: string) => ['change-requests', projectId] as const,
+    detail: (projectId: string, number: number) => ['change-requests', projectId, number] as const,
+    pageDiff: (projectId: string, number: number, pageId: string) => ['change-requests', projectId, number, 'diff', pageId] as const,
+  },
   deployments: {
     all: (projectId: string) => ['deployments', projectId] as const,
     latest: (projectId: string) => ['deployments', projectId, 'latest'] as const,

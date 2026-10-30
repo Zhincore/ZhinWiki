@@ -77,10 +77,10 @@ export function ProjectLayout({ projectId, children }: { projectId: string; chil
   const t = useT();
   const { data: project } = useProject(projectId);
   const previewEnabled = project ? project.config?.addons?.previewDeployments !== false : false;
-  // The editor is a focused, full-screen workspace (Mintlify-style): it renders
-  // its OWN chrome (top bar + page-tree sidebar) and hides the dashboard nav.
+  // The editor and a change request are focused, full-screen workspaces: they
+  // render their OWN chrome (top bar + sidebar) and hide the dashboard nav.
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  if (pathname.endsWith('/editor')) {
+  if (pathname.endsWith('/editor') || /\/changes\/\d+\/?$/.test(pathname)) {
     return <div className="h-screen overflow-hidden">{children}</div>;
   }
 

@@ -27,7 +27,8 @@ import type { PageNode } from '@/hooks/api';
  * floating drag overlay. Emits the full reorder set ({id, parentId, position})
  * which the editor sends to the reorderPages mutation. Children of a dragged
  * node move with it (they're hidden from the list while dragging and keep their
- * parentId on drop).
+ * parentId on drop). Without `onMove` the tree is read-only: no dragging, and
+ * rows offer only the handlers passed.
  */
 
 const INDENT = 16;
@@ -154,9 +155,9 @@ export function SortablePageTree({
   pages: PageNode[];
   activeId: string | null;
   onSelect: (id: string) => void;
-  onAddChild: (parentId: string) => void;
-  onSettings: (id: string) => void;
-  onMove: (items: Array<{ id: string; parentId: string | null; position: number }>) => void;
+  onAddChild?: (parentId: string) => void;
+  onSettings?: (id: string) => void;
+  onMove?: (items: Array<{ id: string; parentId: string | null; position: number }>) => void;
   /** Namespace for persisting which groups are collapsed (e.g. the language id). */
   treeKey?: string;
 }) {
@@ -238,7 +239,7 @@ export function SortablePageTree({
       posByParent.set(key, position + 1);
       return { id: it.id, parentId: it.parentId, position };
     });
-    onMove(items);
+    onMove?.(items);
   };
 
   const draggingNode = draggingId ? flatFull.find((f) => f.id === draggingId)?.node : null;
@@ -267,6 +268,7 @@ export function SortablePageTree({
             onSelect={onSelect}
             onAddChild={onAddChild}
             onSettings={onSettings}
+            draggable={Boolean(onMove)}
           />
         ))}
       </SortableContext>
@@ -286,6 +288,7 @@ function SortableRow({
   onSelect,
   onAddChild,
   onSettings,
+  draggable,
 }: {
   id: string;
   node: PageNode;
@@ -295,10 +298,11 @@ function SortableRow({
   collapsed: boolean;
   onToggleCollapse: (id: string) => void;
   onSelect: (id: string) => void;
-  onAddChild: (parentId: string) => void;
-  onSettings: (id: string) => void;
+  onAddChild?: (parentId: string) => void;
+  onSettings?: (id: string) => void;
+  draggable: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !draggable });
   const style = { transform: CSS.Translate.toString(transform), transition };
   return (
     <div ref={setNodeRef} style={style} className={cn(isDragging && 'opacity-40')}>
@@ -312,7 +316,7 @@ function SortableRow({
         onSelect={onSelect}
         onAddChild={onAddChild}
         onSettings={onSettings}
-        handleProps={{ ...attributes, ...listeners }}
+        handleProps={draggable ? { ...attributes, ...listeners } : undefined}
       />
     </div>
   );
@@ -357,14 +361,18 @@ function RowPresentation({
       )}
       style={{ marginInlineStart: depth * INDENT }}
     >
-      <button
-        type="button"
-        aria-label={t('editor.dragToReorder')}
-        className="flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/50 opacity-0 transition-opacity hover:text-foreground group-hover/row:opacity-100 active:cursor-grabbing"
-        {...handleProps}
-      >
-        <GripVertical className="size-3.5" />
-      </button>
+      {handleProps || overlay ? (
+        <button
+          type="button"
+          aria-label={t('editor.dragToReorder')}
+          className="flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/50 opacity-0 transition-opacity hover:text-foreground group-hover/row:opacity-100 active:cursor-grabbing"
+          {...handleProps}
+        >
+          <GripVertical className="size-3.5" />
+        </button>
+      ) : (
+        <span className="size-5 shrink-0" aria-hidden />
+      )}
       {/* Collapse chevron for groups with children; a spacer otherwise so every
           row's icon stays aligned. */}
       {collapsible ? (

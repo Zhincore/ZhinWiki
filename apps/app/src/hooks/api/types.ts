@@ -94,6 +94,8 @@ export interface PageNode {
   translationKey?: string | null;
   position: number;
   hidden: boolean;
+  /** The default-branch page a change-request copy was forked from. */
+  sourcePageId?: string | null;
   updatedAt: string;
 }
 
@@ -101,6 +103,75 @@ export interface Page extends PageNode {
   content: string;
   projectId: string;
   createdAt: string;
+}
+
+export type ChangeRequestStatus = 'DRAFT' | 'IN_REVIEW' | 'MERGED' | 'ARCHIVED';
+
+interface ChangeRequestUser {
+  id: string;
+  name: string;
+  image: string | null;
+}
+
+export interface ChangeRequest {
+  id: string;
+  projectId: string;
+  number: number;
+  title: string;
+  description: string | null;
+  authorId: string | null;
+  author: ChangeRequestUser | null;
+  status: ChangeRequestStatus;
+  /** Null once merged or when its branch was deleted. */
+  branchId: string | null;
+  mergedById: string | null;
+  mergedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PageChangeKind = 'added' | 'removed' | 'modified' | 'moved';
+
+export interface ChangeRequestPageChange {
+  change: PageChangeKind;
+  mainPageId: string | null;
+  branchPageId: string | null;
+  title: string;
+  path: string;
+  languageId: string;
+}
+
+export type MergeConflictReason = 'BOTH_CHANGED' | 'DELETED_ON_MAIN' | 'DELETED_IN_BRANCH';
+
+export interface MergeConflict {
+  pageId: string;
+  title: string;
+  path: string;
+  languageId: string;
+  reason: MergeConflictReason;
+}
+
+export interface ChangeRequestDetail extends ChangeRequest {
+  mergedBy: ChangeRequestUser | null;
+  changes: ChangeRequestPageChange[];
+  conflicts: MergeConflict[];
+}
+
+export interface ChangeRequestDiffSide {
+  id: string;
+  title: string;
+  slug: string;
+  path: string;
+  icon: string | null;
+  description: string | null;
+  hidden: boolean;
+  position: number;
+  content: string;
+}
+
+export interface ChangeRequestPageDiff {
+  main: ChangeRequestDiffSide | null;
+  change: ChangeRequestDiffSide | null;
 }
 
 export interface Branch {

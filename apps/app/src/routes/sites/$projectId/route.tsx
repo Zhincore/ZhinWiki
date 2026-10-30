@@ -3,7 +3,7 @@ import { THEME_STORAGE_KEY } from '@nibleaf/design-system/theme';
 import { resolveLocale } from '@nibleaf/i18n/locales';
 import { deploy_close } from '@nibleaf/i18n/messages';
 import { siteT } from '@nibleaf/i18n/site';
-import { createFileRoute, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
+import { createFileRoute, Outlet, useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
 import { BookOpen, ExternalLink, Link2, Moon, Search, Sun } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
@@ -37,8 +37,8 @@ export const Route = createFileRoute('/sites/$projectId')({
   // The active language lives in the URL so it survives reloads and is shareable.
   validateSearch: (search) => z.object({ lang: z.string().min(1).optional().catch(undefined) }).parse(search),
   loaderDeps: ({ search }) => ({ lang: search.lang }),
-  // A child path segment selects the version without changing this route's params.
-  shouldReload: true,
+  // Version changes explicitly invalidate this shell; ordinary page clicks reuse it.
+  shouldReload: false,
   // Fetch the site shell on the server so the chrome (nav, branding) is in the
   // initial HTML; the result also feeds site-level SEO tags via head(). The
   // first path segment is passed as a version candidate so versioned URLs
@@ -95,7 +95,8 @@ function SiteChrome() {
   const { lang } = Route.useSearch();
   const { site } = Route.useLoaderData();
   const navigate = useNavigate({ from: Route.fullPath });
-  useSiteLinkNavigation(projectId);
+  const router = useRouter();
+  const announcement = useSiteLinkNavigation(projectId);
   const [searchOpen, setSearchOpen] = useState(false);
   const [pageAlternates, setPageAlternates] = useState<SiteLanguageAlternate[]>([]);
   const [measuredHeaderHeight, setMeasuredHeaderHeight] = useState<number>();
@@ -115,10 +116,24 @@ function SiteChrome() {
   const currentPath = decodeURIComponent(siteRoutePath(pathname)).replace(/\/+$/, '');
   const isChangelog = currentPath === 'changelog';
   const currentVersion = site?.versions.find((item) => item.slug === site.activeVersion) ?? site?.versions.find((item) => item.isDefault);
+  const pathVersion = site?.versions.find((item) => item.slug === currentPath.split('/')[0]);
+  const resolvedVersion = pathVersion ?? site?.versions.find((item) => item.isDefault);
+  const attemptedVersion = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!site || !resolvedVersion) return;
+    if (site.activeVersion === resolvedVersion.slug) {
+      attemptedVersion.current = undefined;
+      return;
+    }
+    const attempt = JSON.stringify([projectId, lang, resolvedVersion.slug]);
+    if (attemptedVersion.current === attempt) return;
+    attemptedVersion.current = attempt;
+    void router.invalidate({ filter: (match) => match.routeId === Route.id, sync: true });
+  }, [site, resolvedVersion, router, projectId, lang]);
   const activeVersionPrefix = currentVersion && !currentVersion.isDefault ? currentVersion.slug : undefined;
   const contentPath =
-    activeVersionPrefix && (currentPath === activeVersionPrefix || currentPath.startsWith(`${activeVersionPrefix}/`))
-      ? currentPath.slice(activeVersionPrefix.length).replace(/^\/+/, '')
+    pathVersion
+      ? currentPath.slice(pathVersion.slug.length).replace(/^\/+/, '')
       : currentPath;
   // The home route (empty path) renders the site's first page server-side, so
   // highlight that page's nav entry rather than leaving the sidebar inert.
@@ -344,7 +359,10 @@ function SiteChrome() {
   ];
 
   return (
-    <SiteAnalyticsProvider projectId={projectId} path={effectiveCurrentPath} language={activeLanguage?.code} config={config}>
+    <SiteAnalyticsProvider projectId={projectId} path={effectiveCurrentPath} language={activeLanguage?.code} version={resolvedVersion?.slug} config={config}>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-site-route-announcer>
+        {announcement}
+      </div>
       {/* `dir` flips the whole document tree for RTL languages; code blocks are forced back to LTR via the scoped rule below. */}
       <DocumentationThemeProvider
         appearance={siteTheme}

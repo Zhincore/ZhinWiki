@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from '@nibleaf/design-system/components/u
 import { cn } from '@nibleaf/design-system/lib/utils';
 import { useT } from '@nibleaf/i18n/react';
 import { useDebouncer } from '@tanstack/react-pacer';
-import { createFileRoute, Link, useBlocker, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import {
   Check,
   ChevronLeft,
@@ -54,7 +54,6 @@ import type { Language, PageNode } from '@/hooks/api';
 import {
   useChangeRequests,
   useComments,
-  useCreateChangeRequest,
   useCreatePage,
   useDeletePage,
   useGetPublicMeta,
@@ -63,6 +62,7 @@ import {
   usePages,
   useProject,
   useReorderPages,
+  useStartChangeRequest,
   useUpdatePage,
   useUploadAsset,
 } from '@/hooks/api';
@@ -90,7 +90,6 @@ function EditorPage() {
   const t = useT();
   const { projectId } = Route.useParams();
   const { cr, page: pageParam, publish: publishParam } = Route.useSearch();
-  const navigate = useNavigate();
   const { data: session } = useSession();
   const { data: project } = useProject(projectId);
   const { data: publicMeta } = useGetPublicMeta();
@@ -114,15 +113,7 @@ function EditorPage() {
     setViewCr(cr);
     setView('content');
   }
-  const createChangeRequest = useCreateChangeRequest(projectId);
-  const startChangeRequest = () =>
-    createChangeRequest.mutate(
-      {},
-      {
-        onSuccess: (created) => void navigate({ to: '/app/projects/$projectId/editor', params: { projectId }, search: { cr: created.number } }),
-        onError: (error) => toast.error(error.message || t('changeRequest.createError')),
-      },
-    );
+  const startChangeRequest = useStartChangeRequest(projectId);
 
   // ─── Data: all languages + all pages of main or the change request (every language) ───
   const { data: languages } = useLanguages(projectId);
@@ -712,8 +703,8 @@ function EditorPage() {
           <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
         </Button>
         {project ? <PublishControl project={project} initialPublishOpen={publishParam} beforePublish={preparePublish} /> : null}
-        <Button size="sm" className="cursor-pointer" onClick={startChangeRequest} disabled={cr !== undefined || createChangeRequest.isPending}>
-          {createChangeRequest.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <PenLine className="size-3.5" />} {t('changeRequest.edit')}
+        <Button size="sm" className="cursor-pointer" onClick={startChangeRequest.start} disabled={cr !== undefined || startChangeRequest.isPending}>
+          {startChangeRequest.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <PenLine className="size-3.5" />} {t('changeRequest.edit')}
         </Button>
       </div>
     </header>

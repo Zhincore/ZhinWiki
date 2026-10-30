@@ -5,11 +5,10 @@ import { useT } from '@nibleaf/i18n/react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { GitPullRequest, Loader2, Plus, User } from 'lucide-react';
 import { useMemo } from 'react';
-import { toast } from 'sonner';
 import { z } from 'zod';
 import { ChangeRequestStatusBadge } from '@/components/change-requests/change-request-header';
 import { QueryErrorState } from '@/components/query-error-state';
-import { type ChangeRequestStatus, useChangeRequests, useCreateChangeRequest } from '@/hooks/api';
+import { type ChangeRequestStatus, useChangeRequests, useStartChangeRequest } from '@/hooks/api';
 import { useFormatters } from '@/lib/format';
 import { useSession } from '@/services/auth-client';
 
@@ -39,7 +38,7 @@ function ChangeRequestsPage() {
   const { data: session } = useSession();
   const userId = session?.user.id;
   const { data, isPending, isError, refetch, isRefetching } = useChangeRequests(projectId);
-  const create = useCreateChangeRequest(projectId);
+  const startChangeRequest = useStartChangeRequest(projectId);
   const rows = useMemo(
     () =>
       (data ?? []).filter(
@@ -49,16 +48,6 @@ function ChangeRequestsPage() {
     [data, status, mine, userId],
   );
 
-  const openNew = () =>
-    create.mutate(
-      {},
-      {
-        onSuccess: (changeRequest) =>
-          void navigate({ to: '/app/projects/$projectId/editor', params: { projectId }, search: { cr: changeRequest.number } }),
-        onError: (error) => toast.error(error.message || t('changeRequest.createError')),
-      },
-    );
-
   return (
     <div className="w-full px-6 py-8 xl:px-10">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -66,8 +55,8 @@ function ChangeRequestsPage() {
           <h1 className="font-semibold text-2xl tracking-tight">{t('changeRequest.title')}</h1>
           <p className="mt-1 text-muted-foreground text-sm">{t('changeRequest.subtitle')}</p>
         </div>
-        <Button size="sm" onClick={openNew} disabled={create.isPending}>
-          {create.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />} {t('changeRequest.new')}
+        <Button size="sm" onClick={startChangeRequest.start} disabled={startChangeRequest.isPending}>
+          {startChangeRequest.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />} {t('changeRequest.new')}
         </Button>
       </div>
 

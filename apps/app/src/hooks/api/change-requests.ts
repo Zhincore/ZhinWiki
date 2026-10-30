@@ -1,5 +1,8 @@
+import { useT } from '@nibleaf/i18n/react';
 import type { CreateChangeRequestBody, UpdateChangeRequestBody } from '@nibleaf/validators';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
+import { toast } from 'sonner';
 import { api } from '@/services/api';
 import { getData, mutateData } from './client-helpers';
 import { queryKeys } from './query-keys';
@@ -37,7 +40,7 @@ export const useChangeRequestPageDiff = (projectId: string, number: number, page
       ),
   });
 
-export const useCreateChangeRequest = (projectId: string) => {
+const useCreateChangeRequest = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: CreateChangeRequestBody) =>
@@ -48,6 +51,22 @@ export const useCreateChangeRequest = (projectId: string) => {
       qc.invalidateQueries({ queryKey: queryKeys.branches.all(projectId) });
     },
   });
+};
+
+/** Open a change request and continue in the editor on it; a failure toasts. */
+export const useStartChangeRequest = (projectId: string) => {
+  const t = useT();
+  const navigate = useNavigate();
+  const create = useCreateChangeRequest(projectId);
+  const start = () =>
+    create.mutate(
+      {},
+      {
+        onSuccess: (created) => void navigate({ to: '/app/projects/$projectId/editor', params: { projectId }, search: { cr: created.number } }),
+        onError: (error) => toast.error(error.message || t('changeRequest.createError')),
+      },
+    );
+  return { start, isPending: create.isPending };
 };
 
 export const useUpdateChangeRequest = (projectId: string, number: number) => {

@@ -263,6 +263,7 @@
   "changerequest_mergedialog_description": "मर्ज करने पर इस बदलाव अनुरोध के पेज main में लिखे जाते हैं। लाइव साइट अपडेट करने के लिए बाद में प्रकाशित करें।",
   "changerequest_mergedialog_conflicts": "यह बदलाव अनुरोध खुलने के बाद ये पेज main पर भी बदले हैं। इस अनुरोध का संस्करण रखने के लिए हर एक को चालू करें, या पहले अनुरोध संपादित करें।",
   "changerequest_mergedialog_usechangerequest": "इस अनुरोध का संस्करण इस्तेमाल करें",
+  "changerequest_mergedialog_unresolved": "अभी भी अनसुलझे पेज: {count}। हर एक को चालू करें, या पहले अनुरोध में उसे संपादित करें।",
   "changerequest_mergedialog_merging": "मर्ज हो रहा है…",
   "changerequest_conflict_bothchanged": "यहाँ और main पर संपादित",
   "changerequest_conflict_deletedonmain": "main पर हटाया गया, यहाँ संपादित",

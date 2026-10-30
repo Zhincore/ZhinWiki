@@ -276,6 +276,7 @@ export const MESSAGE_IDS = {
   'changeRequest.mergeDialog.description': 'changerequest_mergedialog_description',
   'changeRequest.mergeDialog.conflicts': 'changerequest_mergedialog_conflicts',
   'changeRequest.mergeDialog.useChangeRequest': 'changerequest_mergedialog_usechangerequest',
+  'changeRequest.mergeDialog.unresolved': 'changerequest_mergedialog_unresolved',
   'changeRequest.mergeDialog.merging': 'changerequest_mergedialog_merging',
   'changeRequest.conflict.bothChanged': 'changerequest_conflict_bothchanged',
   'changeRequest.conflict.deletedOnMain': 'changerequest_conflict_deletedonmain',

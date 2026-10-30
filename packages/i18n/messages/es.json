@@ -263,6 +263,7 @@
   "changerequest_mergedialog_description": "Al fusionar se escriben las páginas de esta solicitud de cambio en main. Publica después para actualizar el sitio en vivo.",
   "changerequest_mergedialog_conflicts": "Estas páginas también cambiaron en main desde que se abrió esta solicitud de cambio. Activa cada una para conservar la versión de esta solicitud, o edita primero la solicitud.",
   "changerequest_mergedialog_usechangerequest": "Usar la versión de esta solicitud de cambio",
+  "changerequest_mergedialog_unresolved": "Páginas aún sin resolver: {count}. Activa cada una o edítala primero en la solicitud de cambio.",
   "changerequest_mergedialog_merging": "Fusionando…",
   "changerequest_conflict_bothchanged": "Editada aquí y en main",
   "changerequest_conflict_deletedonmain": "Eliminada en main, editada aquí",

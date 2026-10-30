@@ -263,6 +263,7 @@
   "changerequest_mergedialog_description": "La fusion écrit les pages de cette demande de modification dans main. Publiez ensuite pour mettre à jour le site en ligne.",
   "changerequest_mergedialog_conflicts": "Ces pages ont aussi changé sur main depuis l’ouverture de cette demande. Activez chacune pour garder la version de cette demande, ou modifiez d’abord la demande.",
   "changerequest_mergedialog_usechangerequest": "Utiliser la version de cette demande",
+  "changerequest_mergedialog_unresolved": "Pages encore non résolues : {count}. Activez chacune ou modifiez-la d’abord dans la demande.",
   "changerequest_mergedialog_merging": "Fusion…",
   "changerequest_conflict_bothchanged": "Modifiée ici et sur main",
   "changerequest_conflict_deletedonmain": "Supprimée sur main, modifiée ici",

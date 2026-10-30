@@ -263,6 +263,7 @@
   "changerequest_mergedialog_description": "ضم کرنے سے اس تبدیلی کی درخواست کے صفحات main میں لکھے جاتے ہیں۔ لائیو سائٹ اپ ڈیٹ کرنے کے لیے بعد میں شائع کریں۔",
   "changerequest_mergedialog_conflicts": "یہ درخواست کھلنے کے بعد سے یہ صفحات main پر بھی بدلے ہیں۔ اس درخواست کا ورژن رکھنے کے لیے ہر ایک کو آن کریں، یا پہلے درخواست میں ترمیم کریں۔",
   "changerequest_mergedialog_usechangerequest": "اس درخواست کا ورژن استعمال کریں",
+  "changerequest_mergedialog_unresolved": "ابھی تک غیر حل شدہ صفحات: {count}۔ ہر ایک کو آن کریں، یا پہلے درخواست میں اس میں ترمیم کریں۔",
   "changerequest_mergedialog_merging": "ضم ہو رہا ہے…",
   "changerequest_conflict_bothchanged": "یہاں اور main پر ترمیم شدہ",
   "changerequest_conflict_deletedonmain": "main پر حذف، یہاں ترمیم شدہ",

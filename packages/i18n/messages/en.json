@@ -263,6 +263,7 @@
   "changerequest_mergedialog_description": "Merging writes this change request's pages to main. Publish afterwards to update the live site.",
   "changerequest_mergedialog_conflicts": "These pages also changed on main since this change request was opened. Turn each one on to keep this change request’s version, or edit the change request first.",
   "changerequest_mergedialog_usechangerequest": "Use this change request’s version",
+  "changerequest_mergedialog_unresolved": "Pages still unresolved: {count}. Turn each one on, or edit it in the change request first.",
   "changerequest_mergedialog_merging": "Merging…",
   "changerequest_conflict_bothchanged": "Edited here and on main",
   "changerequest_conflict_deletedonmain": "Deleted on main, edited here",

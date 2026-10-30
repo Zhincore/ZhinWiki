@@ -263,6 +263,7 @@
   "changerequest_mergedialog_description": "Mesclar grava as páginas desta solicitação de alteração na main. Publique depois para atualizar o site no ar.",
   "changerequest_mergedialog_conflicts": "Estas páginas também mudaram na main desde que esta solicitação foi aberta. Ative cada uma para manter a versão desta solicitação ou edite a solicitação primeiro.",
   "changerequest_mergedialog_usechangerequest": "Usar a versão desta solicitação",
+  "changerequest_mergedialog_unresolved": "Páginas ainda não resolvidas: {count}. Ative cada uma ou edite-a primeiro na solicitação.",
   "changerequest_mergedialog_merging": "Mesclando…",
   "changerequest_conflict_bothchanged": "Editada aqui e na main",
   "changerequest_conflict_deletedonmain": "Excluída na main, editada aqui",

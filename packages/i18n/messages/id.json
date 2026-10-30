@@ -263,6 +263,7 @@
   "changerequest_mergedialog_description": "Penggabungan menulis halaman permintaan perubahan ini ke main. Terbitkan setelahnya untuk memperbarui situs yang tayang.",
   "changerequest_mergedialog_conflicts": "Halaman-halaman ini juga berubah di main sejak permintaan perubahan ini dibuka. Aktifkan masing-masing untuk mempertahankan versi permintaan ini, atau edit permintaannya terlebih dahulu.",
   "changerequest_mergedialog_usechangerequest": "Gunakan versi permintaan ini",
+  "changerequest_mergedialog_unresolved": "Halaman yang belum diselesaikan: {count}. Aktifkan masing-masing, atau edit dulu di permintaan perubahan.",
   "changerequest_mergedialog_merging": "Menggabungkan…",
   "changerequest_conflict_bothchanged": "Diedit di sini dan di main",
   "changerequest_conflict_deletedonmain": "Dihapus di main, diedit di sini",

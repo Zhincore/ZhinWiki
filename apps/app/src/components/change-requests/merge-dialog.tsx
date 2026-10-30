@@ -24,7 +24,8 @@ const REASON: Record<MergeConflictReason, MessageKey> = {
 };
 
 /** Merge confirmation. Conflicting pages are listed with their reason; the
- *  merge runs once the change request is picked to win on each of them. */
+ *  merge runs once the change request is picked to win on each of them, and
+ *  says inside the dialog what still blocks it. */
 export function MergeDialog({
   projectId,
   number,
@@ -42,6 +43,8 @@ export function MergeDialog({
   const merge = useMergeChangeRequest(projectId, number);
   const [refused, setRefused] = useState<MergeConflict[] | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [attempted, setAttempted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const hintId = useId();
   const conflicts = refused ?? initialConflicts;
   const force = forceList(conflicts, picked);
@@ -55,18 +58,22 @@ export function MergeDialog({
       return next;
     });
 
-  const submit = () =>
+  const submit = () => {
+    setAttempted(true);
+    setError(null);
+    if (unresolved > 0) return;
     merge.mutate(force, {
       onSuccess: () => {
         toast.success(t('changeRequest.merged'));
         onOpenChange(false);
       },
-      onError: (error) => {
-        const next = conflictsFromError(error);
+      onError: (failure) => {
+        const next = conflictsFromError(failure);
         if (next) setRefused(next);
-        else toast.error(error.message || t('changeRequest.mergeError'));
+        else setError(failure.message || t('changeRequest.mergeError'));
       },
     });
+  };
 
   return (
     <Dialog
@@ -75,6 +82,8 @@ export function MergeDialog({
         if (!next) {
           setRefused(null);
           setPicked(new Set());
+          setAttempted(false);
+          setError(null);
         }
         onOpenChange(next);
       }}
@@ -116,9 +125,19 @@ export function MergeDialog({
             </p>
           </div>
         ) : null}
+        {attempted && unresolved > 0 ? (
+          <p className="text-destructive text-sm" role="alert">
+            {t('changeRequest.mergeDialog.unresolved', { count: unresolved })}
+          </p>
+        ) : null}
+        {error ? (
+          <p className="text-destructive text-sm" role="alert">
+            {error}
+          </p>
+        ) : null}
         <DialogFooter>
           <DialogClose render={<Button type="button" variant="outline" />}>{t('common.cancel')}</DialogClose>
-          <Button type="button" onClick={submit} disabled={merge.isPending || unresolved > 0}>
+          <Button type="button" onClick={submit} disabled={merge.isPending}>
             {merge.isPending ? <Loader2 className="size-4 animate-spin" /> : <GitMerge className="size-4" />}
             {merge.isPending ? t('changeRequest.mergeDialog.merging') : t('changeRequest.merge')}
           </Button>

@@ -263,6 +263,7 @@
   "changerequest_mergedialog_description": "মার্জ করলে এই পরিবর্তনের অনুরোধের পৃষ্ঠাগুলি main-এ লেখা হয়। লাইভ সাইট আপডেট করতে পরে প্রকাশ করুন।",
   "changerequest_mergedialog_conflicts": "এই অনুরোধ খোলার পর থেকে এই পৃষ্ঠাগুলি main-এও বদলেছে। এই অনুরোধের সংস্করণ রাখতে প্রতিটি চালু করুন, অথবা আগে অনুরোধটি সম্পাদনা করুন।",
   "changerequest_mergedialog_usechangerequest": "এই অনুরোধের সংস্করণ ব্যবহার করুন",
+  "changerequest_mergedialog_unresolved": "এখনও সমাধান হয়নি এমন পৃষ্ঠা: {count}। প্রতিটি চালু করুন, অথবা আগে অনুরোধে সেটি সম্পাদনা করুন।",
   "changerequest_mergedialog_merging": "মার্জ হচ্ছে…",
   "changerequest_conflict_bothchanged": "এখানে ও main-এ সম্পাদিত",
   "changerequest_conflict_deletedonmain": "main-এ মোছা, এখানে সম্পাদিত",

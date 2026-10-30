@@ -263,6 +263,7 @@
   "changerequest_mergedialog_description": "合并会把此变更请求的页面写入 main。之后发布以更新线上站点。",
   "changerequest_mergedialog_conflicts": "自打开此变更请求以来，这些页面在 main 上也有改动。逐一开启以保留此变更请求的版本，或先编辑变更请求。",
   "changerequest_mergedialog_usechangerequest": "使用此变更请求的版本",
+  "changerequest_mergedialog_unresolved": "仍未解决的页面：{count}。逐一开启，或先在变更请求中编辑。",
   "changerequest_mergedialog_merging": "正在合并…",
   "changerequest_conflict_bothchanged": "此处与 main 均有编辑",
   "changerequest_conflict_deletedonmain": "在 main 上已删除，此处有编辑",

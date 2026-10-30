@@ -263,6 +263,7 @@
   "changerequest_mergedialog_description": "При слиянии страницы этого запроса записываются в main. Затем опубликуйте, чтобы обновить сайт.",
   "changerequest_mergedialog_conflicts": "Эти страницы также изменились в main после открытия запроса. Включите каждую, чтобы оставить версию этого запроса, или сначала отредактируйте запрос.",
   "changerequest_mergedialog_usechangerequest": "Использовать версию этого запроса",
+  "changerequest_mergedialog_unresolved": "Нерешённых страниц: {count}. Включите каждую или сначала отредактируйте её в запросе.",
   "changerequest_mergedialog_merging": "Слияние…",
   "changerequest_conflict_bothchanged": "Изменена здесь и в main",
   "changerequest_conflict_deletedonmain": "Удалена в main, изменена здесь",

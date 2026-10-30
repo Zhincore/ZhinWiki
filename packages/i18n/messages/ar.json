@@ -263,6 +263,7 @@
   "changerequest_mergedialog_description": "يكتب الدمج صفحات طلب التغيير هذا في main. ثم انشر لتحديث الموقع المباشر.",
   "changerequest_mergedialog_conflicts": "تغيّرت هذه الصفحات أيضًا في main منذ فتح طلب التغيير. فعّل كل صفحة للإبقاء على نسخة هذا الطلب، أو حرّر الطلب أولًا.",
   "changerequest_mergedialog_usechangerequest": "استخدام نسخة طلب التغيير هذا",
+  "changerequest_mergedialog_unresolved": "صفحات لم تُحسم بعد: {count}. فعّل كل صفحة منها، أو عدّلها في طلب التغيير أولًا.",
   "changerequest_mergedialog_merging": "جارٍ الدمج…",
   "changerequest_conflict_bothchanged": "عُدّلت هنا وفي main",
   "changerequest_conflict_deletedonmain": "حُذفت في main وعُدّلت هنا",

@@ -263,6 +263,7 @@
   "changerequest_mergedialog_description": "Beim Zusammenführen werden die Seiten dieser Änderungsanfrage nach main geschrieben. Veröffentliche danach, um die Live-Site zu aktualisieren.",
   "changerequest_mergedialog_conflicts": "Diese Seiten wurden seit dem Öffnen der Änderungsanfrage auch auf main geändert. Aktiviere jede, um die Version dieser Änderungsanfrage zu behalten, oder bearbeite zuerst die Änderungsanfrage.",
   "changerequest_mergedialog_usechangerequest": "Version dieser Änderungsanfrage verwenden",
+  "changerequest_mergedialog_unresolved": "Noch ungelöste Seiten: {count}. Aktiviere jede davon oder bearbeite sie zuerst in der Änderungsanfrage.",
   "changerequest_mergedialog_merging": "Wird zusammengeführt…",
   "changerequest_conflict_bothchanged": "Hier und auf main bearbeitet",
   "changerequest_conflict_deletedonmain": "Auf main gelöscht, hier bearbeitet",

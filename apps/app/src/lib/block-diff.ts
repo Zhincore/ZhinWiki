@@ -1,3 +1,4 @@
+import { markdownKey } from '@nibleaf/shared/markdown-key';
 import { diffArrays } from 'diff';
 import { fromMarkdown } from 'mdast-util-from-markdown';
 
@@ -40,10 +41,21 @@ export function splitBlocks(source: string): string[] {
   return blocks.filter(Boolean);
 }
 
-/** Align the blocks of two Markdown documents. A removed run directly followed
- *  by an added run pairs up as changed blocks; the excess stays removed/added. */
+/** Align the blocks of two Markdown documents by their Markdown key, so a
+ *  re-wrapped block is unchanged and shows its `after` source. A removed run
+ *  directly followed by an added run pairs up as changed blocks; the excess
+ *  stays removed/added. */
 export function diffBlocks(before: string, after: string): BlockDiffRow[] {
-  const parts = diffArrays(splitBlocks(before), splitBlocks(after));
+  const beforeBlocks = splitBlocks(before);
+  const afterBlocks = splitBlocks(after);
+  let beforeIndex = 0;
+  let afterIndex = 0;
+  const parts = diffArrays(beforeBlocks.map(markdownKey), afterBlocks.map(markdownKey)).map((part) => {
+    const value = part.removed ? beforeBlocks.slice(beforeIndex, beforeIndex + part.count) : afterBlocks.slice(afterIndex, afterIndex + part.count);
+    if (!part.added) beforeIndex += part.count;
+    if (!part.removed) afterIndex += part.count;
+    return { ...part, value };
+  });
   const rows: BlockDiffRow[] = [];
   for (let index = 0; index < parts.length; index += 1) {
     const part = parts[index];

@@ -69,6 +69,17 @@ describe('diffBlocks', () => {
   it('ignores whitespace-only differences between blocks', () => {
     expect(diffBlocks('A\n\nB\n', 'A\n\n\n\nB   \n\n').every((row) => row.kind === 'same')).toBe(true);
   });
+
+  it('shows re-wrapped blocks as unchanged with their new source', () => {
+    expect(
+      diffBlocks('Long\nwrapped.\n\n<Note>\n\nAside\ntext.\n\n</Note>\n\nOld', 'Long wrapped.\n\n<Note>\n\nAside text.\n\n</Note>\n\nNew'),
+    ).toEqual([
+      { kind: 'same', block: 'Long wrapped.' },
+      { kind: 'same', block: '<Note>\n\nAside text.\n\n</Note>' },
+      { kind: 'changed', before: 'Old', after: 'New' },
+    ]);
+    expect(diffBlocks('- a\n- b', 'a\nb')).toEqual([{ kind: 'changed', before: '- a\n- b', after: 'a\nb' }]);
+  });
 });
 
 describe('collapseUnchanged', () => {

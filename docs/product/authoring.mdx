@@ -1,10 +1,10 @@
 ---
 title: 'Write and review a page'
-description: 'Choose an editing mode, organize the page tree, use branches and anchored comments, and recover safely when a draft does not render.'
+description: 'Edit pages in change requests, choose an editing mode, organize the page tree, review and merge changes, and recover safely when a draft does not render.'
 audience: 'writers, editors, and documentation reviewers'
 content_type: 'how-to'
-last_reviewed: '2026-08-17'
-verified_against: 'apps/app/src/components/editor and apps/server/src/actions/pages.ts'
+last_reviewed: '2026-10-30'
+verified_against: 'apps/app/src/components/editor, apps/app/src/components/change-requests and apps/server/src/actions/change-requests.ts'
 lang: 'en'
 dir: 'ltr'
 translation_key: 'product/authoring'
@@ -14,6 +14,18 @@ Every Nibleaf page has one Markdown source. Visual, WYSIWYG, and Markdown are
 editing modes for that source, not separate documents. Preview is a separate
 action that opens the saved draft in a reader view. Wait for **Saved** before
 leaving a page or publishing.
+
+## Edit through a change request
+
+The editor opens on `main`, the content that gets published, and shows it
+read-only. Select **Edit** to open a change request: a private copy of `main`
+named after you. The editor then works on that copy, and the page you were
+reading stays open. **Change requests** in the editor header lists the open
+ones, yours first, so you can continue one; the dashboard's **Change requests**
+page lists them all, filtered by open, merged, or archived, and by **Yours**.
+
+Site settings, navigation chrome, themes, languages, and domains are not part
+of a change request; edit them directly on `main` under **Configuration**.
 
 ## Choose an editing mode
 
@@ -41,28 +53,38 @@ Before moving or renaming a published page, record its public path. Parent group
 contribute to the path. Add a direct permanent redirect from the old path and
 update internal links so readers do not spend a hop on normal navigation.
 
-## Review a substantial change
+## Review and merge a change request
 
-Open a change request before a migration, large rewrite, or page-tree
-reorganization. It is a private copy of the default branch and is never
-published until it is merged. Use a title that describes the outcome. Add
-anchored comments to the exact block being reviewed, then resolve or record
-every blocking discussion.
+Use one change request per outcome, for example a migration, a rewrite, or a
+page-tree reorganization, and give it a title that describes the result. A
+change request has three tabs:
 
-Review the change request as a reader:
+- **Overview**: title, description, status, the changed pages per language
+  (added, removed, modified, moved), and a rendered diff of each page. Unchanged
+  blocks are folded; added blocks are green, removed blocks red. Changed title,
+  slug, icon, visibility, or position are listed above the diff.
+- **Editor**: the normal editor on the change request's copy.
+- **Changes**: only the changed pages, one diff at a time, with previous and
+  next buttons.
+
+Set **Ready for review** when the change request is complete, and review it as
+a reader:
 
 1. Open every changed page in Preview.
 2. Test new links and paths.
 3. Search using words a reader would type.
 4. Check a narrow mobile viewport and keyboard focus.
 5. Confirm title, description, indexing, and language relationships.
-6. Merge the reviewed change request into the default draft, publish once, and
-   verify the public deployment.
+6. Select **Merge**, then publish once and verify the public deployment.
 
-A merge applies each changed page onto the default draft in place, so comments
-and reader access on those pages stay, and pages added to the default draft in
-the meantime are kept. A page edited on both sides is listed as a conflict and
-is merged only when you choose to keep the change request's version.
+A merge applies each changed page onto `main` in place, so comments and reader
+access on those pages stay, and pages added to `main` in the meantime are kept.
+A page that also changed on `main` since the change request was opened is listed
+in the merge dialog as a conflict; the merge runs once you choose to keep the
+change request's version of every conflicting page, so edit the change request
+first if `main`'s version should win. A merged change request stays readable
+with the diff it applied. **Archive** sets a change request aside without
+merging; **Reopen** brings it back.
 
 ## Recover from a bad draft
 

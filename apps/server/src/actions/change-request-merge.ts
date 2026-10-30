@@ -88,11 +88,21 @@ const hash = (value: unknown) =>
     .digest('hex')
     .slice(0, 32);
 
+type ContentFields = Pick<MergePage, (typeof CONTENT_FIELDS)[number]>;
+
+/** Content hashes per page row; rows are read-only once loaded, and parsing Markdown is the costly part. */
+const contentHashes = new WeakMap<ContentFields, string>();
+
 /** Hash of the content group (kind, title, slug, icon, description, content,
  *  config, hidden, translationKey), which decides conflicts. Content is hashed
  *  by its Markdown key, so re-wrapped paragraphs count as unchanged. */
-export const contentHash = (page: Pick<MergePage, (typeof CONTENT_FIELDS)[number]>) =>
-  hash(CONTENT_FIELDS.map((field) => (field === 'content' ? markdownKey(page.content) : page[field])));
+export const contentHash = (page: ContentFields) => {
+  const cached = contentHashes.get(page);
+  if (cached !== undefined) return cached;
+  const value = hash(CONTENT_FIELDS.map((field) => (field === 'content' ? markdownKey(page.content) : page[field])));
+  contentHashes.set(page, value);
+  return value;
+};
 const parentHash = (parentKey: string | null) => hash([parentKey]);
 const positionHash = (position: number) => hash([position]);
 

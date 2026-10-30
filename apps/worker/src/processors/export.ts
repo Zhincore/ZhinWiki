@@ -4,7 +4,7 @@ import type { ExportJobData, ExportJobName } from '@nibleaf/bullmq/jobs/export';
 import { type ExportFormat, type ExportSchedule, Prisma, prisma } from '@nibleaf/database';
 import { createLogger } from '@nibleaf/logger';
 import { exportScheduleSlotKey, nextExportRunAt } from '@nibleaf/shared/export-schedule';
-import type { SiteSnapshot } from '@nibleaf/shared/site';
+import { defaultVersionOnly, type SiteSnapshot } from '@nibleaf/shared/site';
 import { deleteObject, deletePrefix, getObjectStream, putObject } from '@nibleaf/storage';
 import type { Job } from 'bullmq';
 import { env } from '../env';
@@ -94,7 +94,7 @@ const renderExport = async (bullJob: Job<ExportJobData>): Promise<{ artifacts: n
     data: { status: 'RUNNING', startedAt: row.startedAt ?? new Date(), attempts: { increment: 1 }, error: null },
   });
   await trackExportLifecycle(row.projectId, row.id, { name: 'export_started', operationId: row.id, itemCount: row.formats.length });
-  const snapshot = row.snapshot.snapshot as unknown as SiteSnapshot;
+  const snapshot = defaultVersionOnly(row.snapshot.snapshot as unknown as SiteSnapshot);
   try {
     const assets = await loadReferencedAssets(snapshot, row.snapshot.assets as unknown as ExportAssetManifestItem[], exportJobId);
     for (const format of row.formats) {

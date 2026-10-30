@@ -976,7 +976,7 @@ model Page {
   sourcePageId    String?
   sourcePage      Page?    @relation("PageFork", fields: [sourcePageId], references: [id], onDelete: SetNull)
   forks           Page[]   @relation("PageFork")
-  /// `<content hash>.<tree hash>` of the source page at fork time (see
+  /// `<content hash>.<parent hash>.<position hash>` of the source page at fork time (see
   /// `pageFingerprint` in apps/server/src/actions/change-request-merge.ts). Set
   /// only on forked copies, so it also marks a copy whose source was deleted.
   forkFingerprint String?

@@ -127,6 +127,8 @@ export const createBranch = async (projectId: string, input: CreateBranchInput):
   for (let attempt = 1; ; attempt += 1) {
     try {
       return await prisma.$transaction(async (tx) => {
+        // Same lock as merges, so a fork never copies links to main pages a running merge deletes.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${projectId}))`;
         if (name && (await tx.branch.findFirst({ where: { projectId, name }, select: { id: true } }))) {
           throw conflict('A branch with that name already exists.', { name });
         }

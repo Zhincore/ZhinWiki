@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MergePage } from './change-request-merge';
+import type { ForkBase, MergePage } from './change-request-merge';
 import { contentHash, pageFingerprint } from './change-request-merge';
 
 const mocks = vi.hoisted(() => {
@@ -69,12 +69,12 @@ describe('mergeChangeRequest', () => {
     prisma.branch.findMany.mockResolvedValue([mainBranch]);
   });
 
-  const givenChangeRequest = (forkBase: Record<string, string> | null) =>
+  const givenChangeRequest = (forkBase: ForkBase) =>
     tx.changeRequest.findUniqueOrThrow.mockResolvedValue({ id: 'cr-1', number: 1, status: 'IN_REVIEW', branchId: 'cr', forkBase });
 
   it('writes an edited page onto the same main row and records the merge', async () => {
     const main = page('m1');
-    givenChangeRequest({ m1: contentHash(main) });
+    givenChangeRequest({ m1: { hash: contentHash(main), copyId: 'b1' } });
     givenPages([main], [{ ...main, id: 'b1', sourcePageId: 'm1', forkFingerprint: pageFingerprint(main, null), content: '# edited' }]);
     await mergeChangeRequest('p', 1, 'user-1', []);
     expect(tx.page.update).toHaveBeenCalledWith({ where: { id: 'm1' }, data: { content: '# edited' } });
@@ -94,7 +94,7 @@ describe('mergeChangeRequest', () => {
 
   it('answers 409 with the conflicting pages and writes nothing', async () => {
     const main = page('m1');
-    givenChangeRequest({ m1: contentHash(main) });
+    givenChangeRequest({ m1: { hash: contentHash(main), copyId: 'b1' } });
     givenPages(
       [{ ...main, content: '# main' }],
       [{ ...main, id: 'b1', sourcePageId: 'm1', forkFingerprint: pageFingerprint(main, null), content: '# branch' }],
@@ -120,6 +120,15 @@ describe('mergeChangeRequest', () => {
     await mergeChangeRequest('p', 1, 'user-1', []);
     expect(tx.page.deleteMany).toHaveBeenCalledWith({ where: { projectId: 'p', branchId: 'main' } });
     expect(tx.page.updateMany).toHaveBeenCalledWith({ where: { projectId: 'p', branchId: 'cr' }, data: { branchId: 'main' } });
+  });
+
+  it('refuses to replace main while tracked change requests are open', async () => {
+    givenChangeRequest(null);
+    tx.changeRequest.count.mockResolvedValueOnce(1);
+    givenPages([page('m1')], [page('b1')]);
+    await expect(mergeChangeRequest('p', 1, 'user-1', [])).rejects.toMatchObject({ status: 409 });
+    expect(tx.page.deleteMany).not.toHaveBeenCalled();
+    expect(tx.branch.delete).not.toHaveBeenCalled();
   });
 });
 
@@ -148,7 +157,8 @@ describe('createBranch', () => {
     expect(tx.page.createMany.mock.calls[0]?.[0].data).toEqual([
       expect.objectContaining({ branchId: 'new-branch', sourcePageId: 'm1', forkFingerprint: pageFingerprint(main, null) }),
     ]);
-    expect(tx.changeRequest.create.mock.calls[0]?.[0].data.forkBase).toEqual({ m1: contentHash(main) });
+    const [copy] = tx.page.createMany.mock.calls[0]?.[0].data ?? [];
+    expect(tx.changeRequest.create.mock.calls[0]?.[0].data.forkBase).toEqual({ m1: { hash: contentHash(main), copyId: copy.id } });
   });
 
   it('refuses to import over a wiki with open tracked change requests', async () => {

@@ -550,8 +550,9 @@ model ChangeRequest {
   mergedById  String?
   mergedBy    User?               @relation("ChangeRequestMerger", fields: [mergedById], references: [id], onDelete: SetNull)
   mergedAt    DateTime?
-  /// `{ [defaultBranchPageId]: content hash }` of the pages copied when the
-  /// branch was forked. Null for change requests without fork tracking
+  /// `{ [defaultBranchPageId]: { hash, copyId } }`: content hash and branch
+  /// copy of each page copied when the branch was forked; `copyId` keeps the
+  /// copy's fork-time source after `sourcePageId` is nulled. Null for change requests without fork tracking
   /// (migrated branches, empty Mintlify version imports), which merge by
   /// replacing the default branch.
   forkBase    Json?

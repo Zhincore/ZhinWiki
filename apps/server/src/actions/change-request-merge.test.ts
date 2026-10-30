@@ -30,8 +30,12 @@ const fork = (source: MergePage, id: string, parentId: string | null = null): Me
   forkFingerprint: pageFingerprint(source, source.parentId),
 });
 
-/** The fork base `createBranch` stores for these main pages. */
-const baseOf = (...pages: MergePage[]) => Object.fromEntries(pages.map((p) => [p.id, contentHash(p)]));
+/** The fork base `createBranch` stores for these main pages, given the copies
+ *  still in `branch` (a copy deleted since the fork gets a placeholder id). */
+const baseOf = (branch: MergePage[], ...pages: MergePage[]) =>
+  Object.fromEntries(
+    pages.map((p) => [p.id, { hash: contentHash(p), copyId: branch.find((copy) => copy.sourcePageId === p.id)?.id ?? `deleted-${p.id}` }]),
+  );
 
 const none = new Set<string>();
 
@@ -44,7 +48,7 @@ describe('planMerge', () => {
   it('updates an edited page in place so its id, comments and grants stay', () => {
     const main = page('m1');
     const copy = { ...fork(main, 'b1'), content: '# edited' };
-    const plan = merged(planMerge({ main: [main], branch: [copy], forkBase: baseOf(main), force: none }));
+    const plan = merged(planMerge({ main: [main], branch: [copy], forkBase: baseOf([copy], main), force: none }));
     expect(plan.conflicts).toEqual([]);
     expect(plan.updates).toEqual([{ id: 'm1', data: { content: '# edited' } }]);
     expect(plan.inserts).toEqual([]);
@@ -57,7 +61,7 @@ describe('planMerge', () => {
     const child = page('x', { parentId: 'ga', path: 'ga/x' });
     const branch = [fork(groupA, 'ba'), fork(groupB, 'bb'), { ...fork(child, 'bx', 'ba'), position: 3 }];
     const main = [groupA, groupB, { ...child, parentId: 'gb', path: 'gb/x' }];
-    const plan = merged(planMerge({ main, branch, forkBase: baseOf(groupA, groupB, child), force: none }));
+    const plan = merged(planMerge({ main, branch, forkBase: baseOf(branch, groupA, groupB, child), force: none }));
     expect(plan.conflicts).toEqual([]);
     expect(plan.updates).toEqual([{ id: 'x', data: { position: 3 } }]);
   });
@@ -67,7 +71,7 @@ describe('planMerge', () => {
     const editedOnMain = page('m2', { position: 1 });
     const branch = [fork(untouched, 'b1'), fork(editedOnMain, 'b2')];
     const main = [untouched, { ...editedOnMain, content: '# main edit' }];
-    const plan = merged(planMerge({ main, branch, forkBase: baseOf(untouched, editedOnMain), force: none }));
+    const plan = merged(planMerge({ main, branch, forkBase: baseOf(branch, untouched, editedOnMain), force: none }));
     expect(plan).toMatchObject({ conflicts: [], updates: [], inserts: [], deletes: [], record: [] });
   });
 
@@ -75,7 +79,7 @@ describe('planMerge', () => {
     const parent = page('m1');
     const lateChild = page('m2', { parentId: 'm1', path: 'm1/m2' });
     const lateRoot = page('m3', { position: 1 });
-    const plan = merged(planMerge({ main: [parent, lateChild, lateRoot], branch: [], forkBase: baseOf(parent), force: none }));
+    const plan = merged(planMerge({ main: [parent, lateChild, lateRoot], branch: [], forkBase: baseOf([], parent), force: none }));
     expect(plan.deletes).toEqual(['m1']);
     expect(plan.updates).toEqual([{ id: 'm2', data: { parentId: null, path: 'm2' } }]);
   });
@@ -83,16 +87,29 @@ describe('planMerge', () => {
   it('keeps a page an earlier change request merged after this one was opened', () => {
     const forked = page('m1');
     const mergedEarlier = page('x1', { position: 1 });
-    const plan = merged(planMerge({ main: [forked, mergedEarlier], branch: [fork(forked, 'b1')], forkBase: baseOf(forked), force: none }));
-    expect(plan).toMatchObject({ conflicts: [], deletes: [], updates: [] });
-    expect(summarizeChanges({ main: [forked, mergedEarlier], branch: [fork(forked, 'b1')], forkBase: baseOf(forked) })).toEqual([]);
+    const input = { main: [forked, mergedEarlier], branch: [fork(forked, 'b1')], forkBase: baseOf([fork(forked, 'b1')], forked) };
+    expect(merged(planMerge({ ...input, force: none }))).toMatchObject({ conflicts: [], deletes: [], updates: [] });
+    expect(summarizeChanges(input)).toEqual([]);
+  });
+
+  it('leaves an untouched child where main moved it before deleting its parent', () => {
+    const group = page('g');
+    const child = page('c', { parentId: 'g', path: 'g/c' });
+    const [groupCopy, childCopy] = [fork(group, 'bg'), fork(child, 'bc', 'bg')];
+    const input = {
+      main: [{ ...child, parentId: null, path: 'c' }],
+      branch: [{ ...groupCopy, sourcePageId: null }, childCopy],
+      forkBase: baseOf([groupCopy, childCopy], group, child),
+    };
+    expect(merged(planMerge({ ...input, force: none }))).toMatchObject({ conflicts: [], inserts: [], updates: [], deletes: [], record: [] });
+    expect(summarizeChanges(input)).toEqual([]);
   });
 
   it('inserts pages created in the branch under the main parent, keeping their ids', () => {
     const parent = page('m1');
     const parentCopy = fork(parent, 'b1');
     const added = page('b2', { parentId: 'b1', slug: 'new', path: 'm1/new' });
-    const plan = merged(planMerge({ main: [parent], branch: [parentCopy, added], forkBase: baseOf(parent), force: none }));
+    const plan = merged(planMerge({ main: [parent], branch: [parentCopy, added], forkBase: baseOf([parentCopy], parent), force: none }));
     expect(plan.inserts).toEqual([{ id: 'b2', data: expect.objectContaining({ parentId: 'm1', slug: 'new', path: 'm1/new' }) }]);
   });
 
@@ -100,7 +117,7 @@ describe('planMerge', () => {
     const top = page('m1');
     const parent = page('m2', { parentId: 'm1', path: 'm1/m2' });
     const branch = [fork(top, 'b1'), fork(parent, 'b2', 'b1'), page('b3', { parentId: 'b2', slug: 'new', path: 'm1/m2/new' })];
-    const plan = merged(planMerge({ main: [top], branch, forkBase: baseOf(top, parent), force: none }));
+    const plan = merged(planMerge({ main: [top], branch, forkBase: baseOf(branch, top, parent), force: none }));
     expect(plan.conflicts).toEqual([]);
     expect(plan.inserts).toEqual([{ id: 'b3', data: expect.objectContaining({ parentId: 'm1', path: 'm1/new' }) }]);
   });
@@ -108,7 +125,7 @@ describe('planMerge', () => {
   it('refuses pages changed on both sides and lists them', () => {
     const main = page('m1', { path: 'guide/m1' });
     const copy = { ...fork(main, 'b1'), content: '# branch' };
-    const plan = merged(planMerge({ main: [{ ...main, content: '# main' }], branch: [copy], forkBase: baseOf(main), force: none }));
+    const plan = merged(planMerge({ main: [{ ...main, content: '# main' }], branch: [copy], forkBase: baseOf([copy], main), force: none }));
     expect(plan.blocked).toBe(true);
     expect(plan.conflicts).toEqual([{ pageId: 'm1', title: 'm1', path: 'guide/m1', languageId: 'en', reason: 'BOTH_CHANGED' }]);
     expect(plan.updates).toEqual([]);
@@ -123,7 +140,7 @@ describe('planMerge', () => {
       { ...fork(edited, 'b2'), content: 'First line wrapped.\n\nSecond, edited.' },
     ];
     const main = [rewrapped, { ...edited, content: 'First line wrapped.\n\nSecond.' }];
-    const plan = merged(planMerge({ main, branch, forkBase: baseOf(rewrapped, edited), force: none }));
+    const plan = merged(planMerge({ main, branch, forkBase: baseOf(branch, rewrapped, edited), force: none }));
     expect(plan.conflicts).toEqual([]);
     expect(plan.updates).toEqual([{ id: 'm2', data: expect.objectContaining({ content: 'First line wrapped.\n\nSecond, edited.' }) }]);
   });
@@ -133,7 +150,7 @@ describe('planMerge', () => {
     const deletedOnMain = page('m2', { position: 1 });
     const branch = [{ ...fork(deletedOnMain, 'b2'), sourcePageId: null, content: '# branch' }];
     const main = [{ ...editedOnMain, content: '# main' }];
-    const plan = merged(planMerge({ main, branch, forkBase: baseOf(editedOnMain, deletedOnMain), force: none }));
+    const plan = merged(planMerge({ main, branch, forkBase: baseOf(branch, editedOnMain, deletedOnMain), force: none }));
     expect(plan.conflicts.map(({ pageId, reason }) => ({ pageId, reason }))).toEqual([
       { pageId: 'b2', reason: 'DELETED_ON_MAIN' },
       { pageId: 'm1', reason: 'DELETED_IN_BRANCH' },
@@ -148,7 +165,7 @@ describe('planMerge', () => {
       { ...conflicting, content: '# main' },
       { ...mainOnly, content: '# main only' },
     ];
-    const plan = merged(planMerge({ main, branch, forkBase: baseOf(conflicting, mainOnly), force: new Set(['m1']) }));
+    const plan = merged(planMerge({ main, branch, forkBase: baseOf(branch, conflicting, mainOnly), force: new Set(['m1']) }));
     expect(plan.blocked).toBe(false);
     expect(plan.conflicts.map((conflict) => conflict.pageId)).toEqual(['m1']);
     expect(plan.updates).toEqual([{ id: 'm1', data: { content: '# branch' } }]);
@@ -165,7 +182,7 @@ describe('planMerge', () => {
       { ...first, content: '# main' },
       { ...second, content: '# main' },
     ];
-    const plan = merged(planMerge({ main, branch, forkBase: baseOf(first, second), force: new Set(['m1']) }));
+    const plan = merged(planMerge({ main, branch, forkBase: baseOf(branch, first, second), force: new Set(['m1']) }));
     expect(plan.blocked).toBe(true);
     expect(plan.conflicts.map((conflict) => conflict.pageId)).toEqual(['m1', 'm2']);
     expect(plan.updates).toEqual([]);
@@ -176,7 +193,7 @@ describe('planMerge', () => {
     const b = page('m2', { position: 1 });
     const branch = [fork(a, 'b1'), { ...fork(b, 'b2', 'b1'), content: '# moved' }];
     const main = [{ ...a, position: 5 }, b];
-    const plan = merged(planMerge({ main, branch, forkBase: baseOf(a, b), force: none }));
+    const plan = merged(planMerge({ main, branch, forkBase: baseOf(branch, a, b), force: none }));
     expect(plan.updates).toEqual([{ id: 'm2', data: { parentId: 'm1', content: '# moved', path: 'm1/m2' } }]);
   });
 
@@ -185,7 +202,7 @@ describe('planMerge', () => {
     const b = page('m2', { position: 1 });
     const main = [{ ...a, parentId: 'm2', path: 'm2/m1' }, b];
     const branch = [fork(a, 'b1'), fork(b, 'b2', 'b1')];
-    const plan = merged(planMerge({ main, branch, forkBase: baseOf(a, b), force: none }));
+    const plan = merged(planMerge({ main, branch, forkBase: baseOf(branch, a, b), force: none }));
     expect(plan.updates.filter((update) => 'parentId' in update.data)).toEqual([]);
   });
 
@@ -200,16 +217,15 @@ describe('planMerge', () => {
     const parent = page('m1');
     const lateChild = page('m2', { parentId: 'm1', slug: 'faq', path: 'm1/faq' });
     const rootFaq = page('m3', { slug: 'faq', path: 'faq', position: 1 });
-    const plan = merged(
-      planMerge({ main: [parent, lateChild, rootFaq], branch: [fork(rootFaq, 'b3')], forkBase: baseOf(parent, rootFaq), force: none }),
-    );
+    const branch = [fork(rootFaq, 'b3')];
+    const plan = merged(planMerge({ main: [parent, lateChild, rootFaq], branch, forkBase: baseOf(branch, parent, rootFaq), force: none }));
     expect(plan.updates).toEqual([{ id: 'm2', data: { parentId: null, slug: 'faq-2', path: 'faq-2' } }]);
   });
 
   it('merges a rewrite that replaced every forked page per page', () => {
     const old = page('m1');
     const late = page('m2', { position: 1 });
-    const plan = merged(planMerge({ main: [old, late], branch: [page('b1', { slug: 'new' })], forkBase: baseOf(old), force: none }));
+    const plan = merged(planMerge({ main: [old, late], branch: [page('b1', { slug: 'new' })], forkBase: baseOf([], old), force: none }));
     expect(plan.inserts.map((insert) => insert.id)).toEqual(['b1']);
     expect(plan.deletes).toEqual(['m1']);
   });
@@ -238,7 +254,7 @@ describe('summarizeChanges', () => {
     const moved = page('m2', { position: 1 });
     const removed = page('m3', { position: 2 });
     const branch = [{ ...fork(edited, 'b1'), title: 'Edited' }, { ...fork(moved, 'b2'), position: 7 }, page('b4')];
-    const changes = summarizeChanges({ main: [edited, moved, removed], branch, forkBase: baseOf(edited, moved, removed) });
+    const changes = summarizeChanges({ main: [edited, moved, removed], branch, forkBase: baseOf(branch, edited, moved, removed) });
     expect(changes.map(({ change, mainPageId, branchPageId }) => [change, mainPageId, branchPageId])).toEqual([
       ['modified', 'm1', 'b1'],
       ['moved', 'm2', 'b2'],

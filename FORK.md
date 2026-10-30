@@ -121,12 +121,14 @@ of `main` that is reviewed and merged back.
   Mintlify versions import as draft CRs. The migration turned existing
   non-default branches into draft CRs.
 - Fork links: CR pages carry `sourcePageId` (their `main` page, `SetNull`) and
-  `forkFingerprint` = `<content hash>.<tree hash>` of that page at fork time.
-  Content: kind, title, slug, icon, description, content, config, hidden,
-  translationKey. Tree: parent (as a `main` id) and position.
+  `forkFingerprint` = `<content hash>.<parent hash>.<position hash>` of that
+  page at fork time. Content: kind, title, slug, icon, description, content,
+  config, hidden, translationKey. Parent as a `main` id.
 - Fork base: `ChangeRequest.forkBase` maps every `main` page copied at fork
-  time to its content hash. Null means untracked (migrated branches, empty
-  Mintlify version imports); cleared on merge.
+  time to `{ hash, copyId }` (content hash, CR copy). A copy's parent is
+  compared by its fork-time `main` id from this map, so main deleting a parent
+  does not count as the CR moving its children. Null means untracked
+  (migrated branches, empty Mintlify version imports); cleared on merge.
 - Merge (`planMerge` in `apps/server/src/actions/change-request-merge.ts`),
   one transaction:
   - Edited page: written onto the same `main` row (comments, reader grants
@@ -148,6 +150,9 @@ of `main` that is reviewed and merged back.
     answers 409 again if any other conflict exists.
   - Untracked CRs (null fork base) replace `main` wholesale (legacy
     behaviour); the merge record pairs pages by language and path.
+  - Replacing `main` wholesale (untracked merge, import over the wiki) is
+    refused (409) while tracked CRs with a branch are open: new `main` ids
+    would orphan their fork links.
   - Merges take a per-project advisory lock and lock `main`'s rows.
 - API: `/projects/:projectId/change-requests` (list `?status=`, create, get
   with changed pages, patch title/description/status, `/:number/merge`,

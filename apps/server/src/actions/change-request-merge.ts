@@ -28,9 +28,10 @@ export type MergedFields = Pick<
   'parentId' | 'kind' | 'title' | 'slug' | 'icon' | 'description' | 'content' | 'config' | 'translationKey' | 'position' | 'hidden'
 >;
 
-/** `{ [defaultBranchPageId]: content hash }` of the pages copied at fork time;
- *  null for change requests without fork tracking. */
-export type ForkBase = Record<string, string> | null;
+/** `{ [defaultBranchPageId]: { hash, copyId } }`: content hash and
+ *  change-request copy of each page copied at fork time; null for change
+ *  requests without fork tracking. */
+export type ForkBase = Record<string, { hash: string; copyId: string }> | null;
 
 type MergeConflictReason = 'BOTH_CHANGED' | 'DELETED_ON_MAIN' | 'DELETED_IN_BRANCH';
 
@@ -155,13 +156,15 @@ type BranchPageState = { page: MergePage; source: MergePage | undefined; content
 
 /** How each change-request page relates to its fork point. Pages without a
  *  fingerprint were created in the branch. */
-const branchStates = ({ main, branch }: MergeInput) => {
+const branchStates = ({ main, branch, forkBase }: MergeInput) => {
   const mainById = new Map(main.map((page) => [page.id, page]));
   const branchById = new Map(branch.map((page) => [page.id, page]));
+  // Fork-time main id of each copy, kept after main deletes the source page.
+  const forkSource = new Map(Object.entries(forkBase ?? {}).map(([mainId, { copyId }]) => [copyId, mainId]));
   const parentKey = (page: MergePage) => {
     const parent = page.parentId ? branchById.get(page.parentId) : undefined;
     if (!parent) return null;
-    return parent.sourcePageId && mainById.has(parent.sourcePageId) ? parent.sourcePageId : `branch:${parent.id}`;
+    return forkSource.get(parent.id) ?? `branch:${parent.id}`;
   };
   return branch.map((page): BranchPageState => {
     const [forkContent, forkParent, forkPosition] = page.forkFingerprint?.split('.') ?? [];
@@ -267,7 +270,7 @@ export const planMerge = (input: MergeInput & { force: ReadonlySet<string> }): M
   }
 
   for (const page of deletedInBranch(input)) {
-    if (contentHash(page) !== forkBase[page.id] && !conflict(page, 'DELETED_IN_BRANCH')) continue;
+    if (contentHash(page) !== forkBase[page.id]?.hash && !conflict(page, 'DELETED_IN_BRANCH')) continue;
     deletes.add(page.id);
   }
 

@@ -3,7 +3,7 @@ import type { Locale } from '@nibleaf/i18n/locales';
 import { changerequest_defaulttitle } from '@nibleaf/i18n/messages';
 import type { CreateChangeRequestBody, UpdateChangeRequestBody } from '@nibleaf/validators';
 import { badRequest, conflict, notFound } from '@/errors';
-import { createBranch, getDefaultBranch } from './branches';
+import { assertNoTrackedChangeRequests, createBranch, getDefaultBranch } from './branches';
 import { type ForkBase, type MergedFields, type MergePage, type MergeRecordEntry, planMerge, summarizeChanges } from './change-request-merge';
 
 const MERGE_TIMEOUT_MS = 60_000;
@@ -149,6 +149,7 @@ export const mergeChangeRequest = async (projectId: string, number: number, user
       const [mainPages, branchPages] = await Promise.all([loadPages(projectId, main.id, tx), loadPages(projectId, branchId, tx)]);
       const plan = planMerge({ main: mainPages, branch: branchPages, forkBase: changeRequest.forkBase as ForkBase, force: new Set(force) });
       if (plan.legacy) {
+        await assertNoTrackedChangeRequests(tx, projectId, 'Merge or discard the other open change requests first; this one replaces every page.');
         await tx.page.deleteMany({ where: { projectId, branchId: main.id } });
         await tx.page.updateMany({ where: { projectId, branchId }, data: { branchId: main.id } });
       } else {

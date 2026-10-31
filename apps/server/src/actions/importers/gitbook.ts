@@ -27,7 +27,7 @@ import {
   findGitBookSpaceLinks,
   parseGitBookFrontmatter,
 } from './gitbook-markdown';
-import { getGitHubDefaultBranch, getGitHubTextFile, githubRawUrl, listGitHubFiles } from './github';
+import { getGitHubDefaultBranch, getGitHubSnapshot, getGitHubTextFile, githubRawUrl } from './github';
 import { rewriteMintlifyInternalLinks } from './mintlify-links';
 import { defaultImportTarget, ensureGroupPage, type ImportTarget, removeImportPlaceholders, upsertPage } from './persistence';
 import { emptySummary, type ImporterSource, type ImportSummary } from './types';
@@ -53,8 +53,8 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
     if (!owner || !name) {
       throw badRequest('Use the form owner/repo.');
     }
-    const branch = input.branch?.trim() || (await getGitHubDefaultBranch(owner, name));
-    const tree = await listGitHubFiles(owner, name, branch);
+    const ref = input.branch?.trim() || (await getGitHubDefaultBranch(owner, name));
+    const { revision: branch, files: tree } = await getGitHubSnapshot(owner, name, ref);
     const paths = tree.filter((item) => item.type === 'blob').map((item) => item.path);
     const blobs = new Set(paths);
     const textCache = new Map<string, Promise<string | null>>();
@@ -64,7 +64,11 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
       budget.check();
       const pending = getGitHubTextFile(owner, name, branch, filePath).then((content) => {
         if (content === null)
-          throw new ImportError({ code: 'import:incomplete', message: 'GitBook source content is missing; the draft was preserved.' });
+          throw new ImportError({
+            code: 'import:incomplete',
+            message: 'GitBook source content is missing; the draft was preserved.',
+            details: { path: filePath },
+          });
         budget.source(content);
         return content;
       });
@@ -224,7 +228,11 @@ const loadNodes = async (nodes: readonly PlannedGitBookNode[], context: LoadCont
     const filePath = context.repoPath(node.path);
     const raw = await context.loadText(filePath);
     if (raw === null) {
-      throw new ImportError({ code: 'import:incomplete', message: 'GitBook source content is missing; the draft was preserved.' });
+      throw new ImportError({
+        code: 'import:incomplete',
+        message: 'GitBook source content is missing; the draft was preserved.',
+        details: { path: filePath },
+      });
     }
     state.pages++;
     loaded.push({ node, page: { path: node.path, filePath, raw }, children: await loadNodes(node.children, context) });
@@ -250,7 +258,11 @@ const dropMissing = (nodes: readonly GitBookNavNode[], files: ReadonlySet<string
   nodes.flatMap((node) => {
     const children = dropMissing(node.children, files);
     if (node.kind === 'group' || files.has(node.path)) return [{ ...node, children }];
-    throw new ImportError({ code: 'import:incomplete', message: 'GitBook source content is missing; the draft was preserved.' });
+    throw new ImportError({
+      code: 'import:incomplete',
+      message: 'GitBook source content is missing; the draft was preserved.',
+      details: { path: node.path },
+    });
   });
 
 /** Depth-first import of the loaded tree; the array index is the sibling position. */
@@ -277,6 +289,7 @@ const importNodes = async (
     summary.warnings.push(...includeWarnings);
 
     const rawUrl = (repoFile: string) => githubRawUrl(context.repo.owner, context.repo.name, context.repo.branch, repoFile);
+    context.budget.page(expanded, filePath);
     const converted = convertGitBookMarkdown(expanded, {
       resolveFile: (reference) => {
         if (/^https?:\/\//i.test(reference)) return reference;

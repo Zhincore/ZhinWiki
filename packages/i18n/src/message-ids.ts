@@ -1598,6 +1598,8 @@ export const MESSAGE_IDS = {
   'settings.import.incomplete': 'settings_import_incomplete',
   'settings.import.limit': 'settings_import_limit',
   'settings.import.conflict': 'settings_import_conflict',
+  'settings.import.inProgress': 'settings_import_inprogress',
+  'settings.import.busy': 'settings_import_busy',
   'settings.import.error': 'settings_import_error',
   'settings.import.result': 'settings_import_result',
   'settings.import.assetsResult': 'settings_import_assetsresult',

@@ -164,8 +164,16 @@ export function ImportTab({ projectId }: { projectId?: string }) {
   };
   const handleError = (error: unknown) => {
     if (error instanceof ApiResponseError) {
+      if (error.code === 'import:in_progress') {
+        toast.error(t('settings.import.inProgress'));
+        return;
+      }
+      if (error.code === 'import:busy') {
+        toast.error(t('settings.import.busy'));
+        return;
+      }
       if (error.code === 'import:incomplete') {
-        toast.error(t('settings.import.incomplete'));
+        toast.error(`${t('settings.import.incomplete')}${error.path ? ` (${error.path})` : ''}`);
         return;
       }
       if (error.code === 'import:limit') {

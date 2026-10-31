@@ -1,4 +1,5 @@
 import { posix } from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { describe, expect, it } from 'vitest';
 import {
   convertGitBookMarkdown,
@@ -6,6 +7,7 @@ import {
   extractGitBookTitle,
   findGitBookSpaceLinks,
   parseGitBookFrontmatter,
+  plainGitBookText,
 } from './gitbook-markdown';
 
 const convert = (source: string, resolveFile: (reference: string) => string | undefined = () => undefined) =>
@@ -283,4 +285,23 @@ describe('expandGitBookIncludes', () => {
     );
     expect(warnings).toEqual([]);
   });
+});
+
+it.each(['details', 'figure', 'picture', 'table data-view="cards"', 'div', 'a class="button"'])(
+  'converts a MiB of unclosed %s openings promptly',
+  (tag) => {
+    const unit = `<${tag}>`;
+    const input = unit.repeat(Math.ceil((1024 * 1024) / unit.length));
+    const started = performance.now();
+    convertGitBookMarkdown(input, { resolveFile: () => undefined });
+    const elapsed = performance.now() - started;
+    console.info(`HTML conversion ${tag}: ${Math.round(elapsed)} ms`);
+    expect(elapsed).toBeLessThan(900);
+  },
+);
+it.each(['a < b and c', 'x <= y', 'List<T> API'])('preserves literal title text %s', (label) => {
+  expect(plainGitBookText(label)).toBe(label);
+});
+it('handles out-of-range entity values', () => {
+  expect(() => plainGitBookText('&#x110000; &#999999999999999999999999;')).not.toThrow();
 });

@@ -17,8 +17,14 @@ export class GitBookImportBudget {
     this.check();
     this.files++;
     this.bytes += Buffer.byteLength(content);
-    if (this.files > 4000 || this.bytes > 128 * 1024 * 1024)
+    if (this.files > 4000 || this.bytes > 32 * 1024 * 1024)
       throw new ImportError({ code: 'import:limit', message: 'GitBook import exceeded its source budget; the draft was preserved.' });
+  }
+
+  page(content: string, path: string) {
+    this.check();
+    if (Buffer.byteLength(content) > 2 * 1024 * 1024)
+      throw new ImportError({ code: 'import:limit', message: 'Expanded page exceeds 2 MiB; the draft was preserved.', details: { path } });
   }
 
   include() {

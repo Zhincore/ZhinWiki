@@ -10,7 +10,7 @@ it('bounds source count, aggregate bytes, and elapsed time independently', () =>
   expect(() => count.source('')).toThrow(/source budget/);
   const bytes = new GitBookImportBudget();
   const chunk = 'x'.repeat(1024 * 1024);
-  for (let i = 0; i < 128; i++) bytes.source(chunk);
+  for (let i = 0; i < 32; i++) bytes.source(chunk);
   expect(() => bytes.source('x')).toThrow(/source budget/);
   vi.useFakeTimers();
   const timed = new GitBookImportBudget();
@@ -48,4 +48,9 @@ it('stops expansion before accumulating all include replacements', async () => {
     /expansion budget/,
   );
   expect(load.mock.calls.length).toBeLessThanOrEqual(65);
+});
+
+it('bounds each expanded page independently of cumulative work', () => {
+  const budget = new GitBookImportBudget();
+  expect(() => budget.page('x'.repeat(2 * 1024 * 1024 + 1), 'big.md')).toThrow(/Expanded page/);
 });

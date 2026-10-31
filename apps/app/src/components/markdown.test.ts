@@ -260,9 +260,17 @@ describe('Markdown renderer — Mintlify component parity', () => {
 it('renders GitBook labels after decoding and removing nested markup', async () => {
   const hostile = '&lt;img src=x onerror=alert(1)&gt;Safe <<script>script>';
   const label = plainGitBookText(hostile);
-  expect(label).not.toMatch(/[<>]/);
+  expect(label).toBe('Safe <script>');
   const converted = convertGitBookMarkdown(`{% content-ref url="/safe" %}[${hostile}](/safe){% endcontent-ref %}`, { resolveFile: () => undefined });
   const html = await render(converted.content);
   expect(html).not.toMatch(/<(?:img|script)\b|onerror=/);
   expect(html).toContain('Safe');
+});
+
+it.each(['a < b', 'x <= y', 'List<T>', '<<script>script>', '{sample}'])('renders literal Button label %s', async (label) => {
+  const { content } = convertGitBookMarkdown(`<a href="/safe" class="button">${label}</a>`, { resolveFile: () => undefined });
+  expect(content).not.toContain('{sample}');
+  const html = await render(content);
+  expect(html).not.toMatch(/<script\b/);
+  expect(html).toContain(plainGitBookText(label).replace(/</g, '&lt;').replace(/>/g, '&gt;'));
 });

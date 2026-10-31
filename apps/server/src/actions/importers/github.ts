@@ -27,6 +27,17 @@ export const listGitHubFiles = async (owner: string, repo: string, branch: strin
   }
 };
 
+/** Resolve a mutable ref once; raw content must use a commit, not a tree object ID. */
+export const getGitHubSnapshot = async (owner: string, repo: string, ref: string) => {
+  try {
+    const commit = await github.rest.repos.getCommit({ owner, repo, ref });
+    const revision = commit.data.sha;
+    return { revision, files: await listGitHubFiles(owner, repo, revision) };
+  } catch (error) {
+    throw githubFailure(error);
+  }
+};
+
 /** Default branch of a public GitHub repository (used when the caller omits one). */
 export const getGitHubDefaultBranch = async (owner: string, repo: string) => {
   try {
@@ -73,8 +84,11 @@ export const getGitHubTextFile = async (owner: string, repo: string, branch: str
       chunks.push(value);
     }
     return Buffer.concat(chunks).toString('utf8');
+  } catch (error) {
+    if (error instanceof ImportError) throw error;
+    throw githubFailure(error);
   } finally {
-    await reader.cancel();
+    await reader.cancel().catch(() => undefined);
   }
 };
 

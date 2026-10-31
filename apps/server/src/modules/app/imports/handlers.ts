@@ -7,6 +7,7 @@ import { createNotificationsForOrgMembers } from '@/actions/notifications';
 import { badRequest } from '@/errors';
 import { getContextOrganizationIdOrThrow, getContextUserOrThrow, type HonoEnv } from '@/lib/hono/context';
 import { validator } from '@/lib/hono/validate';
+import { limitImport } from './limit';
 import importsRoutes from './routes';
 
 /** Ghost exports ship the whole site in one JSON document — allow up to 15 MB. */
@@ -60,7 +61,7 @@ const trackedImport = async <T extends ImportSummary>(
 // organizationId is the PROJECT's own org (resolved from :projectId by the guards),
 // mirroring the project-settings module. Mounted under /projects/:projectId/settings/import.
 const app = new Hono<HonoEnv>()
-  .post('/mintlify', ...importsRoutes.mintlify, validator('json', mintlifyImportBody), async (ctx) => {
+  .post('/mintlify', ...importsRoutes.mintlify, limitImport('mintlify'), validator('json', mintlifyImportBody), async (ctx) => {
     const organizationId = getContextOrganizationIdOrThrow();
     const user = getContextUserOrThrow();
     // Always present — the module is mounted under /projects/:projectId/settings/import.
@@ -71,7 +72,7 @@ const app = new Hono<HonoEnv>()
     await notifyImportCompleted(projectId, user.id, 'Mintlify', summary);
     return ctx.json({ data: summary }, 200);
   })
-  .post('/gitbook', ...importsRoutes.gitbook, validator('json', gitbookImportBody), async (ctx) => {
+  .post('/gitbook', ...importsRoutes.gitbook, limitImport('gitbook'), validator('json', gitbookImportBody), async (ctx) => {
     const organizationId = getContextOrganizationIdOrThrow();
     const user = getContextUserOrThrow();
     const projectId = ctx.req.param('projectId') ?? '';
@@ -84,6 +85,7 @@ const app = new Hono<HonoEnv>()
   .post(
     '/ghost',
     ...importsRoutes.ghost,
+    limitImport('ghost'),
     bodyLimit({
       maxSize: GHOST_MAX_BODY_BYTES,
       onError: () => {

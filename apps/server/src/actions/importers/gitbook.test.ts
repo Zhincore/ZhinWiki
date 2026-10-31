@@ -42,9 +42,11 @@ vi.mock('../projects', () => ({ assertProjectInOrg: vi.fn(async () => ({ id: 'pr
 vi.mock('../assets', () => ({ findImportedAsset: vi.fn(async () => ({ url: 'https://cdn.example/stored.png' })), storeAsset: vi.fn() }));
 vi.mock('./github', () => ({
   getGitHubDefaultBranch: async () => 'main',
-  listGitHubFiles: async () => [...mem.repoFiles.keys()].map((path) => ({ path, type: 'blob' as const })),
-  getGitHubTextFile: async (_owner: string, _name: string, _branch: string, path: string) =>
-    mem.failing.has(path) ? null : (mem.repoFiles.get(path) ?? null),
+  getGitHubSnapshot: async () => ({ revision: 'pinned-commit', files: [...mem.repoFiles.keys()].map((path) => ({ path, type: 'blob' as const })) }),
+  getGitHubTextFile: async (_owner: string, _name: string, _branch: string, path: string) => {
+    expect(_branch).toBe('pinned-commit');
+    return mem.failing.has(path) ? null : (mem.repoFiles.get(path) ?? null);
+  },
   githubRawUrl: (_owner: string, _name: string, _branch: string, path: string) =>
     `https://raw.githubusercontent.com/acme/docs/main/${path.split('/').map(encodeURIComponent).join('/')}`,
 }));
@@ -186,4 +188,16 @@ it('stops include budget overruns before promotion', async () => {
   mem.repoFiles.set('part.md', 'text');
   await expect(runImport({ replaceExisting: true })).rejects.toThrow(/include budget/);
   expect(promoteImportReplacementBranch).not.toHaveBeenCalled();
+});
+
+it('rejects an oversized expanded page before conversion or promotion', async () => {
+  mem.repoFiles.set('README.md', '# Home\n\n{% include "part.md" %}{% include "part.md" %}');
+  mem.repoFiles.set('part.md', 'x'.repeat(1024 * 1024 + 1));
+  await expect(runImport()).rejects.toMatchObject({ code: 'import:limit', details: { path: 'README.md' } });
+  expect(mem.rows).toHaveLength(0);
+  expect(promoteImportReplacementBranch).not.toHaveBeenCalled();
+});
+it('names a missing navigation file', async () => {
+  mem.repoFiles.set('SUMMARY.md', '* [Missing](missing.md)');
+  await expect(runImport()).rejects.toMatchObject({ details: { path: 'missing.md' } });
 });

@@ -288,10 +288,11 @@ export const planGitBookNavigation = (
       const claimedBy = used.get(slug);
       if (claimedBy !== undefined && claimedBy !== identity) {
         const fallback = (node.kind === 'page' ? slugify(withoutExtension(node.path).split('/').join('-')) : '') || `${slug}-${stableHash(identity)}`;
-        warnings.push(`"${claimedBy}" and "${identity}" share the slug "${slug}" — "${identity}" was imported as "${fallback}".`);
+        const original = slug;
         slug = fallback;
         let suffix = 2;
         while (used.has(slug) && used.get(slug) !== identity) slug = `${fallback}-${suffix++}`;
+        warnings.push(`"${claimedBy}" and "${identity}" share the slug "${original}" — "${identity}" was imported as "${slug}".`);
       }
       used.set(slug, identity);
       const segments = [...parentSegments, slug];

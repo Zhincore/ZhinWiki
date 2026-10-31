@@ -47,3 +47,20 @@ it('cancels oversized decoded text before consuming the remaining stream', async
   await expect(getGitHubTextFile('acme', 'docs', 'main', 'large.md')).rejects.toThrow(/2 MiB/);
   expect(cancel).toHaveBeenCalledOnce();
 });
+
+it('wraps a stream timeout as a definite application error', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(new DOMException('Timed out', 'TimeoutError'));
+            },
+          }),
+        ),
+    ),
+  );
+  await expect(getGitHubTextFile('acme', 'docs', 'main', 'file.md')).rejects.toMatchObject({ code: 'http:bad_request', status: 400 });
+});

@@ -28,6 +28,8 @@ export type ErrorCode =
   | 'import:unsupported'
   | 'import:incomplete'
   | 'import:limit'
+  | 'import:busy'
+  | 'import:in_progress'
   | 'provider:unavailable'
   | 'usage:invalid_period'
   | 'usage:unavailable'
@@ -86,6 +88,8 @@ const ERROR_STATUS = {
   'import:unsupported': 422,
   'import:incomplete': 422,
   'import:limit': 422,
+  'import:busy': 503,
+  'import:in_progress': 409,
   'provider:unavailable': 502,
   'usage:invalid_period': 400,
   'usage:unavailable': 503,

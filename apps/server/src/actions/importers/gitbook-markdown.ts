@@ -72,8 +72,8 @@ const htmlAttribute = (tag: string, name: string): string | undefined => {
 
 const decodeEntities = (value: string): string =>
   value
-    .replace(/&#x([0-9a-f]+);/gi, (_match, hex: string) => String.fromCodePoint(Number.parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_match, decimal: string) => String.fromCodePoint(Number(decimal)))
+    .replace(/&#x([0-9a-f]+);/gi, (_match, hex: string) => String.fromCodePoint(Math.min(0x10_ff_ff, Number.parseInt(hex, 16))))
+    .replace(/&#(\d+);/g, (_match, decimal: string) => String.fromCodePoint(Math.min(0x10_ff_ff, Number(decimal))))
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&lt;/g, '<')
@@ -90,12 +90,26 @@ export const safeDecodeUri = (value: string): string => {
 };
 
 export const plainGitBookText = (value: string): string => {
+  const decoded = decodeEntities(value);
+  const closingNames = new Set([...decoded.matchAll(/<\/([A-Z]\w*)>/g)].map((match) => match[1]));
   const text: string[] = [];
-  let inTag = false;
-  for (const character of decodeEntities(value)) {
-    if (character === '<') inTag = true;
-    else if (character === '>') inTag = false;
-    else if (!inTag) text.push(character);
+  for (let index = 0; index < decoded.length; index++) {
+    if (decoded[index] === '<' && /[A-Za-z/!?]/.test(decoded[index + 1] ?? '')) {
+      const end = decoded.indexOf('>', index + 1);
+      if (end < 0) {
+        text.push(decoded.slice(index));
+        break;
+      }
+      const token = decoded.slice(index + 1, end);
+      // Preserve bare generic type names when they have no paired closing tag.
+      if (/^[A-Z][\w]*$/.test(token) && !closingNames.has(token)) {
+        text.push(decoded.slice(index, end + 1));
+      } else {
+        index = end;
+        continue;
+      }
+      index = end;
+    } else text.push(decoded[index] ?? '');
   }
   return text.join('').replace(/\s+/g, ' ').trim();
 };
@@ -181,17 +195,47 @@ const applyCodeAnnotations = (content: string): string => {
   return output.join('\n');
 };
 
+const replaceHtmlBlocks = (
+  source: string,
+  opening: RegExp,
+  closing: string,
+  replace: (whole: string, inner: string, open: string) => string,
+): string => {
+  const lower = source.toLowerCase();
+  const output: string[] = [];
+  let cursor = 0;
+  opening.lastIndex = 0;
+  for (let match = opening.exec(source); match; match = opening.exec(source)) {
+    const start = match.index + match[0].length;
+    const end = lower.indexOf(closing, start);
+    if (end < 0) break;
+    output.push(source.slice(cursor, match.index), replace(source.slice(match.index, end + closing.length), source.slice(start, end), match[0]));
+    cursor = end + closing.length;
+    opening.lastIndex = cursor;
+  }
+  output.push(source.slice(cursor));
+  return output.join('');
+};
+
 /** `<table data-view="cards">` is GitBook's card grid. Hidden columns carry the
  * link target (`data-card-target`) and cover (`data-card-cover`). */
 const convertCardTable = (table: string, context: GitBookConversionContext): string => {
-  const headers = [...table.matchAll(/<th\b([^>]*)>/gi)].map((match) => match[1] ?? '');
+  const headers = [...table.matchAll(/<th\b([^<>]*)>/gi)].map((match) => match[1] ?? '');
   const targetIndex = headers.findIndex((header) => /\bdata-card-target\b/i.test(header));
   const coverIndex = headers.findIndex((header) => /\bdata-card-cover\b/i.test(header));
   const hidden = new Set(headers.flatMap((header, index) => (/\bdata-hidden\b/i.test(header) ? [index] : [])));
-  const body = table.match(/<tbody\b[^>]*>([\s\S]*?)<\/tbody>/i)?.[1] ?? '';
+  let body = '';
+  replaceHtmlBlocks(table, /<tbody\b[^<>]*>/gi, '</tbody>', (_whole, inner) => {
+    body = inner;
+    return '';
+  });
   const cards: string[] = [];
-  for (const row of body.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
-    const cells = [...(row[1] ?? '').matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)].map((cell) => cell[1] ?? '');
+  replaceHtmlBlocks(body, /<tr\b[^<>]*>/gi, '</tr>', (_whole, row) => {
+    const cells: string[] = [];
+    replaceHtmlBlocks(row, /<td\b[^<>]*>/gi, '</td>', (_cell, inner) => {
+      cells.push(inner);
+      return '';
+    });
     const visible = cells.filter((_cell, index) => !hidden.has(index) && index !== targetIndex && index !== coverIndex).map(plainGitBookText);
     const [title = '', ...rest] = visible.filter(Boolean);
     const target = targetIndex >= 0 ? htmlAttribute(cells[targetIndex] ?? '', 'href') : undefined;
@@ -199,19 +243,24 @@ const convertCardTable = (table: string, context: GitBookConversionContext): str
     const cover = coverReference ? (context.resolveFile(coverReference) ?? coverReference) : undefined;
     const children = [cover ? imageMarkdown(title, cover) : '', rest.join('\n\n')].filter(Boolean).join('\n\n');
     cards.push(`<Card title="${attr(title || 'Untitled')}"${target ? ` href="${attr(target)}"` : ''}>\n\n${children}\n\n</Card>`);
-  }
+    return '';
+  });
   return cards.length > 0 ? `\n<CardGroup cols="${Math.min(3, cards.length)}">\n\n${cards.join('\n\n')}\n\n</CardGroup>\n` : '';
 };
 
 /** Block images are `<figure>` (optionally with `<picture>` light/dark sources
  * and a `<figcaption>`). The light `<img>` is kept; a caption becomes a Frame. */
 const convertFigure = (figure: string): string => {
-  const images = [...figure.matchAll(/<img\b[^>]*>/gi)].flatMap((match) => {
+  const images = [...figure.matchAll(/<img\b[^<>]*>/gi)].flatMap((match) => {
     const src = htmlAttribute(match[0], 'src');
     return src ? [imageMarkdown(htmlAttribute(match[0], 'alt') ?? '', src)] : [];
   });
   if (images.length === 0) return figure;
-  const caption = plainGitBookText(figure.match(/<figcaption\b[^>]*>([\s\S]*?)<\/figcaption>/i)?.[1] ?? '');
+  let caption = '';
+  replaceHtmlBlocks(figure, /<figcaption\b[^<>]*>/gi, '</figcaption>', (_whole, inner) => {
+    caption = plainGitBookText(inner);
+    return '';
+  });
   const markdown = images.join('\n\n');
   return caption ? `\n<Frame caption="${attr(caption)}">\n\n${markdown}\n\n</Frame>\n` : `\n${markdown}\n`;
 };
@@ -345,36 +394,44 @@ export const convertGitBookMarkdown = (source: string, context: GitBookConversio
   });
 
   // HTML conventions.
+  content = replaceHtmlBlocks(content, /<table\b[^<>]*>/gi, '</table>', (table, _inner, open) =>
+    /\bdata-view\s*=\s*["']cards["']/i.test(open) ? convertCardTable(table, context) : table,
+  );
+  content = replaceHtmlBlocks(content, /<div\b[^<>]*>/gi, '</div>', (whole, inner) => (/^\s*<(?:figure|img)\b/i.test(inner) ? inner : whole));
+  content = replaceHtmlBlocks(content, /<figure\b[^<>]*>/gi, '</figure>', convertFigure);
+  content = replaceHtmlBlocks(content, /<picture\b[^<>]*>/gi, '</picture>', (picture) => {
+    const image = picture.match(/<img\b[^<>]*>/i)?.[0];
+    const src = image ? htmlAttribute(image, 'src') : undefined;
+    return src && image ? imageMarkdown(htmlAttribute(image, 'alt') ?? '', src) : picture;
+  });
+  content = content.replace(/<img\b[^<>]*>/gi, (image) => {
+    const src = htmlAttribute(image, 'src');
+    return src ? imageMarkdown(htmlAttribute(image, 'alt') ?? '', src) : image;
+  });
+  content = replaceHtmlBlocks(content, /<details\b[^<>]*>/gi, '</details>', (whole, inner) => {
+    let title: string | undefined;
+    const body = replaceHtmlBlocks(inner, /<summary\b[^<>]*>/gi, '</summary>', (_whole, summary) => {
+      title ??= plainGitBookText(summary) || 'Details';
+      return '';
+    });
+    return title === undefined ? whole : `\n<Accordion title="${attr(title)}">\n\n${body.trim()}\n\n</Accordion>\n`;
+  });
   content = content
-    .replace(/<table\b[^>]*\bdata-view\s*=\s*["']cards["'][^>]*>[\s\S]*?<\/table>/gi, (table) => convertCardTable(table, context))
-    .replace(/<div\b[^>]*>\s*(<figure\b[\s\S]*?<\/figure>|<img\b[^>]*>)\s*<\/div>/gi, '$1')
-    .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, convertFigure)
-    .replace(/<picture\b[^>]*>[\s\S]*?<\/picture>/gi, (picture) => {
-      const image = picture.match(/<img\b[^>]*>/i)?.[0];
-      const src = image ? htmlAttribute(image, 'src') : undefined;
-      return src && image ? imageMarkdown(htmlAttribute(image, 'alt') ?? '', src) : picture;
-    })
-    .replace(/<img\b[^>]*>/gi, (image) => {
-      const src = htmlAttribute(image, 'src');
-      return src ? imageMarkdown(htmlAttribute(image, 'alt') ?? '', src) : image;
-    })
-    .replace(
-      /<details\b[^>]*>\s*<summary\b[^>]*>([\s\S]*?)<\/summary>([\s\S]*?)<\/details>/gi,
-      (_match, summary: string, inner: string) =>
-        `\n<Accordion title="${attr(plainGitBookText(summary) || 'Details')}">\n\n${inner.trim()}\n\n</Accordion>\n`,
-    )
     // Heading anchors GitBook appends: `## Title <a href="#title" id="title"></a>`.
-    .replace(/^(#{1,6}[ \t].*?)[ \t]*<a\b[^>]*\bid\s*=\s*["'][^"']*["'][^>]*>[ \t]*<\/a>[ \t]*$/gm, '$1')
-    .replace(/^(#{1,6})[ \t]+<a\b[^>]*\bid\s*=\s*["'][^"']*["'][^>]*>[ \t]*<\/a>[ \t]*/gm, '$1 ')
-    // Buttons: `<a href="…" class="button primary" data-icon="…">Label</a>`.
-    .replace(/<a\b([^>]*\bclass\s*=\s*["'][^"']*\bbutton\b[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi, (_match, attributes: string, label: string) => {
-      const href = htmlAttribute(`<a ${attributes}>`, 'href') ?? '#';
-      const variant = /\bsecondary\b/.test(htmlAttribute(`<a ${attributes}>`, 'class') ?? '') ? 'secondary' : 'primary';
-      return `<Button href="${attr(href)}" variant="${variant}">${plainGitBookText(label)}</Button>`;
-    })
+    .replace(/^(#{1,6}[ \t].*?)[ \t]*<a\b[^<>]*\bid\s*=\s*["'][^"']*["'][^<>]*>[ \t]*<\/a>[ \t]*$/gm, '$1')
+    .replace(/^(#{1,6})[ \t]+<a\b[^<>]*\bid\s*=\s*["'][^"']*["'][^<>]*>[ \t]*<\/a>[ \t]*/gm, '$1 ');
+  content = replaceHtmlBlocks(content, /<a\b[^<>]*>/gi, '</a>', (whole, label, open) => {
+    const classes = htmlAttribute(open, 'class') ?? '';
+    if (!/\bbutton\b/.test(classes)) return whole;
+    const href = htmlAttribute(open, 'href') ?? '#';
+    const variant = /\bsecondary\b/.test(classes) ? 'secondary' : 'primary';
+    const child = plainGitBookText(label).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\{/g, '&#123;');
+    return `<Button href="${attr(href)}" variant="${variant}">${child}</Button>`;
+  });
+  content = content
     // Inline icons: `<i class="fa-rocket">:rocket:</i>`.
     .replace(
-      /<i\b[^>]*\bclass\s*=\s*["'](?:fa[a-z]?\s+)?fa-([\w-]+)[^"']*["'][^>]*>[^<]*<\/i>/gi,
+      /<i\b[^<>]*\bclass\s*=\s*["'](?:fa[a-z]?\s+)?fa-([\w-]+)[^"']*["'][^<>]*>[^<]*<\/i>/gi,
       (_match, icon: string) => `<Icon icon="${attr(icon)}" />`,
     );
 
@@ -447,7 +504,11 @@ export const expandGitBookIncludes = async (
     const reference = match[1] ?? match[2] ?? match[3] ?? '';
     const path = resolve(reference, sourceFile);
     if (!path) {
-      throw new ImportError({ code: 'import:incomplete', message: 'GitBook source content is missing; the draft was preserved.' });
+      throw new ImportError({
+        code: 'import:incomplete',
+        message: 'GitBook source content is missing; the draft was preserved.',
+        details: { path: reference, sourceFile },
+      });
     }
     if (stack.includes(path)) {
       warnings.push(`Reusable content "${path}" includes itself or nests too deeply — the nested include was skipped.`);
@@ -457,7 +518,12 @@ export const expandGitBookIncludes = async (
     if (stack.length > MAX_INCLUDE_DEPTH)
       throw new ImportError({ code: 'import:limit', message: 'GitBook import exceeded its include depth budget; the draft was preserved.' });
     const raw = await load(path);
-    if (raw === null) throw new ImportError({ code: 'import:incomplete', message: 'GitBook source content is missing; the draft was preserved.' });
+    if (raw === null)
+      throw new ImportError({
+        code: 'import:incomplete',
+        message: 'GitBook source content is missing; the draft was preserved.',
+        details: { path: reference, sourceFile },
+      });
     const { body } = parseGitBookFrontmatter(raw);
     const expanded = await expandGitBookIncludes(body.trim(), path, resolve, load, warnings, [...stack, path], budget);
     const rebased = rebaseGitBookReferences(expanded, posix.dirname(path), posix.dirname(sourceFile));

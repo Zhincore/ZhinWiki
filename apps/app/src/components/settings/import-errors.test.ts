@@ -10,7 +10,11 @@ describe('uncertain import outcomes', () => {
     expect(importMayStillRun(new TypeError('fetch failed'))).toBe(true);
     expect(importMayStillRun(new SyntaxError('Unexpected token'))).toBe(true);
   });
-  it.each([400, 401, 403, 409, 422, 429])('keeps a definite HTTP %s error', (status) => {
+  it.each([400, 401, 403, 409, 422, 429, 500])('keeps a definite HTTP %s error', (status) => {
     expect(importMayStillRun(new ApiResponseError('rejected', status))).toBe(false);
   });
+});
+
+it.each([408, 500, 502, 503, 504])('keeps an application error envelope with status %s definite', (status) => {
+  expect(importMayStillRun(new ApiResponseError('failed', status, 'http:internal'))).toBe(false);
 });

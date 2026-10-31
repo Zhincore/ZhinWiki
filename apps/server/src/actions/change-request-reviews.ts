@@ -5,6 +5,9 @@ import type { SubmitChangeRequestReviewBody } from '@nibleaf/validators';
 import { env } from '@/env';
 import { badRequest, conflict, notFound } from '@/errors';
 
+/** Long enough to wait out a running merge, which holds the project lock for up to 60 s. */
+const REVIEW_WRITE_TIMEOUT_MS = 70_000;
+
 type Reviewer = { userId: string; requestedAt: Date; addedAt: Date };
 type Review = { authorId: string | null; state: ChangeRequestReviewState; createdAt: Date };
 
@@ -92,18 +95,21 @@ const inOpenChangeRequest = <T>(
   number: number,
   write: (tx: Prisma.TransactionClient, changeRequest: OpenChangeRequest) => Promise<T>,
 ) =>
-  prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${projectId}))`;
-    const changeRequest = await tx.changeRequest.findUnique({
-      where: { projectId_number: { projectId, number } },
-      select: openChangeRequestSelect,
-    });
-    if (!changeRequest) throw notFound('changeRequest', { number });
-    if (changeRequest.status !== 'DRAFT' && changeRequest.status !== 'IN_REVIEW') {
-      throw conflict('Reviews are closed on a merged or archived change request.');
-    }
-    return write(tx, changeRequest);
-  });
+  prisma.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${projectId}))`;
+      const changeRequest = await tx.changeRequest.findUnique({
+        where: { projectId_number: { projectId, number } },
+        select: openChangeRequestSelect,
+      });
+      if (!changeRequest) throw notFound('changeRequest', { number });
+      if (changeRequest.status !== 'DRAFT' && changeRequest.status !== 'IN_REVIEW') {
+        throw conflict('Reviews are closed on a merged or archived change request.');
+      }
+      return write(tx, changeRequest);
+    },
+    { timeout: REVIEW_WRITE_TIMEOUT_MS },
+  );
 
 /** Ask `userId` for a review (again). Returns the change request to notify about. */
 export const requestReview = (projectId: string, number: number, userId: string, requestedById: string) =>

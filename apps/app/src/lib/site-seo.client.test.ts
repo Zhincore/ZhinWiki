@@ -2,8 +2,9 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { canonicalSiteBase, sitePageUrl } from './site-seo';
 
+vi.mock('@/lib/public-urls', () => ({ publicUrls: () => ({ appUrl: 'http://localhost:4310' }) }));
+
 beforeEach(() => {
-  vi.stubEnv('VITE_SITE_BASE_DOMAIN', '');
   window.history.replaceState(null, '', '/guide');
   const marker = document.createElement('meta');
   marker.name = 'nibleaf-site-project';
@@ -14,7 +15,6 @@ beforeEach(() => {
 afterEach(() => {
   document.querySelector('meta[name="nibleaf-site-project"]')?.remove();
   window.history.replaceState(null, '', '/');
-  vi.unstubAllEnvs();
 });
 
 it('keeps custom-domain canonical URLs at the document origin after client navigation', () => {

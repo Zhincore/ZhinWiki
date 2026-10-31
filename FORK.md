@@ -140,11 +140,15 @@ branch stores one change request (CR), reviewed and merged back.
 - Outside contributors: `requireProjectViewer` admits non-members when
   `acceptsOutsideContributions` (`rbac.ts`: shared tenancy, published, public,
   not taken down, `config.changeRequests.outsideContributions` not `false`).
-  Only project get, languages, page list/get/writes (own open CR) and CR
-  list/create/get/diff/patch (own) use it; max 5 open CRs (429
-  `change_requests:open_limit`). The published page shows **Suggest changes**
+  Only project get, languages, page list/get/writes (own open CR), asset
+  presign/confirm and CR list/create/get/diff/patch (own) use it; max 5 open
+  CRs (429 `change_requests:open_limit`). The published page shows **Suggest changes**
   (`contributeUrl`). No API keys, so no MCP. Known gap: their content loads
   remote images in members' sessions.
+- Contributor uploads: asset presign/confirm admit contributors with an open
+  CR; 5 MB per image (413 `assets:file_too_large`, confirm uses the stored
+  size) and 50 MB per wiki by `asset.createdById` (422
+  `assets:quota_exceeded`, checked under an advisory lock).
 - Notifications (`change-request-notifications.ts`): in-app plus email for
   review requests, verdicts and merges (never the actor or suspended users);
   workspace toggles `change_request_review_requested`,

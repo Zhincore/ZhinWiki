@@ -451,6 +451,8 @@
   "editor_table_toggleheader": "Alternar fila de encabezado",
   "editor_table_delete": "Eliminar tabla",
   "editor_imageuploadfailed": "Error al cargar la imagen.",
+  "editor_imageuploadtoolarge": "Los colaboradores pueden subir imágenes de 5 MB como máximo.",
+  "editor_imageuploadquota": "Ha alcanzado el límite de 50 MB de imágenes subidas para esta wiki.",
   "editor_createfailed": "Fallido",
   "editor_newgroup": "Nuevo grupo",
   "editor_newpage": "Nueva pagina",

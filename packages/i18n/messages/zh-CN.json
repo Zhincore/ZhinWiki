@@ -451,6 +451,8 @@
   "editor_table_toggleheader": "切换标题行",
   "editor_table_delete": "删除表",
   "editor_imageuploadfailed": "图片上传失败。",
+  "editor_imageuploadtoolarge": "贡献者上传的图片不能超过 5 MB。",
+  "editor_imageuploadquota": "你已达到此 Wiki 50 MB 的图片上传上限。",
   "editor_createfailed": "失败",
   "editor_newgroup": "新组",
   "editor_newpage": "新页面",

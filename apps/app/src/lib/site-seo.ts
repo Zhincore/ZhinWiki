@@ -2,6 +2,7 @@ import { markdownAlternateUrl } from '@nibleaf/shared/markdown-discovery';
 import { isPublicMarkdownPage } from '@nibleaf/shared/public-markdown';
 import { isWikiPathSlug } from '@nibleaf/shared/wiki-paths';
 import type { ProjectConfig, SitePage, SiteShell } from '@/hooks/api/types';
+import { hydratedSiteDocument } from '@/lib/custom-domain-rewrite';
 import type { Homepage } from '@/lib/homepage';
 import { publicUrls } from '@/lib/public-urls';
 import { currentHomepage } from '@/lib/site-origin';
@@ -11,7 +12,7 @@ import { currentHomepage } from '@/lib/site-origin';
  * configured app URL during SSR. (Per-site custom domains are handled separately.)
  */
 function publicOrigin(): string {
-  return typeof window === 'undefined' ? publicUrls().appUrl : window.location.origin;
+  return typeof window === 'undefined' ? new URL(publicUrls().appUrl).origin : window.location.origin;
 }
 
 /** Inputs for resolving a site's ONE canonical base URL. */
@@ -41,6 +42,7 @@ export interface SiteUrlOptions {
  *   1. the verified primary custom domain,
  *   2. else the `<slug>.<SITE_BASE_DOMAIN>` subdomain,
  *   3. else the base the request arrived on (custom domain, home wiki, `/<slug>`),
+ *      or, after client navigation, the base the hydrated document was served on,
  *   4. else, under shared tenancy, the app origin root for the home wiki or `/<slug>`,
  *   5. else the app origin's internal /sites/:id path.
  */
@@ -56,6 +58,10 @@ export function canonicalSiteBase(projectId: string, options: SiteUrlOptions = {
   }
   if (options.requestOrigin) {
     return options.requestOrigin;
+  }
+  const hydrated = hydratedSiteDocument();
+  if (hydrated?.projectId === projectId) {
+    return `${publicOrigin()}${hydrated.basePath}`;
   }
   if (options.wikiSlugPaths ?? publicUrls().wikiSlugPaths) {
     const homepage = options.homepage ?? currentHomepage();
@@ -158,7 +164,8 @@ function ogLocale(code?: string): string | undefined {
 export function sitePageUrl(projectId: string, path: string, lang?: string, options?: SiteUrlOptions): string {
   const clean = path ? `/${path.replace(/^\/+/, '')}` : '';
   const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
-  return `${canonicalSiteBase(projectId, options)}${clean}${query}`;
+  const url = `${canonicalSiteBase(projectId, options)}${clean}${query}`;
+  return path ? new URL(url).href : url;
 }
 
 /** Changelog RSS URL derived from its page URL without corrupting a language

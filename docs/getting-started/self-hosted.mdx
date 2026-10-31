@@ -18,21 +18,27 @@ Complete this tutorial on a disposable host before moving real content.
 
 Prepare:
 
-- a Linux host with Docker Engine and Docker Compose v2 (`docker compose`);
+- a Linux `amd64` host (`x86_64`) with Docker Engine and Docker Compose v2
+  (`docker compose`);
 - `curl`, `sed`, and OpenSSL;
 - a dashboard hostname and a separate browser-reachable storage hostname;
 - a TLS reverse proxy;
-- outbound email when email verification is enabled;
+- outbound email through Postmark or SMTP. Sign-in uses email codes, so the first
+  owner can't sign in without it unless Google sign-in is configured;
 - enough separate capacity for Postgres and object-storage backups.
 
-Confirm the required tools:
+Confirm the required tools and architecture:
 
 ```bash
+uname -m
 docker --version
 docker compose version
 curl --version
 openssl version
 ```
+
+`uname -m` must print `x86_64`. The published image does not run on other
+architectures.
 
 ## Download the release files
 

@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SitePage, SiteShell } from '@/hooks/api/types';
 import { canonicalSiteBase, changelogFeedUrl, pageHead, siteHead } from './site-seo';
 
-const urls = vi.hoisted(() => ({ siteBaseDomain: undefined as string | undefined }));
+const urls = vi.hoisted(() => ({ appUrl: 'http://localhost:4310', siteBaseDomain: undefined as string | undefined }));
 vi.mock('@/lib/public-urls', () => ({
-  publicUrls: () => ({ appUrl: 'http://localhost:4310', siteBaseDomain: urls.siteBaseDomain, wikiSlugPaths: false }),
+  publicUrls: () => ({ appUrl: urls.appUrl, siteBaseDomain: urls.siteBaseDomain, wikiSlugPaths: false }),
 }));
 
 beforeEach(() => {
+  urls.appUrl = 'http://localhost:4310';
   urls.siteBaseDomain = undefined;
 });
 
@@ -483,4 +484,14 @@ describe('pageHead not-found (soft-404)', () => {
     const head = pageHead(base(), 'p1');
     expect(meta(head, 'robots')).toBeUndefined();
   });
+});
+
+it('uses the origin of APP_URL', () => {
+  urls.appUrl = 'https://example.com/dashboard/';
+  vi.stubGlobal('window', undefined);
+  try {
+    expect(canonical(pageHead(base(), 'p1'))).toBe('https://example.com/sites/p1/quickstart');
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

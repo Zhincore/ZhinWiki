@@ -93,7 +93,7 @@ function EditorPage() {
   const { data: session } = useSession();
   const { data: project } = useProject(projectId);
   const { data: publicMeta } = useGetPublicMeta();
-  const aiDraft = publicMeta?.ai.draft === true;
+  const aiDraft = publicMeta?.ai?.draft === true;
 
   // Top-level editor view: writing content vs. configuring the whole site.
   const [view, setView] = useState<'content' | 'config'>('content');

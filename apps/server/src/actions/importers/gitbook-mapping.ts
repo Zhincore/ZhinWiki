@@ -3,7 +3,8 @@ import { slugify } from '@nibleaf/shared';
 import { closesMarkdownFence, type MarkdownFence, openingMarkdownFence } from '@nibleaf/shared/markdown-code';
 import { parse as parseYaml } from 'yaml';
 import { humanize, stableHash } from './content';
-import { safeDecodeUri } from './gitbook-markdown';
+import { plainGitBookText, safeDecodeUri } from './gitbook-markdown';
+import { stripHeadingEnd } from './gitbook-tokens';
 
 /**
  * GitBook Git Sync repository layout → an ordered page plan. Pure (no prisma /
@@ -116,8 +117,7 @@ export const parseGitBookConfig = (
 };
 
 const plainText = (value: string): string =>
-  value
-    .replace(/<[^>]*>/g, '')
+  plainGitBookText(value)
     .replace(/[*_`~]/g, '')
     .replace(/\\(.)/g, '$1')
     .trim();
@@ -151,7 +151,7 @@ export const parseGitBookSummary = (markdown: string, summaryPath = 'SUMMARY.md'
     }
     fence = openingMarkdownFence(line, Number.POSITIVE_INFINITY);
     if (fence || !line.trim()) continue;
-    const heading = line.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/);
+    const heading = /^(#{1,6})[ \t]+/.exec(line);
     if (heading) {
       // The leading `# Summary` / `# Table of contents` is the file's own title.
       if (!sawContent && heading[1] === '#') {
@@ -159,7 +159,7 @@ export const parseGitBookSummary = (markdown: string, summaryPath = 'SUMMARY.md'
         continue;
       }
       sawContent = true;
-      const title = plainText(heading[2] ?? '');
+      const title = plainText(stripHeadingEnd(line.slice(heading[0].length)));
       if (title) sections.push({ title, nodes: [] });
       stack = [];
       continue;
@@ -235,7 +235,8 @@ export const inferGitBookNavigation = (paths: readonly string[], root: string, r
   };
 
   const nodes = build('');
-  if (fileSet.has(readme)) nodes.unshift({ kind: 'page', path: readme, title: 'Introduction', children: [] });
+  const rootReadme = files.find((file) => file.toLowerCase() === readme.toLowerCase());
+  if (rootReadme) nodes.unshift({ kind: 'page', path: rootReadme, title: 'Introduction', children: [] });
   return nodes.length > 0 ? [{ nodes }] : [];
 };
 
@@ -289,8 +290,11 @@ export const planGitBookNavigation = (
       const claimedBy = used.get(slug);
       if (claimedBy !== undefined && claimedBy !== identity) {
         const fallback = (node.kind === 'page' ? slugify(withoutExtension(node.path).split('/').join('-')) : '') || `${slug}-${stableHash(identity)}`;
-        warnings.push(`"${claimedBy}" and "${identity}" share the slug "${slug}" — "${identity}" was imported as "${fallback}".`);
+        const original = slug;
         slug = fallback;
+        let suffix = 2;
+        while (used.has(slug) && used.get(slug) !== identity) slug = `${fallback}-${suffix++}`;
+        warnings.push(`"${claimedBy}" and "${identity}" share the slug "${original}" — "${identity}" was imported as "${slug}".`);
       }
       used.set(slug, identity);
       const segments = [...parentSegments, slug];

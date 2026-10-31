@@ -19,21 +19,27 @@ translation_key: 'getting-started/self-hosted'
 
 جهّز ما يلي:
 
-- مضيف Linux عليه Docker Engine وDocker Compose v2 (`docker compose`)؛
+- مضيف Linux ببنية `amd64` (`x86_64`) عليه Docker Engine وDocker Compose v2
+  (`docker compose`)؛
 - الأدوات `curl` و`sed` وOpenSSL؛
 - اسم مضيف للوحة التحكم واسم مضيف منفصل للتخزين يمكن الوصول إليه من المتصفح؛
 - وكيلاً عكسيًا يدعم TLS؛
-- بريدًا إلكترونيًا صادرًا عند تفعيل التحقق بالبريد الإلكتروني؛
+- بريدًا إلكترونيًا صادرًا عبر Postmark أو SMTP. يستخدم تسجيل الدخول رموزًا عبر البريد
+  الإلكتروني، لذا لا يمكن للمالك الأول تسجيل الدخول من دونه ما لم يكن تسجيل الدخول
+  عبر Google مُعدًّا؛
 - سعة منفصلة كافية للنسخ الاحتياطية من Postgres وتخزين الكائنات.
 
-تحقق من الأدوات المطلوبة:
+تحقق من الأدوات المطلوبة والبنية:
 
 ```bash
+uname -m
 docker --version
 docker compose version
 curl --version
 openssl version
 ```
+
+يجب أن يطبع `uname -m` القيمة `x86_64`. لا تعمل الصورة المنشورة على بنى أخرى.
 
 ## نزّل ملفات الإصدار
 

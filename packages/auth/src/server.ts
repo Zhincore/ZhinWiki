@@ -708,6 +708,9 @@ const handleUserCreated = onUserCreated(env.TENANCY, {
 
 const authInstance = betterAuth({
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
+  // Invitations go through `inviteMember`, which enforces the single-owner and
+  // role rules. Better Auth's endpoint would let an owner invite a second owner.
+  disabledPaths: ['/organization/invite-member'],
   hooks: { after: requireAuthEmailEnqueue },
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,

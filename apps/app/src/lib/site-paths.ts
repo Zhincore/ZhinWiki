@@ -52,6 +52,11 @@ export function siteBasePath(projectId: string): string {
   return '';
 }
 
+/** Remove the internal reader prefix before decoding any URL segments. */
+export function siteRoutePath(pathname: string): string {
+  return pathname.replace(/^\/sites\/[^/]+(?:\/|$)/, '');
+}
+
 /** Omit only a known default language; explicit authored query strings stay intact. */
 export function siteLanguageParam(code?: string, defaultCode?: string): string | undefined {
   return code === defaultCode ? undefined : code;

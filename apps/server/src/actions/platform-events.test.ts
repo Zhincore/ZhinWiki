@@ -6,10 +6,12 @@ const mocks = vi.hoisted(() => ({
   findMany: vi.fn(),
   findFirst: vi.fn(),
   createMany: vi.fn(),
+  queryRaw: vi.fn(),
 }));
 
 vi.mock('@nibleaf/database', () => ({
   prisma: {
+    $queryRaw: mocks.queryRaw,
     platformEvent: {
       count: mocks.count,
       create: mocks.create,
@@ -28,6 +30,7 @@ describe('platform events', () => {
     mocks.create.mockResolvedValue({ id: 'event' });
     mocks.findFirst.mockResolvedValue(null);
     mocks.createMany.mockResolvedValue({ count: 1 });
+    mocks.queryRaw.mockResolvedValue([{ observationStart: null, firstManualPublishes: 0, cohortSize: 0, retained: 0 }]);
   });
 
   it('preserves historical edit receipts and retries after a failed write', async () => {
@@ -65,5 +68,6 @@ describe('platform events', () => {
     const result = await getActivationFunnel(30);
 
     expect(result).toMatchObject({ days: 30, signups: 2, edited: 1, published: 1, ready: 1 });
+    expect(result.publishRetention).toMatchObject({ firstManualPublishes: null, cohortSize: null, retained: null, rate: null });
   });
 });

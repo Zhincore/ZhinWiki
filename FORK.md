@@ -15,7 +15,9 @@ Behaviour that exists only in this fork. Naming and branch rules:
   ([#69](https://github.com/Zhincore/ZhinWiki/pull/69)).
 - **Change requests**: docs versions dropped, `main` read-only, edits merged
   through change requests ([#70](https://github.com/Zhincore/ZhinWiki/pull/70),
-  [#71](https://github.com/Zhincore/ZhinWiki/pull/71)).
+  [#71](https://github.com/Zhincore/ZhinWiki/pull/71)); reviews, merge gate,
+  outside contributors, notifications
+  ([#79](https://github.com/Zhincore/ZhinWiki/pull/79)).
 - **Runtime branding**: `APP_NAME`, `BRAND_*` from env, ZhinWiki default
   ([#10](https://github.com/Zhincore/ZhinWiki/pull/10),
   [#11](https://github.com/Zhincore/ZhinWiki/pull/11),
@@ -63,7 +65,8 @@ owns one organization, as upstream.
   members per wiki (better-auth `membershipLimit`).
 - **Contributors** (shared): role `user` without membership; read public
   wikis, join by invitation. There is no contributor member role: any
-  membership exposes drafts, change requests and private sites.
+  membership exposes drafts, change requests and private sites. They may open
+  change requests on wikis that accept outside contributions (see below).
 
 ## Platform roles
 
@@ -125,7 +128,27 @@ branch stores one change request (CR), reviewed and merged back.
   win on those pages. CRs without a fork base (migrated) replace `main`
   wholesale; wholesale replacement is refused while tracked CRs are open.
 - API: `/projects/:projectId/change-requests` (list, create, get, patch,
-  `/:number/merge`, `/:number/pages/:pageId/diff`), member role.
+  `/:number/merge`, `/:number/pages/:pageId/diff`), member role;
+  `/reviewer-candidates`, `/:number/reviewers`, `/:number/reviews` member-only.
+- Reviews (`change-request-reviews.ts`): a reviewer's latest approval or
+  changes-requested since being added is their verdict; page writes make older
+  approvals stale. Reviewers need review rights (membership or platform
+  grant). Merge answers 409 `change_requests:review_required` until approvals
+  reach `config.changeRequests.requiredApprovals` (default 1, 0 disables) and
+  nobody requests changes. Self-approval counts; review writes take the merge
+  lock.
+- Outside contributors: `requireProjectViewer` admits non-members when
+  `acceptsOutsideContributions` (`rbac.ts`: shared tenancy, published, public,
+  not taken down, `config.changeRequests.outsideContributions` not `false`).
+  Only project get, languages, page list/get/writes (own open CR) and CR
+  list/create/get/diff/patch (own) use it; max 5 open CRs (429
+  `change_requests:open_limit`). The published page shows **Suggest changes**
+  (`contributeUrl`). No API keys, so no MCP. Known gap: their content loads
+  remote images in members' sessions.
+- Notifications (`change-request-notifications.ts`): in-app plus email for
+  review requests, verdicts and merges (never the actor or suspended users);
+  workspace toggles `change_request_review_requested`,
+  `change_request_reviewed`, `change_request_merged`.
 - UI: **Edit** on `main` opens a CR; `?cr=<n>` binds the editor; list at
   `/app/projects/:id/changes`, CR at `/changes/:n`.
 - Public output (`buildSnapshot`, publish, served snapshots) reads only `main`;
@@ -153,14 +176,18 @@ upgrade does not apply: ZhinWiki v0.1.0 already runs BullMQ 6.
   `apps/app/src/components/app/empty-wikis.tsx`.
 - Brand: `packages/shared/src/brand.ts`, `apps/app/src/lib/brand.ts`,
   `apps/app/src/components/welcome-page.tsx`.
-- Change requests: `apps/server/src/actions/change-request{s,-merge}.ts`,
+- Change requests:
+  `apps/server/src/actions/change-request{s,-merge,-reviews,-notifications}.ts`,
+  `apps/app/src/components/project-settings/change-requests-section.tsx`,
   `apps/server/src/modules/app/change-requests/`,
   `apps/app/src/components/change-requests/`, `apps/app/src/lib/block-diff.ts`,
   `apps/app/src/routes/app/projects/$projectId/changes.*.tsx`.
 - Upstream files with fork edits: `packages/auth/src/keys.server.ts`,
   `packages/auth/src/account-deletion.ts`, `packages/shared/src/rbac.ts`,
   `packages/design-system/src/brand/`, `apps/server/src/actions/branches.ts`,
-  `packages/shared/src/site.ts`.
+  `packages/shared/src/site.ts`, `apps/server/src/middlewares/guard/index.ts`
+  (`requireProjectViewer`), `apps/server/src/actions/sites.ts`
+  (`contributeUrl`).
 
 ## Merging upstream: watch for
 
@@ -176,5 +203,7 @@ upgrade does not apply: ZhinWiki v0.1.0 already runs BullMQ 6.
   `x-service-env`; keep `TENANCY` defaults; run `pnpm release:check`.
 - i18n: all 12 catalogs and `message-ids.ts`; no "Nibleaf" in user copy.
 - Dropped pages, tests, Cloud wording and upstream release guides stay out.
+- Handlers behind `requireProjectViewer` check `isContextContributor()`
+  before writing.
 - New page writers or branch creators keep the CR invariant (`createBranch`);
   non-default branches never reach public output.

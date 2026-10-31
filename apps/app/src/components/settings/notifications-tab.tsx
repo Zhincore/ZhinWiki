@@ -90,6 +90,26 @@ const GROUPS: Array<{ titleKey: MessageKey; items: NotifItem[] }> = [
     ],
   },
   {
+    titleKey: 'settings.notifications.group.changeRequests',
+    items: [
+      {
+        id: 'change_request_review_requested',
+        labelKey: 'settings.notifications.changeRequestReviewRequested.label',
+        descriptionKey: 'settings.notifications.changeRequestReviewRequested.description',
+      },
+      {
+        id: 'change_request_reviewed',
+        labelKey: 'settings.notifications.changeRequestReviewed.label',
+        descriptionKey: 'settings.notifications.changeRequestReviewed.description',
+      },
+      {
+        id: 'change_request_merged',
+        labelKey: 'settings.notifications.changeRequestMerged.label',
+        descriptionKey: 'settings.notifications.changeRequestMerged.description',
+      },
+    ],
+  },
+  {
     titleKey: 'settings.notifications.group.security',
     items: [
       {

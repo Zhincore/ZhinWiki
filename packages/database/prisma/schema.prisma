@@ -47,6 +47,9 @@ model User {
   apiKeysCreated         ApiKey[]         @relation("ApiKeyCreator")
   changeRequestsAuthored ChangeRequest[]  @relation("ChangeRequestAuthor")
   changeRequestsMerged   ChangeRequest[]  @relation("ChangeRequestMerger")
+  changeRequestReviewing ChangeRequestReviewer[] @relation("ChangeRequestReviewer")
+  changeRequestRequested ChangeRequestReviewer[] @relation("ChangeRequestReviewRequester")
+  changeRequestReviews   ChangeRequestReview[]
 
   @@map("user")
 }
@@ -305,6 +308,12 @@ enum ChangeRequestStatus {
   ARCHIVED
 }
 
+enum ChangeRequestReviewState {
+  APPROVED
+  CHANGES_REQUESTED
+  COMMENTED
+}
+
 enum DeploymentStatus {
   PENDING
   BUILDING
@@ -560,12 +569,51 @@ model ChangeRequest {
   /// `{ pages: [{ pageId, languageId, action, before, after }] }` for the pages
   /// the merge wrote; `before`/`after` hold the merged fields and path.
   mergeRecord Json?
+  /// Last page write in the branch; approvals given before it no longer count.
+  editedAt    DateTime?
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
+
+  reviewers ChangeRequestReviewer[]
+  reviews   ChangeRequestReview[]
 
   @@unique([projectId, number])
   @@index([projectId, status])
   @@map("change_request")
+}
+
+/// A user asked to review a change request. Only reviewers' latest decisive
+/// reviews count towards the merge gate; removing a reviewer drops their vote.
+model ChangeRequestReviewer {
+  changeRequestId String
+  changeRequest   ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User          @relation("ChangeRequestReviewer", fields: [userId], references: [id], onDelete: Cascade)
+  requestedById   String?
+  requestedBy     User?         @relation("ChangeRequestReviewRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+  /// Last time a review was requested; a review after it answers the request.
+  requestedAt     DateTime      @default(now())
+  /// When the user became a reviewer; earlier reviews do not count.
+  addedAt         DateTime      @default(now())
+
+  @@id([changeRequestId, userId])
+  @@index([userId])
+  @@map("change_request_reviewer")
+}
+
+/// One review submission; the latest per reviewer is their current verdict.
+model ChangeRequestReview {
+  id              String                   @id @default(cuid())
+  changeRequestId String
+  changeRequest   ChangeRequest            @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+  authorId        String?
+  author          User?                    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  state           ChangeRequestReviewState
+  body            String?
+  createdAt       DateTime                 @default(now())
+
+  @@index([changeRequestId, createdAt])
+  @@map("change_request_review")
 }
 
 /// Durable repository configuration for two-way authoring. Provider credentials

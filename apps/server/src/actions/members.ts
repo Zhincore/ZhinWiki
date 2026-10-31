@@ -7,7 +7,7 @@ import { canAssignRole, canManageMember, planOwnershipTransfer } from '@nibleaf/
 import type { UpdateMemberRoleBody } from '@nibleaf/validators';
 import { env } from '@/env';
 import { conflict, forbidden, notFound } from '@/errors';
-import { notificationEnabled } from './notifications';
+import { notificationEnabled, notificationName } from './notifications';
 
 const INVITE_TTL_DAYS = 7;
 
@@ -100,7 +100,7 @@ export const inviteMember = async (
   }
   const acceptUrl = `${env.APP_URL}/accept-invite/${invitation.id}`;
   const siteName = org?.name ?? `a ${instanceBrand().name} workspace`;
-  const inviterName = inviter?.name || inviter?.email || 'A teammate';
+  const inviterName = (inviter && notificationName(inviter)) || 'A teammate';
   const message = await renderMemberInvitationEmail({
     acceptUrl,
     days: INVITE_TTL_DAYS,

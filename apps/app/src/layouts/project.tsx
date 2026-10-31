@@ -1,7 +1,7 @@
 import { Button } from '@nibleaf/design-system/components/ui/button';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@nibleaf/design-system/components/ui/sidebar';
 import { useT } from '@nibleaf/i18n/react';
-import { Link, useRouterState } from '@tanstack/react-router';
+import { Link, Navigate, useRouterState } from '@tanstack/react-router';
 import { Eye, Loader2, Rocket } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
@@ -80,6 +80,11 @@ export function ProjectLayout({ projectId, children }: { projectId: string; chil
   // The editor and a change request are focused, full-screen workspaces: they
   // render their OWN chrome (top bar + sidebar) and hide the dashboard nav.
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const contributor = project?.viewerRole === 'contributor';
+  // Outside contributors reach only the change requests and the editor.
+  if (contributor && !/\/(editor|changes)(\/|$)/.test(pathname)) {
+    return <Navigate to="/app/projects/$projectId/changes" params={{ projectId }} replace />;
+  }
   if (pathname.endsWith('/editor') || /\/changes\/\d+\/?$/.test(pathname)) {
     return <div className="h-screen overflow-hidden">{children}</div>;
   }
@@ -99,21 +104,23 @@ export function ProjectLayout({ projectId, children }: { projectId: string; chil
           )}
           <div className="ms-auto flex items-center gap-2">
             <NotificationsPopover />
-            <Button
-              nativeButton={false}
-              render={
-                previewEnabled ? (
-                  <Link aria-label={t('project.previewDraftAria')} params={{ projectId }} to="/app/projects/$projectId/preview" />
-                ) : (
-                  // biome-ignore lint/a11y/useAnchorContent: content is merged from the Button children via Base UI's render prop
-                  <a aria-label={t('project.previewLiveAria')} href={`/sites/${projectId}`} rel="noreferrer" target="_blank" />
-                )
-              }
-              size="sm"
-              variant="outline"
-            >
-              <Eye className="size-3.5" /> {t('project.preview')}
-            </Button>
+            {contributor ? null : (
+              <Button
+                nativeButton={false}
+                render={
+                  previewEnabled ? (
+                    <Link aria-label={t('project.previewDraftAria')} params={{ projectId }} to="/app/projects/$projectId/preview" />
+                  ) : (
+                    // biome-ignore lint/a11y/useAnchorContent: content is merged from the Button children via Base UI's render prop
+                    <a aria-label={t('project.previewLiveAria')} href={`/sites/${projectId}`} rel="noreferrer" target="_blank" />
+                  )
+                }
+                size="sm"
+                variant="outline"
+              >
+                <Eye className="size-3.5" /> {t('project.preview')}
+              </Button>
+            )}
           </div>
         </header>
         <div className="flex-1">{children}</div>

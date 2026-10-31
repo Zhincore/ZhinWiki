@@ -34,6 +34,7 @@ export type ErrorCode =
   | 'import:limit'
   | 'import:busy'
   | 'import:in_progress'
+  | 'import:conflict'
   | 'provider:unavailable'
   | 'usage:invalid_period'
   | 'usage:unavailable'
@@ -98,6 +99,7 @@ const ERROR_STATUS = {
   'import:limit': 422,
   'import:busy': 503,
   'import:in_progress': 409,
+  'import:conflict': 409,
   'provider:unavailable': 502,
   'usage:invalid_period': 400,
   'usage:unavailable': 503,

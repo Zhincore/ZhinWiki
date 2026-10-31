@@ -43,7 +43,7 @@ export const resolveWikiRole = async (userId: string, organizationId: string) =>
     where: { id: userId },
     select: { role: true, members: { where: { organizationId }, select: { role: true } } },
   });
-  return effectiveWikiRole(user?.members[0]?.role, user?.role, env.TENANCY);
+  return effectiveWikiRole(env.TENANCY, user?.members[0]?.role, user?.role);
 };
 
 /**

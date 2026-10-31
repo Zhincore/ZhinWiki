@@ -157,9 +157,11 @@ const draftFingerprint = async (db: Prisma.TransactionClient, projectId: string,
 };
 
 const importTransactionOptions = { isolationLevel: 'Serializable', timeout: 30_000 } as const;
+const draftChanged = () =>
+  new AppError({ code: 'import:conflict', message: 'The draft changed during import. Your edits were preserved; retry the import.' });
 const importTransactionFailure = (error: unknown): never => {
   if (error && typeof error === 'object' && 'code' in error) {
-    if (error.code === 'P2034') throw conflict('The draft changed during import. Your edits were preserved; retry the import.');
+    if (error.code === 'P2034') throw draftChanged();
     if (error.code === 'P2028') throw new AppError({ code: 'import:busy', message: 'The import could not complete. Try again shortly.' });
   }
   throw error;
@@ -185,7 +187,7 @@ export const promoteImportReplacementBranch = async (
     .$transaction(async (tx) => {
       await assertNoTrackedChangeRequests(tx, projectId, IMPORT_OVER_CHANGE_REQUESTS);
       if (expectedDraft !== undefined && (await draftFingerprint(tx, projectId, main.id)) !== expectedDraft) {
-        throw conflict('The draft changed during import. Your edits were preserved; retry the import.');
+        throw draftChanged();
       }
       await tx.page.deleteMany({ where: { projectId, branchId: main.id } });
       await tx.page.updateMany({ where: { projectId, branchId: branch.id }, data: { branchId: main.id } });

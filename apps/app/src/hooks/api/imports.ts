@@ -24,6 +24,8 @@ export interface ImportRun {
   status: ImportRunStatus;
   summary: ContentImportSummary | null;
   error: string | null;
+  errorCode: string | null;
+  errorDetails: Record<string, unknown> | null;
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;

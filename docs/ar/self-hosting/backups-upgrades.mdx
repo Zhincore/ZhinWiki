@@ -3,7 +3,7 @@ title: 'نسخ Nibleaf احتياطيًا واستعادته وترقيته'
 description: 'اجمع بيانات Postgres وتخزين الكائنات في مجموعة استعادة واحدة، واختبر الاستعادة في بيئة معزولة، ثم رقِّ إصدار Nibleaf المثبّت أو تراجع إلى الإصدار السابق.'
 audience: 'مشغّلو Nibleaf المستضاف ذاتيًا'
 content_type: 'how-to'
-last_reviewed: '2026-10-30'
+last_reviewed: '2026-10-31'
 verified_against: 'scripts/backup.sh, docker-compose.prod.yml, and packages/database/prisma/migrations'
 lang: 'ar'
 dir: 'rtl'
@@ -77,10 +77,6 @@ docker compose --profile admin stop app admin server worker \
 ## ترقية إصدار مثبّت
 
 استخدم فقط وسمًا مدرجًا في [صفحة الإصدارات](https://github.com/Zhincore/ZhinWiki/releases).
-عند الترقية من v0.1.2، استخدم
-[دليل ترحيل الإصدار المجمع](/ar/self-hosting/combined-release-migration)
-لترتيب اعتماد البحث والاستخدام والإضافات والتكاملات وMCP.
-
 اقرأ ملاحظات كل إصدار وسيط، وتحقق من أي تغييرات خاصة بالإصدار
 في الترحيل أو التهيئة. أنشئ نسخة احتياطية واختبر استعادتها. ثم:
 
@@ -108,6 +104,27 @@ docker compose --profile admin stop app admin server worker \
 
 تحقق من ملخّص الصورة الرقمي، وسجل الترحيل، وسلامة الخدمات، وتسجيل الدخول،
 وعملية رفع واحدة، وعملية نشر واحدة، وعملية بحث واحدة، وصفحة عامة واحدة.
+
+### الترقية من v0.1.0
+
+- **نمط المستأجرين.** يضبط ملف Compose الجديد `TENANCY=shared` افتراضيًا. اضبط
+  `TENANCY=independent` في `.env` للإبقاء على سلوك v0.1.0. راجع
+  [تشغيل مثيل مشترك](/ar/self-hosting/configuration#تشغيل-مثيل-مشترك).
+- **طلبات التغيير.** يحوّل الترحيل `20261029120000_change_requests` كل فرع
+  غير افتراضي موجود إلى طلب تغيير في حالة مسودة. تصبح صفحات `main` للقراءة فقط
+  في المحرر، وتمر التعديلات عبر طلبات التغيير.
+- **Better Auth 1.7.14.** يعمل الترحيل `20261030120000_invitation_created_at`
+  عند التشغيل. يُرفض تسجيل الدخول إذا تشارك صفّان في جدول `account` المزوّد
+  ومعرّف الحساب نفسيهما، ويجب ألا يعيد هذا الفحص أي صف:
+
+  ```bash
+  docker compose exec -T postgres psql -U nibleaf -d nibleaf -c 'SELECT "providerId", "accountId", count(*) FROM account GROUP BY 1, 2 HAVING count(*) > 1;'
+  ```
+
+- **مزوّد الذكاء الاصطناعي.** يمرر ملف Compose الآن `OPENROUTER_API_KEY` بدلًا من
+  `OPENAI_API_KEY`.
+- **طوابير العامل.** إذا ضبطت `WORKER_QUEUES`، فأضف `erasure`، وإلا تبقى ملفات
+  المشاريع المحذوفة في التخزين.
 
 ## التراجع الآمن إلى الإصدار السابق
 

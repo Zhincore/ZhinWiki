@@ -4,9 +4,10 @@ const db = vi.hoisted(() => ({
   branch: { findMany: vi.fn(), findFirst: vi.fn(), delete: vi.fn() },
   page: { findMany: vi.fn(), deleteMany: vi.fn(), updateMany: vi.fn() },
   project: { findUniqueOrThrow: vi.fn(), update: vi.fn() },
+  changeRequest: { count: vi.fn() },
   $transaction: vi.fn(),
 }));
-vi.mock('@nibleaf/database', () => ({ prisma: db }));
+vi.mock('@nibleaf/database', () => ({ prisma: db, Prisma: { DbNull: 'DbNull' } }));
 
 import { captureImportDraft, promoteImportReplacementBranch } from './branches';
 
@@ -16,6 +17,7 @@ beforeEach(() => {
   db.branch.findFirst.mockResolvedValue({ id: 'import', isDefault: false });
   db.page.findMany.mockResolvedValue([{ id: 'page', content: 'Original' }]);
   db.project.findUniqueOrThrow.mockResolvedValue({ config: {} });
+  db.changeRequest.count.mockResolvedValue(0);
   db.$transaction.mockImplementation(async (fn) => fn(db));
 });
 it.each(['edit', 'insert', 'delete', 'config'])('preserves concurrent %s and returns a conflict', async (change) => {
@@ -33,6 +35,16 @@ it('promotes an unchanged snapshot in a serializable transaction', async () => {
   await promoteImportReplacementBranch('project', 'import', undefined, snapshot);
   expect(db.page.deleteMany).toHaveBeenCalledOnce();
   expect(db.$transaction).toHaveBeenLastCalledWith(expect.any(Function), { isolationLevel: 'Serializable', timeout: 30_000 });
+});
+
+it('refuses promotion inside the transaction while change requests track main', async () => {
+  const snapshot = await captureImportDraft('project');
+  db.changeRequest.count.mockResolvedValue(1);
+  await expect(promoteImportReplacementBranch('project', 'import', undefined, snapshot)).rejects.toMatchObject({
+    status: 409,
+    message: expect.stringMatching(/open change requests/),
+  });
+  expect(db.page.deleteMany).not.toHaveBeenCalled();
 });
 
 it('returns a conflict when promotion encounters a serialization failure', async () => {

@@ -12,6 +12,7 @@ const STALE_MS = 2 * 60_000;
 const ACTIVE_STATUSES = ['PENDING', 'RUNNING'] as const;
 /** GitBook imports are the heaviest; at most this many run instance-wide. */
 const MAX_ACTIVE_GITBOOK_IMPORTS = 2;
+const GITBOOK_CAPACITY_LOCK = 'import-run:gitbook';
 
 const STALE_ERROR = 'The import stopped unexpectedly (the server may have restarted). Start it again.';
 const UNEXPECTED_ERROR = 'The import failed unexpectedly. Try again shortly.';
@@ -27,6 +28,8 @@ const toImportRunView = (run: ImportRun) => ({
   status: run.status,
   summary: (run.summary as ImportSummary | null) ?? null,
   error: run.error,
+  errorCode: run.errorCode,
+  errorDetails: (run.errorDetails as Record<string, unknown> | null) ?? null,
   createdAt: run.createdAt,
   startedAt: run.startedAt,
   completedAt: run.completedAt,
@@ -107,10 +110,20 @@ const executeImportRun = async (run: ImportRun, task: () => Promise<ImportSummar
       'import_completed',
     );
   } catch (error) {
-    const message = error instanceof AppError ? error.message : UNEXPECTED_ERROR;
-    if (!(error instanceof AppError)) logger.error({ error, importRunId: run.id, projectId: run.projectId }, 'import run failed');
+    const known = error instanceof AppError ? error : null;
+    const message = known?.message ?? UNEXPECTED_ERROR;
+    if (!known) logger.error({ error, importRunId: run.id, projectId: run.projectId }, 'import run failed');
     await prisma.importRun
-      .update({ where: { id: run.id }, data: { status: 'FAILED', error: message, completedAt: new Date() } })
+      .update({
+        where: { id: run.id },
+        data: {
+          status: 'FAILED',
+          error: message,
+          errorCode: known?.code ?? null,
+          ...(known?.details ? { errorDetails: known.details as Prisma.InputJsonValue } : {}),
+          completedAt: new Date(),
+        },
+      })
       .catch((updateError) => logger.error({ error: updateError, importRunId: run.id }, 'could not record import failure'));
     await trackImport(run.projectId, {
       name: 'import_failed',
@@ -138,17 +151,23 @@ export const startImportRun = async (options: {
   task: () => Promise<ImportSummary>;
 }): Promise<ImportRunView> => {
   await failStaleImportRuns(options.projectId);
-  if (options.source === 'gitbook') {
-    const activeGitbook = await prisma.importRun.count({
-      where: { source: 'gitbook', status: { in: [...ACTIVE_STATUSES] }, updatedAt: { gte: new Date(Date.now() - STALE_MS) } },
-    });
-    if (activeGitbook >= MAX_ACTIVE_GITBOOK_IMPORTS) {
-      throw new AppError({ code: 'import:busy', message: 'Import capacity is busy. Try again shortly.' });
-    }
-  }
+  const data = { projectId: options.projectId, source: options.source, createdById: options.userId };
   let run: ImportRun;
   try {
-    run = await prisma.importRun.create({ data: { projectId: options.projectId, source: options.source, createdById: options.userId } });
+    run =
+      options.source === 'gitbook'
+        ? await prisma.$transaction(async (tx) => {
+            // Serializes GitBook starts so two cannot both pass the capacity count.
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${GITBOOK_CAPACITY_LOCK}))`;
+            const activeGitbook = await tx.importRun.count({
+              where: { source: 'gitbook', status: { in: [...ACTIVE_STATUSES] }, updatedAt: { gte: new Date(Date.now() - STALE_MS) } },
+            });
+            if (activeGitbook >= MAX_ACTIVE_GITBOOK_IMPORTS) {
+              throw new AppError({ code: 'import:busy', message: 'Import capacity is busy. Try again shortly.' });
+            }
+            return tx.importRun.create({ data });
+          })
+        : await prisma.importRun.create({ data });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       throw new AppError({

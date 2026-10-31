@@ -7,6 +7,8 @@ type Run = {
   status: 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED';
   summary: unknown;
   error: string | null;
+  errorCode: string | null;
+  errorDetails: unknown;
   createdById: string | null;
   startedAt: Date | null;
   completedAt: Date | null;
@@ -55,6 +57,8 @@ const db = vi.hoisted(() => {
           status: 'PENDING',
           summary: null,
           error: null,
+          errorCode: null,
+          errorDetails: null,
           startedAt: null,
           completedAt: null,
           createdAt: now,
@@ -88,19 +92,37 @@ const db = vi.hoisted(() => {
   };
 });
 
+/** Stands in for pg advisory transaction locks: one holder at a time, released when its transaction ends. */
+const advisoryLock = vi.hoisted(() => ({ held: Promise.resolve() }));
+
 vi.mock('@nibleaf/database', () => ({
   Prisma: { PrismaClientKnownRequestError: db.PrismaClientKnownRequestError },
   prisma: {
     importRun: db.importRun,
     branch: { deleteMany: db.branchDeleteMany },
-    $transaction: async (operations: Promise<unknown>[]) => Promise.all(operations),
+    $transaction: async (operations: Promise<unknown>[] | ((tx: unknown) => Promise<unknown>)) => {
+      if (Array.isArray(operations)) return Promise.all(operations);
+      let release: () => void = () => undefined;
+      const $executeRaw = async () => {
+        const previous = advisoryLock.held;
+        advisoryLock.held = new Promise((resolve) => {
+          release = resolve;
+        });
+        await previous;
+      };
+      try {
+        return await operations({ importRun: db.importRun, $executeRaw });
+      } finally {
+        release();
+      }
+    },
   },
 }));
 vi.mock('@nibleaf/logger', () => ({ logger: { warn: vi.fn(), error: vi.fn() } }));
 vi.mock('./analytics', () => ({ trackProjectEvent: db.track }));
 vi.mock('./notifications', () => ({ createNotificationsForOrgMembers: db.notify }));
 
-import { badRequest } from '@/errors';
+import { badRequest, ImportError } from '@/errors';
 import { getLatestImportRun, startImportRun } from './import-runs';
 
 const summary = { imported: 3, updated: 1, skipped: 0, warnings: ['one'] };
@@ -180,6 +202,35 @@ describe('startImportRun', () => {
     await vi.waitFor(() => expect(db.runs[0]?.status).toBe('RUNNING'));
     (db.runs[0] as Run).updatedAt = new Date(Date.now() - 3 * 60_000);
     await expect(startImportRun({ projectId: 'p4', userId: 'u1', source: 'gitbook', task: pending })).resolves.toMatchObject({ status: 'PENDING' });
+  });
+
+  it('admits only the GitBook maximum when starts race', async () => {
+    const pending = () => new Promise<typeof summary>(() => undefined);
+    const starts = await Promise.allSettled(
+      ['p1', 'p2', 'p3'].map((projectId) => startImportRun({ projectId, userId: 'u1', source: 'gitbook', task: pending })),
+    );
+
+    expect(starts.filter((start) => start.status === 'fulfilled')).toHaveLength(2);
+    expect(starts.filter((start) => start.status === 'rejected').map((start) => start.reason)).toEqual([
+      expect.objectContaining({ code: 'import:busy' }),
+    ]);
+  });
+
+  it('records the code and details of an importer error', async () => {
+    await startImportRun({
+      projectId: 'p1',
+      userId: 'u1',
+      source: 'gitbook',
+      task: () => Promise.reject(new ImportError({ code: 'import:limit', message: 'Too many entries.', details: { limit: 1000 } })),
+    });
+    await settle();
+
+    await expect(getLatestImportRun('p1')).resolves.toMatchObject({
+      status: 'FAILED',
+      error: 'Too many entries.',
+      errorCode: 'import:limit',
+      errorDetails: { limit: 1000 },
+    });
   });
 
   it('keeps a long import alive with a heartbeat', async () => {

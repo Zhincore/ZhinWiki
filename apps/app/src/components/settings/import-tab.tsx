@@ -20,7 +20,7 @@ import {
   useLatestImportRun,
 } from '@/hooks/api';
 import { ApiResponseError } from '@/hooks/api/client-helpers';
-import { importMayStillRun } from './import-errors';
+import { importFailureMessage, importMayStillRun } from './import-errors';
 import { SettingsSection } from './section';
 
 /** Matches the server-side body cap for Ghost exports. */
@@ -53,6 +53,9 @@ const readFileText = (file: File): Promise<string> =>
     reader.onerror = () => reject(new ImportFileReadError());
     reader.readAsText(file);
   });
+
+const runFailureMessage = (t: ReturnType<typeof useT>, run: ImportRun): string | null =>
+  run.error === null ? null : importFailureMessage(t, { code: run.errorCode, details: run.errorDetails, message: run.error });
 
 const normalizeGithubRepo = (value: string): string =>
   value
@@ -201,46 +204,24 @@ export function ImportTab({ projectId }: { projectId?: string }) {
     watchedRun.current = latestRun;
     if (!(isImportRunActive(before) && before?.id === latestRun?.id)) return;
     if (latestRun?.status === 'SUCCEEDED') toast.success(t('settings.import.success'));
-    if (latestRun?.status === 'FAILED') toast.error(latestRun.error ?? t('settings.import.error'));
+    if (latestRun?.status === 'FAILED') toast.error(runFailureMessage(t, latestRun) ?? t('settings.import.error'));
   }, [latestRun, t]);
   const openGitSettings = () =>
     navigate({ to: '/app/projects/$projectId/settings', params: { projectId: projectId ?? '' }, search: { section: 'git' } });
   const handleError = (error: unknown) => {
-    if (error instanceof ApiResponseError) {
-      if (error.code === 'import:in_progress') {
-        toast.error(t('settings.import.inProgress'));
-        return;
-      }
-      if (error.code === 'import:busy') {
-        toast.error(t('settings.import.busy'));
-        return;
-      }
-      if (error.code === 'import:incomplete') {
-        toast.error(`${t('settings.import.incomplete')}${error.path ? ` (${error.sourceFile ? `${error.sourceFile}: ` : ''}${error.path})` : ''}`);
-        return;
-      }
-      if (error.code === 'import:limit') {
-        toast.error(error.limit === undefined ? t('settings.import.limit') : t('settings.import.nodeLimit', { limit: error.limit }));
-        return;
-      }
-      if (error.status === 409) {
-        toast.error(t('settings.import.conflict'));
-        return;
-      }
-    }
-    if (!(error instanceof ImportFileReadError) && importMayStillRun(error)) {
-      toast.error(t('settings.import.mayStillRun'), { duration: 20_000 });
-      return;
-    }
-    if (error instanceof ApiResponseError && error.code === 'import:invalid_document') {
-      toast.error(source === 'ghost' ? t('settings.import.ghost.invalidJson') : t('settings.import.error'));
-      return;
-    }
     if (error instanceof ImportFileReadError) {
       toast.error(t('settings.import.error'));
       return;
     }
-    toast.error(error instanceof Error ? error.message : t('settings.import.error'));
+    if (!(error instanceof ApiResponseError) || importMayStillRun(error)) {
+      toast.error(t('settings.import.mayStillRun'), { duration: 20_000 });
+      return;
+    }
+    if (error.code === 'import:invalid_document') {
+      toast.error(source === 'ghost' ? t('settings.import.ghost.invalidJson') : t('settings.import.error'));
+      return;
+    }
+    toast.error(importFailureMessage(t, error));
   };
 
   const runImport = async () => {
@@ -304,7 +285,7 @@ export function ImportTab({ projectId }: { projectId?: string }) {
           ) : finishedRun?.status === 'SUCCEEDED' && finishedRun.summary ? (
             <ImportResult projectId={projectId} summary={finishedRun.summary} />
           ) : finishedRun?.status === 'FAILED' ? (
-            <ImportFailed error={finishedRun.error} />
+            <ImportFailed error={runFailureMessage(t, finishedRun)} />
           ) : (
             <div className="min-h-[220px] rounded-2xl bg-muted/20 p-4 sm:p-5">
               {!source ? (

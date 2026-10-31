@@ -11,6 +11,5 @@ you need:
 Support is best-effort. The project does not currently promise response or
 resolution times for public support requests.
 
-Do not post credentials, private logs, customer content, or security reports in
-an issue or discussion. Report suspected vulnerabilities privately through the
-channels in [SECURITY.md](SECURITY.md).
+Do not post credentials, private logs, or customer content in an issue or
+discussion.

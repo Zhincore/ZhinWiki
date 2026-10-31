@@ -1,197 +1,151 @@
 # How ZhinWiki differs from Nibleaf
 
-Developer notes on behaviour that exists only in this fork. Naming and branch
-rules are in [BRANDING.md](BRANDING.md), PR rules in
-[AGENTS.md](AGENTS.md); operator docs live under [`docs/`](docs/README.md).
+Behaviour that exists only in this fork. Naming and branch rules:
+[BRANDING.md](BRANDING.md); PR rules: [AGENTS.md](AGENTS.md); operator docs:
+[`docs/`](docs/README.md).
+
+## Summary
+
+- **Tenancy modes**: `TENANCY=shared|independent`, platform `editor` role,
+  contributors ([#63](https://github.com/Zhincore/ZhinWiki/pull/63),
+  [#64](https://github.com/Zhincore/ZhinWiki/pull/64),
+  [#65](https://github.com/Zhincore/ZhinWiki/pull/65),
+  [#67](https://github.com/Zhincore/ZhinWiki/pull/67)).
+- **Wiki slug paths**: published wikis at `/<slug>` in shared mode
+  ([#69](https://github.com/Zhincore/ZhinWiki/pull/69)).
+- **Change requests**: docs versions dropped, `main` read-only, edits merged
+  through change requests ([#70](https://github.com/Zhincore/ZhinWiki/pull/70),
+  [#71](https://github.com/Zhincore/ZhinWiki/pull/71)).
+- **Runtime branding**: `APP_NAME`, `BRAND_*` from env, ZhinWiki default
+  ([#10](https://github.com/Zhincore/ZhinWiki/pull/10),
+  [#11](https://github.com/Zhincore/ZhinWiki/pull/11),
+  [#12](https://github.com/Zhincore/ZhinWiki/pull/12),
+  [#27](https://github.com/Zhincore/ZhinWiki/pull/27),
+  [#48](https://github.com/Zhincore/ZhinWiki/pull/48),
+  [#57](https://github.com/Zhincore/ZhinWiki/pull/57),
+  [#58](https://github.com/Zhincore/ZhinWiki/pull/58)).
+- **Homepage**: `HOMEPAGE` picks welcome page, app, or one wiki
+  ([#13](https://github.com/Zhincore/ZhinWiki/pull/13)).
+- **No marketing or Cloud**: welcome, terms and privacy pages replace the
+  marketing site; Cloud wording and the Plan tab are gone
+  ([#19](https://github.com/Zhincore/ZhinWiki/pull/19),
+  [#20](https://github.com/Zhincore/ZhinWiki/pull/20),
+  [#41](https://github.com/Zhincore/ZhinWiki/pull/41),
+  [#59](https://github.com/Zhincore/ZhinWiki/pull/59),
+  [#60](https://github.com/Zhincore/ZhinWiki/pull/60)).
+- **Releases**: own GHCR image and release assets, no one-line installer
+  ([#33](https://github.com/Zhincore/ZhinWiki/pull/33)).
+- **Upstream syncs**: v0.2.0 ([#73](https://github.com/Zhincore/ZhinWiki/pull/73),
+  [#74](https://github.com/Zhincore/ZhinWiki/pull/74)).
 
 ## Tenancy modes
 
-`TENANCY` (env, read at boot; an invalid value stops the server and app)
-selects how accounts and wikis relate. Each wiki owns its organization (one
-team per wiki), as upstream.
+`TENANCY` (read at boot; an invalid value stops server and app). Each wiki
+owns one organization, as upstream.
 
-- `independent`: each wiki stands alone (upstream behaviour).
-- `shared`: all wikis share one community: accounts, global editors, and
-  contributors browsing public wikis.
-
-| | `independent` | `shared` (fork default for production) |
+| | `independent` | `shared` |
 | --- | --- | --- |
-| Sign-up | Creates a workspace and a starter wiki | Creates an account only |
-| Who creates wikis | Any signed-in user | Platform admins only |
-| Platform `admin` | No wiki rights beyond memberships | Wiki-admin rights on every wiki |
-| Platform `editor` | No wiki rights | Member rights on every wiki |
-| Account deletion | Erases wikis where the user is the sole member | Refused (`SOLE_WIKI_OWNER`) while the user is a wiki's sole member |
-| Published wiki URL | `/sites/<id>` | `/<slug>` on the app origin; `/sites/<id>` 301s there |
+| Sign-up | Workspace + starter wiki | Account only |
+| Who creates wikis | Any signed-in user | Platform admins |
+| Platform `admin` | No wiki rights beyond memberships | Wiki-admin on every wiki |
+| Platform `editor` | Nothing | Member on every wiki |
+| Account deletion | Erases wikis where the user is sole member | Refused (`SOLE_WIKI_OWNER`) while sole member |
+| Published wiki URL | `/sites/<id>` | `/<slug>`; `/sites/<id>` 301s there |
 
-- Code default, `.env.example` and `docker-compose.yml` stay `independent`
-  (the demo seed needs it). `.env.production.example`, `docker-compose.prod.yml`
-  and `docker-compose.coolify.yml` default to `shared`.
-- Switching modes is not retroactive: existing workspaces, memberships and
-  invitations keep working.
-- Server enforcement: `canCreateWiki` (`packages/shared/src/rbac.ts`), the
-  `canCreateProject` guard, and better-auth's organization creation gate.
-  The UI only hides create actions.
-- The creator of a wiki becomes its owner; dashboard-created wikis start
-  empty in both modes.
-- A wiki holds up to 100 members (better-auth's `membershipLimit` default).
-
-## Wiki slug paths
-
-Shared tenancy only (`WIKI_SLUG_PATHS` in `apps/app/src/server.ts`).
-
-- Edge: the first path segment, when it is a valid unreserved slug, resolves
-  through `GET /api/public/sites/resolve?slug=` (published wikis, current or previous slug;
-  404 in independent mode), cached 30 s including misses, so a rename or a new
-  wiki can take up to 30 s to route. A hit is rewritten to `/sites/<id>/*`
-  with `x-nibleaf-site-origin: <origin>/<slug>`; a previous slug 301s to the
-  current one. Public GETs of `/sites/<id>/*` 301 to `/<slug>/*`.
-- Order on the app origin: legal redirects → `/<slug>` → `HOMEPAGE=site`
-  rewrite → `/sites/<id>`. The home wiki's own slug and `/sites/<home id>`
-  301 to `/`.
-- Client: one base path per document (`siteBasePath`: `''`, `/<slug>`,
-  `/sites/<id>`), carried by the `nibleaf-site-base` meta for the router
-  rewrite. A shared-tenancy home wiki routes clicks client-side only for
-  top-level segments its navigation owns; others load as documents so the
-  server decides.
-- Previous slugs: `project.config.previousSlugs` (newest first, at most 10),
-  written only by the slug update, never through the config API, and stripped
-  from snapshots and site shells. While remembered, another wiki cannot take
-  the slug (`wikiSlugUnavailable` in `packages/auth/src/wiki-slugs.ts`).
-- Reserved slugs: `DASHBOARD_ROOT_SEGMENTS` ∪ `APP_OWNED_ROOT_SEGMENTS`
-  (`packages/shared/src/wiki-paths.ts`), which also build `isDashboardPath`
-  and `isAppOwnedPath`; a test fails when a new top-level route is missing.
-  Existing clashes are logged at API boot and stay at `/sites/<id>`.
+- Defaults: code, `.env.example`, `docker-compose.yml` → `independent` (demo
+  seed needs it); `.env.production.example`, `docker-compose.prod.yml`,
+  `docker-compose.coolify.yml` → `shared`.
+- Switching modes is not retroactive.
+- Enforced on the server (`canCreateWiki` in `packages/shared/src/rbac.ts`,
+  `canCreateProject` guard, better-auth org creation gate); the UI only hides
+  create actions.
+- Wiki creator becomes owner; dashboard-created wikis start empty. Up to 100
+  members per wiki (better-auth `membershipLimit`).
+- **Contributors** (shared): role `user` without membership; read public
+  wikis, join by invitation. There is no contributor member role: any
+  membership exposes drafts, change requests and private sites.
 
 ## Platform roles
 
-`user.role`, separate from per-wiki member roles. It may hold several roles,
-comma-separated (better-auth's format); the highest wiki grant applies.
-
-- `user` (default): no platform rights.
-- `admin`: the operator console; in shared mode also wiki creation and
-  wiki-admin rights on every wiki (ownership transfer stays with the owner);
-  in independent mode no rights inside wikis it is not a member of.
-- `editor`: in shared mode, member rights on every wiki; in independent
-  mode, nothing. The effective wiki role is the higher of the membership role
-  and the platform grant (`effectiveWikiRole` in
-  `packages/shared/src/rbac.ts`). Not an admin-panel role, and cannot create
-  wikis. The site list and dashboard analytics cover every wiki the user
-  reaches this way (`accessibleProjectsWhere` in
-  `apps/server/src/actions/projects.ts`).
-
-Granting (also in [configuration](docs/self-hosting/configuration.mdx)):
+`user.role` (comma-separated for several; highest grant wins), separate from
+wiki member roles: `user` (default), `admin`
+(operator console; wiki rights per table above, never ownership transfer),
+`editor` (per table above; not an admin-panel role, cannot create wikis).
+Effective wiki role = max(membership, platform grant) (`effectiveWikiRole`);
+cross-wiki lists use `accessibleProjectsWhere`
+(`apps/server/src/actions/projects.ts`).
 
 ```bash
-# admin, Docker image (with-env is a dev-only script)
+# admin, Docker image
 docker compose exec server pnpm --filter @nibleaf/server exec tsx src/scripts/grant-admin.ts you@example.com
 # admin, source checkout
 pnpm --filter @nibleaf/server with-env tsx src/scripts/grant-admin.ts you@example.com
-# revoke: append "user" to either command
+# revoke: append "user"
 ```
 
-```sql
-UPDATE "user" SET role = 'admin'  WHERE email = 'you@example.com';
-UPDATE "user" SET role = 'editor' WHERE email = 'you@example.com';
-```
+`editor` is SQL only: `UPDATE "user" SET role = 'editor' WHERE email = '…';`.
+Without an admin, nobody can create wikis in shared mode.
 
-`grant-admin.ts` accepts only `admin` and `user`; `editor` is SQL only. If
-the last admin is gone, nobody can create wikis until one is granted again.
+## Wiki slug paths
 
-## Contributors
+Shared mode only (`WIKI_SLUG_PATHS`, `apps/app/src/server.ts`).
 
-In shared mode, a signed-in account with platform role `user` and no
-membership is a contributor. Contributors read public published wikis and
-join a wiki only by invitation; the dashboard shows them a text empty state
-(no wiki directory yet). There is no contributor member role: any membership
-row passes the member guards and exposes drafts, branches and private sites.
-Future change requests need their own guards instead of widening membership.
+- A valid unreserved first segment resolves via
+  `GET /api/public/sites/resolve?slug=` (cached 30 s, misses too: renames and
+  new wikis route within 30 s) and is served as that wiki. A previous slug 301s
+  to the current one; public `/sites/<id>/*` 301s to `/<slug>/*`.
+- Order: legal redirects → `/<slug>` → `HOMEPAGE=site` → `/sites/<id>`. The
+  home wiki's slug and `/sites/<home id>` 301 to `/`.
+- Previous slugs: `project.config.previousSlugs` (newest first, max 10), set
+  only by slug updates; another wiki cannot take one
+  (`packages/auth/src/wiki-slugs.ts`).
+- Reserved slugs: `DASHBOARD_ROOT_SEGMENTS` ∪ `APP_OWNED_ROOT_SEGMENTS`
+  (`packages/shared/src/wiki-paths.ts`); a test fails when a new top-level
+  route is missing. Existing clashes are logged at API boot and stay at
+  `/sites/<id>`.
 
 ## Change requests
 
-The fork drops docs versions. Only the default branch (`main`) is published;
-every other branch is the storage of one change request (CR), an isolated copy
-of `main` that is reviewed and merged back.
+No docs versions: only the default branch (`main`) is published. Every other
+branch stores one change request (CR), reviewed and merged back.
 
-- `ChangeRequest`: per-project `number` (max + 1, retried on a unique clash),
-  title, description, author, status `DRAFT | IN_REVIEW | MERGED | ARCHIVED`,
-  `branchId` (nulled when the branch is merged or deleted; the record stays),
-  merger, and `mergeRecord` (before/after of the pages the merge wrote).
-- Invariant: each non-default branch has exactly one CR. `createBranch`
-  creates both; deleting a branch archives its CR. Import replacement branches
-  (`import-*`, `createImportReplacementBranch`) are internal and get none;
-  Mintlify versions import as draft CRs. The migration turned existing
-  non-default branches into draft CRs.
-- Fork links: CR pages carry `sourcePageId` (their `main` page, `SetNull`) and
-  `forkFingerprint` = `<content hash>.<parent hash>.<position hash>` of that
-  page at fork time. Content: kind, title, slug, icon, description, content,
-  config, hidden, translationKey. Parent as a `main` id.
-- Fork base: `ChangeRequest.forkBase` maps every `main` page copied at fork
-  time to `{ hash, copyId }` (content hash, CR copy). A copy's parent is
-  compared by its fork-time `main` id from this map, so main deleting a parent
-  does not count as the CR moving its children. Null means untracked
-  (migrated branches, empty Mintlify version imports); cleared on merge.
-- Merge (`planMerge` in `apps/server/src/actions/change-request-merge.ts`),
-  one transaction:
-  - Edited page: written onto the same `main` row (comments, reader grants
-    and Git file state stay). Content edited on both sides → conflict
-    `BOTH_CHANGED`; tree changes are last-write-wins, taken from the CR only
-    where the CR moved the page.
-  - New CR page: moved onto `main` with its id; slug suffixed on a sibling
-    clash.
-  - Page deleted in the CR (in the fork base, no copy left): deleted on
-    `main`, or `DELETED_IN_BRANCH` if its `main` content changed since the
-    fork. Kept children move to the nearest surviving ancestor; CR pages under
-    a parent deleted on `main` likewise.
-  - A move on each side that would close a parent loop keeps `main`'s parent
-    for the page the CR moved.
-  - Page deleted on `main` but edited in the CR: `DELETED_ON_MAIN`.
-  - `main` pages created after the fork are kept.
-  - Conflicts → 409 with `{ conflicts: [{ pageId, title, path, languageId,
-    reason }] }`; `force: [pageId…]` lets the CR win on those pages only and
-    answers 409 again if any other conflict exists.
-  - Untracked CRs (null fork base) replace `main` wholesale (legacy
-    behaviour); the merge record pairs pages by language and path.
-  - Replacing `main` wholesale (untracked merge, import over the wiki) is
-    refused (409) while tracked CRs with a branch are open: new `main` ids
-    would orphan their fork links.
-  - Merges take a per-project advisory lock and lock `main`'s rows.
-- API: `/projects/:projectId/change-requests` (list `?status=`, create, get
-  with changed pages, patch title/description/status, `/:number/merge`,
-  `/:number/pages/:pageId/diff`), member role. Branch routes only list and
-  delete.
-- Pages are edited only in open CRs: the page routes (create, update, delete,
-  reorder) call `assertPagesEditable` and answer 409 `pages:main_read_only`
-  for a write to a `main` page or under one, `pages:branch_read_only` for a
-  merged/archived CR or an import branch. Check and write are separate
-  queries; a write racing a merge can still land (deferred). System writers (import, Git sync,
-  merge, starter) call the page actions directly. MCP has no page writers;
-  AI drafts return text only. Project settings, chrome, themes, languages and
-  domains stay editable on `main`.
-- UI: editor on `main` is read-only with **Edit** (opens a CR) and a CR menu;
-  `?cr=<n>` binds it to an open CR. CR list `/app/projects/:id/changes`, CR
-  page `/changes/:n` (Overview, `?tab=changes`). Block diff:
-  `apps/app/src/lib/block-diff.ts` (mdast top-level blocks aligned with
-  `diff`), lazy-loaded so it stays out of public-site chunks.
-- `buildSnapshot` and both publish paths read only the default branch;
-  `defaultVersionOnly` also strips other versions from older snapshots when
-  served, rolled back to or indexed. Exports and the MCP `versions` resource
-  are authenticated and still list CR branches.
+- Status `DRAFT | IN_REVIEW | MERGED | ARCHIVED`; per-project `number`. The
+  record outlives its branch.
+- Invariant: one CR per non-default branch. `createBranch` creates both;
+  deleting a branch archives its CR. Import replacement branches (`import-*`)
+  have none; Mintlify versions import as draft CRs; the migration turned
+  existing branches into draft CRs.
+- `main` is read-only: page writes answer 409 `pages:main_read_only`, and
+  `pages:branch_read_only` on merged/archived CRs or import branches. System
+  writers (import, Git sync, merge, starter) bypass this. Settings, themes,
+  languages and domains stay editable on `main`.
+- Merge (`apps/server/src/actions/change-request-merge.ts`): per page, against
+  the fork-time base. Conflicts (`BOTH_CHANGED`, `DELETED_IN_BRANCH`,
+  `DELETED_ON_MAIN`) → 409 with `conflicts`; `force: [pageId…]` lets the CR
+  win on those pages. CRs without a fork base (migrated) replace `main`
+  wholesale; wholesale replacement is refused while tracked CRs are open.
+- API: `/projects/:projectId/change-requests` (list, create, get, patch,
+  `/:number/merge`, `/:number/pages/:pageId/diff`), member role.
+- UI: **Edit** on `main` opens a CR; `?cr=<n>` binds the editor; list at
+  `/app/projects/:id/changes`, CR at `/changes/:n`.
+- Public output (`buildSnapshot`, publish, served snapshots) reads only `main`;
+  exports and the MCP `versions` resource still list CR branches.
 
-## Branding and runtime config
+## Branding
 
-- Built-in brand is ZhinWiki (`DEFAULT_BRAND`, `packages/shared/src/brand.ts`).
-  `APP_NAME` and `BRAND_*` override it at runtime; nothing brand-specific is
-  baked into the image. Operator guide:
-  [Brand your instance](docs/self-hosting/branding.mdx).
-- `HOMEPAGE` picks what the app root serves (`apps/app/src/lib/homepage.ts`):
-  the welcome page, the app, or one published site. Shareable, so it also
-  lives on `upstream`.
-- Upstream's marketing site, blog, Cloud/billing wording and Plan tab are
-  removed; generic welcome, terms and privacy pages replace them.
+- Default brand ZhinWiki (`packages/shared/src/brand.ts`); `APP_NAME` and
+  `BRAND_*` override at runtime. See [Brand your instance](docs/self-hosting/branding.mdx).
+- `HOMEPAGE` (`apps/app/src/lib/homepage.ts`): welcome page, app, or one
+  published site.
+
+## Upgrading from v0.1.0
+
+See [backups and upgrades](docs/self-hosting/backups-upgrades.mdx#from-v010):
+`TENANCY` default, change request and invitation migrations, duplicate-account
+check, `OPENROUTER_API_KEY`, `erasure` queue. The upstream two-step BullMQ
+upgrade does not apply: ZhinWiki v0.1.0 already runs BullMQ 6.
 
 ## Where fork code lives
-
-Fork-only files:
 
 - Tenancy: `packages/auth/src/tenancy.ts`,
   `apps/server/src/middlewares/guard/can-create-project.ts`,
@@ -199,40 +153,28 @@ Fork-only files:
   `apps/app/src/components/app/empty-wikis.tsx`.
 - Brand: `packages/shared/src/brand.ts`, `apps/app/src/lib/brand.ts`,
   `apps/app/src/components/welcome-page.tsx`.
-- Change requests: `apps/server/src/actions/change-requests.ts`,
-  `apps/server/src/actions/change-request-merge.ts`,
+- Change requests: `apps/server/src/actions/change-request{s,-merge}.ts`,
   `apps/server/src/modules/app/change-requests/`,
   `apps/app/src/components/change-requests/`, `apps/app/src/lib/block-diff.ts`,
   `apps/app/src/routes/app/projects/$projectId/changes.*.tsx`.
-
-Upstream files carrying fork edits: `packages/auth/src/keys.server.ts`,
-`packages/auth/src/account-deletion.ts`, `packages/shared/src/rbac.ts`,
-`packages/design-system/src/brand/`, `apps/server/src/actions/branches.ts`,
-`packages/shared/src/site.ts` (`buildSnapshot`).
-
-Tenancy and platform roles are fork-only: they live on `main` (see
-[branches](BRANDING.md#branches)).
+- Upstream files with fork edits: `packages/auth/src/keys.server.ts`,
+  `packages/auth/src/account-deletion.ts`, `packages/shared/src/rbac.ts`,
+  `packages/design-system/src/brand/`, `apps/server/src/actions/branches.ts`,
+  `packages/shared/src/site.ts`.
 
 ## Merging upstream: watch for
 
 - `packages/auth/src/server.ts`: `organization()` options and the
-  `user.create.after` hook must keep going through `tenancy.ts`.
-- New org-creation paths (server actions, MCP, worker): must respect
-  `canCreateWiki`.
-- New permission checks: must resolve the role through `effectiveWikiRole`
-  (as `apps/server/src/actions/projects.ts` does), not the raw membership
-  role, or editors lose access. New cross-wiki lists: scope them with
+  `user.create.after` hook go through `tenancy.ts`.
+- New org-creation paths (server, MCP, worker) respect `canCreateWiki`.
+- New permission checks use `effectiveWikiRole`; new cross-wiki lists use
   `accessibleProjectsWhere`.
-- `apps/app/src/routes/__root.tsx` loader (`tenancy`), the dashboard,
-  `sites.tsx` and the site switcher (create gates).
-- `account-deletion.ts` and its error codes.
-- `schema.prisma` `User.role` comment, `projects` route guard list.
-- Env: new variables go into `.env.example`, `.env.production.example` and
-  the compose `x-service-env` blocks; keep `TENANCY` defaults as above and run
-  `pnpm release:check`.
-- i18n: new strings in all 12 catalogs and `message-ids.ts`; rename
-  "Nibleaf" in user-facing copy.
-- Dropped upstream pages, tests and Cloud wording must not come back.
-- New page writers or branch creators: keep the CR invariant and fork links
-  (`createBranch`); new readers of non-default branches must not reach
-  public output.
+- Create gates: `__root.tsx` loader, dashboard, `sites.tsx`, site switcher.
+- `account-deletion.ts` error codes; `schema.prisma` `User.role` comment;
+  `projects` route guard list.
+- New env vars: `.env.example`, `.env.production.example`, compose
+  `x-service-env`; keep `TENANCY` defaults; run `pnpm release:check`.
+- i18n: all 12 catalogs and `message-ids.ts`; no "Nibleaf" in user copy.
+- Dropped pages, tests, Cloud wording and upstream release guides stay out.
+- New page writers or branch creators keep the CR invariant (`createBranch`);
+  non-default branches never reach public output.

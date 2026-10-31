@@ -16,10 +16,6 @@ integrations, and agent access. This is source availability, not deployment
 evidence: no Cloud or self-host deployment is performed by these documentation
 changes.
 
-**Update for v0.2.0:** this page records the August source baseline; see the
-[v0.2.0 release notes](/releases/v0-2-0) for release availability and upgrade
-instructions.
-
 ## Integrated source baseline
 
 | Capability | Pull request | Main commit | What changed |
@@ -92,9 +88,9 @@ or mutate the new domains. Theme-import preview validates without writing. See
 
 The Postgres migrations must run in timestamp order, with integrations before
 MCP because integrations owns `ApiKey.expiresAt`. Optional ClickHouse migrations
-and reconciliation have their own gate. Read the
-[combined migration and rollback guide](/self-hosting/combined-release-migration)
-before selecting a source revision or future image.
+and reconciliation have their own gate. Read
+[back up, restore, and upgrade](/self-hosting/backups-upgrades) before selecting
+a source revision or future image.
 
 Do not replace a pinned container reference with these commits. A future
 published artifact needs its own build, security and migration checks, exact

@@ -6,7 +6,6 @@ body:
     attributes:
       value: |
         Thanks for taking the time to file a bug. Please search existing issues first.
-        For security vulnerabilities, **do not** open an issue — see SECURITY.md.
   - type: textarea
     id: what-happened
     attributes:

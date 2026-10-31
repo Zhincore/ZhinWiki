@@ -1298,21 +1298,24 @@ model ExportJob {
 /// API. At most one PENDING/RUNNING run per project (partial unique index in
 /// the migration); a RUNNING run refreshes `updatedAt` as its heartbeat.
 model ImportRun {
-  id          String          @id @default(cuid())
-  projectId   String
-  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id           String          @id @default(cuid())
+  projectId    String
+  project      Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
   /// Importer id (`mintlify`, `gitbook`, `ghost`); a string so new importers need no migration.
-  source      String
-  status      ImportRunStatus @default(PENDING)
+  source       String
+  status       ImportRunStatus @default(PENDING)
   /// ImportSummary of a SUCCEEDED run.
-  summary     Json?
-  error       String?
-  createdById String?
-  createdBy   User?           @relation("ImportRunCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  startedAt   DateTime?
-  completedAt DateTime?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  summary      Json?
+  error        String?
+  /// AppError code and details of a FAILED run, so the dashboard can translate it.
+  errorCode    String?
+  errorDetails Json?
+  createdById  String?
+  createdBy    User?           @relation("ImportRunCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
   @@index([projectId, createdAt])
   @@index([status, updatedAt])

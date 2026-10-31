@@ -50,7 +50,10 @@ it('refuses promotion inside the transaction while change requests track main', 
 it('returns a conflict when promotion encounters a serialization failure', async () => {
   const snapshot = await captureImportDraft('project');
   db.$transaction.mockRejectedValueOnce({ code: 'P2034' });
-  await expect(promoteImportReplacementBranch('project', 'import', undefined, snapshot)).rejects.toMatchObject({ status: 409 });
+  await expect(promoteImportReplacementBranch('project', 'import', undefined, snapshot)).rejects.toMatchObject({
+    status: 409,
+    code: 'import:conflict',
+  });
 });
 
 it('uses metadata without loading page content for fingerprints', async () => {

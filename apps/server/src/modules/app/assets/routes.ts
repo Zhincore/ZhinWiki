@@ -1,10 +1,10 @@
-import { MemberRole } from '@nibleaf/shared/constants';
 import { errorResponses } from '@/errors/utils';
 import { createRouteConfig } from '@/lib/hono/route-config';
-import { isAuthenticated, requireProjectMember, requireProjectRole } from '@/middlewares/guard';
+import { isAuthenticated, requireProjectMember, requireProjectViewer } from '@/middlewares/guard';
 
 const ok = { 200: { description: 'ok' }, ...errorResponses };
-const editor = [isAuthenticated, requireProjectRole(MemberRole.MEMBER)] as const;
+// Contributors may upload images for their own change requests (limits enforced in the actions).
+const uploader = [isAuthenticated, requireProjectViewer()] as const;
 
 const assetsRoutes = {
   list: createRouteConfig({
@@ -13,9 +13,9 @@ const assetsRoutes = {
     description: 'List uploaded assets.',
     responses: ok,
   }),
-  presign: createRouteConfig({ guard: [...editor], tags: ['assets'], description: 'Presign a direct upload URL.', responses: ok }),
+  presign: createRouteConfig({ guard: [...uploader], tags: ['assets'], description: 'Presign a direct upload URL.', responses: ok }),
   confirm: createRouteConfig({
-    guard: [...editor],
+    guard: [...uploader],
     tags: ['assets'],
     description: 'Record an uploaded asset.',
     responses: { 201: { description: 'created' }, ...errorResponses },

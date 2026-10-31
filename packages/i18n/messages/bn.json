@@ -451,6 +451,8 @@
   "editor_table_toggleheader": "হেডার সারি টগল করুন",
   "editor_table_delete": "টেবিল মুছুন",
   "editor_imageuploadfailed": "ছবি আপলোড ব্যর্থ হয়েছে.",
+  "editor_imageuploadtoolarge": "অবদানকারীরা সর্বোচ্চ 5 MB-এর ছবি আপলোড করতে পারেন.",
+  "editor_imageuploadquota": "আপনি এই উইকির জন্য 50 MB ছবি আপলোডের সীমায় পৌঁছেছেন.",
   "editor_createfailed": "ব্যর্থ হয়েছে",
   "editor_newgroup": "নতুন গ্রুপ",
   "editor_newpage": "নতুন পাতা",

@@ -451,6 +451,8 @@
   "editor_table_toggleheader": "Toggle header row",
   "editor_table_delete": "Delete table",
   "editor_imageuploadfailed": "Image upload failed.",
+  "editor_imageuploadtoolarge": "Contributors can upload images of at most 5 MB.",
+  "editor_imageuploadquota": "You've reached the 50 MB image upload limit for this wiki.",
   "editor_createfailed": "Failed",
   "editor_newgroup": "New group",
   "editor_newpage": "New page",

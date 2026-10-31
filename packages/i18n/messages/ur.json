@@ -451,6 +451,8 @@
   "editor_table_toggleheader": "ہیڈر قطار کو ٹوگل کریں۔",
   "editor_table_delete": "ٹیبل کو حذف کریں۔",
   "editor_imageuploadfailed": "تصویر اپ لوڈ ناکام ہو گئی۔",
+  "editor_imageuploadtoolarge": "شراکت دار زیادہ سے زیادہ 5 MB کی تصاویر اپ لوڈ کر سکتے ہیں۔",
+  "editor_imageuploadquota": "آپ اس وکی کے لیے تصاویر اپ لوڈ کرنے کی 50 MB حد تک پہنچ گئے ہیں۔",
   "editor_createfailed": "ناکام",
   "editor_newgroup": "نیا گروپ",
   "editor_newpage": "نیا صفحہ",

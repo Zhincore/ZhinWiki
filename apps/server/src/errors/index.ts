@@ -24,6 +24,8 @@ export type ErrorCode =
   | 'pages:branch_read_only'
   | 'change_requests:review_required'
   | 'change_requests:open_limit'
+  | 'assets:file_too_large'
+  | 'assets:quota_exceeded'
   | 'storage:error'
   | 'search:unavailable'
   | 'ai:provider_response'
@@ -89,6 +91,8 @@ const ERROR_STATUS = {
   'pages:branch_read_only': 409,
   'change_requests:review_required': 409,
   'change_requests:open_limit': 429,
+  'assets:file_too_large': 413,
+  'assets:quota_exceeded': 422,
   'storage:error': 502,
   'search:unavailable': 503,
   'ai:provider_response': 502,

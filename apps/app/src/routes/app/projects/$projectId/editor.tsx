@@ -66,6 +66,7 @@ import {
   useUpdatePage,
   useUploadAsset,
 } from '@/hooks/api';
+import { ApiResponseError } from '@/hooks/api/client-helpers';
 import { PublishControl } from '@/layouts/project';
 import { draftPreviewHref } from '@/lib/draft-preview';
 import { typographyVars } from '@/lib/typography';
@@ -85,6 +86,14 @@ export const Route = createFileRoute('/app/projects/$projectId/editor')({
       })
       .parse(search),
 });
+
+/** Upload refusals with their own message; anything else reads as a failed upload. */
+const imageUploadErrorMessage = (error: unknown) => {
+  const code = error instanceof ApiResponseError ? error.code : undefined;
+  if (code === 'assets:file_too_large') return 'editor.imageUploadTooLarge';
+  if (code === 'assets:quota_exceeded') return 'editor.imageUploadQuota';
+  return 'editor.imageUploadFailed';
+};
 
 function EditorPage() {
   const t = useT();
@@ -147,8 +156,8 @@ function EditorPage() {
   const onUploadImage = async (file: File): Promise<string | null> => {
     try {
       return (await uploadAsset.mutateAsync(file)).url;
-    } catch {
-      toast.error(t('editor.imageUploadFailed'));
+    } catch (error) {
+      toast.error(t(imageUploadErrorMessage(error)));
       return null;
     }
   };

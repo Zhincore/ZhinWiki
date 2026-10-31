@@ -6,7 +6,8 @@ import { useT } from '@nibleaf/i18n/react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { ChevronLeft, GitPullRequest } from 'lucide-react';
 import type { ReactNode } from 'react';
-import type { ChangeRequest, ChangeRequestStatus } from '@/hooks/api';
+import { type ChangeRequest, type ChangeRequestStatus, useProject } from '@/hooks/api';
+import { useSession } from '@/services/auth-client';
 
 const STATUS: Record<ChangeRequestStatus, { label: MessageKey; className: string }> = {
   DRAFT: { label: 'changeRequest.status.draft', className: 'border-border text-muted-foreground' },
@@ -28,6 +29,15 @@ export function ChangeRequestStatusBadge({ status, className }: { status: Change
 export const isChangeRequestEditable = (changeRequest: Pick<ChangeRequest, 'status' | 'branchId'>) =>
   Boolean(changeRequest.branchId) && (changeRequest.status === 'DRAFT' || changeRequest.status === 'IN_REVIEW');
 
+/** Who the caller is on a change request: outside contributors edit only their own. */
+export const useChangeRequestAccess = (projectId: string, changeRequest: Pick<ChangeRequest, 'authorId'> | undefined) => {
+  const { data: project } = useProject(projectId);
+  const { data: session } = useSession();
+  const contributor = project?.viewerRole === 'contributor';
+  const isAuthor = Boolean(changeRequest?.authorId) && changeRequest?.authorId === session?.user.id;
+  return { contributor, isAuthor, canEdit: !contributor || isAuthor };
+};
+
 export type ChangeRequestTab = 'overview' | 'editor' | 'changes';
 
 /** Top bar of a change request: back link, title `#n` with status, the
@@ -40,7 +50,7 @@ export function ChangeRequestHeader({
   children,
 }: {
   projectId: string;
-  changeRequest: Pick<ChangeRequest, 'number' | 'title' | 'status' | 'branchId'>;
+  changeRequest: Pick<ChangeRequest, 'number' | 'title' | 'status' | 'branchId' | 'authorId'>;
   tab: ChangeRequestTab;
   back: { to: '/app/projects/$projectId/changes' | '/app/projects/$projectId/editor'; label: string };
   children?: ReactNode;
@@ -48,6 +58,7 @@ export function ChangeRequestHeader({
   const t = useT();
   const navigate = useNavigate();
   const { number } = changeRequest;
+  const { canEdit } = useChangeRequestAccess(projectId, changeRequest);
   const open = (next: ChangeRequestTab) => {
     if (next === tab) return;
     if (next === 'editor') {
@@ -86,7 +97,11 @@ export function ChangeRequestHeader({
         <SegmentedControlItem active={tab === 'overview'} onClick={() => open('overview')}>
           {t('changeRequest.tab.overview')}
         </SegmentedControlItem>
-        <SegmentedControlItem active={tab === 'editor'} disabled={!isChangeRequestEditable(changeRequest)} onClick={() => open('editor')}>
+        <SegmentedControlItem
+          active={tab === 'editor'}
+          disabled={!(canEdit && isChangeRequestEditable(changeRequest))}
+          onClick={() => open('editor')}
+        >
           {t('changeRequest.tab.editor')}
         </SegmentedControlItem>
         <SegmentedControlItem active={tab === 'changes'} onClick={() => open('changes')}>

@@ -43,6 +43,8 @@ export interface Project {
   createdAt: string;
   updatedAt: string;
   _count?: { pages: number; deployments: number; domains?: number };
+  /** The caller's wiki role, or `contributor` for an outside contributor (who gets name and typography only). */
+  viewerRole?: 'owner' | 'admin' | 'member' | 'contributor' | null;
 }
 
 export interface ApiKey {
@@ -107,7 +109,7 @@ export interface Page extends PageNode {
 
 export type ChangeRequestStatus = 'DRAFT' | 'IN_REVIEW' | 'MERGED' | 'ARCHIVED';
 
-interface ChangeRequestUser {
+export interface ChangeRequestUser {
   id: string;
   name: string;
   image: string | null;
@@ -128,7 +130,11 @@ export interface ChangeRequest {
   mergedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Present in lists: reviewers and whether each still owes a review. */
+  reviewers?: { userId: string; awaiting: boolean }[];
 }
+
+export type ChangeRequestReviewState = 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED';
 
 export type PageChangeKind = 'added' | 'removed' | 'modified' | 'moved';
 
@@ -151,10 +157,15 @@ export interface MergeConflict {
   reason: MergeConflictReason;
 }
 
-export interface ChangeRequestDetail extends ChangeRequest {
+export interface ChangeRequestDetail extends Omit<ChangeRequest, 'reviewers'> {
   mergedBy: ChangeRequestUser | null;
   changes: ChangeRequestPageChange[];
   conflicts: MergeConflict[];
+  reviewers: { user: ChangeRequestUser; state: Exclude<ChangeRequestReviewState, 'COMMENTED'> | null }[];
+  reviews: { id: string; author: ChangeRequestUser | null; state: ChangeRequestReviewState; body: string | null; createdAt: string }[];
+  participants: ChangeRequestUser[];
+  /** Merge gate: counts only current reviewers who can review. */
+  review: { required: number; approvals: number; changesRequested: number; mergeable: boolean };
 }
 
 export interface ChangeRequestDiffSide {
@@ -366,6 +377,8 @@ export interface SiteShell {
     config: ProjectConfig | null;
     /** Verified primary custom domain — canonical/301 consolidation target. */
     primaryDomain: string | null;
+    /** Editor link for suggesting changes; null unless the wiki accepts outside change requests. */
+    contributeUrl?: string | null;
   };
   nav: NavNode[];
   /** Only ENABLED languages — the server filters disabled ones out. */

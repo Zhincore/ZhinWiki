@@ -451,6 +451,8 @@
   "editor_table_toggleheader": "Alihkan baris header",
   "editor_table_delete": "Hapus tabel",
   "editor_imageuploadfailed": "Gagal mengunggah gambar.",
+  "editor_imageuploadtoolarge": "Kontributor dapat mengunggah gambar berukuran maksimal 5 MB.",
+  "editor_imageuploadquota": "Anda telah mencapai batas unggahan gambar 50 MB untuk wiki ini.",
   "editor_createfailed": "Gagal",
   "editor_newgroup": "Grup baru",
   "editor_newpage": "Halaman baru",

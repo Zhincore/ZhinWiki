@@ -451,6 +451,8 @@
   "editor_table_toggleheader": "Переключить строку заголовка",
   "editor_table_delete": "Удалить таблицу",
   "editor_imageuploadfailed": "Загрузка изображения не удалась.",
+  "editor_imageuploadtoolarge": "Участники могут загружать изображения размером не более 5 МБ.",
+  "editor_imageuploadquota": "Вы достигли лимита загрузки изображений в 50 МБ для этой вики.",
   "editor_createfailed": "Не удалось",
   "editor_newgroup": "Новая группа",
   "editor_newpage": "Новая страница",

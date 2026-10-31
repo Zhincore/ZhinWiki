@@ -451,6 +451,8 @@
   "editor_table_toggleheader": "हेडर पंक्ति टॉगल करें",
   "editor_table_delete": "तालिका हटाएँ",
   "editor_imageuploadfailed": "छवि अपलोड विफल रहा.",
+  "editor_imageuploadtoolarge": "योगदानकर्ता अधिकतम 5 MB की छवियाँ अपलोड कर सकते हैं.",
+  "editor_imageuploadquota": "आप इस विकी के लिए 50 MB की छवि अपलोड सीमा तक पहुँच गए हैं.",
   "editor_createfailed": "असफल",
   "editor_newgroup": "नया समूह",
   "editor_newpage": "नया पेज",

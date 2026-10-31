@@ -6,6 +6,12 @@ export interface ImportReference {
   image: boolean;
 }
 
+const escaped = (source: string, index: number): boolean => {
+  let start = index;
+  while (source[start - 1] === '\\') start--;
+  return (index - start) % 2 === 1;
+};
+
 export const markdownReferences = (source: string): ImportReference[] => {
   const labels = new Map<number, number>();
   const destinations = new Map<number, number>();
@@ -22,23 +28,15 @@ export const markdownReferences = (source: string): ImportReference[] => {
     else if (character === '(') parentheses.push(index);
     else if (character === ')' && parentheses.length) destinations.set(parentheses.pop() ?? 0, index);
   }
-  // Text inside an image description is alt text, so nothing nested there is a reference.
-  // Labels nest, so walking them from the last end only needs the earliest image start.
-  const altText = new Set<number>();
-  let imageStart = Number.POSITIVE_INFINITY;
-  for (const [labelEnd, label] of [...labels].reverse()) {
-    if (label > imageStart) altText.add(labelEnd);
-    else if (source[label - 1] === '!' && destinations.has(labelEnd + 1)) imageStart = label;
-  }
   const references: ImportReference[] = [];
-  // Walking label ends keeps an image inside a link label, and reading each
-  // destination once keeps nested or crossed pairs linear and non-overlapping.
+  // Labels are read in closing order, as Markdown does, and each destination only
+  // once, so nested or crossed pairs stay linear and references can't overlap.
   let scanned = 0;
   for (const [labelEnd, label] of labels) {
     const end = destinations.get(labelEnd + 1);
-    if (end === undefined || labelEnd < scanned || altText.has(labelEnd)) continue;
+    if (end === undefined || labelEnd < scanned) continue;
     scanned = end;
-    const image = label > 0 && source[label - 1] === '!';
+    const image = source[label - 1] === '!' && !escaped(source, label - 1);
     let start = labelEnd + 2;
     let referenceEnd = end;
     if (source[start] === '<') {
@@ -56,6 +54,8 @@ export const markdownReferences = (source: string): ImportReference[] => {
     }
     const suffix = source.slice(referenceEnd + (source[referenceEnd] === '>' ? 1 : 0), end).trim();
     if (referenceEnd > start && (!suffix || ((suffix[0] === '"' || suffix[0] === "'") && suffix.at(-1) === suffix[0]))) {
+      // An image description is alt text, so nothing read inside it is a reference.
+      while (image && (references.at(-1)?.start ?? -1) > label) references.pop();
       references.push({ value: source.slice(start, referenceEnd), start, end: referenceEnd, image });
     }
   }

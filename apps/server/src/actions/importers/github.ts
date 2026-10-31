@@ -11,13 +11,15 @@ const github = new Octokit({
   },
 });
 
+const MAX_RETRY_WAIT_MS = 86_400_000;
+
 const githubRetryMinutes = ({ status, response }: RequestError) => {
   if (status !== 403 && status !== 429) return;
   const headers = response?.headers;
   const retryAfter = Number(headers?.['retry-after']) * 1000;
   const reset = Number(headers?.['x-ratelimit-reset']) * 1000 - Date.now();
   const wait = retryAfter > 0 ? retryAfter : headers?.['x-ratelimit-remaining'] === '0' ? reset : 0;
-  return wait > 0 && Number.isFinite(wait) ? Math.ceil(wait / 60_000) : undefined;
+  return wait > 0 && wait <= MAX_RETRY_WAIT_MS ? Math.ceil(wait / 60_000) : undefined;
 };
 
 const githubFailureMessage = (error: RequestError) => {

@@ -8,12 +8,18 @@ it('reads an image inside a link label before the link itself', () => {
     { value: 'b.png', image: true },
     { value: 'https://x.io', image: false },
   ]);
+  expect(references('[![a](b.png) ![c](d.png)](e.md)')).toEqual([
+    { value: 'b.png', image: true },
+    { value: 'd.png', image: true },
+    { value: 'e.md', image: false },
+  ]);
   expect(remoteImageSources('[![Badge](https://x.io/b.png)](https://x.io)')).toEqual(['https://x.io/b.png']);
 });
 
 it('ignores references inside an image description', () => {
   expect(references('![a [b](c.md)](x.png)')).toEqual([{ value: 'x.png', image: true }]);
   expect(references('![outer ![inner](b.png)](a.png)')).toEqual([{ value: 'a.png', image: true }]);
+  expect(references('![[[a](b.md)](c.md)](d.png)')).toEqual([{ value: 'd.png', image: true }]);
   expect(references('[![a [b](c.md)](x.png)](y.md)')).toEqual([
     { value: 'x.png', image: true },
     { value: 'y.md', image: false },
@@ -24,6 +30,19 @@ it('ignores references inside an image description', () => {
 it('keeps a link inside brackets that never became an image', () => {
   expect(references('![a [b](c.md)] d')).toEqual([{ value: 'c.md', image: false }]);
   expect(references('![a [b](c.md)](d')).toEqual([{ value: 'c.md', image: false }]);
+  expect(references('![a [b](c.md)](bad destination)')).toEqual([{ value: 'c.md', image: false }]);
+  expect(references('![a [b](c.md)](<bad)')).toEqual([{ value: 'c.md', image: false }]);
+  expect(references('![a ![b](c.png)](bad destination)')).toEqual([{ value: 'c.png', image: true }]);
+});
+
+it('treats an escaped image marker as text', () => {
+  expect(references(String.raw`\![a](b.md)`)).toEqual([{ value: 'b.md', image: false }]);
+  expect(references(String.raw`\\![a](b.png)`)).toEqual([{ value: 'b.png', image: true }]);
+  expect(references(String.raw`\\\![a](b.md)`)).toEqual([{ value: 'b.md', image: false }]);
+  expect(references(String.raw`\![a [b](c.md)](x.png)`)).toEqual([
+    { value: 'c.md', image: false },
+    { value: 'x.png', image: false },
+  ]);
 });
 
 it('rewrites nested references without moving the text around them', () => {

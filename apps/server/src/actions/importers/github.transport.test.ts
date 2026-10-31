@@ -35,6 +35,7 @@ it.each([
   ],
   ['a reset that has passed', 403, { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': '1' }, 'GitHub API error (403). Try again shortly.'],
   ['an unusable reset', 403, { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': 'Infinity' }, 'GitHub API error (403). Try again shortly.'],
+  ['an absurd retry-after', 429, { 'retry-after': '1e300' }, 'GitHub API error (429). Try again shortly.'],
   ['a server error with retry-after', 503, { 'retry-after': '90' }, 'GitHub API error (503). Try again shortly.'],
 ])('explains %s', async (_name, status, headers, message) => {
   vi.stubGlobal(

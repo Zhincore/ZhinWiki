@@ -100,7 +100,7 @@ projection for readers and workers.
 
 For an application rollback, first deploy code that no longer writes or expects
 the durable add-on tables. Preserve required audit evidence, stop add-on
-mutations, then follow the reverse order in the
-[combined release migration guide](/self-hosting/combined-release-migration).
+mutations, then reverse the schema after MCP and integrations and before usage
+and search.
 The reviewed add-on `rollback.sql` removes add-on state and audit history, so it
 is a destructive schema rollback rather than a feature toggle.

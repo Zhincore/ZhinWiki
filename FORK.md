@@ -64,7 +64,8 @@ Shared tenancy only (`WIKI_SLUG_PATHS` in `apps/app/src/server.ts`).
 
 ## Platform roles
 
-`user.role`, separate from per-wiki member roles:
+`user.role`, separate from per-wiki member roles. It may hold several roles,
+comma-separated (better-auth's format); the highest wiki grant applies.
 
 - `user` (default): no platform rights.
 - `admin`: the operator console; in shared mode also wiki creation and

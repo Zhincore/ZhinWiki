@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { type Branch, Prisma, prisma } from '@nibleaf/database';
 import { newId } from '@nibleaf/shared/ids';
-import { AppError, conflict, notFound } from '@/errors';
+import { AppError, conflict, forbidden, notFound } from '@/errors';
 import { contentHash, type ForkBase, pageFingerprint } from './change-request-merge';
 
 /** Every branch of a project, default ('main') first. */
@@ -27,12 +27,13 @@ export const assertBranchInProject = async (projectId: string, id: string) => {
 };
 
 /**
- * Members edit pages only inside open (draft or in-review) change requests.
- * `pageIds` are the pages written (or the parent a page is created under);
- * without them `branchId` (default: main) is the target. System writers
- * (imports, Git sync, merges) call the page actions directly.
+ * Members edit pages only inside open (draft or in-review) change requests;
+ * contributors (`authorId`) only inside their own. `pageIds` are the pages
+ * written (or the parent a page is created under); without them `branchId`
+ * (default: main) is the target. System writers (imports, Git sync, merges)
+ * call the page actions directly.
  */
-export const assertPagesEditable = async (projectId: string, target: { branchId?: string; pageIds?: readonly string[] }) => {
+export const assertPagesEditable = async (projectId: string, target: { branchId?: string; pageIds?: readonly string[] }, authorId?: string) => {
   const main = await getDefaultBranch(projectId);
   const branchIds = target.pageIds
     ? (
@@ -47,11 +48,23 @@ export const assertPagesEditable = async (projectId: string, target: { branchId?
     throw new AppError({ code: 'pages:main_read_only', message: 'Pages on main are read-only. Open a change request to edit them.' });
   }
   if (branchIds.length === 0) return;
-  const open = await prisma.changeRequest.count({
+  const open = await prisma.changeRequest.findMany({
     where: { projectId, branchId: { in: branchIds }, status: { in: ['DRAFT', 'IN_REVIEW'] } },
+    select: { authorId: true },
   });
-  if (open < branchIds.length) {
+  if (open.length < branchIds.length) {
     throw new AppError({ code: 'pages:branch_read_only', message: 'Pages are edited only in an open change request.' });
+  }
+  if (authorId && open.some((changeRequest) => changeRequest.authorId !== authorId)) {
+    throw forbidden('Contributors edit only their own change requests.');
+  }
+};
+
+/** Throw notFound unless a contributor may read the branch: main or a change request's. */
+export const assertBranchReadable = async (projectId: string, branchId: string) => {
+  const readable = await prisma.branch.count({ where: { id: branchId, projectId, OR: [{ isDefault: true }, { changeRequest: { isNot: null } }] } });
+  if (readable === 0) {
+    throw notFound('branch', { id: branchId });
   }
 };
 

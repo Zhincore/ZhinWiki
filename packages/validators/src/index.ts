@@ -357,6 +357,15 @@ export const projectConfigSchema = z
       .optional(),
     redirects: redirectsSchema.optional(),
     variables: z.array(kvPair).max(100).optional(),
+    /** Change request policy: approvals a merge needs (default 1) and whether
+     *  signed-in non-members may open change requests (shared tenancy, default on). */
+    changeRequests: z
+      .object({
+        requiredApprovals: z.number().int().min(0).max(10).optional(),
+        outsideContributions: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
     /** Slugs the wiki used before, newest first; server-managed under shared tenancy. */
     previousSlugs: z.array(z.string()).max(MAX_PREVIOUS_WIKI_SLUGS).optional(),
   })
@@ -638,6 +647,17 @@ export type UpdateChangeRequestBody = z.infer<typeof updateChangeRequestBody>;
 
 /** `force` names the conflicting page ids (as listed in the 409) the change request wins on. */
 export const mergeChangeRequestBody = z.object({ force: z.array(z.string().min(1).max(64)).max(10_000).optional() });
+
+export const changeRequestReviewerBody = z.object({ userId: z.string().min(1).max(64) });
+export type ChangeRequestReviewerBody = z.infer<typeof changeRequestReviewerBody>;
+
+export const changeRequestReviewerParams = changeRequestParams.extend({ userId: z.string().min(1).max(64) });
+
+export const submitChangeRequestReviewBody = z.object({
+  state: z.enum(['APPROVED', 'CHANGES_REQUESTED', 'COMMENTED']),
+  body: z.string().trim().max(20_000).optional(),
+});
+export type SubmitChangeRequestReviewBody = z.infer<typeof submitChangeRequestReviewBody>;
 
 export const updatePageBody = z.object({
   parentId: z.string().nullable().optional(),

@@ -1,10 +1,12 @@
 import { type ChangeRequestStatus, Prisma, prisma } from '@nibleaf/database';
 import type { Locale } from '@nibleaf/i18n/locales';
 import { changerequest_defaulttitle } from '@nibleaf/i18n/messages';
+import { changeRequestPolicy } from '@nibleaf/shared/rbac';
 import type { CreateChangeRequestBody, UpdateChangeRequestBody } from '@nibleaf/validators';
-import { conflict, notFound } from '@/errors';
+import { AppError, conflict, forbidden, notFound } from '@/errors';
 import { assertNoTrackedChangeRequests, createBranch, getDefaultBranch } from './branches';
 import { type ForkBase, type MergedFields, type MergePage, type MergeRecordEntry, planMerge, summarizeChanges } from './change-request-merge';
+import { mergeReviewSummary, reviewSummary } from './change-request-reviews';
 
 const MERGE_TIMEOUT_MS = 60_000;
 
@@ -41,13 +43,28 @@ const findChangeRequest = async (projectId: string, number: number) => {
   return changeRequest;
 };
 
-export const listChangeRequests = async (projectId: string, status?: ChangeRequestStatus) =>
-  prisma.changeRequest.findMany({
+const reviewInclude = {
+  reviewers: { select: { userId: true, requestedAt: true, user: userSelect }, orderBy: { requestedAt: 'asc' } },
+  reviews: { select: { id: true, authorId: true, state: true, body: true, createdAt: true, author: userSelect }, orderBy: { createdAt: 'asc' } },
+} as const satisfies Prisma.ChangeRequestInclude;
+
+/** Change requests with each reviewer's id and whether they still owe a review. */
+export const listChangeRequests = async (projectId: string, status?: ChangeRequestStatus) => {
+  const rows = await prisma.changeRequest.findMany({
     where: { projectId, ...(status ? { status } : {}) },
     orderBy: { number: 'desc' },
     omit: internalColumns,
-    include: { author: userSelect },
+    include: {
+      author: userSelect,
+      reviewers: { select: { userId: true, requestedAt: true } },
+      reviews: { select: { authorId: true, state: true, createdAt: true } },
+    },
   });
+  return rows.map(({ reviewers, reviews, ...row }) => ({
+    ...row,
+    reviewers: reviewSummary({ reviewers, reviews, required: 0 }).reviewers.map(({ userId, awaiting }) => ({ userId, awaiting })),
+  }));
+};
 
 /** Open a change request on a fresh copy of the default branch. */
 export const createChangeRequest = async (
@@ -74,10 +91,29 @@ const recordEntries = (mergeRecord: Prisma.JsonValue | null) => (mergeRecord as 
 export const getChangeRequest = async (projectId: string, number: number) => {
   const changeRequest = await prisma.changeRequest.findUnique({
     where: { projectId_number: { projectId, number } },
-    include: { author: userSelect, mergedBy: userSelect, branch: true },
+    include: {
+      author: userSelect,
+      mergedBy: userSelect,
+      branch: true,
+      project: { select: { organizationId: true, config: true } },
+      ...reviewInclude,
+    },
   });
   if (!changeRequest) throw notFound('changeRequest', { number });
-  const { mergeRecord, forkBase, branch, ...rest } = changeRequest;
+  const { mergeRecord, forkBase, branch, project, reviewers, reviews, ...fields } = changeRequest;
+  const review = await mergeReviewSummary(prisma, changeRequest.id, project.organizationId, changeRequestPolicy(project.config).requiredApprovals);
+  const reviewerStates = reviewSummary({ reviewers, reviews, required: 0 }).reviewers;
+  const participants = new Map<string, { id: string; name: string; image: string | null }>();
+  for (const user of [fields.author, ...reviewers.map((reviewer) => reviewer.user), ...reviews.map((item) => item.author)]) {
+    if (user) participants.set(user.id, user);
+  }
+  const rest = {
+    ...fields,
+    reviewers: reviewers.map((reviewer, index) => ({ user: reviewer.user, state: reviewerStates[index]?.state ?? null })),
+    reviews: reviews.map(({ authorId: _authorId, ...item }) => item),
+    participants: [...participants.values()],
+    review: { required: review.required, approvals: review.approvals, changesRequested: review.changesRequested, mergeable: review.mergeable },
+  };
   if (!branch) {
     const changes = recordEntries(mergeRecord).map((entry) => {
       const page = entry.after ?? entry.before;
@@ -99,8 +135,12 @@ export const getChangeRequest = async (projectId: string, number: number) => {
   return { ...rest, changes: summarizeChanges(input), conflicts: plan.legacy ? [] : plan.conflicts };
 };
 
-export const updateChangeRequest = async (projectId: string, number: number, body: UpdateChangeRequestBody) => {
+/** Update a change request; a contributor (`contributorId`) only their own. */
+export const updateChangeRequest = async (projectId: string, number: number, body: UpdateChangeRequestBody, contributorId?: string) => {
   const changeRequest = await findChangeRequest(projectId, number);
+  if (contributorId && changeRequest.authorId !== contributorId) {
+    throw forbidden('Contributors change only their own change requests.');
+  }
   const statusChange = body.status !== undefined && body.status !== changeRequest.status;
   if (statusChange) {
     if (changeRequest.status === 'MERGED') throw conflict('A merged change request cannot change status.');
@@ -145,6 +185,18 @@ export const mergeChangeRequest = async (projectId: string, number: number, user
       if (changeRequest.status === 'MERGED') throw conflict('This change request is already merged.');
       if (changeRequest.status === 'ARCHIVED') throw conflict('Reopen this change request before merging it.');
       if (!changeRequest.branchId) throw conflict('This change request has no branch to merge.');
+      const project = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { organizationId: true, config: true } });
+      const review = await mergeReviewSummary(tx, id, project.organizationId, changeRequestPolicy(project.config).requiredApprovals);
+      if (!review.mergeable) {
+        throw new AppError({
+          code: 'change_requests:review_required',
+          message:
+            review.changesRequested > 0
+              ? 'A reviewer requested changes on this change request.'
+              : `This change request needs ${review.required} approval(s) before merging.`,
+          details: { approvals: review.approvals, required: review.required, changesRequested: review.changesRequested },
+        });
+      }
       const branchId = changeRequest.branchId;
       const [mainPages, branchPages] = await Promise.all([loadPages(projectId, main.id, tx), loadPages(projectId, branchId, tx)]);
       const plan = planMerge({ main: mainPages, branch: branchPages, forkBase: changeRequest.forkBase as ForkBase, force: new Set(force) });

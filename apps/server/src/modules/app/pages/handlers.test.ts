@@ -5,8 +5,10 @@ import { AppError } from '@/errors';
 import type { HonoEnv } from '@/lib/hono/context';
 
 const mocks = vi.hoisted(() => ({
-  /** Branch of each page; `cr` is open, `archived` and `import` are not. */
+  /** Branch of each page; `cr` (by `user`) and `other-cr` are open, `archived` and `import` are not. */
   pageBranches: new Map<string, string>(),
+  /** Platform role and membership of the caller. */
+  caller: { role: 'user', members: [{ role: 'member' }] as { role: string }[] },
   createPage: vi.fn(async () => ({ id: 'new' })),
   updatePage: vi.fn(async () => ({ id: 'page' })),
   deletePage: vi.fn(async () => ({ id: 'page' })),
@@ -15,19 +17,32 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@nibleaf/database', () => ({
   prisma: {
-    user: { findUnique: vi.fn(async () => ({ suspendedAt: null, role: 'user', members: [{ role: 'member' }] })) },
-    project: { findUnique: vi.fn(async () => ({ id: 'project', organizationId: 'org' })) },
-    branch: { findMany: vi.fn(async () => [{ id: 'main', isDefault: true }]) },
+    user: { findUnique: vi.fn(async () => ({ suspendedAt: null, ...mocks.caller })) },
+    project: {
+      findUnique: vi.fn(async () => ({ id: 'project', organizationId: 'org', config: null, accessMode: 'PUBLIC', takedownAt: null })),
+    },
+    deployment: { count: vi.fn(async () => 1) },
+    branch: {
+      findMany: vi.fn(async () => [{ id: 'main', isDefault: true }]),
+      count: vi.fn(async ({ where }: { where: { id: string } }) => (['main', 'cr', 'other-cr'].includes(where.id) ? 1 : 0)),
+    },
     page: {
       findMany: vi.fn(async ({ where }: { where: { id: { in: string[] } } }) =>
         [...new Set(where.id.in.flatMap((id) => mocks.pageBranches.get(id) ?? []))].map((branchId) => ({ branchId })),
       ),
     },
     changeRequest: {
-      count: vi.fn(async ({ where }: { where: { branchId: { in: string[] } } }) => where.branchId.in.filter((id) => id === 'cr').length),
+      findMany: vi.fn(async ({ where }: { where: { branchId: { in: string[] } } }) =>
+        where.branchId.in.flatMap((id) => (id === 'cr' ? [{ authorId: 'user' }] : id === 'other-cr' ? [{ authorId: 'other' }] : [])),
+      ),
     },
   },
 }));
+
+vi.mock('@/env', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/env')>();
+  return { env: new Proxy(actual.env, { get: (target, key) => (key === 'TENANCY' ? 'shared' : target[key as keyof typeof target]) }) };
+});
 
 vi.mock('@/actions/projects', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/actions/projects')>()),
@@ -39,8 +54,8 @@ vi.mock('@/actions/pages', () => ({
   updatePage: mocks.updatePage,
   deletePage: mocks.deletePage,
   reorderPages: mocks.reorderPages,
-  getPage: vi.fn(),
-  listPages: vi.fn(),
+  getPage: vi.fn(async (_projectId: string, id: string) => ({ id, branchId: mocks.pageBranches.get(id) })),
+  listPages: vi.fn(async () => []),
 }));
 
 import handlers from './handlers';
@@ -73,6 +88,7 @@ const expectLocked = async (response: Response, code = 'pages:main_read_only') =
 describe('page writes on the default branch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.caller = { role: 'user', members: [{ role: 'member' }] };
     mocks.pageBranches = new Map([
       ['main-page', 'main'],
       ['main-parent', 'main'],
@@ -138,5 +154,50 @@ describe('page writes on the default branch', () => {
     expect(mocks.updatePage).not.toHaveBeenCalled();
     expect(mocks.deletePage).not.toHaveBeenCalled();
     expect(mocks.reorderPages).not.toHaveBeenCalled();
+  });
+});
+
+describe('outside contributors', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.caller = { role: 'user', members: [] };
+    mocks.pageBranches = new Map([
+      ['main-page', 'main'],
+      ['cr-page', 'cr'],
+      ['other-page', 'other-cr'],
+      ['import-page', 'import'],
+    ]);
+  });
+
+  it('edit pages of their own change request', async () => {
+    expect((await send('PATCH', '/cr-page', { title: 'Edited' })).status).toBe(200);
+    expect((await send('POST', '', { title: 'New', languageId: 'en', branchId: 'cr' })).status).toBe(201);
+    expect((await send('DELETE', '/cr-page')).status).toBe(200);
+  });
+
+  it("cannot write to someone else's change request", async () => {
+    expect((await send('PATCH', '/other-page', { title: 'Edited' })).status).toBe(403);
+    expect((await send('POST', '', { title: 'New', languageId: 'en', branchId: 'other-cr' })).status).toBe(403);
+    expect((await send('DELETE', '/other-page')).status).toBe(403);
+    expect(
+      (
+        await send('POST', '/reorder', {
+          items: [
+            { id: 'cr-page', parentId: null, position: 0 },
+            { id: 'other-page', parentId: null, position: 1 },
+          ],
+        })
+      ).status,
+    ).toBe(403);
+    expect(mocks.updatePage).not.toHaveBeenCalled();
+    expect(mocks.createPage).not.toHaveBeenCalled();
+  });
+
+  it('read main and change requests but not internal branches', async () => {
+    expect((await send('GET', '/main-page')).status).toBe(200);
+    expect((await send('GET', '/other-page')).status).toBe(200);
+    expect((await send('GET', '?branchId=other-cr')).status).toBe(200);
+    expect((await send('GET', '/import-page')).status).toBe(404);
+    expect((await send('GET', '?branchId=import')).status).toBe(404);
   });
 });

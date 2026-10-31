@@ -1,11 +1,11 @@
-import { MemberRole } from '@nibleaf/shared/constants';
 import { errorResponses } from '@/errors/utils';
 import { createRouteConfig } from '@/lib/hono/route-config';
-import { isAuthenticated, requireProjectMember, requireProjectRole } from '@/middlewares/guard';
+import { isAuthenticated, requireProjectViewer } from '@/middlewares/guard';
 
 const ok = { 200: { description: 'ok' }, ...errorResponses };
-const member = [isAuthenticated, requireProjectMember()] as const;
-const editor = [isAuthenticated, requireProjectRole(MemberRole.MEMBER)] as const;
+// Contributors read main and change requests and write only in their own (enforced in the handlers).
+const member = [isAuthenticated, requireProjectViewer()] as const;
+const editor = member;
 
 const pagesRoutes = {
   list: createRouteConfig({ guard: [...member], tags: ['pages'], description: "List a project's page tree.", responses: ok }),

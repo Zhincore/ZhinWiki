@@ -129,3 +129,28 @@ export const planOwnershipTransfer = (
     promote: target.id,
   };
 };
+
+// ─── Change requests ─────────────────────────────────────────────────────────
+
+/** A wiki's change request policy from `project.config.changeRequests`, with defaults. */
+export const changeRequestPolicy = (config: unknown): { requiredApprovals: number; outsideContributions: boolean } => {
+  const section = (config as { changeRequests?: { requiredApprovals?: unknown; outsideContributions?: unknown } } | null)?.changeRequests;
+  const required = section?.requiredApprovals;
+  return {
+    requiredApprovals: typeof required === 'number' && Number.isInteger(required) && required >= 0 ? required : 1,
+    outsideContributions: section?.outsideContributions !== false,
+  };
+};
+
+/** Whether signed-in non-members may open change requests on a wiki: shared
+ *  tenancy, a published public site that is not taken down, and the wiki's
+ *  outside-contributions setting on. */
+export const acceptsOutsideContributions = (
+  tenancy: Tenancy,
+  project: { config: unknown; accessMode: string; takedownAt: Date | null; published: boolean },
+): boolean =>
+  tenancy === 'shared' &&
+  project.accessMode === 'PUBLIC' &&
+  !project.takedownAt &&
+  project.published &&
+  changeRequestPolicy(project.config).outsideContributions;

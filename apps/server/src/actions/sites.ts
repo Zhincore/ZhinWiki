@@ -6,6 +6,7 @@ import { searchDocs } from '@nibleaf/search';
 import { type AddonDeliveryPlanAssignment, projectAddonRowsForDelivery, projectConfigWithAddons } from '@nibleaf/shared/addons';
 import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { isPublicMarkdownPage } from '@nibleaf/shared/public-markdown';
+import { acceptsOutsideContributions } from '@nibleaf/shared/rbac';
 import {
   buildNavTree,
   defaultLanguage,
@@ -89,7 +90,12 @@ interface LiveChromeRow {
 
 /** A snapshot project enriched with the fields the published-site edge needs
  *  (canonical/301 consolidation in apps/app reads `primaryDomain`). */
-type PublicSnapshotProject = SnapshotProject & { primaryDomain: string | null; accessMode: 'PUBLIC' | 'WORKSPACE' | 'READERS' };
+type PublicSnapshotProject = SnapshotProject & {
+  primaryDomain: string | null;
+  accessMode: 'PUBLIC' | 'WORKSPACE' | 'READERS';
+  /** Editor link for suggesting changes, when the wiki accepts outside change requests. */
+  contributeUrl: string | null;
+};
 
 /** Deployment snapshots are immutable per deployment id, so deserializing the
  *  (potentially large) JSONB once per instance instead of once per page view is
@@ -277,6 +283,9 @@ const getPublished = async (identifier: string): Promise<PublishedSite> => {
     config: { ...(overlaid.config ?? {}), visibility: accessMode === 'PUBLIC' ? 'public' : 'private' },
     primaryDomain: live.domains[0]?.domain.toLowerCase() ?? null,
     accessMode,
+    contributeUrl: acceptsOutsideContributions(env.TENANCY, { config: live.config, accessMode, takedownAt: live.takedownAt, published: true })
+      ? `${env.APP_URL}/app/projects/${projectId}/editor`
+      : null,
   };
   const viewer = await resolveViewerAccess(projectId, live.accessMode, getContext<HonoEnv>().req.raw.headers);
   if (!viewer) {

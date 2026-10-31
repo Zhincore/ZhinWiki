@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { SITE_BASE_META } from './custom-domain-rewrite';
 import { canonicalSiteBase, sitePageUrl } from './site-seo';
 
 vi.mock('@/lib/public-urls', () => ({ publicUrls: () => ({ appUrl: 'http://localhost:4310' }) }));
@@ -20,6 +21,20 @@ afterEach(() => {
 it('keeps custom-domain canonical URLs at the document origin after client navigation', () => {
   expect(canonicalSiteBase('p1')).toBe(window.location.origin);
   expect(canonicalSiteBase('other')).toBe(`${window.location.origin}/sites/other`);
+});
+
+it('keeps the /<slug> base path of a wiki served on the app origin after client navigation', () => {
+  window.history.replaceState(null, '', '/handbook/guide');
+  const base = document.createElement('meta');
+  base.name = SITE_BASE_META;
+  base.content = '/handbook';
+  document.head.append(base);
+  try {
+    expect(canonicalSiteBase('p1')).toBe(`${window.location.origin}/handbook`);
+    expect(sitePageUrl('p1', 'guide')).toBe(`${window.location.origin}/handbook/guide`);
+  } finally {
+    base.remove();
+  }
 });
 
 it('retains path-based preview canonicals even with the SSR project marker', () => {

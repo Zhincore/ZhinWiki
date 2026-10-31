@@ -1,7 +1,7 @@
 import path from 'node:path';
-import { type CalloutType, normalizeType } from '@nibleaf/shared/callouts';
 import { SOFTWARE } from '@nibleaf/shared/brand';
 import { instanceBrand } from '@nibleaf/shared/brand/server';
+import { type CalloutType, normalizeType } from '@nibleaf/shared/callouts';
 import { normalizePublicMarkdownContent, portablePublicMdxMarkdown } from '@nibleaf/shared/public-markdown-content';
 import {
   defaultLanguage,

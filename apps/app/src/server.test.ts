@@ -136,7 +136,15 @@ describe('published Markdown edge routing', () => {
         expect(new URL(request.url).pathname).toBe(`/sites/project-1${path}`);
         expect(request.headers.get('x-nibleaf-site-origin')).toBe(origin);
         const data: SitePage = {
-          project: { id: 'project-1', name: 'Docs', slug: 'docs', description: null, primaryDomain: null, config: { visibility: 'public' } },
+          project: {
+            id: 'project-1',
+            name: 'Docs',
+            slug: 'docs',
+            description: null,
+            icon: null,
+            primaryDomain: null,
+            config: { visibility: 'public' },
+          },
           activeLanguage: 'en',
           activeVersion: 'main',
           versions: [{ id: 'main', name: 'main', slug: 'main', isDefault: true }],

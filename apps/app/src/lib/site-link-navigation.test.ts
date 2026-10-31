@@ -165,3 +165,41 @@ it('announces dialog navigation, focuses fragments, and restores temporary tabin
   content.remove();
   vi.unstubAllGlobals();
 });
+
+it('keeps pending focus when the site shell changes mid-navigation', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const listeners: Record<string, (event?: unknown) => void> = {};
+  const unsubscribe = vi.fn();
+  router.subscribe.mockReset();
+  router.subscribe.mockImplementation((name, callback) => {
+    listeners[name] = callback;
+    return unsubscribe;
+  });
+  vi.stubGlobal('requestAnimationFrame', (callback: () => void) => {
+    callback();
+    return 1;
+  });
+  vi.stubGlobal('cancelAnimationFrame', vi.fn());
+  const host = document.createElement('div');
+  const content = document.createElement('main');
+  content.innerHTML = '<h1 tabindex="-1">Next page</h1>';
+  document.body.append(host, content);
+  function Reader({ owns }: { owns: (segment: string) => boolean }) {
+    return createElement('output', null, useSiteLinkNavigation('p1', owns));
+  }
+  const root = createRoot(host);
+  await act(async () => root.render(createElement(Reader, { owns: () => true })));
+  await act(async () => listeners.onBeforeNavigate?.({ fromLocation: { href: '/old' }, toLocation: { href: '/new' } }));
+  await act(async () => root.render(createElement(Reader, { owns: () => false })));
+  await act(async () =>
+    listeners.onRendered?.({ fromLocation: { pathname: '/old', searchStr: '' }, toLocation: { pathname: '/new', searchStr: '', hash: '' } }),
+  );
+
+  expect(router.subscribe).toHaveBeenCalledTimes(2);
+  expect(unsubscribe).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(content.querySelector('h1'));
+  await act(async () => root.unmount());
+  host.remove();
+  content.remove();
+  vi.unstubAllGlobals();
+});

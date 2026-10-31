@@ -17,6 +17,7 @@ const data = (overrides: Partial<SitePage> = {}): SitePage => ({
     name: 'Example docs',
     slug: 'example',
     description: null,
+    icon: null,
     config: { visibility: 'public', addons: { feedback: false, editSuggestions: false, issueLinks: false } },
     primaryDomain: null,
   },

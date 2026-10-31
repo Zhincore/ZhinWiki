@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { siteBasePath, siteHref, siteLanguageParam } from './site-paths';
+import { siteBasePath, siteHref, siteLanguageParam, siteRoutePath } from './site-paths';
 
 // site-origin reads the base URL the server entry stamped on the request;
 // swap it for a controllable value so every serving mode is covered.

@@ -3,6 +3,7 @@ import { createElement } from 'react';
 import { renderToPipeableStream } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { Markdown } from '@/components/markdown';
+import { convertGitBookMarkdown, plainGitBookText } from '../../../server/src/actions/importers/gitbook-markdown';
 
 const render = (content: string, language?: string): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -254,4 +255,14 @@ describe('Markdown renderer — Mintlify component parity', () => {
     const html = await render('<CodeGroup>\n\n```\necho ready\n```\n\n</CodeGroup>', 'ar');
     expect(html).toContain('علامة التبويب 1');
   });
+});
+
+it('renders GitBook labels after decoding and removing nested markup', async () => {
+  const hostile = '&lt;img src=x onerror=alert(1)&gt;Safe <<script>script>';
+  const label = plainGitBookText(hostile);
+  expect(label).not.toMatch(/[<>]/);
+  const converted = convertGitBookMarkdown(`{% content-ref url="/safe" %}[${hostile}](/safe){% endcontent-ref %}`, { resolveFile: () => undefined });
+  const html = await render(converted.content);
+  expect(html).not.toMatch(/<(?:img|script)\b|onerror=/);
+  expect(html).toContain('Safe');
 });

@@ -1,12 +1,13 @@
 import { type Prisma, prisma } from '@nibleaf/database';
 import { MAX_REDIRECT_RULES, validateRedirectGraph } from '@nibleaf/shared/redirects';
 import type { GitbookImportBody, PageConfig, ProjectConfig } from '@nibleaf/validators';
-import { badRequest } from '@/errors';
-import { createImportReplacementBranch, promoteImportReplacementBranch } from '../branches';
+import { badRequest, ImportError } from '@/errors';
+import { captureImportDraft, createImportReplacementBranch, promoteImportReplacementBranch } from '../branches';
 import { assertProjectInOrg } from '../projects';
 import { MAX_IMPORT_FILES } from './content';
 import { RemoteAssetMigrator } from './ghost-assets';
 import { encodeMarkdownUrl, resolveGitBookRepoPath, rewriteGitBookImages } from './gitbook-assets';
+import { GitBookImportBudget } from './gitbook-budget';
 import {
   ensureGitBookReadme,
   findGitBookSpace,
@@ -43,6 +44,9 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
   id: 'gitbook',
 
   async run({ organizationId, projectId, input }): Promise<ImportSummary> {
+    const budget = new GitBookImportBudget();
+    await assertProjectInOrg(organizationId, projectId);
+    const draft = await captureImportDraft(projectId);
     const project = await assertProjectInOrg(organizationId, projectId);
 
     const [owner, name] = input.repo.split('/');
@@ -57,7 +61,13 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
     const loadText = (filePath: string) => {
       const cached = textCache.get(filePath);
       if (cached) return cached;
-      const pending = getGitHubTextFile(owner, name, branch, filePath);
+      budget.check();
+      const pending = getGitHubTextFile(owner, name, branch, filePath).then((content) => {
+        if (content === null)
+          throw new ImportError({ code: 'import:incomplete', message: 'GitBook source content is missing; the draft was preserved.' });
+        budget.source(content);
+        return content;
+      });
       textCache.set(filePath, pending);
       return pending;
     };
@@ -85,7 +95,7 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
     if (rawSummary !== null) {
       const parsed = parseGitBookSummary(rawSummary, config.summary);
       summary.warnings.push(...parsed.warnings);
-      sections = parsed.sections.map((section) => ({ ...section, nodes: dropMissing(section.nodes, rootRelative, summary) }));
+      sections = parsed.sections.map((section) => ({ ...section, nodes: dropMissing(section.nodes, rootRelative) }));
     } else {
       sections = inferGitBookNavigation(paths, config.root, config.readme, config.summary);
       if (sections.length > 0) summary.warnings.push(`No ${config.summary} found — navigation was inferred from folders and file names.`);
@@ -100,7 +110,7 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
     }
     const { nodes: planned, routes: plannedRoutes, warnings: planWarnings } = planGitBookNavigation(sections, config.readme);
     summary.warnings.push(...planWarnings);
-    const nodes = await loadNodes(planned, { repoPath, loadText, summary, state: { pages: 0, capWarned: false } });
+    const nodes = await loadNodes(planned, { repoPath, loadText, state: { pages: 0 } });
     const routes = importedRoutes(plannedRoutes, nodes);
 
     const replacementBranch = await createImportReplacementBranch(projectId, 'gitbook', input.replaceExisting !== true);
@@ -111,7 +121,7 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
       if (removedPlaceholders > 0) {
         summary.warnings.push(`Removed ${removedPlaceholders} untouched starter placeholder page${removedPlaceholders === 1 ? '' : 's'}.`);
       }
-      const assets = new RemoteAssetMigrator(projectId, 'gitbook');
+      const assets = new RemoteAssetMigrator(projectId, 'gitbook', undefined, () => budget.check());
       const context: ImportContext = {
         repo: { owner, name, branch, loadText },
         blobs,
@@ -120,6 +130,7 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
         labelsFromSummary: rawSummary !== null,
         assets,
         summary,
+        budget,
       };
       await importNodes(nodes, null, target, context);
 
@@ -155,7 +166,8 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
         }
       }
 
-      await promoteImportReplacementBranch(projectId, replacementBranch.id, replacementConfig);
+      budget.check();
+      await promoteImportReplacementBranch(projectId, replacementBranch.id, replacementConfig, draft);
       summary.warnings.push('Replaced the existing draft navigation only after the complete GitBook import succeeded.');
       return summary;
     } catch (error) {
@@ -166,6 +178,7 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
 };
 
 interface ImportContext {
+  budget: GitBookImportBudget;
   repo: { owner: string; name: string; branch: string; loadText(filePath: string): Promise<string | null> };
   blobs: ReadonlySet<string>;
   /** Space root directory in the repository ('' = repo root). */
@@ -180,8 +193,7 @@ interface ImportContext {
 interface LoadContext {
   repoPath(rootRelative: string): string;
   loadText(filePath: string): Promise<string | null>;
-  summary: ImportSummary;
-  state: { pages: number; capWarned: boolean };
+  state: { pages: number };
 }
 
 /** A planned node that will be created; pages carry their downloaded source. */
@@ -192,22 +204,15 @@ interface LoadedGitBookNode {
 }
 
 /**
- * Depth-first download of the planned tree in import order. Pages that fail to
- * download (with their children) and nodes past the cap are dropped here, so
- * routes, links, and redirects only ever target pages that get imported.
+ * Download the planned tree in order; incomplete imports never reach promotion.
  */
 const loadNodes = async (nodes: readonly PlannedGitBookNode[], context: LoadContext): Promise<LoadedGitBookNode[]> => {
-  const { summary, state } = context;
+  const { state } = context;
   const loaded: LoadedGitBookNode[] = [];
   for (const node of nodes) {
     // The cap bounds every CREATED node — groups included.
     if (state.pages >= MAX_IMPORT_FILES) {
-      if (!state.capWarned) {
-        summary.warnings.push(`Import capped at ${MAX_IMPORT_FILES} pages — remaining navigation entries were skipped.`);
-        state.capWarned = true;
-      }
-      summary.skipped++;
-      continue;
+      throw new ImportError({ code: 'import:limit', message: `GitBook import exceeds ${MAX_IMPORT_FILES} pages; the draft was preserved.` });
     }
 
     if (node.kind === 'group' || !node.path) {
@@ -219,9 +224,7 @@ const loadNodes = async (nodes: readonly PlannedGitBookNode[], context: LoadCont
     const filePath = context.repoPath(node.path);
     const raw = await context.loadText(filePath);
     if (raw === null) {
-      summary.warnings.push(`Could not download "${filePath}" — the page and its children were skipped.`);
-      summary.skipped++;
-      continue;
+      throw new ImportError({ code: 'import:incomplete', message: 'GitBook source content is missing; the draft was preserved.' });
     }
     state.pages++;
     loaded.push({ node, page: { path: node.path, filePath, raw }, children: await loadNodes(node.children, context) });
@@ -242,14 +245,12 @@ const importedRoutes = (routes: ReadonlyMap<string, string>, nodes: readonly Loa
   return new Map([...routes].filter(([, route]) => kept.has(route)));
 };
 
-/** SUMMARY.md entries whose file is absent are skipped; their children move up. */
-const dropMissing = (nodes: readonly GitBookNavNode[], files: ReadonlySet<string>, summary: ImportSummary): GitBookNavNode[] =>
+/** Refuse incomplete navigation before creating a replacement branch. */
+const dropMissing = (nodes: readonly GitBookNavNode[], files: ReadonlySet<string>): GitBookNavNode[] =>
   nodes.flatMap((node) => {
-    const children = dropMissing(node.children, files, summary);
+    const children = dropMissing(node.children, files);
     if (node.kind === 'group' || files.has(node.path)) return [{ ...node, children }];
-    summary.warnings.push(`SUMMARY.md page "${node.path}" was not found in the repository.`);
-    summary.skipped++;
-    return children;
+    throw new ImportError({ code: 'import:incomplete', message: 'GitBook source content is missing; the draft was preserved.' });
   });
 
 /** Depth-first import of the loaded tree; the array index is the sibling position. */
@@ -272,7 +273,7 @@ const importNodes = async (
     const { title: heading, body } = extractGitBookTitle(rawBody);
     const resolve = (reference: string, sourceFile: string) => resolveGitBookRepoPath(reference, sourceFile, context.blobs, context.root);
     const includeWarnings: string[] = [];
-    const expanded = await expandGitBookIncludes(body, filePath, resolve, context.repo.loadText, includeWarnings);
+    const expanded = await expandGitBookIncludes(body, filePath, resolve, context.repo.loadText, includeWarnings, [filePath], context.budget);
     summary.warnings.push(...includeWarnings);
 
     const rawUrl = (repoFile: string) => githubRawUrl(context.repo.owner, context.repo.name, context.repo.branch, repoFile);

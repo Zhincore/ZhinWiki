@@ -187,3 +187,21 @@ describe('GitBook assets', () => {
     expect(missing).toEqual(['nope.png']);
   });
 });
+
+it('keeps fallback slugs unique across repeated collisions', () => {
+  const { nodes } = planGitBookNavigation(
+    [
+      {
+        nodes: ['a/intro.md', 'b-intro.md', 'b/intro.md', 'b-intro-2.md'].map((path) => ({ kind: 'page' as const, path, title: path, children: [] })),
+      },
+    ],
+    'README.md',
+  );
+  expect(new Set(nodes.map((node) => node.slug)).size).toBe(4);
+  expect(nodes.slice(0, 3).map((node) => node.slug)).toEqual(['intro', 'b-intro', 'b-intro-2']);
+});
+
+it('decodes navigation labels before stripping markup', () => {
+  const parsed = parseGitBookSummary('* [&lt;img src=x onerror=alert(1)&gt;Safe](safe.md)', 'SUMMARY.md');
+  expect(parsed.sections[0]?.nodes[0]?.title).toBe('Safe');
+});

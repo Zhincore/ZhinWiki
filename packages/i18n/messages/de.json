@@ -2754,5 +2754,9 @@
   "settings_members_removeconfirm": "{name} von dieser Website entfernen? Der Zugriff auf Dokumentation und Einstellungen geht verloren.",
   "settings_members_revokeconfirm": "Einladung für {email} widerrufen? Dieser Einladungslink funktioniert dann nicht mehr.",
   "settings_config_discarddescription": "Sie haben ungespeicherte Änderungen an den Einstellungen. Beim Verlassen dieses Bereichs werden sie verworfen.",
-  "editor_saveconfigfirst": "Speichere deine Einstellungsänderungen, bevor du eine Vorschau öffnest oder veröffentlichst."
+  "editor_saveconfigfirst": "Speichere deine Einstellungsänderungen, bevor du eine Vorschau öffnest oder veröffentlichst.",
+  "settings_import_maystillrun": "The connection ended before the import result arrived. This import may still be running. Do not start it again; check your pages before retrying.",
+  "settings_import_incomplete": "Source content could not be loaded. The import stopped and your draft was preserved.",
+  "settings_import_limit": "The import exceeded its content or time limit. Your draft was preserved. Import a smaller space and try again.",
+  "settings_import_conflict": "Your draft changed during the import. Your edits were preserved. Review your pages before retrying."
 }

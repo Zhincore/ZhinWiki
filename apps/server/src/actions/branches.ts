@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { type Branch, type Prisma, prisma } from '@nibleaf/database';
 import { newId } from '@nibleaf/shared/ids';
 import type { CreateBranchBody } from '@nibleaf/validators';
@@ -34,20 +35,51 @@ export const createImportReplacementBranch = async (projectId: string, source: s
   return preserveExisting ? createBranch(projectId, { name }) : prisma.branch.create({ data: { projectId, name, isDefault: false } });
 };
 
+const draftFingerprint = async (db: Prisma.TransactionClient, projectId: string, branchId: string) => {
+  const pages = await db.page.findMany({ where: { projectId, branchId }, orderBy: { id: 'asc' } });
+  const project = await db.project.findUniqueOrThrow({ where: { id: projectId }, select: { config: true } });
+  return createHash('sha256')
+    .update(JSON.stringify({ pages, config: project.config }))
+    .digest('hex');
+};
+
+export const captureImportDraft = async (projectId: string) => {
+  const main = await getDefaultBranch(projectId);
+  return prisma.$transaction((tx) => draftFingerprint(tx, projectId, main.id), { isolationLevel: 'Serializable' });
+};
+
 /** Atomically replace main with a completed import branch and, when supplied,
  * apply the imported project chrome in the same commit. */
-export const promoteImportReplacementBranch = async (projectId: string, id: string, projectConfig?: Prisma.InputJsonValue) => {
+export const promoteImportReplacementBranch = async (
+  projectId: string,
+  id: string,
+  projectConfig?: Prisma.InputJsonValue,
+  expectedDraft?: string,
+) => {
   const branch = await assertBranchInProject(projectId, id);
   if (branch.isDefault) throw conflict('The default branch cannot be promoted as an import replacement.');
   const main = await getDefaultBranch(projectId);
-  await prisma.$transaction(async (tx) => {
-    await tx.page.deleteMany({ where: { projectId, branchId: main.id } });
-    await tx.page.updateMany({ where: { projectId, branchId: branch.id }, data: { branchId: main.id } });
-    await tx.branch.delete({ where: { id: branch.id } });
-    if (projectConfig !== undefined) {
-      await tx.project.update({ where: { id: projectId }, data: { config: projectConfig } });
-    }
-  });
+  await prisma
+    .$transaction(
+      async (tx) => {
+        if (expectedDraft !== undefined && (await draftFingerprint(tx, projectId, main.id)) !== expectedDraft) {
+          throw conflict('The draft changed during import. Your edits were preserved; retry the import.');
+        }
+        await tx.page.deleteMany({ where: { projectId, branchId: main.id } });
+        await tx.page.updateMany({ where: { projectId, branchId: branch.id }, data: { branchId: main.id } });
+        await tx.branch.delete({ where: { id: branch.id } });
+        if (projectConfig !== undefined) {
+          await tx.project.update({ where: { id: projectId }, data: { config: projectConfig } });
+        }
+      },
+      { isolationLevel: 'Serializable' },
+    )
+    .catch((error: unknown) => {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'P2034') {
+        throw conflict('The draft changed during import. Your edits were preserved; retry the import.');
+      }
+      throw error;
+    });
   return main;
 };
 

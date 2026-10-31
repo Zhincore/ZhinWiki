@@ -2754,5 +2754,9 @@
   "settings_members_removeconfirm": "এই সাইট থেকে {name}-কে সরাবেন? তিনি নথি ও সেটিংসে প্রবেশাধিকার হারাবেন।",
   "settings_members_revokeconfirm": "{email}-এর আমন্ত্রণ বাতিল করবেন? এই আমন্ত্রণের লিংক আর কাজ করবে না।",
   "settings_config_discarddescription": "আপনার সেটিংসের পরিবর্তনগুলি সংরক্ষণ করা হয়নি। এই বিভাগ ছেড়ে গেলে সেগুলি হারিয়ে যাবে।",
-  "editor_saveconfigfirst": "প্রিভিউ বা প্রকাশ করার আগে আপনার সেটিংসের পরিবর্তনগুলো সংরক্ষণ করুন।"
+  "editor_saveconfigfirst": "প্রিভিউ বা প্রকাশ করার আগে আপনার সেটিংসের পরিবর্তনগুলো সংরক্ষণ করুন।",
+  "settings_import_maystillrun": "The connection ended before the import result arrived. This import may still be running. Do not start it again; check your pages before retrying.",
+  "settings_import_incomplete": "Source content could not be loaded. The import stopped and your draft was preserved.",
+  "settings_import_limit": "The import exceeded its content or time limit. Your draft was preserved. Import a smaller space and try again.",
+  "settings_import_conflict": "Your draft changed during the import. Your edits were preserved. Review your pages before retrying."
 }

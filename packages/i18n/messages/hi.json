@@ -2754,5 +2754,9 @@
   "settings_members_removeconfirm": "{name} को इस साइट से हटाएँ? दस्तावेज़ और सेटिंग तक उनकी पहुँच समाप्त हो जाएगी।",
   "settings_members_revokeconfirm": "{email} का आमंत्रण रद्द करें? यह आमंत्रण लिंक काम करना बंद कर देगा।",
   "settings_config_discarddescription": "सेटिंग में आपके बदलाव सहेजे नहीं गए हैं। यह अनुभाग छोड़ने पर वे हट जाएँगे।",
-  "editor_saveconfigfirst": "पूर्वावलोकन या प्रकाशन से पहले अपनी सेटिंग में किए गए बदलाव सहेजें।"
+  "editor_saveconfigfirst": "पूर्वावलोकन या प्रकाशन से पहले अपनी सेटिंग में किए गए बदलाव सहेजें।",
+  "settings_import_maystillrun": "The connection ended before the import result arrived. This import may still be running. Do not start it again; check your pages before retrying.",
+  "settings_import_incomplete": "Source content could not be loaded. The import stopped and your draft was preserved.",
+  "settings_import_limit": "The import exceeded its content or time limit. Your draft was preserved. Import a smaller space and try again.",
+  "settings_import_conflict": "Your draft changed during the import. Your edits were preserved. Review your pages before retrying."
 }

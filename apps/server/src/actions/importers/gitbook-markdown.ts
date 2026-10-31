@@ -1,6 +1,8 @@
 import { posix } from 'node:path';
 import { closesMarkdownFence, type MarkdownFence, openingMarkdownFence, protectMarkdownCode } from '@nibleaf/shared/markdown-code';
 import { parse as parseYaml } from 'yaml';
+import { ImportError } from '../../errors';
+import { GitBookImportBudget } from './gitbook-budget';
 
 /**
  * GitBook Git Sync Markdown → Nibleaf Markdown/MDX. GitBook stores its blocks
@@ -50,7 +52,7 @@ export const parseGitBookFrontmatter = (raw: string): { meta: GitBookPageMeta; b
 export const extractGitBookTitle = (body: string): { title?: string; body: string } => {
   const match = body.match(/^\s*#[ \t]+(.+?)[ \t]*#*[ \t]*(?:\r?\n|$)/);
   if (!match?.[1]) return { body };
-  const title = stripHtml(match[1]).trim();
+  const title = plainGitBookText(match[1]).trim();
   return title ? { title, body: body.slice(match[0].length).replace(/^\s*\n/, '') } : { body };
 };
 
@@ -87,10 +89,16 @@ export const safeDecodeUri = (value: string): string => {
   }
 };
 
-const stripHtml = (value: string): string =>
-  decodeEntities(value.replace(/<[^>]*>/g, ''))
-    .replace(/\s+/g, ' ')
-    .trim();
+export const plainGitBookText = (value: string): string => {
+  const text: string[] = [];
+  let inTag = false;
+  for (const character of decodeEntities(value)) {
+    if (character === '<') inTag = true;
+    else if (character === '>') inTag = false;
+    else if (!inTag) text.push(character);
+  }
+  return text.join('').replace(/\s+/g, ' ').trim();
+};
 
 /** Attribute values are emitted inside double quotes on JSX-like tags. */
 const attr = (value: string): string => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -184,7 +192,7 @@ const convertCardTable = (table: string, context: GitBookConversionContext): str
   const cards: string[] = [];
   for (const row of body.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
     const cells = [...(row[1] ?? '').matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)].map((cell) => cell[1] ?? '');
-    const visible = cells.filter((_cell, index) => !hidden.has(index) && index !== targetIndex && index !== coverIndex).map(stripHtml);
+    const visible = cells.filter((_cell, index) => !hidden.has(index) && index !== targetIndex && index !== coverIndex).map(plainGitBookText);
     const [title = '', ...rest] = visible.filter(Boolean);
     const target = targetIndex >= 0 ? htmlAttribute(cells[targetIndex] ?? '', 'href') : undefined;
     const coverReference = coverIndex >= 0 ? htmlAttribute(cells[coverIndex] ?? '', 'href') : undefined;
@@ -203,7 +211,7 @@ const convertFigure = (figure: string): string => {
     return src ? [imageMarkdown(htmlAttribute(match[0], 'alt') ?? '', src)] : [];
   });
   if (images.length === 0) return figure;
-  const caption = stripHtml(figure.match(/<figcaption\b[^>]*>([\s\S]*?)<\/figcaption>/i)?.[1] ?? '');
+  const caption = plainGitBookText(figure.match(/<figcaption\b[^>]*>([\s\S]*?)<\/figcaption>/i)?.[1] ?? '');
   const markdown = images.join('\n\n');
   return caption ? `\n<Frame caption="${attr(caption)}">\n\n${markdown}\n\n</Frame>\n` : `\n${markdown}\n`;
 };
@@ -212,7 +220,7 @@ const convertFigure = (figure: string): string => {
 const liftHeading = (body: string): { title?: string; body: string } => {
   const match = body.match(/^\s*#{1,6}[ \t]+(.+?)[ \t]*(?:\r?\n|$)/);
   if (!match?.[1]) return { body };
-  return { title: stripHtml(match[1]), body: body.slice(match[0].length) };
+  return { title: plainGitBookText(match[1]), body: body.slice(match[0].length) };
 };
 
 /**
@@ -281,7 +289,7 @@ export const convertGitBookMarkdown = (source: string, context: GitBookConversio
   // Page links (`{% content-ref %}`) → cards; the inner Markdown link is the label.
   content = content.replace(re(`${tag('content-ref')}([\\s\\S]*?)${tag('endcontent-ref')}`), (_match, attributes: string, inner: string) => {
     const url = tagAttributes(attributes).url ?? '';
-    const label = stripHtml(inner.match(/\[([^\]]*)\]/)?.[1] ?? '') || posix.basename(url).replace(/\.md$/i, '') || url;
+    const label = plainGitBookText(inner.match(/\[([^\]]*)\]/)?.[1] ?? '') || posix.basename(url).replace(/\.md$/i, '') || url;
     return `\n<Card title="${attr(label)}" href="${attr(url)}"></Card>\n`;
   });
 
@@ -291,7 +299,7 @@ export const convertGitBookMarkdown = (source: string, context: GitBookConversio
     if (!url) return '';
     const host = URL.canParse(url) ? new URL(url).hostname.replace(/^www\./, '') : url;
     const caption = inner?.trim() ?? '';
-    return `\n<Card title="${attr(caption ? stripHtml(caption) : host)}" href="${attr(url)}" icon="arrow-up-right-from-square"></Card>\n`;
+    return `\n<Card title="${attr(caption ? plainGitBookText(caption) : host)}" href="${attr(url)}" icon="arrow-up-right-from-square"></Card>\n`;
   });
 
   // Downloadable files → link cards to the (migrated) file.
@@ -353,7 +361,7 @@ export const convertGitBookMarkdown = (source: string, context: GitBookConversio
     .replace(
       /<details\b[^>]*>\s*<summary\b[^>]*>([\s\S]*?)<\/summary>([\s\S]*?)<\/details>/gi,
       (_match, summary: string, inner: string) =>
-        `\n<Accordion title="${attr(stripHtml(summary) || 'Details')}">\n\n${inner.trim()}\n\n</Accordion>\n`,
+        `\n<Accordion title="${attr(plainGitBookText(summary) || 'Details')}">\n\n${inner.trim()}\n\n</Accordion>\n`,
     )
     // Heading anchors GitBook appends: `## Title <a href="#title" id="title"></a>`.
     .replace(/^(#{1,6}[ \t].*?)[ \t]*<a\b[^>]*\bid\s*=\s*["'][^"']*["'][^>]*>[ \t]*<\/a>[ \t]*$/gm, '$1')
@@ -362,7 +370,7 @@ export const convertGitBookMarkdown = (source: string, context: GitBookConversio
     .replace(/<a\b([^>]*\bclass\s*=\s*["'][^"']*\bbutton\b[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi, (_match, attributes: string, label: string) => {
       const href = htmlAttribute(`<a ${attributes}>`, 'href') ?? '#';
       const variant = /\bsecondary\b/.test(htmlAttribute(`<a ${attributes}>`, 'class') ?? '') ? 'secondary' : 'primary';
-      return `<Button href="${attr(href)}" variant="${variant}">${stripHtml(label)}</Button>`;
+      return `<Button href="${attr(href)}" variant="${variant}">${plainGitBookText(label)}</Button>`;
     })
     // Inline icons: `<i class="fa-rocket">:rocket:</i>`.
     .replace(
@@ -428,29 +436,36 @@ export const expandGitBookIncludes = async (
   load: (path: string) => Promise<string | null>,
   warnings: string[],
   stack: readonly string[] = [sourceFile],
+  budget = new GitBookImportBudget(),
 ): Promise<string> => {
   const protectedCode = protectMarkdownCode(content, { maxFenceIndent: Number.POSITIVE_INFINITY });
   const matches = [...protectedCode.content.matchAll(INCLUDE)];
   if (matches.length === 0) return content;
-  const replacements = await Promise.all(
-    matches.map(async (match) => {
-      const reference = match[1] ?? match[2] ?? match[3] ?? '';
-      const path = resolve(reference, sourceFile);
-      if (!path) {
-        warnings.push(`Reusable content "${reference}" referenced from ${sourceFile} was not found.`);
-        return '';
-      }
-      if (stack.includes(path) || stack.length > MAX_INCLUDE_DEPTH) {
-        warnings.push(`Reusable content "${path}" includes itself or nests too deeply — the nested include was skipped.`);
-        return '';
-      }
-      const raw = await load(path);
-      if (raw === null) return '';
-      const { body } = parseGitBookFrontmatter(raw);
-      const expanded = await expandGitBookIncludes(body.trim(), path, resolve, load, warnings, [...stack, path]);
-      return rebaseGitBookReferences(expanded, posix.dirname(path), posix.dirname(sourceFile));
-    }),
-  );
+  const replacements: string[] = [];
+  for (const match of matches) {
+    budget.include();
+    const reference = match[1] ?? match[2] ?? match[3] ?? '';
+    const path = resolve(reference, sourceFile);
+    if (!path) {
+      throw new ImportError({ code: 'import:incomplete', message: 'GitBook source content is missing; the draft was preserved.' });
+    }
+    if (stack.includes(path)) {
+      warnings.push(`Reusable content "${path}" includes itself or nests too deeply — the nested include was skipped.`);
+      replacements.push('');
+      continue;
+    }
+    if (stack.length > MAX_INCLUDE_DEPTH)
+      throw new ImportError({ code: 'import:limit', message: 'GitBook import exceeded its include depth budget; the draft was preserved.' });
+    const raw = await load(path);
+    if (raw === null) throw new ImportError({ code: 'import:incomplete', message: 'GitBook source content is missing; the draft was preserved.' });
+    const { body } = parseGitBookFrontmatter(raw);
+    const expanded = await expandGitBookIncludes(body.trim(), path, resolve, load, warnings, [...stack, path], budget);
+    const rebased = rebaseGitBookReferences(expanded, posix.dirname(path), posix.dirname(sourceFile));
+    budget.expansion(rebased);
+    replacements.push(rebased);
+  }
   let index = 0;
-  return protectedCode.restore(protectedCode.content.replace(INCLUDE, () => replacements[index++] ?? ''));
+  const expanded = protectedCode.restore(protectedCode.content.replace(INCLUDE, () => replacements[index++] ?? ''));
+  budget.expansion(expanded);
+  return expanded;
 };

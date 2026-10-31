@@ -12,6 +12,7 @@ import { type ReactNode, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { type ContentImportSummary, useImportFromGhost, useImportFromGitbook, useImportFromMintlify } from '@/hooks/api';
 import { ApiResponseError } from '@/hooks/api/client-helpers';
+import { importMayStillRun } from './import-errors';
 import { SettingsSection } from './section';
 
 /** Matches the server-side body cap for Ghost exports. */
@@ -162,6 +163,24 @@ export function ImportTab({ projectId }: { projectId?: string }) {
     toast.success(t('settings.import.success'));
   };
   const handleError = (error: unknown) => {
+    if (error instanceof ApiResponseError) {
+      if (error.code === 'import:incomplete') {
+        toast.error(t('settings.import.incomplete'));
+        return;
+      }
+      if (error.code === 'import:limit') {
+        toast.error(t('settings.import.limit'));
+        return;
+      }
+      if (error.status === 409) {
+        toast.error(t('settings.import.conflict'));
+        return;
+      }
+    }
+    if (!(error instanceof ImportFileReadError) && importMayStillRun(error)) {
+      toast.error(t('settings.import.mayStillRun'), { duration: 20_000 });
+      return;
+    }
     if (error instanceof ApiResponseError && error.code === 'import:invalid_document') {
       toast.error(source === 'ghost' ? t('settings.import.ghost.invalidJson') : t('settings.import.error'));
       return;

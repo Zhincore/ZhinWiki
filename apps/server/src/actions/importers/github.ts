@@ -1,5 +1,5 @@
 import { Octokit, RequestError } from 'octokit';
-import { badRequest } from '@/errors';
+import { badRequest, ImportError } from '@/errors';
 
 const github = new Octokit({ userAgent: 'nibleaf-importer' });
 
@@ -48,6 +48,7 @@ export const getGitHubTextFile = async (owner: string, repo: string, branch: str
     response = await fetch(githubRawUrl(owner, repo, branch, filePath), {
       headers: { Accept: 'text/plain', 'User-Agent': 'nibleaf-importer' },
       redirect: 'error',
+      signal: AbortSignal.timeout(20_000),
     });
   } catch (error) {
     throw githubFailure(error);
@@ -59,7 +60,22 @@ export const getGitHubTextFile = async (owner: string, repo: string, branch: str
       providerStatus: response.status,
     });
   }
-  return await response.text();
+  const reader = response.body?.getReader();
+  if (!reader) return '';
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > 2 * 1024 * 1024) throw new ImportError({ code: 'import:limit', message: 'Repository text file exceeds 2 MiB; import stopped.' });
+      chunks.push(value);
+    }
+    return Buffer.concat(chunks).toString('utf8');
+  } finally {
+    await reader.cancel();
+  }
 };
 
 /** raw.githubusercontent.com URL for a browser-reachable repository asset. */

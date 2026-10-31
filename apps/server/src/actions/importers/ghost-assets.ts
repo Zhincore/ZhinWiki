@@ -106,7 +106,7 @@ const fetchPublicImage = async (source: string): Promise<{ bytes: Uint8Array; co
       if (announcedSize > MAX_REMOTE_ASSET_BYTES) throw new Error('image exceeds 50 MiB');
       const filename = filenameFromUrl(url);
       const announced = normalizeAssetContentType(response.headers['content-type'] ?? '');
-      if (announced && announced != 'application/octet-stream' && !isSafeInlineAssetContentType(announced)) {
+      if (announced && announced !== 'application/octet-stream' && !isSafeInlineAssetContentType(announced)) {
         throw new Error('unsupported image type');
       }
 
@@ -127,7 +127,6 @@ const fetchPublicImage = async (source: string): Promise<{ bytes: Uint8Array; co
     } finally {
       request.destroy();
     }
-
   }
   throw new Error('too many redirects');
 };
@@ -150,6 +149,7 @@ export class RemoteAssetMigrator {
     private readonly projectId: string,
     private readonly namespace = 'ghost',
     private readonly maxDownloads = MAX_REMOTE_ASSETS,
+    private readonly checkBudget: () => void = () => undefined,
   ) {
     this.capMessage = `Asset migration was capped at ${maxDownloads} downloaded images.`;
   }
@@ -199,7 +199,15 @@ export class RemoteAssetMigrator {
     const protectedCode = protectMarkdownCode(markdown, { maxFenceIndent: this.namespace === 'ghost' ? 3 : Number.POSITIVE_INFINITY });
     const sources = remoteImageSources(protectedCode.content);
     if (sources.length === 0) return markdown;
-    const replacements = new Map(await Promise.all(sources.map(async (source) => [source, await this.migrate(source)] as const)));
+    const replacements = new Map<string, string>();
+    for (let index = 0; index < sources.length; index += MAX_CONCURRENT_DOWNLOADS) {
+      this.checkBudget();
+      await Promise.all(
+        sources.slice(index, index + MAX_CONCURRENT_DOWNLOADS).map(async (source) => {
+          replacements.set(source, await this.migrate(source));
+        }),
+      );
+    }
     const replace = (_match: string, before: string, source: string, after: string) => `${before}${replacements.get(source) ?? source}${after}`;
     return protectedCode.restore(protectedCode.content.replace(MARKDOWN_IMAGE, replace).replace(HTML_IMAGE, replace));
   }

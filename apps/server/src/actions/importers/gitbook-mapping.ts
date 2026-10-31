@@ -3,7 +3,7 @@ import { slugify } from '@nibleaf/shared';
 import { closesMarkdownFence, type MarkdownFence, openingMarkdownFence } from '@nibleaf/shared/markdown-code';
 import { parse as parseYaml } from 'yaml';
 import { humanize, stableHash } from './content';
-import { safeDecodeUri } from './gitbook-markdown';
+import { plainGitBookText, safeDecodeUri } from './gitbook-markdown';
 
 /**
  * GitBook Git Sync repository layout → an ordered page plan. Pure (no prisma /
@@ -116,8 +116,7 @@ export const parseGitBookConfig = (
 };
 
 const plainText = (value: string): string =>
-  value
-    .replace(/<[^>]*>/g, '')
+  plainGitBookText(value)
     .replace(/[*_`~]/g, '')
     .replace(/\\(.)/g, '$1')
     .trim();
@@ -291,6 +290,8 @@ export const planGitBookNavigation = (
         const fallback = (node.kind === 'page' ? slugify(withoutExtension(node.path).split('/').join('-')) : '') || `${slug}-${stableHash(identity)}`;
         warnings.push(`"${claimedBy}" and "${identity}" share the slug "${slug}" — "${identity}" was imported as "${fallback}".`);
         slug = fallback;
+        let suffix = 2;
+        while (used.has(slug) && used.get(slug) !== identity) slug = `${fallback}-${suffix++}`;
       }
       used.set(slug, identity);
       const segments = [...parentSegments, slug];

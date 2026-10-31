@@ -252,10 +252,10 @@ describe('expandGitBookIncludes', () => {
 
   it('cuts include cycles and reports missing includes', async () => {
     const warnings: string[] = [];
-    expect(
-      await expandGitBookIncludes('{% include ".gitbook/includes/loop.md" %}{% include "missing.md" %}', 'page.md', resolve, load, warnings),
-    ).toBe('');
-    expect(warnings).toHaveLength(2);
+    await expect(
+      expandGitBookIncludes('{% include ".gitbook/includes/loop.md" %}{% include "missing.md" %}', 'page.md', resolve, load, warnings),
+    ).rejects.toThrow(/source content is missing/);
+    expect(warnings).toHaveLength(1);
   });
 
   it('rebases relative links and images in included content onto the including page', async () => {

@@ -42,6 +42,21 @@ export class ApiResponseError extends Error {
     super(message);
     this.name = 'ApiResponseError';
   }
+
+  /** Missing source path of an incomplete import. */
+  get path(): string | undefined {
+    return typeof this.details?.path === 'string' ? this.details.path : undefined;
+  }
+
+  /** Page that referenced the missing import source. */
+  get sourceFile(): string | undefined {
+    return typeof this.details?.sourceFile === 'string' ? this.details.sourceFile : undefined;
+  }
+
+  /** Limit an import exceeded. */
+  get limit(): number | undefined {
+    return typeof this.details?.limit === 'number' ? this.details.limit : undefined;
+  }
 }
 
 export async function getData<TData = never, TResponse extends Response = Response>(res: TResponse, what: string, fallback?: string) {

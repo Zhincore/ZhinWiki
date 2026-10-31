@@ -29,7 +29,7 @@ your content stays in your database.
 
 - 🖋️ **Rich text _and_ Markdown, round-tripped** — write visually or in raw MDX; content is
   Markdown end-to-end, so you're never locked into a proprietary format.
-- 🌍 **Multilingual & RTL-first** — 12 interface languages, arbitrary BCP-47 content
+- 🌍 **Multilingual & RTL-first** — 12 interface locale options (some strings still in English), arbitrary BCP-47 content
   languages, per-language page trees, and right-to-left layout.
 - 📦 **Versioned publishing** — every publish is an immutable snapshot; the live site is
   always served from a READY deployment, so readers never see a half-written page.
@@ -83,15 +83,17 @@ Private customer documentation supports dedicated reader accounts, audience/page
   into `main`.
 - **Anchored comments** — Figma-style review comments pinned to the exact block.
 - **Tenant-safe search** — built-in Orama full-text/fuzzy search remains the default and
-  immediate rollback; source `main` also includes an optional Qdrant BM25+dense hybrid path,
-  privacy-safe diagnostics, and opt-in grounded answers for English, Arabic, and mixed content.
+  immediate rollback; v0.2.0 adds an optional Qdrant BM25+dense hybrid path, privacy-safe
+  diagnostics, and opt-in grounded answers for English, Arabic, and mixed content. The hybrid
+  path needs a Qdrant service, and embeddings and answers need an AI provider key.
 - **Usage and entitlements** — provider-neutral usage events, ClickHouse rollups, explicit
   unknown states, and advisory limits without a payment or billing claim.
 - **Project add-ons and integrations** — audited optional capabilities, consent controls,
   encrypted write-only project credentials, and clear project-versus-instance ownership.
 - **Portable themes and read-only MCP** — Harbor, Manuscript, and Signal can be exchanged as
   validated theme data or runnable Git repositories; scoped MCP keys expose project-bound reads.
-- **Multilingual & RTL** — 12 interface languages, arbitrary BCP-47 content languages,
+  MCP is off by default (`MCP_ENABLED=false`) until an operator enables it.
+- **Multilingual & RTL** — 12 interface locale options (some strings still in English), arbitrary BCP-47 content languages,
   per-language page trees, RTL layout, `hreflang`, and localized dashboard / editor / site chrome.
 - **Custom domains & subdomains** — guided DNS + verification, wildcard project subdomains,
   and host-based published-site routing.
@@ -159,6 +161,8 @@ curl -fsSLo .env https://github.com/Zhincore/ZhinWiki/releases/latest/download/e
 
 # Edit .env — set APP_URL (your dashboard origin), the storage endpoints, and
 # fresh secrets (openssl rand -hex 32). The stack fails fast if one is missing.
+# Configure Postmark or SMTP too: sign-in uses email codes, so the first owner
+# can't sign in without it unless Google sign-in is configured.
 
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d

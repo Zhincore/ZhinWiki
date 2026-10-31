@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+const router = vi.hoisted(() => ({ subscribe: vi.fn(), navigate: vi.fn() }));
+vi.mock('@tanstack/react-router', () => ({ useRouter: () => router }));
 
 const custom = vi.hoisted(() => ({ base: '/sites/p1' }));
 vi.mock('@/lib/site-paths', () => ({ siteBasePath: () => custom.base }));
 
-import { siteNavigationHref } from './site-link-navigation';
+import { siteNavigationHref, useSiteLinkNavigation } from './site-link-navigation';
 
 const appHost = { href: 'http://app.test/sites/p1/guide', origin: 'http://app.test', pathname: '/sites/p1/guide', search: '' };
 const domain = { href: 'https://docs.acme.test/guide', origin: 'https://docs.acme.test', pathname: '/guide', search: '' };
@@ -37,6 +42,7 @@ describe('siteNavigationHref', () => {
   it('routes site pages on a custom domain but not app-owned paths', () => {
     custom.base = '';
     expect(routed('/setup')).toBe('/setup');
+    expect(routed('/api-reference')).toBe('/api-reference');
     expect(routed('/api/public/assets/projects/p1/x')).toBeNull();
     expect(routed('/_serverFn/x')).toBeNull();
   });
@@ -82,4 +88,118 @@ describe('siteNavigationHref', () => {
     Object.defineProperty(event, 'target', { value: anchor });
     expect(siteNavigationHref(event, 'p1', appHost)).toBeNull();
   });
+});
+
+it('leaves malformed URLs to the browser', () => {
+  const anchor = document.createElement('a');
+  anchor.setAttribute('href', 'http://[');
+  const event = new MouseEvent('click', { button: 0 });
+  Object.defineProperty(event, 'target', { value: anchor });
+  expect(siteNavigationHref(event, 'p1', appHost)).toBeNull();
+});
+
+it('announces dialog navigation, focuses fragments, and restores temporary tabindex', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const listeners: Record<string, (event?: unknown) => void> = {};
+  router.subscribe.mockImplementation((name, callback) => {
+    listeners[name] = callback;
+    return vi.fn();
+  });
+  vi.stubGlobal('requestAnimationFrame', (callback: () => void) => {
+    callback();
+    return 1;
+  });
+  vi.stubGlobal('cancelAnimationFrame', vi.fn());
+  const host = document.createElement('div');
+  const content = document.createElement('main');
+  content.innerHTML = '<h1 tabindex="-1">New page</h1><h2 id="section">Section</h2>';
+  document.body.append(host, content);
+  function Reader() {
+    return createElement('output', null, useSiteLinkNavigation('p1'));
+  }
+  const root = createRoot(host);
+  await act(async () => root.render(createElement(Reader)));
+  const heading = content.querySelector('h1');
+  if (!heading) throw new Error('Missing heading');
+  expect(document.activeElement).not.toBe(heading);
+  expect(host.textContent).toBe('');
+  const render = (hash = '', pathname = '/new') =>
+    act(async () =>
+      listeners.onRendered?.({
+        fromLocation: { pathname: '/old', searchStr: '' },
+        toLocation: { pathname, searchStr: '', hash },
+      }),
+    );
+  await act(async () => listeners.onBeforeNavigate?.({ fromLocation: { href: '/old' }, toLocation: { href: '/new' } }));
+  await render();
+  expect(document.activeElement).toBe(heading);
+  heading.blur();
+  await render('', '/old');
+  expect(document.activeElement).not.toBe(heading);
+  await act(async () => listeners.onBeforeNavigate?.({ fromLocation: { href: '/old' }, toLocation: { href: '/new' } }));
+  await render('section');
+  const fragment = document.getElementById('section');
+  expect(document.activeElement).toBe(fragment);
+  fragment?.blur();
+  expect(fragment?.hasAttribute('tabindex')).toBe(false);
+  const dialog = document.createElement('div');
+  dialog.setAttribute('role', 'dialog');
+  dialog.innerHTML = '<input />';
+  document.body.append(dialog);
+  dialog.querySelector('input')?.focus();
+  await act(async () => listeners.onBeforeNavigate?.({ fromLocation: { href: '/old' }, toLocation: { href: '/new' } }));
+  dialog.remove();
+  await render();
+  expect(document.activeElement).not.toBe(heading);
+  expect(host.textContent).toBe('New page');
+  await act(async () => listeners.onBeforeNavigate?.({ fromLocation: { href: '/new' }, toLocation: { href: '/new' } }));
+  expect(host.textContent).toBe('New page');
+  heading.remove();
+  await act(async () => listeners.onBeforeNavigate?.({ fromLocation: { href: '/old' }, toLocation: { href: '/new' } }));
+  await render();
+  expect(document.activeElement).toBe(content);
+  content.blur();
+  expect(content.hasAttribute('tabindex')).toBe(false);
+  await act(async () => root.unmount());
+  host.remove();
+  content.remove();
+  vi.unstubAllGlobals();
+});
+
+it('keeps pending focus when the site shell changes mid-navigation', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const listeners: Record<string, (event?: unknown) => void> = {};
+  const unsubscribe = vi.fn();
+  router.subscribe.mockReset();
+  router.subscribe.mockImplementation((name, callback) => {
+    listeners[name] = callback;
+    return unsubscribe;
+  });
+  vi.stubGlobal('requestAnimationFrame', (callback: () => void) => {
+    callback();
+    return 1;
+  });
+  vi.stubGlobal('cancelAnimationFrame', vi.fn());
+  const host = document.createElement('div');
+  const content = document.createElement('main');
+  content.innerHTML = '<h1 tabindex="-1">Next page</h1>';
+  document.body.append(host, content);
+  function Reader({ owns }: { owns: (segment: string) => boolean }) {
+    return createElement('output', null, useSiteLinkNavigation('p1', owns));
+  }
+  const root = createRoot(host);
+  await act(async () => root.render(createElement(Reader, { owns: () => true })));
+  await act(async () => listeners.onBeforeNavigate?.({ fromLocation: { href: '/old' }, toLocation: { href: '/new' } }));
+  await act(async () => root.render(createElement(Reader, { owns: () => false })));
+  await act(async () =>
+    listeners.onRendered?.({ fromLocation: { pathname: '/old', searchStr: '' }, toLocation: { pathname: '/new', searchStr: '', hash: '' } }),
+  );
+
+  expect(router.subscribe).toHaveBeenCalledTimes(2);
+  expect(unsubscribe).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(content.querySelector('h1'));
+  await act(async () => root.unmount());
+  host.remove();
+  content.remove();
+  vi.unstubAllGlobals();
 });

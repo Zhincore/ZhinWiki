@@ -103,7 +103,24 @@ membership is a contributor. Contributors read public published wikis and
 join a wiki only by invitation; the dashboard shows them a text empty state
 (no wiki directory yet). There is no contributor member role: any membership
 row passes the member guards and exposes drafts, branches and private sites.
-Future change requests need their own guards instead of widening membership.
+
+Contributors open change requests through their own guard instead:
+`requireProjectViewer` (`resolveProjectViewer` in
+`apps/server/src/actions/projects.ts`) admits members as before and, when the
+wiki accepts outside contributions (`acceptsOutsideContributions` in
+`packages/shared/src/rbac.ts`: shared tenancy, published, `PUBLIC` access, not
+taken down, `config.changeRequests.outsideContributions` not `false`), a
+non-member with `contributor` set and no membership. Only these routes use it:
+project get (name and typography only, `viewerRole: contributor`), language
+list, page list/get (main and change request branches only), page writes (own
+open change request only, 403 otherwise), and change request list, create,
+get, diff and patch (own only). Everything else, including merge, reviews,
+assets, comments, preview, settings and members, keeps the member guards. The
+app sends contributors from other project routes to the change request list and
+hides publish, configuration, comments, AI and preview in the editor. The
+published page shows **Suggest changes** (`contributeUrl`, an absolute editor
+link on the app origin) while the wiki accepts contributions. Contributors have
+no API keys, so MCP stays member-only.
 
 ## Change requests
 
@@ -155,9 +172,28 @@ of `main` that is reviewed and merged back.
     would orphan their fork links.
   - Merges take a per-project advisory lock and lock `main`'s rows.
 - API: `/projects/:projectId/change-requests` (list `?status=`, create, get
-  with changed pages, patch title/description/status, `/:number/merge`,
-  `/:number/pages/:pageId/diff`), member role. Branch routes only list and
-  delete.
+  with changed pages and reviews, patch title/description/status,
+  `/:number/merge`, `/:number/pages/:pageId/diff`; contributors as above),
+  member-only `/reviewer-candidates`, `/:number/reviewers` (POST asks for a
+  review again, DELETE removes) and `/:number/reviews`. Branch routes only list
+  and delete.
+- Reviews (`apps/server/src/actions/change-request-reviews.ts`):
+  `ChangeRequestReviewer` (one row per user, `requestedAt` bumped on each
+  request) and `ChangeRequestReview` (`APPROVED | CHANGES_REQUESTED |
+  COMMENTED`, optional body). Reviewing adds the author as a reviewer. A
+  reviewer's latest approval or change request is their verdict; comments do
+  not change it, and removing a reviewer drops it. Reviewers must have review
+  rights (membership or platform grant), checked when added and again at merge.
+  Self-approval counts. Merge is refused with 409
+  `change_requests:review_required` (inside the merge transaction) until
+  approvals reach `config.changeRequests.requiredApprovals` (default 1, 0
+  disables) and no reviewer requests changes. Edits after an approval do not
+  dismiss it.
+- Notifications (`change-request-notifications.ts`): in-app plus email in the
+  actor's interface language: the reviewer on a review request, the author on
+  approval, changes requested and merge (never the actor). Workspace toggles
+  `change_request_review_requested`, `change_request_reviewed`,
+  `change_request_merged` silence both channels.
 - Pages are edited only in open CRs: the page routes (create, update, delete,
   reorder) call `assertPagesEditable` and answer 409 `pages:main_read_only`
   for a write to a `main` page or under one, `pages:branch_read_only` for a
@@ -200,6 +236,9 @@ Fork-only files:
   `apps/app/src/components/welcome-page.tsx`.
 - Change requests: `apps/server/src/actions/change-requests.ts`,
   `apps/server/src/actions/change-request-merge.ts`,
+  `apps/server/src/actions/change-request-reviews.ts`,
+  `apps/server/src/actions/change-request-notifications.ts`,
+  `apps/app/src/components/project-settings/change-requests-section.tsx`,
   `apps/server/src/modules/app/change-requests/`,
   `apps/app/src/components/change-requests/`, `apps/app/src/lib/block-diff.ts`,
   `apps/app/src/routes/app/projects/$projectId/changes.*.tsx`.
@@ -207,7 +246,9 @@ Fork-only files:
 Upstream files carrying fork edits: `packages/auth/src/keys.server.ts`,
 `packages/auth/src/account-deletion.ts`, `packages/shared/src/rbac.ts`,
 `packages/design-system/src/brand/`, `apps/server/src/actions/branches.ts`,
-`packages/shared/src/site.ts` (`buildSnapshot`).
+`packages/shared/src/site.ts` (`buildSnapshot`),
+`apps/server/src/middlewares/guard/index.ts` (`requireProjectViewer`),
+`apps/server/src/actions/sites.ts` (`contributeUrl`).
 
 Tenancy and platform roles are fork-only: they live on `main` (see
 [branches](BRANDING.md#branches)).
@@ -232,6 +273,8 @@ Tenancy and platform roles are fork-only: they live on `main` (see
 - i18n: new strings in all 12 catalogs and `message-ids.ts`; rename
   "Nibleaf" in user-facing copy.
 - Dropped upstream pages, tests and Cloud wording must not come back.
+- Routes opened to contributors (`requireProjectViewer`): new handlers there
+  must check `isContextContributor()` before writing.
 - New page writers or branch creators: keep the CR invariant and fork links
   (`createBranch`); new readers of non-default branches must not reach
   public output.

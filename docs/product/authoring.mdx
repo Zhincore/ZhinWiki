@@ -86,6 +86,28 @@ first if `main`'s version should win. A merged change request stays readable
 with the diff it applied. **Archive** sets a change request aside without
 merging; **Reopen** brings it back.
 
+### Reviews
+
+Members ask for a review under **Reviewers** on the Overview; the reviewer gets
+a notification and an email. **Submit review** approves, requests changes, or
+comments, with an optional message. Each reviewer's latest approval or change
+request counts, and removing a reviewer drops their verdict. **Merge** stays
+disabled until the change request has the approvals the wiki requires
+(**Settings → Change requests**, default 1; your own approval counts) and no
+reviewer requests changes. Set the requirement to 0 to merge without review.
+The author is notified when the change request is approved, gets a change
+request, or is merged. **Awaiting your review** on the change request list shows
+the ones waiting for you.
+
+### Outside contributions
+
+On a shared instance, any signed-in account can suggest changes to a published
+public wiki: **Suggest changes** at the end of each page opens the editor, where
+**Edit** starts a change request. Outside contributors see `main` and every
+change request of that wiki, and edit only their own change requests; they
+cannot review, merge, publish, or open settings. Turn this off under
+**Settings → Change requests → Outside contributions**.
+
 ## Recover from a bad draft
 
 If the public version is still correct, stop before publishing. Compare the

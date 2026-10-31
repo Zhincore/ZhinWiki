@@ -38,12 +38,13 @@ your content stays in your database.
 
 ## How ZhinWiki differs from Nibleaf
 
-- **Shared instances:** with `TENANCY=shared` (the production default),
-  sign-up creates an account only and platform admins create wikis.
-  `TENANCY=independent` keeps upstream behaviour.
-- **Platform `editor` role:** in shared mode, member rights on every wiki.
-- **Safer account deletion:** in shared mode, a wiki's sole member cannot
-  delete their account.
+- **Tenancy modes:** with `TENANCY=shared` (the production default),
+  sign-up creates an account only, platform admins create wikis, and the
+  platform `editor` role edits every wiki. `TENANCY=independent` keeps
+  upstream behaviour.
+- **Wiki slug paths:** in shared mode, published wikis live at `/<slug>`.
+- **Change requests:** `main` is read-only and the only published branch;
+  edits go through reviewed change requests.
 - **Runtime branding:** name, links, colors and homepage come from env
   (`APP_NAME`, `BRAND_*`, `HOMEPAGE`); one image serves any brand.
 
@@ -57,7 +58,7 @@ table of contents:
 <img src=".github/assets/docs-en.png" alt="A published documentation site" width="840" />
 
 **The editor** — Visual, Rich text, and full-canvas Markdown editing, plus a preview action
-that opens the saved draft in a separate tab, a drag-and-drop page tree, branches,
+that opens the saved draft in a separate tab, a drag-and-drop page tree, change requests,
 anchored comments, and one-click publish:
 
 <img src=".github/assets/editor.png" alt="The editor" width="840" />
@@ -79,8 +80,8 @@ Private customer documentation supports dedicated reader accounts, audience/page
 - **OpenAPI + Scalar** — upload an OpenAPI 3.x JSON/YAML document, pull it from a public URL,
   or read it from the connected public GitHub/GitLab repository; published snapshots get an
   API Reference navigation section with schemas, generated code samples, and browser try-it.
-- **Branches** — git-style, database-backed branches: fork, edit in isolation, and merge
-  into `main`.
+- **Change requests** — edit an isolated copy of `main`, review the diff, and merge it
+  back page by page.
 - **Anchored comments** — Figma-style review comments pinned to the exact block.
 - **Tenant-safe search** — built-in Orama full-text/fuzzy search remains the default and
   immediate rollback; v0.2.0 adds an optional Qdrant BM25+dense hybrid path, privacy-safe
@@ -173,8 +174,10 @@ Database migrations run automatically (the one-shot `migrate` service), and the
 image tag is **pinned** via `NIBLEAF_VERSION`. Read the
 **[backup and upgrade guide](docs/self-hosting/backups-upgrades.mdx)**
 before changing it. Open **`$APP_URL/sign-up`** and create the first
-account — it's provisioned with a workspace and a starter docs project
-automatically (no demo credentials are seeded in production). The full production
+account (no demo credentials are seeded in production). With the default
+`TENANCY=shared`,
+[grant it `admin`](docs/self-hosting/configuration.mdx#run-a-shared-instance)
+to create wikis. The full production
 guide — reverse proxy, TLS, wildcard subdomains, custom-domain TLS automation,
 backups, and restore testing — is in the
 **[production guide](docs/self-hosting/production.mdx)**.
@@ -330,13 +333,11 @@ When `NODE_ENV=production`, the container entrypoint refuses to start (`exit 1`)
 - **Support guide** — [SUPPORT.md](SUPPORT.md)
 - **Questions & ideas** — [GitHub Discussions](https://github.com/Zhincore/ZhinWiki/discussions)
 - **Bugs** — [GitHub Issues](https://github.com/Zhincore/ZhinWiki/issues)
-- **Security vulnerabilities** — privately, please: see [SECURITY.md](SECURITY.md)
 
 ## 🤝 Contributing
 
 Contributions are welcome! See **[CONTRIBUTING.md](CONTRIBUTING.md)** to get set up,
-**[GOVERNANCE.md](GOVERNANCE.md)** for how decisions are made, and open an issue to
-discuss substantial changes first. Found a vulnerability? See **[SECURITY.md](SECURITY.md)**.
+and open an issue to discuss substantial changes first.
 
 ## 📄 License
 

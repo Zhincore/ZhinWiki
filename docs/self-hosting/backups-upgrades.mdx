@@ -3,7 +3,7 @@ title: 'Back up, restore, and upgrade Nibleaf'
 description: 'Capture Postgres and object storage as one recovery set, test restoration in isolation, and upgrade or roll back a pinned Nibleaf release.'
 audience: 'self-hosted Nibleaf operators'
 content_type: 'how-to'
-last_reviewed: '2026-10-30'
+last_reviewed: '2026-10-31'
 verified_against: 'scripts/backup.sh, docker-compose.prod.yml, and packages/database/prisma/migrations'
 lang: 'en'
 dir: 'ltr'
@@ -77,9 +77,6 @@ successful isolated restore is not recovery evidence.
 ## Upgrade a pinned release
 
 Use only a tag listed on the [releases page](https://github.com/Zhincore/ZhinWiki/releases).
-When upgrading from v0.1.2, use the [combined release migration guide](/self-hosting/combined-release-migration)
-for its search, usage, add-on, integration, and MCP dependency order.
-
 Read each intervening release note and check for
 release-specific migration or configuration changes. Create and restore-test a
 backup. Then:
@@ -108,6 +105,27 @@ backup. Then:
 
 Confirm the image digest, migration log, service health, sign-in, one upload,
 one publish, one search, and one public page.
+
+### From v0.1.0
+
+- **Tenancy.** The new Compose file defaults to `TENANCY=shared`. Set
+  `TENANCY=independent` in `.env` to keep the v0.1.0 behaviour. See
+  [run a shared instance](/self-hosting/configuration#run-a-shared-instance).
+- **Change requests.** The `20261029120000_change_requests` migration turns every
+  existing non-default branch into a draft change request. Pages on `main`
+  become read-only in the editor; edits go through change requests.
+- **Better Auth 1.7.14.** The `20261030120000_invitation_created_at` migration runs
+  on start. Sign-in is refused when two `account` rows share a provider and
+  account ID; this check must return no rows:
+
+  ```bash
+  docker compose exec -T postgres psql -U nibleaf -d nibleaf -c 'SELECT "providerId", "accountId", count(*) FROM account GROUP BY 1, 2 HAVING count(*) > 1;'
+  ```
+
+- **AI provider.** The Compose file now passes `OPENROUTER_API_KEY` instead of
+  `OPENAI_API_KEY`.
+- **Worker queues.** If you set `WORKER_QUEUES`, add `erasure`, or the stored
+  files of deleted projects stay in place.
 
 ## Roll back safely
 

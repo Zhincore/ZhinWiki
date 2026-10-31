@@ -87,8 +87,7 @@ the canonical site.
 
 ## Reporting bugs & requesting features
 
-Use the GitHub issue templates. For security issues, **do not** open a public
-issue — see [SECURITY.md](SECURITY.md). For support and community questions, see
+Use the GitHub issue templates. For support and community questions, see
 [SUPPORT.md](SUPPORT.md).
 
 ## GitHub release notes

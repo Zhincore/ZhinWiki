@@ -4,12 +4,12 @@ import { type ChangeRequestEmailEvent, renderChangeRequestEmail, resolveEmailLan
 import { env } from '@/env';
 import { notificationEnabled } from './notifications';
 
-/** Workspace notification toggle that silences each event. */
-const PREFERENCE: Record<ChangeRequestEmailEvent, string> = {
-  reviewRequested: 'change_request_review_requested',
-  approved: 'change_request_reviewed',
-  changesRequested: 'change_request_reviewed',
-  merged: 'change_request_merged',
+/** Stored notification type and the workspace toggle that silences each event. */
+const EVENTS: Record<ChangeRequestEmailEvent, { type: string; preference: string }> = {
+  reviewRequested: { type: 'change_request_review_requested', preference: 'change_request_review_requested' },
+  approved: { type: 'change_request_approved', preference: 'change_request_reviewed' },
+  changesRequested: { type: 'change_request_changes_requested', preference: 'change_request_reviewed' },
+  merged: { type: 'change_request_merged', preference: 'change_request_merged' },
 };
 
 /**
@@ -31,7 +31,7 @@ export const notifyChangeRequest = async (input: {
     where: { id: input.projectId },
     select: { name: true, organization: { select: { metadata: true } } },
   });
-  if (!project || !notificationEnabled(project.organization.metadata, PREFERENCE[input.event])) return;
+  if (!project || !notificationEnabled(project.organization.metadata, EVENTS[input.event].preference)) return;
   const href = `/app/projects/${input.projectId}/changes/${input.changeRequest.number}`;
   const email = await renderChangeRequestEmail({
     event: input.event,
@@ -46,7 +46,7 @@ export const notifyChangeRequest = async (input: {
     data: recipients.map((userId) => ({
       userId,
       projectId: input.projectId,
-      type: `change_request_${input.event}`,
+      type: EVENTS[input.event].type,
       title: email.subject,
       body: project.name,
       href,

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   projectFindMany: vi.fn(),
   projectFindFirst: vi.fn(),
   projectFindUnique: vi.fn(),
+  projectFindUniqueOrThrow: vi.fn(),
   projectUpdate: vi.fn(),
   userFindUnique: vi.fn(),
   wikiSlugUnavailable: vi.fn(),
@@ -33,13 +34,19 @@ vi.mock('./project-config', () => ({ mutateProjectConfig: mocks.mutateProjectCon
 vi.mock('@nibleaf/database', () => ({
   assignDefaultUsagePlan: vi.fn(),
   prisma: {
-    project: { findMany: mocks.projectFindMany, findFirst: mocks.projectFindFirst, findUnique: mocks.projectFindUnique, update: mocks.projectUpdate },
+    project: {
+      findMany: mocks.projectFindMany,
+      findFirst: mocks.projectFindFirst,
+      findUnique: mocks.projectFindUnique,
+      findUniqueOrThrow: mocks.projectFindUniqueOrThrow,
+      update: mocks.projectUpdate,
+    },
     user: { findUnique: mocks.userFindUnique },
     $transaction: (run: (tx: typeof mocks.tx) => Promise<unknown>) => run(mocks.tx),
   },
 }));
 
-import { assertProjectAccess, createProject, getProject, listProjects, updateProject } from './projects';
+import { assertProjectAccess, createProject, getContributorProject, getProject, listProjects, updateProject } from './projects';
 
 /** The one definition of "pages" shared by the workspace overview, the sites
  *  list and the MCP project DTO: content pages on the default branch across
@@ -214,5 +221,23 @@ describe('updateProject slug changes', () => {
 
     expect(mocks.mutateProjectConfig).not.toHaveBeenCalled();
     expect(mocks.projectUpdate).toHaveBeenCalledWith({ where: { id: 'p1' }, data: { slug: 'app' } });
+  });
+});
+
+describe('getContributorProject', () => {
+  it('exposes only identity and typography to outside contributors', async () => {
+    mocks.projectFindUniqueOrThrow.mockResolvedValue({
+      id: 'p1',
+      name: 'Docs',
+      slug: 'docs',
+      icon: null,
+      config: { typography: { body: 'serif' }, analytics: { ga4: 'G-1' }, changeRequests: { requiredApprovals: 2 } },
+    });
+    const project = await getContributorProject('p1');
+    expect(mocks.projectFindUniqueOrThrow).toHaveBeenCalledWith({
+      where: { id: 'p1' },
+      select: { id: true, name: true, slug: true, icon: true, config: true },
+    });
+    expect(project).toEqual({ id: 'p1', name: 'Docs', slug: 'docs', icon: null, config: { typography: { body: 'serif' } } });
   });
 });

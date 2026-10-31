@@ -54,10 +54,11 @@ function UserAvatar({ user }: { user: ChangeRequestUser }) {
 export function ApprovalStatus({ review }: { review: ChangeRequestDetail['review'] }) {
   const t = useT();
   const blocked = review.changesRequested > 0;
+  if (!blocked && review.required === 0) return null;
   return (
     <span
       className={cn(
-        'hidden items-center gap-1 rounded-md px-2 py-0.5 text-xs sm:inline-flex',
+        'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs',
         blocked
           ? 'bg-red-500/10 text-red-700 dark:text-red-300'
           : review.mergeable
@@ -183,8 +184,10 @@ export function ReviewersPanel({ projectId, changeRequest, manage }: { projectId
               </span>
               {item.state ? (
                 <ReviewStateBadge state={item.state} />
-              ) : (
+              ) : item.awaiting ? (
                 <span className="text-muted-foreground text-xs">{t('changeRequest.review.state.pending')}</span>
+              ) : (
+                <ReviewStateBadge state="COMMENTED" />
               )}
               {canManage ? (
                 <span className="flex opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
@@ -227,6 +230,7 @@ export function ParticipantsPanel({ participants }: { participants: ChangeReques
         {participants.map((user) => (
           <li key={user.id} title={user.name}>
             <UserAvatar user={user} />
+            <span className="sr-only">{user.name}</span>
           </li>
         ))}
       </ul>

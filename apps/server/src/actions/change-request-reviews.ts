@@ -5,29 +5,41 @@ import type { SubmitChangeRequestReviewBody } from '@nibleaf/validators';
 import { env } from '@/env';
 import { badRequest, conflict, notFound } from '@/errors';
 
-type Reviewer = { userId: string; requestedAt: Date };
+type Reviewer = { userId: string; requestedAt: Date; addedAt: Date };
 type Review = { authorId: string | null; state: ChangeRequestReviewState; createdAt: Date };
 
 /**
  * Review state of a change request. Each reviewer's latest approval or change
- * request is their verdict (comments do not change it); reviews by non-reviewers
- * do not count. A reviewer awaits review until they review after being asked.
+ * request since they became a reviewer is their verdict (comments do not change
+ * it); reviews by non-reviewers do not count. An approval older than the last
+ * page edit (`editedAt`) is stale: no verdict, and the reviewer awaits review
+ * again, as they do after being asked until they review.
  */
-export const reviewSummary = ({ reviewers, reviews, required }: { reviewers: readonly Reviewer[]; reviews: readonly Review[]; required: number }) => {
+export const reviewSummary = ({
+  reviewers,
+  reviews,
+  required,
+  editedAt,
+}: {
+  reviewers: readonly Reviewer[];
+  reviews: readonly Review[];
+  required: number;
+  editedAt: Date | null;
+}) => {
   const ordered = [...reviews].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-  const verdicts = new Map<string, ChangeRequestReviewState>();
-  const lastReviewAt = new Map<string, Date>();
-  for (const review of ordered) {
-    if (!review.authorId) continue;
-    lastReviewAt.set(review.authorId, review.createdAt);
-    if (review.state !== 'COMMENTED') verdicts.set(review.authorId, review.state);
-  }
   const states = reviewers.map((reviewer) => {
-    const reviewedAt = lastReviewAt.get(reviewer.userId);
+    let verdict: Review | undefined;
+    let reviewedAt: Date | undefined;
+    for (const review of ordered) {
+      if (review.authorId !== reviewer.userId || review.createdAt < reviewer.addedAt) continue;
+      reviewedAt = review.createdAt;
+      if (review.state !== 'COMMENTED') verdict = review;
+    }
+    const stale = verdict?.state === 'APPROVED' && editedAt !== null && verdict.createdAt < editedAt;
     return {
       userId: reviewer.userId,
-      state: verdicts.get(reviewer.userId) ?? null,
-      awaiting: !reviewedAt || reviewedAt < reviewer.requestedAt,
+      state: stale ? null : (verdict?.state ?? null),
+      awaiting: stale || !reviewedAt || reviewedAt < reviewer.requestedAt,
     };
   });
   const approvals = states.filter((reviewer) => reviewer.state === 'APPROVED').length;
@@ -36,7 +48,7 @@ export const reviewSummary = ({ reviewers, reviews, required }: { reviewers: rea
 };
 
 /** The subset of `userIds` with review rights on the organization's wiki: members, and platform editors/admins in shared tenancy. */
-const reviewCapableUserIds = async (organizationId: string, userIds: readonly string[], client: Prisma.TransactionClient = prisma) => {
+export const reviewCapableUserIds = async (organizationId: string, userIds: readonly string[], client: Prisma.TransactionClient = prisma) => {
   if (userIds.length === 0) return new Set<string>();
   const users = await client.user.findMany({
     where: { id: { in: [...userIds] }, suspendedAt: null },
@@ -56,66 +68,114 @@ export const listReviewerCandidates = async (organizationId: string) => {
   });
 };
 
-const findOpenChangeRequest = async (projectId: string, number: number) => {
-  const changeRequest = await prisma.changeRequest.findUnique({
-    where: { projectId_number: { projectId, number } },
-    select: { id: true, title: true, number: true, status: true, authorId: true, project: { select: { organizationId: true } } },
+const openChangeRequestSelect = {
+  id: true,
+  title: true,
+  number: true,
+  status: true,
+  authorId: true,
+  editedAt: true,
+  project: { select: { organizationId: true } },
+} as const satisfies Prisma.ChangeRequestSelect;
+
+type OpenChangeRequest = Prisma.ChangeRequestGetPayload<{ select: typeof openChangeRequestSelect }>;
+
+const reviewerSelect = { userId: true, requestedAt: true, addedAt: true } as const;
+const reviewSelect = { authorId: true, state: true, createdAt: true } as const;
+
+/**
+ * Run `write` on an open change request under the per-project lock merges take,
+ * so a review never lands on a change request merged meanwhile.
+ */
+const inOpenChangeRequest = <T>(
+  projectId: string,
+  number: number,
+  write: (tx: Prisma.TransactionClient, changeRequest: OpenChangeRequest) => Promise<T>,
+) =>
+  prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${projectId}))`;
+    const changeRequest = await tx.changeRequest.findUnique({
+      where: { projectId_number: { projectId, number } },
+      select: openChangeRequestSelect,
+    });
+    if (!changeRequest) throw notFound('changeRequest', { number });
+    if (changeRequest.status !== 'DRAFT' && changeRequest.status !== 'IN_REVIEW') {
+      throw conflict('Reviews are closed on a merged or archived change request.');
+    }
+    return write(tx, changeRequest);
   });
-  if (!changeRequest) throw notFound('changeRequest', { number });
-  if (changeRequest.status !== 'DRAFT' && changeRequest.status !== 'IN_REVIEW') {
-    throw conflict('Reviews are closed on a merged or archived change request.');
-  }
-  return changeRequest;
-};
 
-/** Ask `userId` for a review (again). Returns the change request when a request notification is due. */
-export const requestReview = async (projectId: string, number: number, userId: string, requestedById: string) => {
-  const changeRequest = await findOpenChangeRequest(projectId, number);
-  if (!(await reviewCapableUserIds(changeRequest.project.organizationId, [userId])).has(userId)) {
-    throw badRequest('Only members can review this change request.', { userId });
-  }
-  const requestedAt = new Date();
-  await prisma.changeRequestReviewer.upsert({
-    where: { changeRequestId_userId: { changeRequestId: changeRequest.id, userId } },
-    create: { changeRequestId: changeRequest.id, userId, requestedById, requestedAt },
-    update: { requestedById, requestedAt },
+/** Ask `userId` for a review (again). Returns the change request to notify about. */
+export const requestReview = (projectId: string, number: number, userId: string, requestedById: string) =>
+  inOpenChangeRequest(projectId, number, async (tx, changeRequest) => {
+    if (!(await reviewCapableUserIds(changeRequest.project.organizationId, [userId], tx)).has(userId)) {
+      throw badRequest('Only members can review this change request.', { userId });
+    }
+    const now = new Date();
+    await tx.changeRequestReviewer.upsert({
+      where: { changeRequestId_userId: { changeRequestId: changeRequest.id, userId } },
+      create: { changeRequestId: changeRequest.id, userId, requestedById, requestedAt: now, addedAt: now },
+      update: { requestedById, requestedAt: now },
+    });
+    return changeRequest;
   });
-  return changeRequest;
-};
 
-/** Remove a reviewer; their reviews stay in the history but stop counting. */
-export const removeReviewer = async (projectId: string, number: number, userId: string) => {
-  const changeRequest = await findOpenChangeRequest(projectId, number);
-  await prisma.changeRequestReviewer.deleteMany({ where: { changeRequestId: changeRequest.id, userId } });
-};
+/** Remove a reviewer; their reviews stay in the history and never count again. */
+export const removeReviewer = (projectId: string, number: number, userId: string) =>
+  inOpenChangeRequest(projectId, number, async (tx, changeRequest) => {
+    await tx.changeRequestReviewer.deleteMany({ where: { changeRequestId: changeRequest.id, userId } });
+  });
 
-/** Record a review; the author becomes a reviewer if they were not one. */
-export const submitReview = async (projectId: string, number: number, authorId: string, body: SubmitChangeRequestReviewBody) => {
-  const changeRequest = await findOpenChangeRequest(projectId, number);
-  await prisma.$transaction([
-    prisma.changeRequestReviewer.upsert({
-      where: { changeRequestId_userId: { changeRequestId: changeRequest.id, userId: authorId } },
-      create: { changeRequestId: changeRequest.id, userId: authorId },
-      update: {},
-    }),
-    prisma.changeRequestReview.create({
-      data: { changeRequestId: changeRequest.id, authorId, state: body.state, body: body.body || null },
-    }),
-  ]);
-  return changeRequest;
+/**
+ * Record a review; the reviewing user becomes a reviewer if they were not one.
+ * `previous` is their verdict before this review.
+ */
+export const submitReview = (projectId: string, number: number, authorId: string, body: SubmitChangeRequestReviewBody) =>
+  inOpenChangeRequest(projectId, number, async (tx, changeRequest) => {
+    const [reviewer, reviews] = await Promise.all([
+      tx.changeRequestReviewer.findUnique({
+        where: { changeRequestId_userId: { changeRequestId: changeRequest.id, userId: authorId } },
+        select: reviewerSelect,
+      }),
+      tx.changeRequestReview.findMany({ where: { changeRequestId: changeRequest.id, authorId }, select: reviewSelect }),
+    ]);
+    const previous = reviewer
+      ? (reviewSummary({ reviewers: [reviewer], reviews, required: 0, editedAt: changeRequest.editedAt }).reviewers[0]?.state ?? null)
+      : null;
+    const now = new Date();
+    if (!reviewer) {
+      await tx.changeRequestReviewer.create({ data: { changeRequestId: changeRequest.id, userId: authorId, requestedAt: now, addedAt: now } });
+    }
+    await tx.changeRequestReview.create({
+      data: { changeRequestId: changeRequest.id, authorId, state: body.state, body: body.body || null, createdAt: now },
+    });
+    return { changeRequest, previous };
+  });
+
+/** Review state counting only reviewers who still have review rights. */
+export const capableReviewSummary = async (
+  client: Prisma.TransactionClient,
+  input: { organizationId: string; reviewers: readonly Reviewer[]; reviews: readonly Review[]; required: number; editedAt: Date | null },
+) => {
+  const capable = await reviewCapableUserIds(
+    input.organizationId,
+    input.reviewers.map((reviewer) => reviewer.userId),
+    client,
+  );
+  return reviewSummary({ ...input, reviewers: input.reviewers.filter((reviewer) => capable.has(reviewer.userId)) });
 };
 
 /** The merge gate: approvals from current reviewers with review rights meet the
  *  wiki's requirement and none of them requests changes. */
-export const mergeReviewSummary = async (client: Prisma.TransactionClient, changeRequestId: string, organizationId: string, required: number) => {
+export const mergeReviewSummary = async (
+  client: Prisma.TransactionClient,
+  changeRequest: { id: string; editedAt: Date | null },
+  organizationId: string,
+  required: number,
+) => {
   const [reviewers, reviews] = await Promise.all([
-    client.changeRequestReviewer.findMany({ where: { changeRequestId }, select: { userId: true, requestedAt: true } }),
-    client.changeRequestReview.findMany({ where: { changeRequestId }, select: { authorId: true, state: true, createdAt: true } }),
+    client.changeRequestReviewer.findMany({ where: { changeRequestId: changeRequest.id }, select: reviewerSelect }),
+    client.changeRequestReview.findMany({ where: { changeRequestId: changeRequest.id }, select: reviewSelect }),
   ]);
-  const capable = await reviewCapableUserIds(
-    organizationId,
-    reviewers.map((reviewer) => reviewer.userId),
-    client,
-  );
-  return reviewSummary({ reviewers: reviewers.filter((reviewer) => capable.has(reviewer.userId)), reviews, required });
+  return capableReviewSummary(client, { organizationId, reviewers, reviews, required, editedAt: changeRequest.editedAt });
 };

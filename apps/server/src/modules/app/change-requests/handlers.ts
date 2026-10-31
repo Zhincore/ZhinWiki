@@ -39,11 +39,14 @@ const notify = (input: Omit<Parameters<typeof notifyChangeRequest>[0], 'actor' |
 const app = new Hono<HonoEnv>()
   .get('/', ...changeRequestsRoutes.list, validator('query', listChangeRequestsQuery), async (ctx) => {
     const projectId = await projectScope(ctx);
-    return ctx.json({ data: await listChangeRequests(projectId, ctx.req.valid('query').status) }, 200);
+    return ctx.json({ data: await listChangeRequests(projectId, getContextOrganizationIdOrThrow(), ctx.req.valid('query').status) }, 200);
   })
   .post('/', ...changeRequestsRoutes.create, validator('json', createChangeRequestBody), async (ctx) => {
     const projectId = await projectScope(ctx);
-    const data = await createChangeRequest(projectId, ctx.req.valid('json'), getContextUserOrThrow(), getContextLocale());
+    const data = await createChangeRequest(projectId, ctx.req.valid('json'), getContextUserOrThrow(), {
+      locale: getContextLocale(),
+      contributor: isContextContributor(),
+    });
     return ctx.json({ data }, 201);
   })
   .get('/reviewer-candidates', ...changeRequestsRoutes.reviewerCandidates, async (ctx) => {
@@ -106,8 +109,8 @@ const app = new Hono<HonoEnv>()
     async (ctx) => {
       const projectId = await projectScope(ctx);
       const body = ctx.req.valid('json');
-      const changeRequest = await submitReview(projectId, ctx.req.valid('param').number, getContextUserOrThrow().id, body);
-      if (body.state !== 'COMMENTED') {
+      const { changeRequest, previous } = await submitReview(projectId, ctx.req.valid('param').number, getContextUserOrThrow().id, body);
+      if (body.state !== 'COMMENTED' && body.state !== previous) {
         const event = body.state === 'APPROVED' ? 'approved' : 'changesRequested';
         await notify({ projectId, changeRequest, event, recipients: [changeRequest.authorId] });
       }

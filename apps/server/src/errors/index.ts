@@ -23,6 +23,7 @@ export type ErrorCode =
   | 'pages:main_read_only'
   | 'pages:branch_read_only'
   | 'change_requests:review_required'
+  | 'change_requests:open_limit'
   | 'storage:error'
   | 'search:unavailable'
   | 'ai:provider_response'
@@ -86,6 +87,7 @@ const ERROR_STATUS = {
   'pages:main_read_only': 409,
   'pages:branch_read_only': 409,
   'change_requests:review_required': 409,
+  'change_requests:open_limit': 429,
   'storage:error': 502,
   'search:unavailable': 503,
   'ai:provider_response': 502,

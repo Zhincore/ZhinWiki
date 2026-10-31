@@ -569,6 +569,8 @@ model ChangeRequest {
   /// `{ pages: [{ pageId, languageId, action, before, after }] }` for the pages
   /// the merge wrote; `before`/`after` hold the merged fields and path.
   mergeRecord Json?
+  /// Last page write in the branch; approvals given before it no longer count.
+  editedAt    DateTime?
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
 
@@ -591,6 +593,8 @@ model ChangeRequestReviewer {
   requestedBy     User?         @relation("ChangeRequestReviewRequester", fields: [requestedById], references: [id], onDelete: SetNull)
   /// Last time a review was requested; a review after it answers the request.
   requestedAt     DateTime      @default(now())
+  /// When the user became a reviewer; earlier reviews do not count.
+  addedAt         DateTime      @default(now())
 
   @@id([changeRequestId, userId])
   @@index([userId])

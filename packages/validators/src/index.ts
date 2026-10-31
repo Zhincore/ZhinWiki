@@ -649,7 +649,6 @@ export type UpdateChangeRequestBody = z.infer<typeof updateChangeRequestBody>;
 export const mergeChangeRequestBody = z.object({ force: z.array(z.string().min(1).max(64)).max(10_000).optional() });
 
 export const changeRequestReviewerBody = z.object({ userId: z.string().min(1).max(64) });
-export type ChangeRequestReviewerBody = z.infer<typeof changeRequestReviewerBody>;
 
 export const changeRequestReviewerParams = changeRequestParams.extend({ userId: z.string().min(1).max(64) });
 

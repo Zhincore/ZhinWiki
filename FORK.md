@@ -180,18 +180,26 @@ of `main` that is reviewed and merged back.
 - Reviews (`apps/server/src/actions/change-request-reviews.ts`):
   `ChangeRequestReviewer` (one row per user, `requestedAt` bumped on each
   request) and `ChangeRequestReview` (`APPROVED | CHANGES_REQUESTED |
-  COMMENTED`, optional body). Reviewing adds the author as a reviewer. A
-  reviewer's latest approval or change request is their verdict; comments do
-  not change it, and removing a reviewer drops it. Reviewers must have review
-  rights (membership or platform grant), checked when added and again at merge.
-  Self-approval counts. Merge is refused with 409
+  COMMENTED`, optional body). Submitting a review adds the reviewer to the
+  change request's reviewers. A reviewer's latest approval or change request
+  since they were added (`addedAt`) is their verdict; comments do not change
+  it, and removing a reviewer drops it for good. Any page write in the CR sets
+  `editedAt`; approvals older than it are stale and the reviewer is asked
+  again. Reviewers must have review rights (membership or platform grant),
+  checked when added, at merge and when listed. Review writes take the merge
+  lock. Self-approval counts. Merge is refused with 409
   `change_requests:review_required` (inside the merge transaction) until
   approvals reach `config.changeRequests.requiredApprovals` (default 1, 0
-  disables) and no reviewer requests changes. Edits after an approval do not
-  dismiss it.
-- Notifications (`change-request-notifications.ts`): in-app plus email in the
-  actor's interface language: the reviewer on a review request, the author on
-  approval, changes requested and merge (never the actor). Workspace toggles
+  disables) and no reviewer requests changes.
+- Contributors may have 5 open CRs per wiki (429
+  `change_requests:open_limit`) and cannot reopen an archived CR. Known gap:
+  their content loads remote images in members' sessions (the app CSP allows
+  any image origin).
+- Notifications (`change-request-notifications.ts`): in-app (English title,
+  like other inbox entries) plus email in the actor's interface language: the
+  reviewer on a review request, the author when a verdict changes to approved
+  or changes requested, and on merge (never the actor, never suspended users).
+  Workspace toggles
   `change_request_review_requested`, `change_request_reviewed`,
   `change_request_merged` silence both channels.
 - Pages are edited only in open CRs: the page routes (create, update, delete,

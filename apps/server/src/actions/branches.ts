@@ -30,10 +30,14 @@ export const assertBranchInProject = async (projectId: string, id: string) => {
  * Members edit pages only inside open (draft or in-review) change requests;
  * contributors (`authorId`) only inside their own. `pageIds` are the pages
  * written (or the parent a page is created under); without them `branchId`
- * (default: main) is the target. System writers (imports, Git sync, merges)
- * call the page actions directly.
+ * (default: main) is the target. Returns the change requests written to.
+ * System writers (imports, Git sync, merges) call the page actions directly.
  */
-export const assertPagesEditable = async (projectId: string, target: { branchId?: string; pageIds?: readonly string[] }, authorId?: string) => {
+export const assertPagesEditable = async (
+  projectId: string,
+  target: { branchId?: string; pageIds?: readonly string[] },
+  authorId?: string,
+): Promise<string[]> => {
   const main = await getDefaultBranch(projectId);
   const branchIds = target.pageIds
     ? (
@@ -47,10 +51,10 @@ export const assertPagesEditable = async (projectId: string, target: { branchId?
   if (branchIds.includes(main.id)) {
     throw new AppError({ code: 'pages:main_read_only', message: 'Pages on main are read-only. Open a change request to edit them.' });
   }
-  if (branchIds.length === 0) return;
+  if (branchIds.length === 0) return [];
   const open = await prisma.changeRequest.findMany({
     where: { projectId, branchId: { in: branchIds }, status: { in: ['DRAFT', 'IN_REVIEW'] } },
-    select: { authorId: true },
+    select: { id: true, authorId: true },
   });
   if (open.length < branchIds.length) {
     throw new AppError({ code: 'pages:branch_read_only', message: 'Pages are edited only in an open change request.' });
@@ -58,6 +62,13 @@ export const assertPagesEditable = async (projectId: string, target: { branchId?
   if (authorId && open.some((changeRequest) => changeRequest.authorId !== authorId)) {
     throw forbidden('Contributors edit only their own change requests.');
   }
+  return open.map((changeRequest) => changeRequest.id);
+};
+
+/** Record a page write in change requests; earlier approvals stop counting. */
+export const markChangeRequestsEdited = async (changeRequestIds: readonly string[]) => {
+  if (changeRequestIds.length === 0) return;
+  await prisma.changeRequest.updateMany({ where: { id: { in: [...changeRequestIds] } }, data: { editedAt: new Date() } });
 };
 
 /** Throw notFound unless a contributor may read the branch: main or a change request's. */

@@ -27,7 +27,7 @@ const mocks = vi.hoisted(() => {
     prisma: {
       $transaction: vi.fn(async (run: (client: typeof tx) => unknown) => run(tx)),
       branch: { findFirst: vi.fn(), findMany: vi.fn() },
-      changeRequest: { findUnique: vi.fn() },
+      changeRequest: { findUnique: vi.fn(), count: vi.fn(), updateMany: vi.fn() },
     },
   };
 });
@@ -38,7 +38,7 @@ vi.mock('@nibleaf/database', () => ({
 }));
 
 import { createBranch, createImportReplacementBranch } from './branches';
-import { mergeChangeRequest } from './change-requests';
+import { CONTRIBUTOR_OPEN_LIMIT, createChangeRequest, mergeChangeRequest, updateChangeRequest } from './change-requests';
 
 const { tx, prisma } = mocks;
 const mainBranch = { id: 'main', projectId: 'p', isDefault: true };
@@ -78,7 +78,7 @@ const givenReviews = (
   const members = options.members ?? reviewers;
   const config = options.config ?? null;
   tx.project.findUniqueOrThrow.mockResolvedValue({ organizationId: 'org', config });
-  tx.changeRequestReviewer.findMany.mockResolvedValue(reviewers.map((userId) => ({ userId, requestedAt: requested })));
+  tx.changeRequestReviewer.findMany.mockResolvedValue(reviewers.map((userId) => ({ userId, requestedAt: requested, addedAt: requested })));
   tx.changeRequestReview.findMany.mockResolvedValue(reviews.map((review) => ({ ...review, createdAt: later })));
   tx.user.findMany.mockImplementation(async ({ where }: { where: { id: { in: string[] } } }) =>
     where.id.in.map((id) => ({ id, role: 'user', members: members.includes(id) ? [{ id: `m-${id}` }] : [] })),
@@ -93,8 +93,8 @@ describe('mergeChangeRequest', () => {
     givenReviews([{ authorId: 'r1', state: 'APPROVED' }]);
   });
 
-  const givenChangeRequest = (forkBase: ForkBase) =>
-    tx.changeRequest.findUniqueOrThrow.mockResolvedValue({ id: 'cr-1', number: 1, status: 'IN_REVIEW', branchId: 'cr', forkBase });
+  const givenChangeRequest = (forkBase: ForkBase, editedAt: Date | null = null) =>
+    tx.changeRequest.findUniqueOrThrow.mockResolvedValue({ id: 'cr-1', number: 1, status: 'IN_REVIEW', branchId: 'cr', forkBase, editedAt });
 
   it('writes an edited page onto the same main row and records the merge', async () => {
     const main = page('m1');
@@ -159,13 +159,17 @@ describe('mergeChangeRequest', () => {
     ['below the required approvals', [{ authorId: 'r1', state: 'APPROVED' }], { config: { changeRequests: { requiredApprovals: 2 } } }],
     ['with an approval from a former member', [{ authorId: 'r1', state: 'APPROVED' }], { members: [] as string[] }],
     ['with an approval from a removed reviewer', [{ authorId: 'r1', state: 'APPROVED' }], { reviewers: [] as string[] }],
-  ])('refuses to merge %s', async (_label, reviews, options) => {
-    givenChangeRequest(null);
-    givenReviews(reviews, options);
-    givenPages([page('m1')], [page('b1')]);
-    await expect(mergeChangeRequest('p', 1, 'user-1', [])).rejects.toMatchObject({ status: 409, code: 'change_requests:review_required' });
-    expect(tx.branch.delete).not.toHaveBeenCalled();
-  });
+    ['with an approval older than the last page edit', [{ authorId: 'r1', state: 'APPROVED' }], { editedAt: new Date('2026-10-03T00:00:00Z') }],
+  ] as [string, { authorId: string; state: string }[], { reviewers?: string[]; members?: string[]; config?: unknown; editedAt?: Date }][])(
+    'refuses to merge %s',
+    async (_label, reviews, options) => {
+      givenChangeRequest(null, options.editedAt ?? null);
+      givenReviews(reviews, options);
+      givenPages([page('m1')], [page('b1')]);
+      await expect(mergeChangeRequest('p', 1, 'user-1', [])).rejects.toMatchObject({ status: 409, code: 'change_requests:review_required' });
+      expect(tx.branch.delete).not.toHaveBeenCalled();
+    },
+  );
 
   it('merges without reviews when the wiki requires none', async () => {
     givenChangeRequest(null);
@@ -225,5 +229,27 @@ describe('createBranch', () => {
     await createImportReplacementBranch('p', 'gitbook', true);
     expect(tx.changeRequest.create).not.toHaveBeenCalled();
     expect(tx.page.createMany.mock.calls[0]?.[0].data[0]).not.toHaveProperty('sourcePageId');
+  });
+});
+
+describe('outside contributors', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it(`refuse a contributor's change request beyond ${CONTRIBUTOR_OPEN_LIMIT} open ones`, async () => {
+    prisma.changeRequest.count.mockResolvedValue(CONTRIBUTOR_OPEN_LIMIT);
+    await expect(createChangeRequest('p', {}, { id: 'guest', name: 'Guest' }, { contributor: true })).rejects.toMatchObject({
+      status: 429,
+      code: 'change_requests:open_limit',
+    });
+    expect(prisma.changeRequest.count).toHaveBeenCalledWith({ where: { projectId: 'p', authorId: 'guest', status: { in: ['DRAFT', 'IN_REVIEW'] } } });
+    expect(tx.branch.create).not.toHaveBeenCalled();
+  });
+
+  it('cannot reopen their archived change request', async () => {
+    prisma.changeRequest.findUnique.mockResolvedValue({ id: 'cr-1', authorId: 'guest', status: 'ARCHIVED', branchId: 'cr' });
+    await expect(updateChangeRequest('p', 1, { status: 'DRAFT' }, 'guest')).rejects.toMatchObject({ status: 403 });
+    expect(prisma.changeRequest.updateMany).not.toHaveBeenCalled();
   });
 });

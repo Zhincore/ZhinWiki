@@ -161,7 +161,8 @@ export interface ChangeRequestDetail extends Omit<ChangeRequest, 'reviewers'> {
   mergedBy: ChangeRequestUser | null;
   changes: ChangeRequestPageChange[];
   conflicts: MergeConflict[];
-  reviewers: { user: ChangeRequestUser; state: Exclude<ChangeRequestReviewState, 'COMMENTED'> | null }[];
+  /** Reviewers who can still review; `awaiting` while asked (again) or their approval predates later edits. */
+  reviewers: { user: ChangeRequestUser; state: Exclude<ChangeRequestReviewState, 'COMMENTED'> | null; awaiting: boolean }[];
   reviews: { id: string; author: ChangeRequestUser | null; state: ChangeRequestReviewState; body: string | null; createdAt: string }[];
   participants: ChangeRequestUser[];
   /** Merge gate: counts only current reviewers who can review. */
@@ -178,6 +179,8 @@ export interface ChangeRequestDiffSide {
   hidden: boolean;
   position: number;
   content: string;
+  config: Record<string, unknown> | null;
+  translationKey: string | null;
 }
 
 export interface ChangeRequestPageDiff {

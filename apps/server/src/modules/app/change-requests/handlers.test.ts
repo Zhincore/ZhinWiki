@@ -14,10 +14,16 @@ const state = vi.hoisted(() => ({
 }));
 
 const mocks = vi.hoisted(() => ({
+  createChangeRequest: vi.fn(async () => ({ id: 'cr' })),
   updateChangeRequest: vi.fn(async () => ({ id: 'cr' })),
   mergeChangeRequest: vi.fn(async () => ({ number: 1, title: 'Fix', authorId: 'author' })),
   listChangeRequests: vi.fn(async () => []),
-  submitReview: vi.fn(async () => ({ number: 1, title: 'Fix', authorId: 'author' })),
+  submitReview: vi.fn(
+    async (): Promise<{ changeRequest: { number: number; title: string; authorId: string }; previous: string | null }> => ({
+      changeRequest: { number: 1, title: 'Fix', authorId: 'author' },
+      previous: null,
+    }),
+  ),
   requestReview: vi.fn(async () => ({ number: 1, title: 'Fix', authorId: 'author' })),
   notifyChangeRequest: vi.fn(async () => undefined),
 }));
@@ -51,7 +57,7 @@ vi.mock('@/actions/projects', async (importOriginal) => ({
 }));
 
 vi.mock('@/actions/change-requests', () => ({
-  createChangeRequest: vi.fn(async () => ({ id: 'cr' })),
+  createChangeRequest: mocks.createChangeRequest,
   getChangeRequest: vi.fn(async () => ({ id: 'cr' })),
   getChangeRequestPageDiff: vi.fn(),
   listChangeRequests: mocks.listChangeRequests,
@@ -106,6 +112,10 @@ describe('outside contributors (shared tenancy)', () => {
     expect((await send('POST', '', {})).status).toBe(201);
     expect((await send('PATCH', '/1', { status: 'IN_REVIEW' })).status).toBe(200);
     expect(mocks.updateChangeRequest).toHaveBeenCalledWith('project', 1, { status: 'IN_REVIEW' }, 'user');
+    expect(mocks.createChangeRequest).toHaveBeenCalledWith('project', {}, expect.objectContaining({ id: 'user' }), {
+      locale: 'en',
+      contributor: true,
+    });
   });
 
   it('cannot merge, review or manage reviewers', async () => {
@@ -141,6 +151,11 @@ describe('members and platform roles', () => {
     Object.assign(state, patch);
     expect((await send('PATCH', '/1', { title: 'Renamed' })).status).toBe(200);
     expect(mocks.updateChangeRequest).toHaveBeenCalledWith('project', 1, { title: 'Renamed' }, undefined);
+    expect((await send('POST', '', {})).status).toBe(201);
+    expect(mocks.createChangeRequest).toHaveBeenCalledWith('project', {}, expect.objectContaining({ id: 'user' }), {
+      locale: 'en',
+      contributor: false,
+    });
     expect((await send('POST', '/1/reviews', { state: 'APPROVED' })).status).toBe(201);
     expect((await send('POST', '/1/merge', {})).status).toBe(200);
   });
@@ -167,6 +182,12 @@ describe('notifications', () => {
   ])('tells the author about a %s review', async (reviewState, event) => {
     await send('POST', '/1/reviews', { state: reviewState });
     expect(mocks.notifyChangeRequest).toHaveBeenCalledWith(expect.objectContaining({ event, recipients: ['author'] }));
+  });
+
+  it('does not notify when the verdict is unchanged', async () => {
+    mocks.submitReview.mockResolvedValueOnce({ changeRequest: { number: 1, title: 'Fix', authorId: 'author' }, previous: 'APPROVED' });
+    await send('POST', '/1/reviews', { state: 'APPROVED' });
+    expect(mocks.notifyChangeRequest).not.toHaveBeenCalled();
   });
 
   it('does not notify for a comment', async () => {

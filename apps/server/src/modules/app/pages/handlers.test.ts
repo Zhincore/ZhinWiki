@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   updatePage: vi.fn(async () => ({ id: 'page' })),
   deletePage: vi.fn(async () => ({ id: 'page' })),
   reorderPages: vi.fn(async () => []),
+  markEdited: vi.fn(async (_args: unknown) => ({ count: 1 })),
 }));
 
 vi.mock('@nibleaf/database', () => ({
@@ -33,8 +34,11 @@ vi.mock('@nibleaf/database', () => ({
     },
     changeRequest: {
       findMany: vi.fn(async ({ where }: { where: { branchId: { in: string[] } } }) =>
-        where.branchId.in.flatMap((id) => (id === 'cr' ? [{ authorId: 'user' }] : id === 'other-cr' ? [{ authorId: 'other' }] : [])),
+        where.branchId.in.flatMap((id) =>
+          id === 'cr' ? [{ id: 'cr-request', authorId: 'user' }] : id === 'other-cr' ? [{ id: 'other-request', authorId: 'other' }] : [],
+        ),
       ),
+      updateMany: mocks.markEdited,
     },
   },
 }));
@@ -104,6 +108,13 @@ describe('page writes on the default branch', () => {
     await expectLocked(await send('POST', '', { title: 'New', languageId: 'en', branchId: 'main' }));
     await expectLocked(await send('POST', '', { title: 'New', languageId: 'en', parentId: 'main-parent', branchId: 'cr' }));
     expect(mocks.createPage).not.toHaveBeenCalled();
+  });
+
+  it('marks the change request edited after each write, so earlier approvals go stale', async () => {
+    expect((await send('PATCH', '/cr-page', { title: 'Edited' })).status).toBe(200);
+    expect((await send('DELETE', '/cr-page')).status).toBe(200);
+    expect(mocks.markEdited).toHaveBeenCalledTimes(2);
+    expect(mocks.markEdited).toHaveBeenCalledWith({ where: { id: { in: ['cr-request'] } }, data: { editedAt: expect.any(Date) } });
   });
 
   it('creates pages in a change request', async () => {

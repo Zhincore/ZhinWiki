@@ -6,9 +6,11 @@ import type { CreateChangeRequestBody, UpdateChangeRequestBody } from '@nibleaf/
 import { AppError, conflict, forbidden, notFound } from '@/errors';
 import { assertNoTrackedChangeRequests, createBranch, getDefaultBranch } from './branches';
 import { type ForkBase, type MergedFields, type MergePage, type MergeRecordEntry, planMerge, summarizeChanges } from './change-request-merge';
-import { mergeReviewSummary, reviewSummary } from './change-request-reviews';
+import { capableReviewSummary, mergeReviewSummary, reviewCapableUserIds, reviewSummary } from './change-request-reviews';
 
 const MERGE_TIMEOUT_MS = 60_000;
+/** Open change requests one outside contributor may have per wiki. */
+export const CONTRIBUTOR_OPEN_LIMIT = 5;
 
 const mergePageSelect = {
   id: true,
@@ -44,37 +46,54 @@ const findChangeRequest = async (projectId: string, number: number) => {
 };
 
 const reviewInclude = {
-  reviewers: { select: { userId: true, requestedAt: true, user: userSelect }, orderBy: { requestedAt: 'asc' } },
+  reviewers: { select: { userId: true, requestedAt: true, addedAt: true, user: userSelect }, orderBy: { addedAt: 'asc' } },
   reviews: { select: { id: true, authorId: true, state: true, body: true, createdAt: true, author: userSelect }, orderBy: { createdAt: 'asc' } },
 } as const satisfies Prisma.ChangeRequestInclude;
 
-/** Change requests with each reviewer's id and whether they still owe a review. */
-export const listChangeRequests = async (projectId: string, status?: ChangeRequestStatus) => {
+/** Change requests with each reviewer who can still review and whether they owe a review. */
+export const listChangeRequests = async (projectId: string, organizationId: string, status?: ChangeRequestStatus) => {
   const rows = await prisma.changeRequest.findMany({
     where: { projectId, ...(status ? { status } : {}) },
     orderBy: { number: 'desc' },
     omit: internalColumns,
     include: {
       author: userSelect,
-      reviewers: { select: { userId: true, requestedAt: true } },
+      reviewers: { select: { userId: true, requestedAt: true, addedAt: true } },
       reviews: { select: { authorId: true, state: true, createdAt: true } },
     },
   });
+  const capable = await reviewCapableUserIds(organizationId, [...new Set(rows.flatMap((row) => row.reviewers.map((reviewer) => reviewer.userId)))]);
   return rows.map(({ reviewers, reviews, ...row }) => ({
     ...row,
-    reviewers: reviewSummary({ reviewers, reviews, required: 0 }).reviewers.map(({ userId, awaiting }) => ({ userId, awaiting })),
+    reviewers: reviewSummary({
+      reviewers: reviewers.filter((reviewer) => capable.has(reviewer.userId)),
+      reviews,
+      required: 0,
+      editedAt: row.editedAt,
+    }).reviewers.map(({ userId, awaiting }) => ({ userId, awaiting })),
   }));
 };
 
-/** Open a change request on a fresh copy of the default branch. */
+/** Open a change request on a fresh copy of the default branch; an outside
+ *  contributor only while they have fewer than `CONTRIBUTOR_OPEN_LIMIT` open. */
 export const createChangeRequest = async (
   projectId: string,
   body: CreateChangeRequestBody,
   author: { id: string; name: string },
-  locale?: Locale,
+  options: { locale?: Locale; contributor?: boolean } = {},
 ) => {
+  if (options.contributor) {
+    const open = await prisma.changeRequest.count({ where: { projectId, authorId: author.id, status: { in: ['DRAFT', 'IN_REVIEW'] } } });
+    if (open >= CONTRIBUTOR_OPEN_LIMIT) {
+      throw new AppError({
+        code: 'change_requests:open_limit',
+        message: `Contributors may have ${CONTRIBUTOR_OPEN_LIMIT} open change requests per wiki. Archive one first.`,
+        details: { limit: CONTRIBUTOR_OPEN_LIMIT },
+      });
+    }
+  }
   const branch = await createBranch(projectId, {
-    title: body.title?.trim() || defaultChangeRequestTitle(author.name, locale),
+    title: body.title?.trim() || defaultChangeRequestTitle(author.name, options.locale),
     description: body.description ?? null,
     authorId: author.id,
   });
@@ -101,15 +120,24 @@ export const getChangeRequest = async (projectId: string, number: number) => {
   });
   if (!changeRequest) throw notFound('changeRequest', { number });
   const { mergeRecord, forkBase, branch, project, reviewers, reviews, ...fields } = changeRequest;
-  const review = await mergeReviewSummary(prisma, changeRequest.id, project.organizationId, changeRequestPolicy(project.config).requiredApprovals);
-  const reviewerStates = reviewSummary({ reviewers, reviews, required: 0 }).reviewers;
+  const review = await capableReviewSummary(prisma, {
+    organizationId: project.organizationId,
+    reviewers,
+    reviews,
+    required: changeRequestPolicy(project.config).requiredApprovals,
+    editedAt: fields.editedAt,
+  });
+  const users = new Map(reviewers.map((reviewer) => [reviewer.userId, reviewer.user]));
   const participants = new Map<string, { id: string; name: string; image: string | null }>();
   for (const user of [fields.author, ...reviewers.map((reviewer) => reviewer.user), ...reviews.map((item) => item.author)]) {
     if (user) participants.set(user.id, user);
   }
   const rest = {
     ...fields,
-    reviewers: reviewers.map((reviewer, index) => ({ user: reviewer.user, state: reviewerStates[index]?.state ?? null })),
+    reviewers: review.reviewers.flatMap(({ userId, state, awaiting }) => {
+      const user = users.get(userId);
+      return user ? [{ user, state, awaiting }] : [];
+    }),
     reviews: reviews.map(({ authorId: _authorId, ...item }) => item),
     participants: [...participants.values()],
     review: { required: review.required, approvals: review.approvals, changesRequested: review.changesRequested, mergeable: review.mergeable },
@@ -142,6 +170,9 @@ export const updateChangeRequest = async (projectId: string, number: number, bod
     throw forbidden('Contributors change only their own change requests.');
   }
   const statusChange = body.status !== undefined && body.status !== changeRequest.status;
+  if (contributorId && statusChange && changeRequest.status === 'ARCHIVED') {
+    throw forbidden('Ask a member to reopen an archived change request.');
+  }
   if (statusChange) {
     if (changeRequest.status === 'MERGED') throw conflict('A merged change request cannot change status.');
     if (changeRequest.status === 'ARCHIVED' && !changeRequest.branchId) {
@@ -186,7 +217,7 @@ export const mergeChangeRequest = async (projectId: string, number: number, user
       if (changeRequest.status === 'ARCHIVED') throw conflict('Reopen this change request before merging it.');
       if (!changeRequest.branchId) throw conflict('This change request has no branch to merge.');
       const project = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { organizationId: true, config: true } });
-      const review = await mergeReviewSummary(tx, id, project.organizationId, changeRequestPolicy(project.config).requiredApprovals);
+      const review = await mergeReviewSummary(tx, changeRequest, project.organizationId, changeRequestPolicy(project.config).requiredApprovals);
       if (!review.mergeable) {
         throw new AppError({
           code: 'change_requests:review_required',
@@ -247,6 +278,8 @@ type DiffPage = {
   hidden: boolean;
   position: number;
   content: string;
+  config: unknown;
+  translationKey: string | null;
 };
 
 const diffSide = (page: DiffPage | null | undefined) =>
@@ -261,6 +294,8 @@ const diffSide = (page: DiffPage | null | undefined) =>
         hidden: page.hidden,
         position: page.position,
         content: page.content,
+        config: page.config,
+        translationKey: page.translationKey,
       }
     : null;
 

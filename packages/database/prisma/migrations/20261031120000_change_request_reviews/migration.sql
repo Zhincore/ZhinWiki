@@ -1,12 +1,16 @@
 -- CreateEnum
 CREATE TYPE "ChangeRequestReviewState" AS ENUM ('APPROVED', 'CHANGES_REQUESTED', 'COMMENTED');
 
+-- AlterTable
+ALTER TABLE "change_request" ADD COLUMN     "editedAt" TIMESTAMP(3);
+
 -- CreateTable
 CREATE TABLE "change_request_reviewer" (
     "changeRequestId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "requestedById" TEXT,
     "requestedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "addedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "change_request_reviewer_pkey" PRIMARY KEY ("changeRequestId","userId")
 );

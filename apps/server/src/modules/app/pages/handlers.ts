@@ -1,6 +1,6 @@
 import { createPageBody, listPagesQuery, reorderPagesBody, updatePageBody } from '@nibleaf/validators';
 import { Hono } from 'hono';
-import { assertBranchReadable, assertPagesEditable } from '@/actions/branches';
+import { assertBranchReadable, assertPagesEditable, markChangeRequestsEdited } from '@/actions/branches';
 import { createPage, deletePage, getPage, listPages, reorderPages, updatePage } from '@/actions/pages';
 import { assertProjectInOrg } from '@/actions/projects';
 import { getContextOrganizationIdOrThrow, getContextUserOrThrow, type HonoEnv, isContextContributor } from '@/lib/hono/context';
@@ -27,15 +27,18 @@ const app = new Hono<HonoEnv>()
   .post('/', ...pagesRoutes.create, validator('json', createPageBody), async (ctx) => {
     const projectId = await projectScope(ctx);
     const body = ctx.req.valid('json');
-    await assertPagesEditable(projectId, body.parentId ? { pageIds: [body.parentId] } : { branchId: body.branchId }, writer());
+    const edited = await assertPagesEditable(projectId, body.parentId ? { pageIds: [body.parentId] } : { branchId: body.branchId }, writer());
     const page = await createPage(projectId, body, getContextUserOrThrow().id);
+    await markChangeRequestsEdited(edited);
     return ctx.json({ data: page }, 201);
   })
   .post('/reorder', ...pagesRoutes.reorder, validator('json', reorderPagesBody), async (ctx) => {
     const projectId = await projectScope(ctx);
     const body = ctx.req.valid('json');
-    await assertPagesEditable(projectId, { pageIds: body.items.map((item) => item.id) }, writer());
-    return ctx.json({ data: await reorderPages(projectId, body) }, 200);
+    const edited = await assertPagesEditable(projectId, { pageIds: body.items.map((item) => item.id) }, writer());
+    const data = await reorderPages(projectId, body);
+    await markChangeRequestsEdited(edited);
+    return ctx.json({ data }, 200);
   })
   .get('/:id', ...pagesRoutes.get, async (ctx) => {
     const projectId = await projectScope(ctx);
@@ -45,14 +48,17 @@ const app = new Hono<HonoEnv>()
   })
   .patch('/:id', ...pagesRoutes.update, validator('json', updatePageBody), async (ctx) => {
     const projectId = await projectScope(ctx);
-    await assertPagesEditable(projectId, { pageIds: [ctx.req.param('id')] }, writer());
+    const edited = await assertPagesEditable(projectId, { pageIds: [ctx.req.param('id')] }, writer());
     const page = await updatePage(projectId, ctx.req.param('id'), ctx.req.valid('json'), getContextUserOrThrow().id);
+    await markChangeRequestsEdited(edited);
     return ctx.json({ data: page }, 200);
   })
   .delete('/:id', ...pagesRoutes.remove, async (ctx) => {
     const projectId = await projectScope(ctx);
-    await assertPagesEditable(projectId, { pageIds: [ctx.req.param('id')] }, writer());
-    return ctx.json({ data: await deletePage(projectId, ctx.req.param('id')) }, 200);
+    const edited = await assertPagesEditable(projectId, { pageIds: [ctx.req.param('id')] }, writer());
+    const data = await deletePage(projectId, ctx.req.param('id'));
+    await markChangeRequestsEdited(edited);
+    return ctx.json({ data }, 200);
   });
 
 export default app;

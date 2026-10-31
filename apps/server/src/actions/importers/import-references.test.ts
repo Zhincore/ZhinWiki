@@ -20,6 +20,10 @@ it('ignores references inside an image description', () => {
   expect(references('![a [b](c.md)](x.png)')).toEqual([{ value: 'x.png', image: true }]);
   expect(references('![outer ![inner](b.png)](a.png)')).toEqual([{ value: 'a.png', image: true }]);
   expect(references('![[[a](b.md)](c.md)](d.png)')).toEqual([{ value: 'd.png', image: true }]);
+  expect(references('![a [b](c.md)]()')).toEqual([]);
+  expect(references('![a ![b](inner.png)]( )')).toEqual([]);
+  expect(references('![a [b](c.md)](x.png (title))')).toEqual([{ value: 'x.png', image: true }]);
+  expect(references('![a [b](c.md)]( x.png )')).toEqual([{ value: 'x.png', image: true }]);
   expect(references('[![a [b](c.md)](x.png)](y.md)')).toEqual([
     { value: 'x.png', image: true },
     { value: 'y.md', image: false },
@@ -48,6 +52,16 @@ it('treats an escaped image marker as text', () => {
 it('rewrites nested references without moving the text around them', () => {
   const source = 'a [![Badge](b.png "t")](<c d.md>) e';
   expect(replaceImportReferences(source, markdownReferences(source), ({ value }) => value.toUpperCase())).toBe('a [![Badge](B.PNG "t")](<C D.MD>) e');
+});
+
+it('reads surrounding space and every title style', () => {
+  expect(references('[a]( b.md ) [c](d.md (t)) [e](<f g.md> "t") [h](i.md \'t\')').map(({ value }) => value)).toEqual([
+    'b.md',
+    'd.md',
+    'f g.md',
+    'i.md',
+  ]);
+  expect(references('[a](b.md "t\') [c](d.md ") [e](f.md g)')).toEqual([]);
 });
 
 it('treats everything inside a destination as that destination', () => {

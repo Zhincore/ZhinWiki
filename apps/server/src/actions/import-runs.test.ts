@@ -27,12 +27,20 @@ const db = vi.hoisted(() => {
   const active = (run: Run) => run.status === 'PENDING' || run.status === 'RUNNING';
   const matches = (
     run: Run,
-    where: { id?: string | { in: string[] }; projectId?: string; status?: string | { in: string[] }; updatedAt?: { lt: Date } },
+    where: {
+      id?: string | { in: string[] };
+      projectId?: string;
+      source?: string;
+      status?: string | { in: string[] };
+      updatedAt?: { lt?: Date; gte?: Date };
+    },
   ) =>
     (where.id === undefined || (typeof where.id === 'string' ? run.id === where.id : where.id.in.includes(run.id))) &&
     (where.projectId === undefined || run.projectId === where.projectId) &&
+    (where.source === undefined || run.source === where.source) &&
     (where.status === undefined || (typeof where.status === 'string' ? run.status === where.status : where.status.in.includes(run.status))) &&
-    (where.updatedAt === undefined || run.updatedAt < where.updatedAt.lt);
+    (where.updatedAt?.lt === undefined || run.updatedAt < where.updatedAt.lt) &&
+    (where.updatedAt?.gte === undefined || run.updatedAt >= where.updatedAt.gte);
   const apply = (run: Run, data: Partial<Run>) => Object.assign(run, data, { updatedAt: data.updatedAt ?? new Date() });
   return {
     PrismaClientKnownRequestError,
@@ -69,6 +77,7 @@ const db = vi.hoisted(() => {
       findMany: vi.fn(async ({ where }: { where: Parameters<typeof matches>[1] }) =>
         runs.filter((run) => matches(run, where)).map((run) => ({ ...run })),
       ),
+      count: vi.fn(async ({ where }: { where: Parameters<typeof matches>[1] }) => runs.filter((run) => matches(run, where)).length),
       findFirst: vi.fn(async ({ where }: { where: { projectId: string } }) => {
         const found = runs.filter((run) => run.projectId === where.projectId).at(-1);
         return found ? { ...found } : null;
@@ -151,10 +160,26 @@ describe('startImportRun', () => {
   it('refuses a second import of the same project while one is active', async () => {
     await startImportRun({ projectId: 'p1', userId: 'u1', source: 'mintlify', task: () => new Promise(() => undefined) });
 
-    await expect(startImportRun({ projectId: 'p1', userId: 'u1', source: 'ghost', task: async () => summary })).rejects.toThrow(/already running/);
+    await expect(startImportRun({ projectId: 'p1', userId: 'u1', source: 'ghost', task: async () => summary })).rejects.toMatchObject({
+      code: 'import:in_progress',
+      status: 409,
+    });
     await expect(startImportRun({ projectId: 'p2', userId: 'u1', source: 'ghost', task: async () => summary })).resolves.toMatchObject({
       status: 'PENDING',
     });
+  });
+
+  it('refuses a GitBook import while the instance runs its maximum, ignoring stale runs', async () => {
+    const pending = () => new Promise<typeof summary>(() => undefined);
+    await startImportRun({ projectId: 'p1', userId: 'u1', source: 'gitbook', task: pending });
+    await startImportRun({ projectId: 'p2', userId: 'u1', source: 'gitbook', task: pending });
+
+    await expect(startImportRun({ projectId: 'p3', userId: 'u1', source: 'gitbook', task: pending })).rejects.toMatchObject({ code: 'import:busy' });
+    await expect(startImportRun({ projectId: 'p3', userId: 'u1', source: 'mintlify', task: pending })).resolves.toMatchObject({ status: 'PENDING' });
+
+    await vi.waitFor(() => expect(db.runs[0]?.status).toBe('RUNNING'));
+    (db.runs[0] as Run).updatedAt = new Date(Date.now() - 3 * 60_000);
+    await expect(startImportRun({ projectId: 'p4', userId: 'u1', source: 'gitbook', task: pending })).resolves.toMatchObject({ status: 'PENDING' });
   });
 
   it('keeps a long import alive with a heartbeat', async () => {

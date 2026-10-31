@@ -34,6 +34,7 @@ const mem = vi.hoisted(() => ({
 
 vi.mock('@nibleaf/database', () => ({ prisma: { branch: { deleteMany: vi.fn(async () => ({ count: 1 })) } } }));
 vi.mock('../branches', () => ({
+  captureImportDraft: vi.fn(async () => 'snapshot'),
   createImportReplacementBranch: vi.fn(async () => ({ id: 'import-branch' })),
   promoteImportReplacementBranch: vi.fn(async () => ({})),
 }));
@@ -41,9 +42,11 @@ vi.mock('../projects', () => ({ assertProjectInOrg: vi.fn(async () => ({ id: 'pr
 vi.mock('../assets', () => ({ findImportedAsset: vi.fn(async () => ({ url: 'https://cdn.example/stored.png' })), storeAsset: vi.fn() }));
 vi.mock('./github', () => ({
   getGitHubDefaultBranch: async () => 'main',
-  listGitHubFiles: async () => [...mem.repoFiles.keys()].map((path) => ({ path, type: 'blob' as const })),
-  getGitHubTextFile: async (_owner: string, _name: string, _branch: string, path: string) =>
-    mem.failing.has(path) ? null : (mem.repoFiles.get(path) ?? null),
+  getGitHubSnapshot: async () => ({ revision: 'pinned-commit', files: [...mem.repoFiles.keys()].map((path) => ({ path, type: 'blob' as const })) }),
+  getGitHubTextFile: async (_owner: string, _name: string, _branch: string, path: string) => {
+    expect(_branch).toBe('pinned-commit');
+    return mem.failing.has(path) ? null : (mem.repoFiles.get(path) ?? null);
+  },
   githubRawUrl: (_owner: string, _name: string, _branch: string, path: string) =>
     `https://raw.githubusercontent.com/acme/docs/main/${path.split('/').map(encodeURIComponent).join('/')}`,
 }));
@@ -90,7 +93,7 @@ describe('gitbook importer', () => {
     mem.repoFiles.set('.gitbook.yaml', 'root: ./docs/\nredirects:\n  old-setup: guides/setup.md\n');
     mem.repoFiles.set(
       'docs/SUMMARY.md',
-      '# Table of contents\n\n* [Welcome](README.md)\n\n## Guides\n\n* [Guides](guides/README.md)\n  * [Setup](guides/setup.md "Set up")\n* [Missing](missing.md)\n',
+      '# Table of contents\n\n* [Welcome](README.md)\n\n## Guides\n\n* [Guides](guides/README.md)\n  * [Setup](guides/setup.md "Set up")\n',
     );
     mem.repoFiles.set('docs/README.md', '---\ndescription: Start here\n---\n\n# Welcome\n\nSee [setup](guides/setup.md#install).\n');
     mem.repoFiles.set('docs/guides/README.md', '# Guides\n\n{% content-ref url="setup.md" %}\n[setup.md](setup.md)\n{% endcontent-ref %}\n');
@@ -103,8 +106,7 @@ describe('gitbook importer', () => {
 
     const summary = await runImport();
 
-    expect(summary).toMatchObject({ imported: 3, updated: 0, skipped: 1, assetsImported: 0, assetsSkipped: 0 });
-    expect(summary.warnings).toContain('SUMMARY.md page "missing.md" was not found in the repository.');
+    expect(summary).toMatchObject({ imported: 3, updated: 0, skipped: 0, assetsImported: 0, assetsSkipped: 0 });
     expect(page('welcome')).toMatchObject({ parentId: null, title: 'Welcome', description: 'Start here', position: 0 });
     expect(page('welcome')?.content).toBe('See [setup](/guides/setup#install).');
 
@@ -123,9 +125,14 @@ describe('gitbook importer', () => {
       '<Warning>\n\nBack up first.\n\n</Warning>\n\n<Frame caption="The screen">\n\n![Screen](https://cdn.example/stored.png)\n\n</Frame>\n\nContact support.',
     );
 
-    expect(promoteImportReplacementBranch).toHaveBeenCalledWith('project', 'import-branch', {
-      redirects: [{ from: '/old-setup', to: '/guides/setup' }],
-    });
+    expect(promoteImportReplacementBranch).toHaveBeenCalledWith(
+      'project',
+      'import-branch',
+      {
+        redirects: [{ from: '/old-setup', to: '/guides/setup' }],
+      },
+      'snapshot',
+    );
   });
 
   it('infers navigation from folders when SUMMARY.md is absent', async () => {
@@ -146,12 +153,8 @@ describe('gitbook importer', () => {
     mem.repoFiles.set('broken.md', '# Broken\n');
     mem.failing.add('broken.md');
 
-    const summary = await runImport();
-
-    expect(summary).toMatchObject({ imported: 1, skipped: 1 });
-    expect(summary.warnings).toContain('Could not download "broken.md" — the page and its children were skipped.');
-    expect(page('home')?.content).toBe('See [broken](broken.md).');
-    expect(promoteImportReplacementBranch).toHaveBeenCalledWith('project', 'import-branch', undefined);
+    await expect(runImport({ replaceExisting: true })).rejects.toThrow(/source content is missing/);
+    expect(promoteImportReplacementBranch).not.toHaveBeenCalled();
   });
 
   it('rejects repositories without any GitBook content', async () => {
@@ -159,4 +162,49 @@ describe('gitbook importer', () => {
     await expect(runImport()).rejects.toThrow(/GitBook Git Sync repository/);
     expect(promoteImportReplacementBranch).not.toHaveBeenCalled();
   });
+});
+
+it.each([true, false])('does not promote when all source pages fail (replace=%s)', async (replaceExisting) => {
+  mem.repoFiles.set('README.md', '# Home');
+  mem.failing.add('README.md');
+  await expect(runImport({ replaceExisting })).rejects.toThrow(/source content is missing/);
+  expect(promoteImportReplacementBranch).not.toHaveBeenCalled();
+});
+
+it('does not promote when reusable source is unavailable', async () => {
+  mem.repoFiles.set('README.md', '# Home\n\n{% include "missing.md" %}');
+  await expect(runImport({ replaceExisting: true })).rejects.toThrow(/source content is missing/);
+  expect(promoteImportReplacementBranch).not.toHaveBeenCalled();
+});
+
+it('does not promote when SUMMARY references an absent source file', async () => {
+  mem.repoFiles.set('SUMMARY.md', '* [Absent](absent.md)');
+  await expect(runImport({ replaceExisting: true })).rejects.toThrow(/source content is missing/);
+  expect(promoteImportReplacementBranch).not.toHaveBeenCalled();
+});
+
+it('stops include budget overruns before promotion', async () => {
+  mem.repoFiles.set('README.md', `# Home\n\n${'{% include "part.md" %}'.repeat(10_001)}`);
+  mem.repoFiles.set('part.md', 'text');
+  await expect(runImport({ replaceExisting: true })).rejects.toThrow(/include budget/);
+  expect(promoteImportReplacementBranch).not.toHaveBeenCalled();
+});
+
+it('rejects an oversized expanded page before conversion or promotion', async () => {
+  mem.repoFiles.set('README.md', '# Home\n\n{% include "part.md" %}{% include "part.md" %}');
+  mem.repoFiles.set('part.md', 'x'.repeat(1024 * 1024 + 1));
+  await expect(runImport()).rejects.toMatchObject({ code: 'import:limit', details: { path: 'README.md' } });
+  expect(mem.rows).toHaveLength(0);
+  expect(promoteImportReplacementBranch).not.toHaveBeenCalled();
+});
+it('names a missing navigation file', async () => {
+  mem.repoFiles.set('SUMMARY.md', '* [Missing](missing.md)');
+  await expect(runImport()).rejects.toMatchObject({ details: { path: 'missing.md' } });
+});
+
+it('reports the unchanged navigation limit before promotion', async () => {
+  for (let index = 0; index < 501; index++) mem.repoFiles.set(`p${index}.md`, `# Page ${index}`);
+  mem.repoFiles.set('SUMMARY.md', Array.from({ length: 501 }, (_, index) => `* [Page ${index}](p${index}.md)`).join('\n'));
+  await expect(runImport()).rejects.toMatchObject({ code: 'import:limit', details: { limit: 500 } });
+  expect(promoteImportReplacementBranch).not.toHaveBeenCalled();
 });

@@ -1,6 +1,6 @@
 import { type ImportRun, Prisma, prisma } from '@nibleaf/database';
 import { logger } from '@nibleaf/logger';
-import { AppError, conflict } from '@/errors';
+import { AppError } from '@/errors';
 import { trackProjectEvent } from './analytics';
 import type { ImportSummary, importers } from './importers';
 import { createNotificationsForOrgMembers } from './notifications';
@@ -10,6 +10,8 @@ const HEARTBEAT_MS = 30_000;
 /** A run whose heartbeat is older than this died with its process (restart, crash). */
 const STALE_MS = 2 * 60_000;
 const ACTIVE_STATUSES = ['PENDING', 'RUNNING'] as const;
+/** GitBook imports are the heaviest; at most this many run instance-wide. */
+const MAX_ACTIVE_GITBOOK_IMPORTS = 2;
 
 const STALE_ERROR = 'The import stopped unexpectedly (the server may have restarted). Start it again.';
 const UNEXPECTED_ERROR = 'The import failed unexpectedly. Try again shortly.';
@@ -126,7 +128,8 @@ const executeImportRun = async (run: ImportRun, task: () => Promise<ImportSummar
 /**
  * Record an import run and start it in the background, so the request returns
  * at once and a long import is not bound to the browser's request timeout. A
- * second import of the same project is refused while one is active.
+ * second import of the same project is refused while one is active, and a
+ * GitBook import while the instance already runs its maximum.
  */
 export const startImportRun = async (options: {
   projectId: string;
@@ -135,12 +138,24 @@ export const startImportRun = async (options: {
   task: () => Promise<ImportSummary>;
 }): Promise<ImportRunView> => {
   await failStaleImportRuns(options.projectId);
+  if (options.source === 'gitbook') {
+    const activeGitbook = await prisma.importRun.count({
+      where: { source: 'gitbook', status: { in: [...ACTIVE_STATUSES] }, updatedAt: { gte: new Date(Date.now() - STALE_MS) } },
+    });
+    if (activeGitbook >= MAX_ACTIVE_GITBOOK_IMPORTS) {
+      throw new AppError({ code: 'import:busy', message: 'Import capacity is busy. Try again shortly.' });
+    }
+  }
   let run: ImportRun;
   try {
     run = await prisma.importRun.create({ data: { projectId: options.projectId, source: options.source, createdById: options.userId } });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      throw conflict('An import is already running for this project. Wait for it to finish, then try again.', { projectId: options.projectId });
+      throw new AppError({
+        code: 'import:in_progress',
+        message: 'An import is already running for this project. Wait for it to finish, then try again.',
+        details: { projectId: options.projectId },
+      });
     }
     throw error;
   }

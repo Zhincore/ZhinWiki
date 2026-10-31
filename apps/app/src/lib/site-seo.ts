@@ -1,6 +1,7 @@
 import { markdownAlternateUrl } from '@nibleaf/shared/markdown-discovery';
 import { isPublicMarkdownPage } from '@nibleaf/shared/public-markdown';
 import type { ProjectConfig, SitePage, SiteShell } from '@/hooks/api/types';
+import { hydratedCustomDomainProjectId } from '@/lib/custom-domain-rewrite';
 import { publicUrls } from '@/lib/public-urls';
 
 /**
@@ -8,7 +9,7 @@ import { publicUrls } from '@/lib/public-urls';
  * configured app URL during SSR. (Per-site custom domains are handled separately.)
  */
 function publicOrigin(): string {
-  return typeof window === 'undefined' ? publicUrls().appUrl : window.location.origin;
+  return typeof window === 'undefined' ? new URL(publicUrls().appUrl).origin : window.location.origin;
 }
 
 /** Inputs for resolving a site's ONE canonical base URL. */
@@ -47,6 +48,9 @@ export function canonicalSiteBase(projectId: string, options: SiteUrlOptions = {
   }
   if (options.requestOrigin) {
     return options.requestOrigin;
+  }
+  if (hydratedCustomDomainProjectId() === projectId) {
+    return publicOrigin();
   }
   return `${publicOrigin()}/sites/${projectId}`;
 }
@@ -140,7 +144,8 @@ function ogLocale(code?: string): string | undefined {
 export function sitePageUrl(projectId: string, path: string, lang?: string, options?: SiteUrlOptions): string {
   const clean = path ? `/${path.replace(/^\/+/, '')}` : '';
   const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
-  return `${canonicalSiteBase(projectId, options)}${clean}${query}`;
+  const url = `${canonicalSiteBase(projectId, options)}${clean}${query}`;
+  return path ? new URL(url).href : url;
 }
 
 /** Changelog RSS URL derived from its page URL without corrupting a language

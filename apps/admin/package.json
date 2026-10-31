@@ -1,7 +1,7 @@
 {
   "name": "@nibleaf/admin",
   "license": "AGPL-3.0-only",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -40,6 +40,6 @@
     "@vitejs/plugin-react": "6.1.2",
     "oxc-transform-react": "0.152.0",
     "typescript": "^7.0.2",
-    "vite": "8.2.2"
+    "vite": "8.2.4"
   }
 }

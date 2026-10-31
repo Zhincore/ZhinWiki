@@ -20,6 +20,7 @@ import {
   useLatestImportRun,
 } from '@/hooks/api';
 import { ApiResponseError } from '@/hooks/api/client-helpers';
+import { importMayStillRun } from './import-errors';
 import { SettingsSection } from './section';
 
 /** Matches the server-side body cap for Ghost exports. */
@@ -205,6 +206,32 @@ export function ImportTab({ projectId }: { projectId?: string }) {
   const openGitSettings = () =>
     navigate({ to: '/app/projects/$projectId/settings', params: { projectId: projectId ?? '' }, search: { section: 'git' } });
   const handleError = (error: unknown) => {
+    if (error instanceof ApiResponseError) {
+      if (error.code === 'import:in_progress') {
+        toast.error(t('settings.import.inProgress'));
+        return;
+      }
+      if (error.code === 'import:busy') {
+        toast.error(t('settings.import.busy'));
+        return;
+      }
+      if (error.code === 'import:incomplete') {
+        toast.error(`${t('settings.import.incomplete')}${error.path ? ` (${error.sourceFile ? `${error.sourceFile}: ` : ''}${error.path})` : ''}`);
+        return;
+      }
+      if (error.code === 'import:limit') {
+        toast.error(error.limit === undefined ? t('settings.import.limit') : t('settings.import.nodeLimit', { limit: error.limit }));
+        return;
+      }
+      if (error.status === 409) {
+        toast.error(t('settings.import.conflict'));
+        return;
+      }
+    }
+    if (!(error instanceof ImportFileReadError) && importMayStillRun(error)) {
+      toast.error(t('settings.import.mayStillRun'), { duration: 20_000 });
+      return;
+    }
     if (error instanceof ApiResponseError && error.code === 'import:invalid_document') {
       toast.error(source === 'ghost' ? t('settings.import.ghost.invalidJson') : t('settings.import.error'));
       return;

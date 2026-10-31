@@ -1,7 +1,7 @@
 {
   "name": "@nibleaf/app",
   "license": "AGPL-3.0-only",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -84,7 +84,7 @@
     "tldts": "7.4.11",
     "turndown": "^7.2.4",
     "turndown-plugin-gfm": "^1.0.2",
-    "zod": "^4.5.4"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@inlang/paraglide-js": "2.25.0",
@@ -98,7 +98,7 @@
     "jsdom": "^30.0.1",
     "oxc-transform-react": "0.152.0",
     "typescript": "^7.0.2",
-    "vite": "8.2.2",
+    "vite": "8.2.4",
     "yaml": "2.9.0"
   }
 }

@@ -38,6 +38,7 @@ const cases={
  'angle remote images':()=>remoteImageSources(fill('![a](<b)')),
  'crossed destinations':()=>remoteImageSources(crossed('x')),
  'crossed blank destinations':()=>remoteImageSources(crossed(' ')),
+ 'nested image descriptions':()=>{const depth=Math.floor(size/6);return remoteImageSources('!['.repeat(depth)+'](b)'.repeat(depth));},
  'icon class word':()=>convert('<i class="fa-'+fill('a')),
  'icon class run':()=>convert(fill('<i class="fa-a ')),
  'shared code restore':()=>{const input=fill('\u0060x\u0060 ');const code=protectMarkdownCode(input);if(code.restore(code.content)!==input)throw new Error('restore mismatch');},
@@ -104,6 +105,7 @@ const cases = [
   'angle remote images',
   'crossed destinations',
   'crossed blank destinations',
+  'nested image descriptions',
   'icon class word',
   'icon class run',
 ];

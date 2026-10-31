@@ -22,13 +22,21 @@ export const markdownReferences = (source: string): ImportReference[] => {
     else if (character === '(') parentheses.push(index);
     else if (character === ')' && parentheses.length) destinations.set(parentheses.pop() ?? 0, index);
   }
+  // Text inside an image description is alt text, so nothing nested there is a reference.
+  // Labels nest, so walking them from the last end only needs the earliest image start.
+  const altText = new Set<number>();
+  let imageStart = Number.POSITIVE_INFINITY;
+  for (const [labelEnd, label] of [...labels].reverse()) {
+    if (label > imageStart) altText.add(labelEnd);
+    else if (source[label - 1] === '!' && destinations.has(labelEnd + 1)) imageStart = label;
+  }
   const references: ImportReference[] = [];
   // Walking label ends keeps an image inside a link label, and reading each
   // destination once keeps nested or crossed pairs linear and non-overlapping.
   let scanned = 0;
   for (const [labelEnd, label] of labels) {
     const end = destinations.get(labelEnd + 1);
-    if (end === undefined || labelEnd < scanned) continue;
+    if (end === undefined || labelEnd < scanned || altText.has(labelEnd)) continue;
     scanned = end;
     const image = label > 0 && source[label - 1] === '!';
     let start = labelEnd + 2;

@@ -11,6 +11,21 @@ it('reads an image inside a link label before the link itself', () => {
   expect(remoteImageSources('[![Badge](https://x.io/b.png)](https://x.io)')).toEqual(['https://x.io/b.png']);
 });
 
+it('ignores references inside an image description', () => {
+  expect(references('![a [b](c.md)](x.png)')).toEqual([{ value: 'x.png', image: true }]);
+  expect(references('![outer ![inner](b.png)](a.png)')).toEqual([{ value: 'a.png', image: true }]);
+  expect(references('[![a [b](c.md)](x.png)](y.md)')).toEqual([
+    { value: 'x.png', image: true },
+    { value: 'y.md', image: false },
+  ]);
+  expect(references('![a](b.png) [c](d.md) ![e](f.png)')).toHaveLength(3);
+});
+
+it('keeps a link inside brackets that never became an image', () => {
+  expect(references('![a [b](c.md)] d')).toEqual([{ value: 'c.md', image: false }]);
+  expect(references('![a [b](c.md)](d')).toEqual([{ value: 'c.md', image: false }]);
+});
+
 it('rewrites nested references without moving the text around them', () => {
   const source = 'a [![Badge](b.png "t")](<c d.md>) e';
   expect(replaceImportReferences(source, markdownReferences(source), ({ value }) => value.toUpperCase())).toBe('a [![Badge](B.PNG "t")](<C D.MD>) e');

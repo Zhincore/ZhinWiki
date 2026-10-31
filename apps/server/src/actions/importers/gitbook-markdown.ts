@@ -354,6 +354,9 @@ export const convertGitBookMarkdown = (source: string, context: GitBookConversio
   const protectedCode = protectMarkdownCode(applyCodeAnnotations(source.replace(/\r\n/g, '\n')), {
     maxFenceIndent: Number.POSITIVE_INFINITY,
   });
+  if (!protectedCode.content.includes('{%') && !protectedCode.content.includes('<')) {
+    return { content: protectedCode.restore(protectedCode.content.replace(/\n{3,}/g, '\n\n')).trim(), warnings: [] };
+  }
   const tokens = liquidTokens(protectedCode.content);
   const pairs = liquidPairs(tokens);
   const output: string[] = [];

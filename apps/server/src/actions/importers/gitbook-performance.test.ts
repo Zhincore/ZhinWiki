@@ -101,7 +101,7 @@ it.each(cases)(
   },
   25_000,
 );
-it.skipIf(process.env.GITBOOK_SHARED_RESTORE_READY !== '1').each(['shared code restore', 'pipeline code restore'])(
+it.each(['shared code restore', 'pipeline code restore'])(
   'processes two MiB: %s',
   async (name) => {
     const elapsed = await measure(name);

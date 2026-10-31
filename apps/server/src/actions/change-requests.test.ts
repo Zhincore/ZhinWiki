@@ -72,8 +72,11 @@ const later = new Date('2026-10-02T00:00:00Z');
 /** Reviewers `r1…` with their latest reviews; `members` are the ids still able to review. */
 const givenReviews = (
   reviews: { authorId: string; state: string }[],
-  { reviewers = reviews.map((review) => review.authorId), members = reviewers, config = null as unknown } = {},
+  options: { reviewers?: string[]; members?: string[]; config?: unknown } = {},
 ) => {
+  const reviewers = options.reviewers ?? reviews.map((review) => review.authorId);
+  const members = options.members ?? reviewers;
+  const config = options.config ?? null;
   tx.project.findUniqueOrThrow.mockResolvedValue({ organizationId: 'org', config });
   tx.changeRequestReviewer.findMany.mockResolvedValue(reviewers.map((userId) => ({ userId, requestedAt: requested })));
   tx.changeRequestReview.findMany.mockResolvedValue(reviews.map((review) => ({ ...review, createdAt: later })));
@@ -145,7 +148,14 @@ describe('mergeChangeRequest', () => {
 
   it.each([
     ['without reviews', [], {}],
-    ['while a reviewer requests changes', [{ authorId: 'r1', state: 'APPROVED' }, { authorId: 'r2', state: 'CHANGES_REQUESTED' }], {}],
+    [
+      'while a reviewer requests changes',
+      [
+        { authorId: 'r1', state: 'APPROVED' },
+        { authorId: 'r2', state: 'CHANGES_REQUESTED' },
+      ],
+      {},
+    ],
     ['below the required approvals', [{ authorId: 'r1', state: 'APPROVED' }], { config: { changeRequests: { requiredApprovals: 2 } } }],
     ['with an approval from a former member', [{ authorId: 'r1', state: 'APPROVED' }], { members: [] as string[] }],
     ['with an approval from a removed reviewer', [{ authorId: 'r1', state: 'APPROVED' }], { reviewers: [] as string[] }],

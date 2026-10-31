@@ -41,7 +41,7 @@ function ReviewStateBadge({ state }: { state: ChangeRequestReviewState }) {
   );
 }
 
-export function UserAvatar({ user }: { user: ChangeRequestUser }) {
+function UserAvatar({ user }: { user: ChangeRequestUser }) {
   return (
     <Avatar size="sm">
       {user.image ? <AvatarImage alt="" src={user.image} /> : null}

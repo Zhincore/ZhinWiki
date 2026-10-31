@@ -34,7 +34,7 @@ describe('NotificationsTab', () => {
     await act(async () => root.render(<NotificationsTab projectId="project-1" />));
 
     const switches = [...container.querySelectorAll<HTMLElement>('[role="switch"]')];
-    expect(switches).toHaveLength(7);
+    expect(switches).toHaveLength(10);
     for (const control of switches) {
       const labelId = control.getAttribute('aria-labelledby');
       const descriptionId = control.getAttribute('aria-describedby');

@@ -36,7 +36,7 @@ export const reviewSummary = ({ reviewers, reviews, required }: { reviewers: rea
 };
 
 /** The subset of `userIds` with review rights on the organization's wiki: members, and platform editors/admins in shared tenancy. */
-export const reviewCapableUserIds = async (organizationId: string, userIds: readonly string[], client: Prisma.TransactionClient = prisma) => {
+const reviewCapableUserIds = async (organizationId: string, userIds: readonly string[], client: Prisma.TransactionClient = prisma) => {
   if (userIds.length === 0) return new Set<string>();
   const users = await client.user.findMany({
     where: { id: { in: [...userIds] }, suspendedAt: null },

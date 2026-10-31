@@ -11,7 +11,7 @@ import { ENTITY_SENTENCE } from '@/lib/marketing-seo';
  */
 
 /** Date the competitor pricing pages were last checked. */
-export const AS_OF = 'August 17, 2026';
+export const AS_OF = 'October 30, 2026';
 
 export type FeatureValue = 'yes' | 'no' | 'partial' | 'planned' | 'unknown';
 
@@ -124,7 +124,7 @@ export const nibleafProductLimitations = [
   'Live multi-user co-editing is not currently available.',
   'SAML/SCIM is not currently available.',
   'Adaptive content is not currently available.',
-  'Grounded answers require optional operator-configured providers and explicit project opt-in; they are not part of the v0.1.2 self-hosted artifact.',
+  'Grounded answers require an operator-configured AI provider key and explicit project opt-in; self-hosted releases include them from v0.2.0.',
 ] as const;
 
 const mintlifyPricing: PricingTable = {
@@ -140,7 +140,7 @@ const mintlifyPricing: PricingTable = {
     },
     {
       plan: 'Pro',
-      price: '$450/month',
+      price: '$450/month billed annually',
       includes: 'Everything in Starter, plus agent, assistant, automations, preview deployments, and admin APIs.',
     },
     {
@@ -165,14 +165,14 @@ const gitbookPricing: PricingTable = {
       includes: '1 user. Block-based editor, GitHub & GitLab sync, API playgrounds, preview deployments. No custom domain.',
     },
     {
-      plan: 'Premium',
-      price: '$65 per site/month + $12 per user/month',
-      includes: 'Custom domain, AI search, advanced branding, analytics & user feedback, site redirects.',
+      plan: 'Essential',
+      price: '$65 per site/month + $12 per user/month (billed annually)',
+      includes: 'Custom domain, AI search, analytics & user feedback, site redirects.',
     },
     {
       plan: 'Ultimate',
-      price: '$249 per site/month + $12 per user/month',
-      includes: 'Everything in Premium, plus AI assistant (500 answers included), authenticated access, adaptive content.',
+      price: '$249 per site/month + $12 per user/month (billed annually)',
+      includes: 'Everything in Essential, plus AI assistant, authenticated access, adaptive content.',
     },
     {
       plan: 'Enterprise',
@@ -180,7 +180,7 @@ const gitbookPricing: PricingTable = {
       includes: 'SAML SSO, white-glove migration, custom integrations, dedicated support.',
     },
   ],
-  note: 'Annual billing is advertised as “2 months free”. Auto-updating translations are a paid add-on: $25 for the first 50,000 words, then $0.20 per 1,000 words.',
+  note: 'GitBook shows all amounts as monthly costs under annual billing, advertised as “2 months free”. Auto-updating translations are included in Ultimate.',
 };
 
 const readmePricing: PricingTable = {
@@ -197,12 +197,12 @@ const readmePricing: PricingTable = {
     {
       plan: 'Pro',
       price: '$250/month (billed annually)',
-      includes: 'Unlimited projects and versions, branching and reviews, private docs, changelog, recipes, custom MDX components.',
+      includes: '1 project, unlimited versions, branching and reviews, private docs, changelog, recipes, custom MDX components.',
     },
     {
       plan: 'Enterprise',
       price: 'Contact sales (annual billing)',
-      includes: 'SSO/OAuth, audit logs, user roles and access control, no ReadMe branding, dedicated support, and on-premise deployment options.',
+      includes: 'SSO/OAuth, audit logs, user roles and access control, no ReadMe branding, and dedicated support.',
     },
   ],
   note: '“Ask AI” is a separate add-on at $150/month.',
@@ -305,9 +305,7 @@ export const nibleafVsMintlify: Comparison = {
     },
     {
       feature: 'AI assistant & agent',
-      nibleaf: partial(
-        'Grounded answers and read-only MCP are in source main; provider setup is optional and the v0.1.2 artifact does not include them',
-      ),
+      nibleaf: partial('Self-hosted v0.2.0 includes grounded answers, which need an AI provider key, and read-only MCP, which is off by default'),
       competitor: yes('Pro plan, metered by credits'),
     },
     { feature: 'SSO / SCIM / organization audit logs', nibleaf: planned(), competitor: yes('Enterprise plan') },
@@ -346,7 +344,7 @@ export const nibleafVsMintlify: Comparison = {
     },
     {
       q: 'How much does Mintlify cost?',
-      a: 'As of August 17, 2026, Mintlify has a free Starter plan, Pro at $450/month, and custom-priced Enterprise. AI features are metered with credits — 10,000/month included, then $0.01 per credit. See mintlify.com/pricing for current numbers.',
+      a: 'As of October 30, 2026, Mintlify has a free Starter plan, Pro at $450/month billed annually, and custom-priced Enterprise. AI features are metered with credits — 10,000/month included, then $0.01 per credit. See mintlify.com/pricing for current numbers.',
     },
     {
       q: 'Can I migrate docs from Mintlify to Nibleaf?',
@@ -388,7 +386,7 @@ export const nibleafVsGitbook: Comparison = {
     {
       feature: 'Custom domain on the free plan',
       nibleaf: yes('Included in the free beta'),
-      competitor: no('From Premium — $65 per site/month'),
+      competitor: no('From Essential — $65 per site/month, billed annually'),
     },
     {
       feature: 'No per-seat fees',
@@ -400,7 +398,11 @@ export const nibleafVsGitbook: Comparison = {
       nibleaf: yes('Built in from day one'),
       competitor: partial('Paragraphs and headings auto-align; GitBook says other RTL contribution blocks are not fully supported'),
     },
-    { feature: 'Built-in analytics', nibleaf: yes('Included, privacy-friendly'), competitor: partial('From Premium') },
+    {
+      feature: 'Built-in analytics',
+      nibleaf: yes('Included, privacy-friendly'),
+      competitor: partial('Page views on every plan; search analytics and feedback from Essential'),
+    },
     {
       feature: 'Markdown export & portability',
       nibleaf: yes('Plain Markdown, take it anywhere'),
@@ -425,8 +427,8 @@ export const nibleafVsGitbook: Comparison = {
     },
     {
       feature: 'AI search & assistant',
-      nibleaf: partial('Optional hybrid retrieval and grounded answers are in source main; they require operator configuration and project opt-in'),
-      competitor: yes('Search from Premium; assistant from Ultimate'),
+      nibleaf: partial('Optional hybrid retrieval and grounded answers ship in v0.2.0; they need Qdrant, an AI provider key, and project opt-in'),
+      competitor: yes('AI search from Essential; chat assistant from Ultimate'),
     },
     { feature: 'SAML SSO', nibleaf: planned(), competitor: yes('Enterprise plan') },
   ],
@@ -442,25 +444,24 @@ export const nibleafVsGitbook: Comparison = {
   pickNibleaf: {
     title: 'When to pick Nibleaf',
     reasons: [
-      'You want a custom domain without paying $65 per site/month plus $12 per user/month (GitBook Premium pricing as of August 17, 2026).',
+      'You want a custom domain without paying $65 per site/month plus $12 per user/month (GitBook Essential pricing, billed annually, as of October 30, 2026).',
       'You need the full editor, publishing pipeline, and reader to be deployable together. GitBook self-hosts only its published-site renderer.',
       'You need complete Arabic/RTL authoring support; GitBook says only paragraphs and headings currently auto-align reliably.',
       'You want your content to stay plain Markdown you can export and move any time.',
-      'You want built-in analytics without upgrading to a paid tier.',
     ],
   },
   verdict: [
     'GitBook is a capable hosted product with git sync, API playgrounds, and preview deployments on the free plan, plus reader authentication and AI features on higher tiers. Its published-site renderer is open source and can be self-hosted, but GitBook says that path is not recommended or supported and it does not include the hosted workspace and editor.',
-    'Nibleaf Cloud covers WYSIWYG editing over Markdown, versioned publishing, search, custom domains, analytics, Arabic/RTL, GitHub pull-request previews, private readers, and Scalar OpenAPI references. Source main also includes optional hybrid retrieval, grounded answers, and read-only MCP, but the published v0.1.2 self-hosted artifact does not. If you need two-way GitLab sync, adaptive content, a fully operated hosted assistant, or SAML today, GitBook is the safer fit.',
+    'Nibleaf Cloud covers WYSIWYG editing over Markdown, versioned publishing, search, custom domains, analytics, Arabic/RTL, GitHub pull-request previews, private readers, and Scalar OpenAPI references. Self-hosted v0.2.0 also includes optional hybrid retrieval, which needs Qdrant, grounded answers, which need an AI provider key, and read-only MCP, which is off by default. If you need two-way GitLab sync, adaptive content, a fully operated hosted assistant, or SAML today, GitBook is the safer fit.',
   ],
   faqs: [
     {
       q: 'Is Nibleaf a good alternative to GitBook?',
-      a: 'It can be for teams that want a block-style editor over Markdown, Arabic/RTL support, full-stack self-hosting, GitHub pull-request previews, and private readers. Nibleaf includes custom domains and analytics in its free cloud beta, while GitBook gates custom domains behind Premium at $65 per site/month plus $12 per user/month as of August 17, 2026. GitBook is ahead on GitLab sync, adaptive content, AI features, and enterprise SSO.',
+      a: 'It can be for teams that want a block-style editor over Markdown, Arabic/RTL support, full-stack self-hosting, GitHub pull-request previews, and private readers. Nibleaf includes custom domains and analytics in its free cloud beta, while GitBook gates custom domains behind Essential at $65 per site/month plus $12 per user/month, billed annually, as of October 30, 2026. GitBook is ahead on GitLab sync, adaptive content, AI features, and enterprise SSO.',
     },
     {
       q: 'How much does GitBook cost?',
-      a: 'As of August 17, 2026: Free ($0, 1 user, no custom domain), Premium at $65 per site/month plus $12 per user/month, Ultimate at $249 per site/month plus $12 per user/month, and custom-priced Enterprise with SAML SSO. Annual billing is advertised as two months free. See gitbook.com/pricing for current numbers.',
+      a: 'As of October 30, 2026: Free ($0, 1 user, no custom domain), Essential at $65 per site/month plus $12 per user/month, Ultimate at $249 per site/month plus $12 per user/month, and custom-priced Enterprise with SAML SSO. Amounts are monthly costs under annual billing, which is advertised as two months free. See gitbook.com/pricing for current numbers.',
     },
     {
       q: 'Can I self-host GitBook?',
@@ -511,7 +512,9 @@ export const nibleafVsDocusaurus: Comparison = {
     },
     {
       feature: 'Built-in search',
-      nibleaf: partial('Built-in Orama path; optional Qdrant hybrid path is in source main but not the v0.1.2 artifact'),
+      nibleaf: partial(
+        'Built-in Orama path; optional self-hosted hybrid path from v0.2.0 that needs Qdrant, an AI provider key, and an evaluated cutover',
+      ),
       competitor: partial('Typically the Algolia integration or community plugins'),
     },
     {
@@ -594,7 +597,7 @@ const nibleafAlternativeEntry = (_vs: string): AlternativeEntry => ({
   name: 'Nibleaf',
   url: '/',
   isNibleaf: true,
-  description: `${ENTITY_SENTENCE} Full disclosure: Nibleaf is our product. Source main includes two-way GitHub authoring, pull-request previews, private reader access, Scalar-powered OpenAPI references, optional hybrid retrieval and grounded answers, and read-only MCP. It still lacks SAML/SCIM and adaptive content; the published v0.1.2 self-hosted artifact predates the latest capability set.`,
+  description: `${ENTITY_SENTENCE} Full disclosure: Nibleaf is our product. v0.2.0 includes two-way GitHub authoring, pull-request previews, private reader access, Scalar-powered OpenAPI references, optional hybrid retrieval and grounded answers, and read-only MCP, which is off by default. It still lacks SAML/SCIM and adaptive content.`,
   bestFor: 'Teams that want a managed browser editor, Markdown export, and first-class Arabic/RTL during the free cloud beta.',
 });
 
@@ -626,7 +629,7 @@ const gitbookEntry: AlternativeEntry = {
   name: 'GitBook',
   url: 'https://www.gitbook.com',
   description:
-    'Polished hosted docs platform with a block-based editor and GitHub/GitLab sync. Free for one user without a custom domain; custom domains from $65 per site/month plus $12 per user/month, as of August 17, 2026.',
+    'Polished hosted docs platform with a block-based editor and GitHub/GitLab sync. Free for one user without a custom domain; custom domains from $65 per site/month plus $12 per user/month, billed annually, as of October 30, 2026.',
   bestFor: 'Teams that want a managed, all-in-one docs tool and are happy with SaaS pricing.',
 };
 
@@ -634,7 +637,7 @@ const mintlifyEntry: AlternativeEntry = {
   name: 'Mintlify',
   url: 'https://www.mintlify.com',
   description:
-    'Managed documentation platform with a generous free Starter plan (custom domain, web editor, API playground) and paid Pro/Enterprise plans that add AI features, previews, SSO, and an Enterprise self-hosted custom frontend option, as of August 17, 2026.',
+    'Managed documentation platform with a generous free Starter plan (custom domain, web editor, API playground) and paid Pro/Enterprise plans that add AI features, previews, SSO, and an Enterprise self-hosted custom frontend option, as of October 30, 2026.',
   bestFor: 'API-heavy startup docs where AI tooling and an API playground matter most.',
 };
 
@@ -695,7 +698,7 @@ export const gitbookAlternatives: AlternativesRoundup = {
     },
     {
       q: 'What is the cheapest GitBook alternative with a custom domain?',
-      a: 'GitBook gates custom domains behind Premium at $65 per site/month plus $12 per user/month as of August 17, 2026. Nibleaf includes custom domains in its free cloud beta, and Mintlify’s free Starter plan includes one. Static generators support custom domains through the host you choose.',
+      a: 'GitBook gates custom domains behind Essential at $65 per site/month plus $12 per user/month, billed annually, as of October 30, 2026. Nibleaf includes custom domains in its free cloud beta, and Mintlify’s free Starter plan includes one. Static generators support custom domains through the host you choose.',
     },
     {
       q: 'Can I self-host a GitBook alternative?',
@@ -703,7 +706,7 @@ export const gitbookAlternatives: AlternativesRoundup = {
     },
     {
       q: 'What does Nibleaf lack compared to GitBook?',
-      a: 'As of August 2026, Nibleaf’s remaining gaps include two-way GitLab authoring, adaptive content, SAML SSO, and a published self-host image for the capabilities currently merged in source main. The source tree includes optional hybrid retrieval and grounded answers plus read-only MCP; providers and project opt-in remain explicit.',
+      a: 'For self-hosted v0.2.0, Nibleaf’s remaining gaps include two-way GitLab authoring, adaptive content, and SAML SSO. Self-hosted v0.2.0 includes optional hybrid retrieval and grounded answers plus read-only MCP; Qdrant, an AI provider key, and project opt-in remain explicit, and MCP is off by default.',
     },
   ],
 };
@@ -730,7 +733,7 @@ export const readmeAlternatives: AlternativesRoundup = {
     },
     {
       q: 'How much does ReadMe cost?',
-      a: 'As of August 17, 2026: a free Starter plan (1 project, API reference, custom domain), Pro at $250/month billed annually, and custom-priced Enterprise. The “Ask AI” add-on is $150/month. See readme.com/pricing for current numbers.',
+      a: 'As of October 30, 2026: a free Starter plan (1 project, API reference, custom domain), Pro at $250/month billed annually for 1 project, and custom-priced Enterprise. The “Ask AI” add-on is $150/month. See readme.com/pricing for current numbers.',
     },
     {
       q: 'Does Nibleaf have an interactive API reference like ReadMe?',

@@ -1,6 +1,10 @@
 import { posix } from 'node:path';
 import { closesMarkdownFence, type MarkdownFence, openingMarkdownFence, protectMarkdownCode } from '@nibleaf/shared/markdown-code';
 import { parse as parseYaml } from 'yaml';
+import { ImportError } from '../../errors';
+import { GitBookImportBudget } from './gitbook-budget';
+import { liquidPairs, liquidTokens, stripHeadingEnd } from './gitbook-tokens';
+import { markdownReferences, replaceImportReferences } from './import-references';
 
 /**
  * GitBook Git Sync Markdown → Nibleaf Markdown/MDX. GitBook stores its blocks
@@ -48,30 +52,67 @@ export const parseGitBookFrontmatter = (raw: string): { meta: GitBookPageMeta; b
 /** Lift a leading `# Title` out of the body: GitBook pages always open with
  * their title as an H1, which Nibleaf renders from the page title instead. */
 export const extractGitBookTitle = (body: string): { title?: string; body: string } => {
-  const match = body.match(/^\s*#[ \t]+(.+?)[ \t]*#*[ \t]*(?:\r?\n|$)/);
-  if (!match?.[1]) return { body };
-  const title = stripHtml(match[1]).trim();
-  return title ? { title, body: body.slice(match[0].length).replace(/^\s*\n/, '') } : { body };
+  const prefix = /^\s*#[ \t]+/.exec(body);
+  if (!prefix) return { body };
+  const newline = body.indexOf('\n', prefix[0].length);
+  const end = newline < 0 ? body.length : newline;
+  const title = plainGitBookText(stripHeadingEnd(body.slice(prefix[0].length, end))).trim();
+  if (!title) return { body };
+  const rest = body.slice(newline < 0 ? end : end + 1);
+  let blankEnd = 0;
+  for (let index = 0; index < rest.length; index++) {
+    if (rest[index] === '\n') blankEnd = index + 1;
+    else if (rest[index] !== ' ' && rest[index] !== '\t' && rest[index] !== '\r') break;
+  }
+  return { title, body: rest.slice(blankEnd) };
 };
 
 const tagAttributes = (source: string): Record<string, string> => {
   const attributes: Record<string, string> = {};
-  for (const match of source.matchAll(/([A-Za-z][\w-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"']+))/g)) {
-    if (match[1]) attributes[match[1]] = (match[2] ?? match[3] ?? match[4] ?? '').replace(/^<(.*)>$/, '$1');
+  const word = /[A-Za-z][\w-]*/y;
+  let cursor = 0;
+  while (cursor < source.length) {
+    if (!/[A-Za-z]/.test(source[cursor] ?? '')) {
+      cursor++;
+      continue;
+    }
+    word.lastIndex = cursor;
+    const name = word.exec(source)?.[0];
+    if (!name) {
+      cursor++;
+      continue;
+    }
+    cursor = word.lastIndex;
+    while (/\s/.test(source[cursor] ?? '')) cursor++;
+    if (source[cursor] !== '=') continue;
+    cursor++;
+    while (/\s/.test(source[cursor] ?? '')) cursor++;
+    const quote = source[cursor];
+    let value: string;
+    if (quote === '"' || quote === "'") {
+      const end = source.indexOf(quote, cursor + 1);
+      if (end < 0) break;
+      value = source.slice(cursor + 1, end);
+      cursor = end + 1;
+    } else {
+      const start = cursor;
+      while (cursor < source.length && !/[\s"']/.test(source[cursor] ?? '')) cursor++;
+      value = source.slice(start, cursor);
+    }
+    attributes[name] = value.startsWith('<') && value.endsWith('>') ? value.slice(1, -1) : value;
   }
   return attributes;
 };
 
 const htmlAttribute = (tag: string, name: string): string | undefined => {
-  const match = tag.match(new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i'));
-  const value = match?.[1] ?? match?.[2];
+  const value = Object.entries(tagAttributes(tag)).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1];
   return value === undefined ? undefined : decodeEntities(value);
 };
 
 const decodeEntities = (value: string): string =>
   value
-    .replace(/&#x([0-9a-f]+);/gi, (_match, hex: string) => String.fromCodePoint(Number.parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_match, decimal: string) => String.fromCodePoint(Number(decimal)))
+    .replace(/&#x([0-9a-f]+);/gi, (_match, hex: string) => String.fromCodePoint(Math.min(0x10_ff_ff, Number.parseInt(hex, 16))))
+    .replace(/&#(\d+);/g, (_match, decimal: string) => String.fromCodePoint(Math.min(0x10_ff_ff, Number(decimal))))
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&lt;/g, '<')
@@ -87,16 +128,54 @@ export const safeDecodeUri = (value: string): string => {
   }
 };
 
-const stripHtml = (value: string): string =>
-  decodeEntities(value.replace(/<[^>]*>/g, ''))
-    .replace(/\s+/g, ' ')
-    .trim();
+const HTML_TAGS = new Set(
+  'a abbr b blockquote br button caption code col colgroup dd del details div dl dt em figcaption figure h1 h2 h3 h4 h5 h6 hr i iframe img input ins label li ol p picture pre s script small source span strong style sub summary sup table tbody td th thead tr u ul video'.split(
+    ' ',
+  ),
+);
+
+export const plainGitBookText = (value: string): string => {
+  const decoded = decodeEntities(value);
+  const closingNames = new Set([...decoded.matchAll(/<\/([A-Za-z][\w-]*)>/g)].map((match) => match[1]?.toLowerCase()));
+  const text: string[] = [];
+  for (let index = 0; index < decoded.length; index++) {
+    if (decoded[index] === '<' && /[A-Za-z/!?]/.test(decoded[index + 1] ?? '')) {
+      const end = decoded.indexOf('>', index + 1);
+      if (end < 0) {
+        text.push(decoded.slice(index));
+        break;
+      }
+      const token = decoded.slice(index + 1, end);
+      // Preserve bare generic type names when they have no paired closing tag.
+      const name = /^\/?([A-Za-z][\w-]*)/.exec(token)?.[1]?.toLowerCase() ?? '';
+      const suffix = token.slice(name.length + (token.startsWith('/') ? 1 : 0)).trim();
+      const attributes =
+        !suffix ||
+        suffix === '/' ||
+        suffix.includes('=') ||
+        /^(?:data-[\w-]+|disabled|checked|hidden|open|selected|multiple|required)(?:\s+(?:data-[\w-]+|disabled|checked|hidden|open|selected|multiple|required))*$/.test(
+          suffix,
+        );
+      const valid = (attributes && /^\/?[A-Za-z][\w-]*(?:\s[^<>]*|\/)?$/.test(token)) || /^[!?][^<>]*$/.test(token);
+      if (!valid || (!HTML_TAGS.has(name) && !closingNames.has(name) && !token.startsWith('/') && !/^[!?]/.test(token))) {
+        text.push(decoded.slice(index, end + 1));
+      } else {
+        index = end;
+        continue;
+      }
+      index = end;
+    } else text.push(decoded[index] ?? '');
+  }
+  return text.join('').replace(/\s+/g, ' ').trim();
+};
 
 /** Attribute values are emitted inside double quotes on JSX-like tags. */
 const attr = (value: string): string => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
 /** Markdown image destination; angle brackets keep spaces/parentheses (common
  * in `.gitbook/assets/image (1).png`) intact for the asset pass. */
+const textChild = (value: string): string => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\{/g, '&#123;');
+
 const imageMarkdown = (alt: string, src: string): string =>
   `![${alt.replace(/[[\]\n]/g, ' ').trim()}](${/[\s()<>]/.test(src) ? `<${src.replace(/>/g, '%3E')}>` : src})`;
 
@@ -149,12 +228,14 @@ const applyCodeAnnotations = (content: string): string => {
       if (closesMarkdownFence(line, fence, Number.POSITIVE_INFINITY)) fence = undefined;
       continue;
     }
-    const code = line.match(/^\s*\{%-?\s*code\b(.*?)-?%\}\s*$/);
-    if (code) {
-      pendingTitle = tagAttributes(code[1] ?? '').title;
+    const tokens = liquidTokens(line);
+    const token = tokens.length === 1 ? tokens[0] : undefined;
+    const standalone = token && !line.slice(0, token.start).trim() && !line.slice(token.end).trim();
+    if (standalone && token.name === 'code') {
+      pendingTitle = tagAttributes(token.attributes).title;
       continue;
     }
-    if (/^\s*\{%-?\s*endcode\s*-?%\}\s*$/.test(line)) continue;
+    if (standalone && token.name === 'endcode') continue;
     const opening = openingMarkdownFence(line, Number.POSITIVE_INFINITY);
     if (opening) {
       fence = opening;
@@ -173,46 +254,96 @@ const applyCodeAnnotations = (content: string): string => {
   return output.join('\n');
 };
 
+const replaceHtmlBlocks = (
+  source: string,
+  opening: RegExp,
+  closing: string,
+  replace: (whole: string, inner: string, open: string, start: number) => string,
+): string => {
+  // ASCII only: lowercasing `İ` adds a code unit, which would shift every later offset.
+  const lower = source.replace(/[A-Z]+/g, (letters) => letters.toLowerCase());
+  const output: string[] = [];
+  const openings = [...source.matchAll(opening)];
+  let cursor = 0;
+  let end = -1;
+  for (let index = 0; index < openings.length; index++) {
+    const match = openings[index];
+    if (!match || match.index < cursor) continue;
+    const start = match.index + match[0].length;
+    if (end < start) end = lower.indexOf(closing, start);
+    if (end < 0) break;
+    if ((openings[index + 1]?.index ?? Number.POSITIVE_INFINITY) < end) continue;
+    output.push(
+      source.slice(cursor, match.index),
+      replace(source.slice(match.index, end + closing.length), source.slice(start, end), match[0], match.index),
+    );
+    cursor = end + closing.length;
+  }
+  output.push(source.slice(cursor));
+  return output.join('');
+};
+
 /** `<table data-view="cards">` is GitBook's card grid. Hidden columns carry the
  * link target (`data-card-target`) and cover (`data-card-cover`). */
 const convertCardTable = (table: string, context: GitBookConversionContext): string => {
-  const headers = [...table.matchAll(/<th\b([^>]*)>/gi)].map((match) => match[1] ?? '');
+  const headers = [...table.matchAll(/<th\b([^<>]*)>/gi)].map((match) => match[1] ?? '');
   const targetIndex = headers.findIndex((header) => /\bdata-card-target\b/i.test(header));
   const coverIndex = headers.findIndex((header) => /\bdata-card-cover\b/i.test(header));
   const hidden = new Set(headers.flatMap((header, index) => (/\bdata-hidden\b/i.test(header) ? [index] : [])));
-  const body = table.match(/<tbody\b[^>]*>([\s\S]*?)<\/tbody>/i)?.[1] ?? '';
+  let body = '';
+  replaceHtmlBlocks(table, /<tbody\b[^<>]*>/gi, '</tbody>', (_whole, inner) => {
+    body = inner;
+    return '';
+  });
   const cards: string[] = [];
-  for (const row of body.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
-    const cells = [...(row[1] ?? '').matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)].map((cell) => cell[1] ?? '');
-    const visible = cells.filter((_cell, index) => !hidden.has(index) && index !== targetIndex && index !== coverIndex).map(stripHtml);
+  replaceHtmlBlocks(body, /<tr\b[^<>]*>/gi, '</tr>', (_whole, row) => {
+    const cells: string[] = [];
+    replaceHtmlBlocks(row, /<td\b[^<>]*>/gi, '</td>', (_cell, inner) => {
+      cells.push(inner);
+      return '';
+    });
+    const visible = cells.filter((_cell, index) => !hidden.has(index) && index !== targetIndex && index !== coverIndex).map(plainGitBookText);
     const [title = '', ...rest] = visible.filter(Boolean);
     const target = targetIndex >= 0 ? htmlAttribute(cells[targetIndex] ?? '', 'href') : undefined;
     const coverReference = coverIndex >= 0 ? htmlAttribute(cells[coverIndex] ?? '', 'href') : undefined;
     const cover = coverReference ? (context.resolveFile(coverReference) ?? coverReference) : undefined;
-    const children = [cover ? imageMarkdown(title, cover) : '', rest.join('\n\n')].filter(Boolean).join('\n\n');
+    const children = [cover ? imageMarkdown(title, cover) : '', rest.map(textChild).join('\n\n')].filter(Boolean).join('\n\n');
     cards.push(`<Card title="${attr(title || 'Untitled')}"${target ? ` href="${attr(target)}"` : ''}>\n\n${children}\n\n</Card>`);
-  }
+    return '';
+  });
   return cards.length > 0 ? `\n<CardGroup cols="${Math.min(3, cards.length)}">\n\n${cards.join('\n\n')}\n\n</CardGroup>\n` : '';
 };
 
 /** Block images are `<figure>` (optionally with `<picture>` light/dark sources
  * and a `<figcaption>`). The light `<img>` is kept; a caption becomes a Frame. */
 const convertFigure = (figure: string): string => {
-  const images = [...figure.matchAll(/<img\b[^>]*>/gi)].flatMap((match) => {
+  const images = [...figure.matchAll(/<img\b[^<>]*>/gi)].flatMap((match) => {
     const src = htmlAttribute(match[0], 'src');
     return src ? [imageMarkdown(htmlAttribute(match[0], 'alt') ?? '', src)] : [];
   });
   if (images.length === 0) return figure;
-  const caption = stripHtml(figure.match(/<figcaption\b[^>]*>([\s\S]*?)<\/figcaption>/i)?.[1] ?? '');
+  let caption = '';
+  replaceHtmlBlocks(figure, /<figcaption\b[^<>]*>/gi, '</figcaption>', (_whole, inner) => {
+    caption = plainGitBookText(inner);
+    return '';
+  });
   const markdown = images.join('\n\n');
   return caption ? `\n<Frame caption="${attr(caption)}">\n\n${markdown}\n\n</Frame>\n` : `\n${markdown}\n`;
 };
 
+const firstLinkLabel = (source: string): string => {
+  const start = source.indexOf('[');
+  const end = start < 0 ? -1 : source.indexOf(']', start + 1);
+  return end < 0 ? '' : source.slice(start + 1, end);
+};
+
 /** First Markdown heading inside a step/update becomes its title attribute. */
 const liftHeading = (body: string): { title?: string; body: string } => {
-  const match = body.match(/^\s*#{1,6}[ \t]+(.+?)[ \t]*(?:\r?\n|$)/);
-  if (!match?.[1]) return { body };
-  return { title: stripHtml(match[1]), body: body.slice(match[0].length) };
+  const prefix = /^\s*#{1,6}[ \t]+/.exec(body);
+  if (!prefix) return { body };
+  const newline = body.indexOf('\n', prefix[0].length);
+  const end = newline < 0 ? body.length : newline;
+  return { title: plainGitBookText(stripHeadingEnd(body.slice(prefix[0].length, end))), body: body.slice(newline < 0 ? end : end + 1) };
 };
 
 /**
@@ -224,151 +355,169 @@ export const convertGitBookMarkdown = (source: string, context: GitBookConversio
   const protectedCode = protectMarkdownCode(applyCodeAnnotations(source.replace(/\r\n/g, '\n')), {
     maxFenceIndent: Number.POSITIVE_INFINITY,
   });
-  let content = protectedCode.content;
-  // `%` may appear inside attribute values (`{% column width="50%" %}`).
-  const tag = (name: string) => `\\{%-?\\s*${name}\\b((?:[^%]|%(?!\\}))*?)-?%\\}`;
-  // Body of a tag that may or may not be closed — never runs into another tag.
-  const optionalBody = (name: string) => `(?:((?:(?!\\{%)[\\s\\S])*?)${tag(name)})?`;
-  const re = (pattern: string, flags = 'g') => new RegExp(pattern, flags);
-
-  // Component tags sit on their own blank-line-separated lines so the Markdown
-  // between them is parsed as Markdown, not as raw HTML block content.
+  if (!protectedCode.content.includes('{%') && !protectedCode.content.includes('<')) {
+    return { content: protectedCode.restore(protectedCode.content.replace(/\n{3,}/g, '\n\n')).trim(), warnings: [] };
+  }
+  const tokens = liquidTokens(protectedCode.content);
+  const pairs = liquidPairs(tokens);
+  const output: string[] = [];
+  const hints: string[] = [];
   const block = (jsx: string) => `\n\n${jsx}\n\n`;
-
-  // Hints → callouts. A stack pairs each `endhint` with its own opener so
-  // nested hints of different styles close with the right component.
-  const hintStack: string[] = [];
-  content = content.replace(re(`${tag('hint')}|${tag('endhint')}`), (match, attributes: string | undefined) => {
-    if (/^\{%-?\s*endhint/.test(match)) return hintStack.length > 0 ? block(`</${hintStack.pop()}>`) : '';
-    const style = tagAttributes(attributes ?? '').style?.toLowerCase() ?? 'info';
-    const component = HINT_COMPONENT[style] ?? 'Info';
-    hintStack.push(component);
-    return block(`<${component}>`);
-  });
-  while (hintStack.length > 0) content += block(`</${hintStack.pop()}>`);
-
-  // Tabs, columns.
-  content = content
-    .replace(re(tag('tabs')), block('<Tabs>'))
-    .replace(re(tag('endtabs')), block('</Tabs>'))
-    .replace(re(tag('tab')), (_match, attributes: string) => block(`<Tab title="${attr(tagAttributes(attributes).title ?? 'Tab')}">`))
-    .replace(re(tag('endtab')), block('</Tab>'))
-    .replace(re(tag('columns')), block('<Columns>'))
-    .replace(re(tag('endcolumns')), block('</Columns>'))
-    .replace(re(tag('column')), block('<Column>'))
-    .replace(re(tag('endcolumn')), block('</Column>'));
-
-  // Stepper → Steps; each step's leading heading is its title.
-  content = content
-    .replace(re(tag('stepper')), block('<Steps>'))
-    .replace(re(tag('endstepper')), block('</Steps>'))
-    .replace(re(`${tag('step')}([\\s\\S]*?)${tag('endstep')}`), (_match, _attributes: string, inner: string) => {
-      const { title, body } = liftHeading(inner);
-      return `<Step${title ? ` title="${attr(title)}"` : ''}>\n\n${body.trim()}\n\n</Step>`;
-    });
-
-  // Updates → changelog entries labelled by date.
-  content = content
-    .replace(re(tag('updates')), '')
-    .replace(re(tag('endupdates')), '')
-    .replace(re(`${tag('update')}([\\s\\S]*?)${tag('endupdate')}`), (_match, attributes: string, inner: string) => {
-      const { title, body } = liftHeading(inner);
-      const label = tagAttributes(attributes).date ?? title ?? 'Update';
-      const description = title && title !== label ? ` description="${attr(title)}"` : '';
-      return `<Update label="${attr(label)}"${description}>\n\n${body.trim()}\n\n</Update>`;
-    });
-
-  // Page links (`{% content-ref %}`) → cards; the inner Markdown link is the label.
-  content = content.replace(re(`${tag('content-ref')}([\\s\\S]*?)${tag('endcontent-ref')}`), (_match, attributes: string, inner: string) => {
-    const url = tagAttributes(attributes).url ?? '';
-    const label = stripHtml(inner.match(/\[([^\]]*)\]/)?.[1] ?? '') || posix.basename(url).replace(/\.md$/i, '') || url;
-    return `\n<Card title="${attr(label)}" href="${attr(url)}"></Card>\n`;
-  });
-
-  // Embeds (videos, CodePen, …) have no iframe support → link cards.
-  content = content.replace(re(`${tag('embed')}${optionalBody('endembed')}`), (_match, attributes: string, inner?: string) => {
-    const url = tagAttributes(attributes).url ?? '';
-    if (!url) return '';
-    const host = URL.canParse(url) ? new URL(url).hostname.replace(/^www\./, '') : url;
-    const caption = inner?.trim() ?? '';
-    return `\n<Card title="${attr(caption ? stripHtml(caption) : host)}" href="${attr(url)}" icon="arrow-up-right-from-square"></Card>\n`;
-  });
-
-  // Downloadable files → link cards to the (migrated) file.
-  content = content.replace(re(`${tag('file')}${optionalBody('endfile')}`), (_match, attributes: string, inner?: string) => {
-    const src = tagAttributes(attributes).src ?? '';
-    if (!src) return '';
-    const href = context.resolveFile(src);
-    if (!href) warnings.add(`File "${src}" could not be found in the repository; the link was kept as-is.`);
-    const name = safeDecodeUri(posix.basename(src.split(/[?#]/)[0] ?? src));
-    const caption = inner?.trim() ?? '';
-    return `\n<Card title="${attr(name)}" href="${attr(href ?? src)}" icon="file">\n\n${caption}\n\n</Card>\n`;
-  });
-
-  // OpenAPI / Swagger blocks reference a spec by URL; keep a pointer to it.
-  content = content.replace(
-    re(
-      `${tag('(?:swagger|openapi|openapi-operation|openapi-webhook)')}([\\s\\S]*?)${tag('end(?:swagger|openapi|openapi-operation|openapi-webhook)')}`,
-    ),
-    (_match, attributes: string) => {
-      const { src, spec, path = '', method = '' } = tagAttributes(attributes);
-      warnings.add('OpenAPI blocks were converted to links — import the specification under API reference to render it.');
-      const title = `${method.toUpperCase()} ${path}`.trim() || 'API reference';
-      return `\n<Card title="${attr(title)}"${src ? ` href="${attr(src)}"` : ''} icon="code">\n\n${spec ? `OpenAPI specification: ${spec}` : ''}\n\n</Card>\n`;
-    },
-  );
-  content = content.replace(re(`${tag('openapi-schemas')}[\\s\\S]*?${tag('endopenapi-schemas')}`), () => {
-    warnings.add('OpenAPI blocks were converted to links — import the specification under API reference to render it.');
-    return '';
-  });
-
-  // Adaptive content: no visitor claims exist here, so every branch is kept.
-  content = content.replace(re(`${tag('(?:if|elsif|else)')}`), () => {
-    warnings.add('Adaptive-content conditions ({% if %}) were removed; all conditional content is now visible to every reader.');
-    return '';
-  });
-  content = content.replace(re(tag('endif')), '');
-  content = content.replace(re(tag('prompt')), '').replace(re(tag('endprompt')), '');
-
-  // Anything left is a block GitBook added that we do not know — unwrap it.
-  content = content.replace(/\{%-?\s*(end)?([\w-]+)\b(?:[^%]|%(?!\}))*?-?%\}/g, (_match, _end: string | undefined, name: string) => {
-    if (!KNOWN_TAGS.has(name)) warnings.add(`Unsupported GitBook block "{% ${name} %}" was removed; its content was kept.`);
-    return '';
-  });
+  const simple: Record<string, string> = {
+    tabs: '<Tabs>',
+    endtabs: '</Tabs>',
+    endtab: '</Tab>',
+    columns: '<Columns>',
+    endcolumns: '</Columns>',
+    column: '<Column>',
+    endcolumn: '</Column>',
+    stepper: '<Steps>',
+    endstepper: '</Steps>',
+  };
+  const openapi = new Set(['swagger', 'openapi', 'openapi-operation', 'openapi-webhook', 'openapi-schemas']);
+  let cursor = 0;
+  for (let index = 0; index < tokens.length; index++) {
+    const token = tokens[index];
+    if (!token || token.start < cursor) continue;
+    output.push(protectedCode.content.slice(cursor, token.start));
+    cursor = token.end;
+    const attributes = tagAttributes(token.attributes);
+    const pairIndex = pairs.get(index);
+    const closing = pairIndex !== undefined && pairIndex > index ? tokens[pairIndex] : undefined;
+    const inner = closing ? protectedCode.content.slice(token.end, closing.start) : '';
+    if (token.name === 'hint') {
+      const component = HINT_COMPONENT[attributes.style?.toLowerCase() ?? 'info'] ?? 'Info';
+      hints.push(component);
+      output.push(block(`<${component}>`));
+    } else if (token.name === 'endhint') {
+      if (hints.length) output.push(block(`</${hints.pop()}>`));
+    } else if (simple[token.name]) output.push(block(simple[token.name] ?? ''));
+    else if (token.name === 'tab') output.push(block(`<Tab title="${attr(attributes.title ?? 'Tab')}">`));
+    else if ((token.name === 'step' || token.name === 'update') && closing) {
+      const heading = liftHeading(inner);
+      const label = attributes.date ?? heading.title ?? 'Update';
+      const component =
+        token.name === 'step'
+          ? `<Step${heading.title ? ` title="${attr(heading.title)}"` : ''}>`
+          : `<Update label="${attr(label)}"${heading.title && heading.title !== label ? ` description="${attr(heading.title)}"` : ''}>`;
+      output.push(block(component));
+      cursor += inner.length - heading.body.length;
+    } else if ((token.name === 'endstep' || token.name === 'endupdate') && pairIndex !== undefined) {
+      output.push(block(token.name === 'endstep' ? '</Step>' : '</Update>'));
+    } else if (token.name === 'content-ref' && closing) {
+      const url = attributes.url ?? '';
+      const label = plainGitBookText(firstLinkLabel(inner)) || posix.basename(url).replace(/\.md$/i, '') || url;
+      output.push(`\n<Card title="${attr(label)}" href="${attr(url)}"></Card>\n`);
+      cursor = closing.end;
+      index = pairIndex ?? index;
+    } else if (token.name === 'embed' || token.name === 'file') {
+      // Optional captions contain prose only, ending at the immediately following closer.
+      const caption = pairIndex === index + 1 ? inner.trim() : '';
+      if (pairIndex === index + 1 && closing) {
+        cursor = closing.end;
+        index = pairIndex;
+      }
+      if (token.name === 'embed') {
+        const url = attributes.url ?? '';
+        if (url) {
+          const host = URL.canParse(url) ? new URL(url).hostname.replace(/^www\./, '') : url;
+          output.push(
+            `\n<Card title="${attr(caption ? plainGitBookText(caption) : host)}" href="${attr(url)}" icon="arrow-up-right-from-square"></Card>\n`,
+          );
+        }
+      } else {
+        const src = attributes.src ?? '';
+        if (src) {
+          const href = context.resolveFile(src);
+          if (!href) warnings.add(`File "${src}" could not be found in the repository; the link was kept as-is.`);
+          const name = safeDecodeUri(posix.basename(src.split(/[?#]/)[0] ?? src));
+          output.push(`\n<Card title="${attr(name)}" href="${attr(href ?? src)}" icon="file">\n\n${caption}\n\n</Card>\n`);
+        }
+      }
+    } else if (openapi.has(token.name) && closing) {
+      warnings.add('OpenAPI blocks were converted to links ? import the specification under API reference to render it.');
+      if (token.name !== 'openapi-schemas') {
+        const { src, spec, path = '', method = '' } = attributes;
+        const title = `${method.toUpperCase()} ${path}`.trim() || 'API reference';
+        output.push(
+          `\n<Card title="${attr(title)}"${src ? ` href="${attr(src)}"` : ''} icon="code">\n\n${spec ? `OpenAPI specification: ${spec}` : ''}\n\n</Card>\n`,
+        );
+      }
+      cursor = closing.end;
+      index = pairIndex ?? index;
+    } else if (['if', 'elsif', 'else'].includes(token.name)) {
+      warnings.add('Adaptive-content conditions ({% if %}) were removed; all conditional content is now visible to every reader.');
+    } else {
+      const name = token.name.startsWith('end') ? token.name.slice(3) : token.name;
+      if (!KNOWN_TAGS.has(name)) warnings.add(`Unsupported GitBook block "{% ${name} %}" was removed; its content was kept.`);
+    }
+  }
+  output.push(protectedCode.content.slice(cursor));
+  while (hints.length) output.push(block(`</${hints.pop()}>`));
+  let content = output.join('');
 
   // HTML conventions.
+  content = replaceHtmlBlocks(content, /<table\b[^<>]*>/gi, '</table>', (table, _inner, open) =>
+    /\bdata-view\s*=\s*["']cards["']/i.test(open) ? convertCardTable(table, context) : table,
+  );
+  content = replaceHtmlBlocks(content, /<div\b[^<>]*>/gi, '</div>', (whole, inner) => (/^\s*<(?:figure|img)\b/i.test(inner) ? inner : whole));
+  content = replaceHtmlBlocks(content, /<figure\b[^<>]*>/gi, '</figure>', convertFigure);
+  content = replaceHtmlBlocks(content, /<picture\b[^<>]*>/gi, '</picture>', (picture) => {
+    const image = picture.match(/<img\b[^<>]*>/i)?.[0];
+    const src = image ? htmlAttribute(image, 'src') : undefined;
+    return src && image ? imageMarkdown(htmlAttribute(image, 'alt') ?? '', src) : picture;
+  });
+  content = content.replace(/<img\b[^<>]*>/gi, (image) => {
+    const src = htmlAttribute(image, 'src');
+    return src ? imageMarkdown(htmlAttribute(image, 'alt') ?? '', src) : image;
+  });
+  content = replaceHtmlBlocks(content, /<details\b[^<>]*>/gi, '</details>', (whole, inner) => {
+    let title: string | undefined;
+    const body = replaceHtmlBlocks(inner, /<summary\b[^<>]*>/gi, '</summary>', (_whole, summary) => {
+      title ??= plainGitBookText(summary) || 'Details';
+      return '';
+    });
+    return title === undefined ? whole : `\n<Accordion title="${attr(title)}">\n\n${body.trim()}\n\n</Accordion>\n`;
+  });
   content = content
-    .replace(/<table\b[^>]*\bdata-view\s*=\s*["']cards["'][^>]*>[\s\S]*?<\/table>/gi, (table) => convertCardTable(table, context))
-    .replace(/<div\b[^>]*>\s*(<figure\b[\s\S]*?<\/figure>|<img\b[^>]*>)\s*<\/div>/gi, '$1')
-    .replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, convertFigure)
-    .replace(/<picture\b[^>]*>[\s\S]*?<\/picture>/gi, (picture) => {
-      const image = picture.match(/<img\b[^>]*>/i)?.[0];
-      const src = image ? htmlAttribute(image, 'src') : undefined;
-      return src && image ? imageMarkdown(htmlAttribute(image, 'alt') ?? '', src) : picture;
+    .split('\n')
+    .map((line) => {
+      const prefix = /^(#{1,6})[ \t]+/.exec(line);
+      if (!prefix) return line;
+      const end = line.trimEnd().length;
+      let leading = false;
+      let trailing = false;
+      const result = replaceHtmlBlocks(line, /<a\b[^<>]*>/gi, '</a>', (whole, inner, open, start) => {
+        if (htmlAttribute(open, 'id') === undefined || inner.trim()) return whole;
+        if (start === prefix[0].length) {
+          leading = true;
+          return '';
+        }
+        if (start + whole.length === end) {
+          trailing = true;
+          return '';
+        }
+        return whole;
+      });
+      if (leading) return `${prefix[1]} ${result.slice(prefix[0].length).trimStart()}`;
+      return trailing ? result.trimEnd() : result;
     })
-    .replace(/<img\b[^>]*>/gi, (image) => {
-      const src = htmlAttribute(image, 'src');
-      return src ? imageMarkdown(htmlAttribute(image, 'alt') ?? '', src) : image;
-    })
-    .replace(
-      /<details\b[^>]*>\s*<summary\b[^>]*>([\s\S]*?)<\/summary>([\s\S]*?)<\/details>/gi,
-      (_match, summary: string, inner: string) =>
-        `\n<Accordion title="${attr(stripHtml(summary) || 'Details')}">\n\n${inner.trim()}\n\n</Accordion>\n`,
-    )
-    // Heading anchors GitBook appends: `## Title <a href="#title" id="title"></a>`.
-    .replace(/^(#{1,6}[ \t].*?)[ \t]*<a\b[^>]*\bid\s*=\s*["'][^"']*["'][^>]*>[ \t]*<\/a>[ \t]*$/gm, '$1')
-    .replace(/^(#{1,6})[ \t]+<a\b[^>]*\bid\s*=\s*["'][^"']*["'][^>]*>[ \t]*<\/a>[ \t]*/gm, '$1 ')
-    // Buttons: `<a href="…" class="button primary" data-icon="…">Label</a>`.
-    .replace(/<a\b([^>]*\bclass\s*=\s*["'][^"']*\bbutton\b[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi, (_match, attributes: string, label: string) => {
-      const href = htmlAttribute(`<a ${attributes}>`, 'href') ?? '#';
-      const variant = /\bsecondary\b/.test(htmlAttribute(`<a ${attributes}>`, 'class') ?? '') ? 'secondary' : 'primary';
-      return `<Button href="${attr(href)}" variant="${variant}">${stripHtml(label)}</Button>`;
-    })
+    .join('\n');
+  content = replaceHtmlBlocks(content, /<a\b[^<>]*>/gi, '</a>', (whole, label, open) => {
+    const classes = htmlAttribute(open, 'class') ?? '';
+    if (!/\bbutton\b/.test(classes)) return whole;
+    const href = htmlAttribute(open, 'href') ?? '#';
+    const variant = /\bsecondary\b/.test(classes) ? 'secondary' : 'primary';
+    const child = textChild(plainGitBookText(label));
+    return `<Button href="${attr(href)}" variant="${variant}">${child}</Button>`;
+  });
+  content = content
     // Inline icons: `<i class="fa-rocket">:rocket:</i>`.
-    .replace(
-      /<i\b[^>]*\bclass\s*=\s*["'](?:fa[a-z]?\s+)?fa-([\w-]+)[^"']*["'][^>]*>[^<]*<\/i>/gi,
-      (_match, icon: string) => `<Icon icon="${attr(icon)}" />`,
-    );
+    .replace(/<i\b[^<>]*>[^<]*<\/i>/gi, (match) => {
+      const tag = match.slice(0, match.indexOf('>') + 1);
+      const icon = /^(?:fa[a-z]?\s+)?fa-([\w-]+)/i.exec(htmlAttribute(tag, 'class') ?? '')?.[1];
+      return icon ? `<Icon icon="${attr(icon)}" />` : match;
+    });
 
   content = content.replace(/\n{3,}/g, '\n\n');
   return { content: protectedCode.restore(content).trim(), warnings: [...warnings] };
@@ -383,9 +532,7 @@ export const findGitBookSpaceLinks = (content: string): string[] => {
   return [...new Set(prose.match(GITBOOK_SPACE_LINK) ?? [])];
 };
 
-const INCLUDE = /\{%-?\s*include\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s*-?%\}/g;
 const MAX_INCLUDE_DEPTH = 5;
-const REFERENCE_DESTINATION = /(\]\()(<[^>\n]+>|(?:[^\s()]|\([^\s()]*\))+)/g;
 const REFERENCE_ATTRIBUTE = /(\b(?:src|href|url)\s*=\s*)(["'])([^"'\n]*)\2/gi;
 
 /** Re-point a relative reference written in `fromDirectory` so it resolves the same from `toDirectory`. */
@@ -403,14 +550,12 @@ const rebaseGitBookReferences = (content: string, fromDirectory: string, toDirec
   if (fromDirectory === toDirectory) return content;
   const rebase = (reference: string) => rebaseReference(reference, fromDirectory, toDirectory);
   const protectedCode = protectMarkdownCode(content, { maxFenceIndent: Number.POSITIVE_INFINITY });
+  const rewritten = replaceImportReferences(protectedCode.content, markdownReferences(protectedCode.content), (reference) => rebase(reference.value));
   return protectedCode.restore(
-    protectedCode.content
-      .replace(
-        REFERENCE_DESTINATION,
-        (_match, before: string, destination: string) =>
-          `${before}${destination.startsWith('<') ? `<${rebase(destination.slice(1, -1))}>` : rebase(destination)}`,
-      )
-      .replace(REFERENCE_ATTRIBUTE, (_match, before: string, quote: string, reference: string) => `${before}${quote}${rebase(reference)}${quote}`),
+    rewritten.replace(
+      REFERENCE_ATTRIBUTE,
+      (_match, before: string, quote: string, reference: string) => `${before}${quote}${rebase(reference)}${quote}`,
+    ),
   );
 };
 
@@ -428,29 +573,54 @@ export const expandGitBookIncludes = async (
   load: (path: string) => Promise<string | null>,
   warnings: string[],
   stack: readonly string[] = [sourceFile],
+  budget = new GitBookImportBudget(),
 ): Promise<string> => {
   const protectedCode = protectMarkdownCode(content, { maxFenceIndent: Number.POSITIVE_INFINITY });
-  const matches = [...protectedCode.content.matchAll(INCLUDE)];
+  const matches = liquidTokens(protectedCode.content).filter((token) => token.name === 'include');
   if (matches.length === 0) return content;
-  const replacements = await Promise.all(
-    matches.map(async (match) => {
-      const reference = match[1] ?? match[2] ?? match[3] ?? '';
-      const path = resolve(reference, sourceFile);
-      if (!path) {
-        warnings.push(`Reusable content "${reference}" referenced from ${sourceFile} was not found.`);
-        return '';
-      }
-      if (stack.includes(path) || stack.length > MAX_INCLUDE_DEPTH) {
-        warnings.push(`Reusable content "${path}" includes itself or nests too deeply — the nested include was skipped.`);
-        return '';
-      }
-      const raw = await load(path);
-      if (raw === null) return '';
-      const { body } = parseGitBookFrontmatter(raw);
-      const expanded = await expandGitBookIncludes(body.trim(), path, resolve, load, warnings, [...stack, path]);
-      return rebaseGitBookReferences(expanded, posix.dirname(path), posix.dirname(sourceFile));
-    }),
-  );
-  let index = 0;
-  return protectedCode.restore(protectedCode.content.replace(INCLUDE, () => replacements[index++] ?? ''));
+  const replacements: string[] = [];
+  for (const match of matches) {
+    budget.include();
+    const argument = match.attributes;
+    const quote = argument[0];
+    const end = quote === '"' || quote === "'" ? argument.indexOf(quote, 1) : argument.search(/\s/);
+    const reference = argument.slice(quote === '"' || quote === "'" ? 1 : 0, end < 0 ? undefined : end);
+    const path = resolve(reference, sourceFile);
+    if (!path) {
+      throw new ImportError({
+        code: 'import:incomplete',
+        message: 'GitBook source content is missing; the draft was preserved.',
+        details: { path: reference.slice(0, 200), sourceFile },
+      });
+    }
+    if (stack.includes(path)) {
+      warnings.push(`Reusable content "${path}" includes itself or nests too deeply — the nested include was skipped.`);
+      replacements.push('');
+      continue;
+    }
+    if (stack.length > MAX_INCLUDE_DEPTH)
+      throw new ImportError({ code: 'import:limit', message: 'GitBook import exceeded its include depth budget; the draft was preserved.' });
+    const raw = await load(path);
+    if (raw === null)
+      throw new ImportError({
+        code: 'import:incomplete',
+        message: 'GitBook source content is missing; the draft was preserved.',
+        details: { path: reference.slice(0, 200), sourceFile },
+      });
+    const { body } = parseGitBookFrontmatter(raw);
+    const expanded = await expandGitBookIncludes(body.trim(), path, resolve, load, warnings, [...stack, path], budget);
+    const rebased = rebaseGitBookReferences(expanded, posix.dirname(path), posix.dirname(sourceFile));
+    budget.expansion(rebased);
+    replacements.push(rebased);
+  }
+  const output: string[] = [];
+  let cursor = 0;
+  for (const [index, match] of matches.entries()) {
+    output.push(protectedCode.content.slice(cursor, match.start), replacements[index] ?? '');
+    cursor = match.end;
+  }
+  output.push(protectedCode.content.slice(cursor));
+  const expanded = protectedCode.restore(output.join(''));
+  budget.expansion(expanded);
+  return expanded;
 };

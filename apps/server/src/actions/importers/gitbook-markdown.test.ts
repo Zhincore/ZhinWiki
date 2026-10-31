@@ -1,4 +1,5 @@
 import { posix } from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { describe, expect, it } from 'vitest';
 import {
   convertGitBookMarkdown,
@@ -6,6 +7,7 @@ import {
   extractGitBookTitle,
   findGitBookSpaceLinks,
   parseGitBookFrontmatter,
+  plainGitBookText,
 } from './gitbook-markdown';
 
 const convert = (source: string, resolveFile: (reference: string) => string | undefined = () => undefined) =>
@@ -157,6 +159,18 @@ describe('convertGitBookMarkdown', () => {
     expect(content).toBe('<Button href="https://x.dev" variant="secondary">Go</Button> <Icon icon="rocket" />');
   });
 
+  it('reads the icon from the class attribute alone', () => {
+    const { content } = convert('<i class="fas fa-bolt fa-lg">x</i> <i class="note">y</i> <i data-class="fa-x">z</i>');
+    expect(content).toBe('<Icon icon="bolt" /> <i class="note">y</i> <i data-class="fa-x">z</i>');
+  });
+
+  it('keeps later offsets after letters that grow when lowercased', () => {
+    const { content } = convert('İİİİ <details><summary>Sum</summary>Body</details> after <a href="https://x.dev" class="button">Go</a>');
+    expect(content).toContain('after <Button href="https://x.dev" variant="primary">Go</Button>');
+    expect(content).toContain('Body');
+    expect(content).not.toContain('</de');
+  });
+
   it('labels updates by date', () => {
     const { content } = convert(
       '{% updates format="full" %}\n{% update date="2025-01-02" %}\n## New editor\nShipped.\n{% endupdate %}\n{% endupdates %}',
@@ -252,10 +266,10 @@ describe('expandGitBookIncludes', () => {
 
   it('cuts include cycles and reports missing includes', async () => {
     const warnings: string[] = [];
-    expect(
-      await expandGitBookIncludes('{% include ".gitbook/includes/loop.md" %}{% include "missing.md" %}', 'page.md', resolve, load, warnings),
-    ).toBe('');
-    expect(warnings).toHaveLength(2);
+    await expect(
+      expandGitBookIncludes('{% include ".gitbook/includes/loop.md" %}{% include "missing.md" %}', 'page.md', resolve, load, warnings),
+    ).rejects.toThrow(/source content is missing/);
+    expect(warnings).toHaveLength(1);
   });
 
   it('rebases relative links and images in included content onto the including page', async () => {
@@ -283,4 +297,51 @@ describe('expandGitBookIncludes', () => {
     );
     expect(warnings).toEqual([]);
   });
+});
+
+it.each(['details', 'figure', 'picture', 'table data-view="cards"', 'div', 'a class="button"'])(
+  'converts a MiB of unclosed %s openings promptly',
+  (tag) => {
+    const unit = `<${tag}>`;
+    const input = unit.repeat(Math.ceil((1024 * 1024) / unit.length));
+    const started = performance.now();
+    convertGitBookMarkdown(input, { resolveFile: () => undefined });
+    const elapsed = performance.now() - started;
+    console.info(`HTML conversion ${tag}: ${Math.round(elapsed)} ms`);
+    expect(elapsed).toBeLessThan(900);
+  },
+);
+it.each(['a < b and c', 'x <= y', 'List<T> API'])('preserves literal title text %s', (label) => {
+  expect(plainGitBookText(label)).toBe(label);
+});
+it('handles out-of-range entity values', () => {
+  expect(() => plainGitBookText('&#x110000; &#999999999999999999999999;')).not.toThrow();
+});
+
+it('continues converting buttons after an unmatched anchor opener', () => {
+  const content = convert('<a href="/stray">Unclosed\n<a href="/valid" class="button">Valid</a>').content;
+  expect(content).toContain('<Button href="/valid" variant="primary">Valid</Button>');
+  expect(content).toContain('<a href="/stray">Unclosed');
+});
+it.each(['Map<K, V>', 'a<b and c>d'])('preserves ambiguous prose %s', (title) => {
+  expect(plainGitBookText(title)).toBe(title);
+});
+it('bounds the echoed include reference', async () => {
+  await expect(
+    expandGitBookIncludes(
+      `{% include "${'x'.repeat(1000)}" %}`,
+      'page.md',
+      () => undefined,
+      async () => null,
+      [],
+    ),
+  ).rejects.toMatchObject({ details: { path: 'x'.repeat(200) } });
+});
+it('keeps indentation after extracting the page heading', () => {
+  expect(extractGitBookTitle('# Title\n\n    literal')).toEqual({ title: 'Title', body: '    literal' });
+});
+
+it('keeps HTML attribute lookup case insensitive', () => {
+  expect(convert('<IMG SRC="image.png" ALT="Shot">').content).toBe('![Shot](image.png)');
+  expect(convert('<A HREF="/safe" CLASS="button">Go</A>').content).toBe('<Button href="/safe" variant="primary">Go</Button>');
 });

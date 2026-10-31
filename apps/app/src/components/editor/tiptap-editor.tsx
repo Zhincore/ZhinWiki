@@ -81,8 +81,10 @@ const BlockImage = Image.extend({
     return {
       markdown: {
         serialize(state: MarkdownSerializeState, node: PMNode) {
-          const src = String(node.attrs.src ?? '').replace(/[()]/g, '\\$&');
-          const title = node.attrs.title ? ` "${String(node.attrs.title).replace(/"/g, '\\"')}"` : '';
+          // Escape backslashes too, so a destination or title ending in `\`
+          // cannot swallow the closing delimiter when the page is reloaded.
+          const src = String(node.attrs.src ?? '').replace(/[\\()]/g, '\\$&');
+          const title = node.attrs.title ? ` "${String(node.attrs.title).replace(/[\\"]/g, '\\$&')}"` : '';
           state.write(`![${state.esc(String(node.attrs.alt ?? ''))}](${src}${title})`);
           state.closeBlock(node);
         },

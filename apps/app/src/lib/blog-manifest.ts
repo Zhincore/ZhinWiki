@@ -25,7 +25,7 @@ export const BLOG_MANIFEST = [
     description: 'اجعل التوثيق العام قابلاً للاكتشاف عبر HTML وMarkdown متكافئين وفهارس llms موجزة وجرد كامل واختبارات منع التسريب.',
     language: 'ar',
     datePublished: '2026-09-03',
-    dateModified: '2026-09-03',
+    dateModified: '2026-10-31',
     tags: ['الذكاء الاصطناعي', 'llms.txt', 'Markdown'],
     related: ['ai-ready-documentation', 'docs-should-live-in-plain-markdown-ar', 'arabic-technical-documentation-rtl-checklist'],
     translationOf: 'ai-ready-documentation',
@@ -164,7 +164,7 @@ export const BLOG_MANIFEST = [
       'مسار موثق من التثبيت إلى أول نشر يدوي في Nibleaf، مع سلامة الإصدار والنسخ والاستعادة والترقية والتراجع والأمان والمراقبة وتحديد الموارد.',
     language: 'ar',
     datePublished: '2026-09-03',
-    dateModified: '2026-09-03',
+    dateModified: '2026-10-31',
     tags: ['الاستضافة الذاتية', 'Docker', 'دليل'],
     related: ['self-host-documentation-site-docker-compose', 'coolify-documentation-502-503-recovery-ar', 'open-source-documentation-tools-ar'],
     translationOf: 'self-host-documentation-site-docker-compose',
@@ -308,7 +308,7 @@ export const BLOG_MANIFEST = [
     description:
       'Make public documentation reliably discoverable by assistants through equivalent HTML and Markdown, concise llms indexes, complete inventories, and leakage tests.',
     datePublished: '2026-09-03',
-    dateModified: '2026-09-03',
+    dateModified: '2026-10-31',
     tags: ['ai', 'llms-txt', 'markdown'],
     related: ['docs-should-live-in-plain-markdown', 'documentation-production-readiness-decision', 'arabic-documentation-rtl'],
     translationOf: 'ai-ready-documentation-ar',
@@ -439,7 +439,7 @@ export const BLOG_MANIFEST = [
       'إعلان تقني عن القدرات المدمجة في فرع Nibleaf الرئيسي: البحث الهجين والاستخدام والإضافات والتكاملات والسمات المحمولة وMCP للقراءة فقط.',
     language: 'ar',
     datePublished: '2026-08-24',
-    dateModified: '2026-08-24',
+    dateModified: '2026-10-31',
     tags: ['إعلان', 'إصدار', 'العمليات'],
     related: [
       'documentation-templates-harbor-manuscript-signal-ar',
@@ -456,7 +456,7 @@ export const BLOG_MANIFEST = [
     description:
       'A technical launch note for the capabilities merged into Nibleaf main: hybrid search, usage, add-ons, integrations, portable themes, and read-only MCP.',
     datePublished: '2026-08-24',
-    dateModified: '2026-08-24',
+    dateModified: '2026-10-31',
     tags: ['announcement', 'release', 'operations'],
     related: [
       'documentation-templates-harbor-manuscript-signal',
@@ -564,7 +564,7 @@ export const BLOG_MANIFEST = [
     description:
       'A source-backed GitBook and Mintlify comparison covering editors, Git workflows, API docs, pricing, multilingual content, and self-hosting.',
     datePublished: '2026-08-15',
-    dateModified: '2026-08-17',
+    dateModified: '2026-10-30',
     tags: ['comparison', 'gitbook', 'mintlify'],
     related: ['open-source-documentation-tools', 'docs-should-live-in-plain-markdown', 'introducing-nibleaf-open-source-mintlify-alternative'],
     readingMinutes: 8,
@@ -633,7 +633,7 @@ export const BLOG_MANIFEST = [
     description:
       'Why plain Markdown is the portability contract for documentation: greppable, diffable, AI-ready, and compatible with a visual editor.',
     datePublished: '2026-07-13',
-    dateModified: '2026-09-03',
+    dateModified: '2026-10-31',
     tags: ['markdown', 'content-ownership'],
     related: [
       'open-source-documentation-tools',
@@ -671,7 +671,7 @@ export const BLOG_MANIFEST = [
     description:
       'A dated, hands-on evaluation of Nibleaf as an open-source Mintlify alternative: ownership, authoring, publishing, search, Arabic, limits, and first publish.',
     datePublished: '2026-07-13',
-    dateModified: '2026-08-31',
+    dateModified: '2026-10-31',
     tags: ['announcement', 'open-source'],
     related: ['docs-should-live-in-plain-markdown', 'self-host-documentation-site-docker-compose', 'arabic-documentation-rtl'],
     readingMinutes: 12,
@@ -689,7 +689,7 @@ export const BLOG_MANIFEST = [
       {
         question: 'Does Nibleaf support Arabic and right-to-left documentation?',
         answer:
-          'Yes. Each language has its own page tree, RTL layout is built into the reader and editor, search uses an Arabic tokenizer, and the interface is localized in English and Arabic.',
+          'Yes. Each language has its own page tree, RTL layout is built into the reader and editor, search uses an Arabic tokenizer, and the interface offers 12 locale options, with some strings still in English.',
       },
     ],
   },
@@ -700,7 +700,7 @@ export const BLOG_MANIFEST = [
     description:
       'Compare Docusaurus, MkDocs Material, Starlight, Fumadocs, BookStack, Wiki.js, and Nibleaf by authoring model, search, i18n, and hosting.',
     datePublished: '2026-07-13',
-    dateModified: '2026-09-03',
+    dateModified: '2026-10-31',
     tags: ['comparison', 'open-source'],
     related: [
       'self-host-documentation-site-docker-compose',
@@ -733,7 +733,7 @@ export const BLOG_MANIFEST = [
     description:
       'A verified install-to-first-publish workflow for Nibleaf with Docker Compose, including release integrity, backups, restores, upgrades, rollback, security, and monitoring.',
     datePublished: '2026-07-13',
-    dateModified: '2026-09-03',
+    dateModified: '2026-10-31',
     tags: ['self-hosting', 'docker', 'guide'],
     related: ['introducing-nibleaf-open-source-mintlify-alternative', 'open-source-documentation-tools', 'docs-should-live-in-plain-markdown'],
     translationOf: 'self-host-documentation-site-docker-compose-ar',

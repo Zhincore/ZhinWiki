@@ -11,6 +11,7 @@ import {
   EXPORT_SCHEDULE_ROLE,
   effectiveWikiRole,
   planOwnershipTransfer,
+  platformWikiGrant,
   rankOf,
   roleAtLeast,
 } from './rbac';
@@ -27,31 +28,40 @@ describe('rankOf', () => {
 
 describe('effectiveWikiRole — max of membership role and platform grant', () => {
   it('gives a platform editor member rights on a wiki they do not belong to in shared tenancy', () => {
-    expect(effectiveWikiRole(null, 'editor', 'shared')).toBe(MemberRole.MEMBER);
+    expect(effectiveWikiRole('shared', null, 'editor')).toBe(MemberRole.MEMBER);
   });
   it('grants a platform editor nothing in independent tenancy', () => {
-    expect(effectiveWikiRole(null, 'editor', 'independent')).toBeNull();
-    expect(effectiveWikiRole('admin', 'editor', 'independent')).toBe(MemberRole.ADMIN);
+    expect(effectiveWikiRole('independent', null, 'editor')).toBeNull();
+    expect(effectiveWikiRole('independent', 'admin', 'editor')).toBe(MemberRole.ADMIN);
   });
   it('keeps a higher membership role over the editor grant', () => {
-    expect(effectiveWikiRole('owner', 'editor', 'shared')).toBe(MemberRole.OWNER);
-    expect(effectiveWikiRole('admin', 'editor', 'shared')).toBe(MemberRole.ADMIN);
+    expect(effectiveWikiRole('shared', 'owner', 'editor')).toBe(MemberRole.OWNER);
+    expect(effectiveWikiRole('shared', 'admin', 'editor')).toBe(MemberRole.ADMIN);
   });
   it('gives a platform admin wiki-admin rights everywhere in shared tenancy only', () => {
-    expect(effectiveWikiRole(null, 'admin', 'shared')).toBe(MemberRole.ADMIN);
-    expect(effectiveWikiRole('member', 'admin', 'shared')).toBe(MemberRole.ADMIN);
-    expect(effectiveWikiRole('owner', 'admin', 'shared')).toBe(MemberRole.OWNER);
-    expect(effectiveWikiRole(null, 'admin', 'independent')).toBeNull();
+    expect(effectiveWikiRole('shared', null, 'admin')).toBe(MemberRole.ADMIN);
+    expect(effectiveWikiRole('shared', 'member', 'admin')).toBe(MemberRole.ADMIN);
+    expect(effectiveWikiRole('shared', 'owner', 'admin')).toBe(MemberRole.OWNER);
+    expect(effectiveWikiRole('independent', null, 'admin')).toBeNull();
   });
   it.each(['user', 'constructor', '__proto__', 'toString', null, undefined])(
     'grants no wiki access to a non-member with platform role %s',
     (platformRole) => {
-      expect(effectiveWikiRole(null, platformRole, 'shared')).toBeNull();
-      expect(effectiveWikiRole(null, platformRole, 'independent')).toBeNull();
+      expect(effectiveWikiRole('shared', null, platformRole)).toBeNull();
+      expect(effectiveWikiRole('independent', null, platformRole)).toBeNull();
     },
   );
   it('keeps the membership role when the platform role grants nothing', () => {
-    expect(effectiveWikiRole('member', 'user', 'shared')).toBe(MemberRole.MEMBER);
+    expect(effectiveWikiRole('shared', 'member', 'user')).toBe(MemberRole.MEMBER);
+  });
+});
+
+describe('platformWikiGrant', () => {
+  it('reads every role of a comma-separated platform role and keeps the highest grant', () => {
+    expect(platformWikiGrant('shared', 'user, editor')).toBe(MemberRole.MEMBER);
+    expect(platformWikiGrant('shared', 'editor,admin')).toBe(MemberRole.ADMIN);
+    expect(platformWikiGrant('shared', 'admin,editor')).toBe(MemberRole.ADMIN);
+    expect(platformWikiGrant('independent', 'admin,editor')).toBeNull();
   });
 });
 
@@ -61,7 +71,8 @@ describe('canCreateWiki', () => {
   });
   it('lets only platform admins create in shared', () => {
     expect(canCreateWiki('shared', 'admin')).toBe(true);
-    for (const role of ['editor', 'user', null, undefined]) {
+    expect(canCreateWiki('shared', 'editor,admin')).toBe(true);
+    for (const role of ['editor', 'user', 'editor,user', null, undefined]) {
       expect(canCreateWiki('shared', role)).toBe(false);
     }
   });

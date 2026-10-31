@@ -17,17 +17,27 @@ const PLATFORM_WIKI_GRANT = new Map<string, MemberRole>([
   [PlatformRole.EDITOR, MemberRole.MEMBER],
 ]);
 
-/** Wiki role the platform role grants on every wiki; null in independent
- *  tenancy, where only memberships count. */
-export const platformWikiGrant = (tenancy: Tenancy, platformRole: string | null | undefined): MemberRole | null =>
-  (tenancy === 'shared' && platformRole && PLATFORM_WIKI_GRANT.get(platformRole)) || null;
+/** The roles in a better-auth `user.role`, which holds several comma-separated. */
+const platformRoles = (platformRole: string | null | undefined): string[] => (platformRole ? platformRole.split(',').map((role) => role.trim()) : []);
+
+/** Wiki role the platform roles grant on every wiki (the highest of them); null
+ *  in independent tenancy, where only memberships count. */
+export const platformWikiGrant = (tenancy: Tenancy, platformRole: string | null | undefined): MemberRole | null => {
+  if (tenancy !== 'shared') return null;
+  let granted: MemberRole | null = null;
+  for (const role of platformRoles(platformRole)) {
+    const grant = PLATFORM_WIKI_GRANT.get(role);
+    if (grant && (!granted || rankOf(grant) > rankOf(granted))) granted = grant;
+  }
+  return granted;
+};
 
 /** Effective wiki role: the higher of the membership role and the platform
  *  role's grant. null when the user has neither. */
 export const effectiveWikiRole = (
+  tenancy: Tenancy,
   membershipRole: string | null | undefined,
   platformRole: string | null | undefined,
-  tenancy: Tenancy,
 ): MemberRole | null => {
   const granted = platformWikiGrant(tenancy, platformRole);
   const member = membershipRole as MemberRole | null | undefined;
@@ -40,7 +50,7 @@ export const effectiveWikiRole = (
 /** Who may create a wiki: anyone signed in on an independent instance, only
  *  platform admins on a shared one. */
 export const canCreateWiki = (tenancy: Tenancy, platformRole?: string | null): boolean =>
-  tenancy === 'independent' || platformRole === PlatformRole.ADMIN;
+  tenancy === 'independent' || platformRoles(platformRole).includes(PlatformRole.ADMIN);
 
 /** Whether `role` is at least as privileged as `required`. */
 export const roleAtLeast = (role: string, required: MemberRole): boolean => rankOf(role) >= rankOf(required);

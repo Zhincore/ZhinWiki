@@ -67,7 +67,8 @@ owns one organization, as upstream.
 
 ## Platform roles
 
-`user.role`, separate from wiki member roles: `user` (default), `admin`
+`user.role` (comma-separated for several; highest grant wins), separate from
+wiki member roles: `user` (default), `admin`
 (operator console; wiki rights per table above, never ownership transfer),
 `editor` (per table above; not an admin-panel role, cannot create wikis).
 Effective wiki role = max(membership, platform grant) (`effectiveWikiRole`);

@@ -11,14 +11,17 @@ const github = new Octokit({
   },
 });
 
+const githubFailureMessage = ({ status, response }: RequestError) => {
+  if (status === 404) return 'Repository or branch not found. Imports support public GitHub repositories only.';
+  const reset = Number(response?.headers['x-ratelimit-reset']);
+  if (response?.headers['x-ratelimit-remaining'] !== '0' || !reset) return `GitHub API error (${status}). Try again shortly.`;
+  const minutes = Math.max(1, Math.ceil((reset * 1000 - Date.now()) / 60_000));
+  return `GitHub rate limit reached. Try again in about ${minutes} minute${minutes === 1 ? '' : 's'}.`;
+};
+
 const githubFailure = (error: unknown) => {
   if (error instanceof RequestError) {
-    return badRequest(
-      error.status === 404
-        ? 'Repository or branch not found. Imports support public GitHub repositories only.'
-        : `GitHub API error (${error.status}). Try again shortly.`,
-      { provider: 'github', providerStatus: error.status },
-    );
+    return badRequest(githubFailureMessage(error), { provider: 'github', providerStatus: error.status });
   }
   return badRequest('Could not reach GitHub. Try again shortly.', { provider: 'github' });
 };

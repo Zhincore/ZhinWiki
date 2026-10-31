@@ -159,6 +159,18 @@ describe('convertGitBookMarkdown', () => {
     expect(content).toBe('<Button href="https://x.dev" variant="secondary">Go</Button> <Icon icon="rocket" />');
   });
 
+  it('reads the icon from the class attribute alone', () => {
+    const { content } = convert('<i class="fas fa-bolt fa-lg">x</i> <i class="note">y</i> <i data-class="fa-x">z</i>');
+    expect(content).toBe('<Icon icon="bolt" /> <i class="note">y</i> <i data-class="fa-x">z</i>');
+  });
+
+  it('keeps later offsets after letters that grow when lowercased', () => {
+    const { content } = convert('İİİİ <details><summary>Sum</summary>Body</details> after <a href="https://x.dev" class="button">Go</a>');
+    expect(content).toContain('after <Button href="https://x.dev" variant="primary">Go</Button>');
+    expect(content).toContain('Body');
+    expect(content).not.toContain('</de');
+  });
+
   it('labels updates by date', () => {
     const { content } = convert(
       '{% updates format="full" %}\n{% update date="2025-01-02" %}\n## New editor\nShipped.\n{% endupdate %}\n{% endupdates %}',

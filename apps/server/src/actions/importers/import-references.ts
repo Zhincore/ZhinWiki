@@ -7,7 +7,8 @@ export interface ImportReference {
 }
 
 export const markdownReferences = (source: string): ImportReference[] => {
-  const pairs = new Map<number, number>();
+  const labels = new Map<number, number>();
+  const destinations = new Map<number, number>();
   const brackets: number[] = [];
   const parentheses: number[] = [];
   for (let index = 0; index < source.length; index++) {
@@ -17,32 +18,26 @@ export const markdownReferences = (source: string): ImportReference[] => {
       continue;
     }
     if (character === '[') brackets.push(index);
-    else if (character === ']' && brackets.length) pairs.set(brackets.pop() ?? 0, index);
+    else if (character === ']' && brackets.length) labels.set(index, brackets.pop() ?? 0);
     else if (character === '(') parentheses.push(index);
-    else if (character === ')' && parentheses.length) pairs.set(parentheses.pop() ?? 0, index);
+    else if (character === ')' && parentheses.length) destinations.set(parentheses.pop() ?? 0, index);
   }
   const references: ImportReference[] = [];
-  for (let index = 0; index < source.length; index++) {
-    if (source[index] === '\\') {
-      index++;
-      continue;
-    }
-    if (source[index] !== '[') continue;
-    const labelEnd = pairs.get(index);
-    if (labelEnd === undefined || source[labelEnd + 1] !== '(') continue;
-    const end = pairs.get(labelEnd + 1);
-    if (end === undefined) continue;
-    const image = index > 0 && source[index - 1] === '!';
+  // Walking label ends keeps an image inside a link label, and reading each
+  // destination once keeps nested or crossed pairs linear and non-overlapping.
+  let scanned = 0;
+  for (const [labelEnd, label] of labels) {
+    const end = destinations.get(labelEnd + 1);
+    if (end === undefined || labelEnd < scanned) continue;
+    scanned = end;
+    const image = label > 0 && source[label - 1] === '!';
     let start = labelEnd + 2;
     let referenceEnd = end;
     if (source[start] === '<') {
-      const angle = source.indexOf('>', start + 1);
-      if (angle < 0 || angle >= end) {
-        index = end;
-        continue;
-      }
+      referenceEnd = start + 1;
+      while (referenceEnd < end && source[referenceEnd] !== '>') referenceEnd++;
+      if (referenceEnd === end) continue;
       start++;
-      referenceEnd = angle;
     } else {
       for (let offset = start; offset < end; offset++) {
         if (/\s/.test(source[offset] ?? '')) {
@@ -55,7 +50,6 @@ export const markdownReferences = (source: string): ImportReference[] => {
     if (referenceEnd > start && (!suffix || ((suffix[0] === '"' || suffix[0] === "'") && suffix.at(-1) === suffix[0]))) {
       references.push({ value: source.slice(start, referenceEnd), start, end: referenceEnd, image });
     }
-    index = end;
   }
   return references;
 };

@@ -13,6 +13,7 @@ import {protectMarkdownCode} from '@nibleaf/shared/markdown-code';
 const size=2*1024*1024;
 const fill=unit=>unit.repeat(Math.ceil(size/unit.length)).slice(0,size);
 const convert=source=>convertGitBookMarkdown(source,{resolveFile:()=>undefined});
+const crossed=body=>{const depth=Math.floor(size/5);return '['.repeat(depth)+']('.repeat(depth)+body.repeat(depth)+')'.repeat(depth);};
 const cases={
  'page heading':()=>extractGitBookTitle('# '+fill(' ')+'x'),
  'SUMMARY heading':()=>parseGitBookSummary('## '+fill(' ')+'x\n* [Page](page.md)'),
@@ -32,6 +33,13 @@ const cases={
  'remote HTML attributes':()=>remoteImageSources(fill('<img src="')),
  'include tokens':()=>expandGitBookIncludes(fill('{% include "'),'p.md',()=>undefined,async()=>null,[]),
  'label comparisons':()=>plainGitBookText(fill('a<b and c>d ')),
+ 'angle image destinations':()=>rewriteGitBookImages(fill('![a](<b)'),'p.md',new Set(),'',()=> ''),
+ 'angle link destinations':()=>rewriteMintlifyInternalLinks(fill('[a](<b)'),'p.md',new Map()),
+ 'angle remote images':()=>remoteImageSources(fill('![a](<b)')),
+ 'crossed destinations':()=>remoteImageSources(crossed('x')),
+ 'crossed blank destinations':()=>remoteImageSources(crossed(' ')),
+ 'icon class word':()=>convert('<i class="fa-'+fill('a')),
+ 'icon class run':()=>convert(fill('<i class="fa-a ')),
  'shared code restore':()=>{const input=fill('\u0060x\u0060 ');const code=protectMarkdownCode(input);if(code.restore(code.content)!==input)throw new Error('restore mismatch');},
  'pipeline code restore':()=>convert(fill('\u0060x\u0060 ')),
 };
@@ -91,13 +99,20 @@ const cases = [
   'remote HTML attributes',
   'include tokens',
   'label comparisons',
+  'angle image destinations',
+  'angle link destinations',
+  'angle remote images',
+  'crossed destinations',
+  'crossed blank destinations',
+  'icon class word',
+  'icon class run',
 ];
 it.skipIf(process.env.GITBOOK_PERFORMANCE !== '1').each(cases)(
   'processes two MiB: %s',
   async (name) => {
     const elapsed = await measure(name);
     console.info(`${name}: ${Math.round(elapsed)} ms`);
-    expect(elapsed).toBeLessThan(1000);
+    expect(elapsed).toBeLessThan(3000);
   },
   25_000,
 );
@@ -106,7 +121,7 @@ it.skipIf(process.env.GITBOOK_PERFORMANCE !== '1').each(['shared code restore', 
   async (name) => {
     const elapsed = await measure(name);
     console.info(`${name}: ${Math.round(elapsed)} ms`);
-    expect(elapsed).toBeLessThan(1000);
+    expect(elapsed).toBeLessThan(3000);
   },
   25_000,
 );

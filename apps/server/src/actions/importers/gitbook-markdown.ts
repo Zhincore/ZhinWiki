@@ -260,7 +260,8 @@ const replaceHtmlBlocks = (
   closing: string,
   replace: (whole: string, inner: string, open: string, start: number) => string,
 ): string => {
-  const lower = source.toLowerCase();
+  // ASCII only: lowercasing `İ` adds a code unit, which would shift every later offset.
+  const lower = source.replace(/[A-Z]+/g, (letters) => letters.toLowerCase());
   const output: string[] = [];
   const openings = [...source.matchAll(opening)];
   let cursor = 0;
@@ -512,10 +513,11 @@ export const convertGitBookMarkdown = (source: string, context: GitBookConversio
   });
   content = content
     // Inline icons: `<i class="fa-rocket">:rocket:</i>`.
-    .replace(
-      /<i\b[^<>]*\bclass\s*=\s*["'](?:fa[a-z]?\s+)?fa-([\w-]+)[^"']*["'][^<>]*>[^<]*<\/i>/gi,
-      (_match, icon: string) => `<Icon icon="${attr(icon)}" />`,
-    );
+    .replace(/<i\b[^<>]*>[^<]*<\/i>/gi, (match) => {
+      const tag = match.slice(0, match.indexOf('>') + 1);
+      const icon = /^(?:fa[a-z]?\s+)?fa-([\w-]+)/i.exec(htmlAttribute(tag, 'class') ?? '')?.[1];
+      return icon ? `<Icon icon="${attr(icon)}" />` : match;
+    });
 
   content = content.replace(/\n{3,}/g, '\n\n');
   return { content: protectedCode.restore(content).trim(), warnings: [...warnings] };

@@ -19,7 +19,10 @@ it('returns quota exhaustion promptly instead of waiting for the reset', async (
       }),
   );
   vi.stubGlobal('fetch', request);
-  await expect(getGitHubDefaultBranch('synthetic', 'docs')).rejects.toMatchObject({ status: 400 });
+  await expect(getGitHubDefaultBranch('synthetic', 'docs')).rejects.toMatchObject({
+    status: 400,
+    message: 'GitHub rate limit reached. Try again in about 60 minutes.',
+  });
   expect(request).toHaveBeenCalledOnce();
 }, 2000);
 it('creates a fresh thirty-second signal for each API call', async () => {

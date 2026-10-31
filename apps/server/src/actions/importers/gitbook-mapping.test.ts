@@ -186,6 +186,18 @@ describe('GitBook assets', () => {
     );
     expect(missing).toEqual(['nope.png']);
   });
+
+  it('rewrites an image inside a link and leaves the link alone', () => {
+    const { content, missing } = rewriteGitBookImages(
+      '[![Badge](local.png)](https://x.io) [![Gone](nope.png)](https://x.io)',
+      'docs/guides/page.md',
+      blobs,
+      'docs',
+      (path) => `https://raw.example/${path}`,
+    );
+    expect(content).toBe('[![Badge](https://raw.example/docs/guides/local.png)](https://x.io) [![Gone](nope.png)](https://x.io)');
+    expect(missing).toEqual(['nope.png']);
+  });
 });
 
 it('keeps fallback slugs unique across repeated collisions', () => {

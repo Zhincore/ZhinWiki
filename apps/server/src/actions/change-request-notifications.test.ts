@@ -26,7 +26,7 @@ const input = {
   projectId: 'project',
   changeRequest: { number: 3, title: 'Fix typos' },
   event: 'approved' as const,
-  actor: { id: 'reviewer', name: 'Rita' },
+  actor: { id: 'reviewer', name: 'Rita', email: 'rita@example.com' },
   locale: 'en',
 };
 
@@ -65,6 +65,11 @@ describe('notifyChangeRequest', () => {
     vi.clearAllMocks();
     await notifyChangeRequest({ ...input, recipients: ['author'] });
     expect(mocks.createMany.mock.calls[0]?.[0]).toEqual(english);
+  });
+
+  it('names the actor by email when their name is empty', async () => {
+    await notifyChangeRequest({ ...input, actor: { ...input.actor, name: '' }, recipients: ['author'] });
+    expect(mocks.createMany).toHaveBeenCalledWith({ data: [expect.objectContaining({ title: expect.stringMatching(/^rita@example\.com /) })] });
   });
 
   it('respects the wiki turning the event off', async () => {

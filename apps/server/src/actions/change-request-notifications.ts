@@ -8,7 +8,7 @@ import {
   resolveEmailLanguage,
 } from '@nibleaf/email';
 import { env } from '@/env';
-import { notificationEnabled } from './notifications';
+import { notificationEnabled, notificationName } from './notifications';
 
 /** Stored notification type and the workspace toggle that silences each event. */
 const EVENTS: Record<ChangeRequestEmailEvent, { type: string; preference: string }> = {
@@ -28,7 +28,7 @@ export const notifyChangeRequest = async (input: {
   projectId: string;
   changeRequest: { number: number; title: string };
   event: ChangeRequestEmailEvent;
-  actor: { id: string; name: string };
+  actor: { id: string; name: string; email: string };
   recipients: readonly (string | null)[];
   locale?: string;
 }) => {
@@ -45,7 +45,7 @@ export const notifyChangeRequest = async (input: {
   const render = (language: EmailLanguage) =>
     renderChangeRequestEmail({
       event: input.event,
-      actorName: input.actor.name,
+      actorName: notificationName(input.actor),
       projectName: project.name,
       number: input.changeRequest.number,
       title: input.changeRequest.title,

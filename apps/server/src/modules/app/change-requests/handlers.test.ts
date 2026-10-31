@@ -172,7 +172,7 @@ describe('notifications', () => {
   it('tells the reviewer about a review request', async () => {
     await send('POST', '/1/reviewers', { userId: 'reviewer' });
     expect(mocks.notifyChangeRequest).toHaveBeenCalledWith(
-      expect.objectContaining({ event: 'reviewRequested', recipients: ['reviewer'], actor: { id: 'user', name: 'User' } }),
+      expect.objectContaining({ event: 'reviewRequested', recipients: ['reviewer'], actor: { id: 'user', name: 'User', email: 'user@example.com' } }),
     );
   });
 

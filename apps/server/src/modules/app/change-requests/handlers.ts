@@ -33,7 +33,7 @@ const projectScope = async (ctx: { req: { param: (k: string) => string } }) => {
 /** Notifications never fail the action that triggered them. */
 const notify = (input: Omit<Parameters<typeof notifyChangeRequest>[0], 'actor' | 'locale'>) => {
   const user = getContextUserOrThrow();
-  return notifyChangeRequest({ ...input, actor: { id: user.id, name: user.name }, locale: getContextLocale() }).catch(() => undefined);
+  return notifyChangeRequest({ ...input, actor: user, locale: getContextLocale() }).catch(() => undefined);
 };
 
 const app = new Hono<HonoEnv>()

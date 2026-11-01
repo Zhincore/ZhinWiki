@@ -60,7 +60,9 @@ publicly reachable and must match how requests are signed. `STORAGE_PUBLIC_URL`
 is the base used when published pages reference assets.
 
 For bundled maxio, route the public storage hostname to maxio port 9000 through
-TLS. For R2, S3, Backblaze B2, or another compatible provider, make the endpoint,
+TLS. maxio also serves its web console on that port at `/ui`, backed by `/api`;
+block both paths at the reverse proxy, since only S3 requests to the bucket need
+to be public. For R2, S3, Backblaze B2, or another compatible provider, make the endpoint,
 region, path-style behavior, credentials, bucket, CORS origins, and public URL
 agree. Upload and open a real image before inviting writers.
 

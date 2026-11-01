@@ -750,20 +750,22 @@ export type RotateApiKeyBody = z.infer<typeof rotateApiKeyBody>;
 
 // ─── Assets ──────────────────────────────────────────────────────────────—
 
+// Assets are served from the dashboard's own origin. Keep the upload surface
+// deliberately small: HTML served inline here would become stored XSS. SVG is
+// allowed only because the server sanitizes it and serves it under a
+// script-free CSP sandbox.
+const uploadableAssetContentType = z
+  .string()
+  .trim()
+  .min(1)
+  .max(150)
+  .transform((value) => normalizeAssetContentType(value))
+  .refine((value) => isUploadableAssetContentType(value), { message: 'Only PNG, JPEG, GIF, WebP, AVIF, ICO, and SVG images can be uploaded.' });
+
 export const presignAssetBody = z
   .object({
     filename: z.string().min(1).max(255),
-    // Assets are served from the dashboard's own origin. Keep the upload surface
-    // deliberately small: HTML served inline here would become stored XSS. SVG is
-    // allowed only because the server sanitizes it on confirm and serves it under
-    // a script-free CSP sandbox.
-    contentType: z
-      .string()
-      .trim()
-      .min(1)
-      .max(150)
-      .transform((value) => normalizeAssetContentType(value))
-      .refine((value) => isUploadableAssetContentType(value), { message: 'Only PNG, JPEG, GIF, WebP, AVIF, ICO, and SVG images can be uploaded.' }),
+    contentType: uploadableAssetContentType,
     size: z
       .number()
       .int()
@@ -778,16 +780,14 @@ export type PresignAssetBody = z.infer<typeof presignAssetBody>;
 
 export const confirmAssetBody = z.object({
   key: z.string().min(1),
-  contentType: z
-    .string()
-    .trim()
-    .min(1)
-    .max(150)
-    .transform((value) => normalizeAssetContentType(value))
-    .refine((value) => isUploadableAssetContentType(value), { message: 'Only PNG, JPEG, GIF, WebP, AVIF, ICO, and SVG images can be uploaded.' }),
+  contentType: uploadableAssetContentType,
   size: z.number().int().min(1),
 });
 export type ConfirmAssetBody = z.infer<typeof confirmAssetBody>;
+
+/** Upload through the API: raw image bytes as the body, the name in the query. */
+export const uploadAssetQuery = z.object({ filename: z.string().min(1).max(255) });
+export const uploadAssetHeaders = z.object({ 'content-type': uploadableAssetContentType });
 
 // ─── Search & analytics ──────────────────────────────────────────────────────
 

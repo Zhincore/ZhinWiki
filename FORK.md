@@ -141,14 +141,18 @@ branch stores one change request (CR), reviewed and merged back.
   `acceptsOutsideContributions` (`rbac.ts`: shared tenancy, published, public,
   not taken down, `config.changeRequests.outsideContributions` not `false`).
   Only project get, languages, page list/get/writes (own open CR), asset
-  presign/confirm and CR list/create/get/diff/patch (own) use it; max 5 open
-  CRs (429 `change_requests:open_limit`). The published page shows **Suggest changes**
+  upload and CR list/create/get/diff/patch (own) use it; max 5 open CRs (429
+  `change_requests:open_limit`). The published page shows **Suggest changes**
   (`contributeUrl`). No API keys, so no MCP. Known gap: their content loads
   remote images in members' sessions.
-- Contributor uploads: asset presign/confirm admit contributors with an open
-  CR; 5 MB per image (413 `assets:file_too_large`, confirm uses the stored
-  size) and 50 MB per wiki by `asset.createdById` (422
-  `assets:quota_exceeded`, checked under an advisory lock).
+- Contributor uploads: `POST /projects/:projectId/assets/upload` (raw image
+  body, `?filename=`) for contributors with an open CR; members keep
+  presign/PUT/confirm. Contributors go through the API because presigned PUTs
+  do not bind the size (bundled maxio rejects a signed Content-Length). The
+  body is cut at 5 MB while streaming (413 `assets:file_too_large`), raster
+  types are checked by magic bytes, SVG is sanitized, and 50 MB per wiki by
+  `asset.createdById` (422 `assets:quota_exceeded`) is rechecked under an
+  advisory lock; a refused object is deleted.
 - Notifications (`change-request-notifications.ts`): in-app plus email for
   review requests, verdicts and merges (never the actor or suspended users);
   workspace toggles `change_request_review_requested`,

@@ -3,7 +3,8 @@ import { newId } from '@nibleaf/shared/ids';
 import { slugify } from '@nibleaf/shared/utils';
 import { deleteObject, getObjectStream, headObject, presignPutUrl, putObject } from '@nibleaf/storage';
 import { type ConfirmAssetBody, MAX_SVG_BYTES, type PresignAssetBody, SVG_CONTENT_TYPE } from '@nibleaf/validators';
-import { AppError, badRequest, conflict, forbidden } from '@/errors';
+import { AppError, badRequest, forbidden } from '@/errors';
+import { sniffImageType } from '@/lib/image-type';
 import { sanitizeSvg } from '@/lib/svg';
 import { assertProjectInOrg } from './projects';
 
@@ -73,40 +74,8 @@ export const storeAsset = async ({
 export const findImportedAsset = async (projectId: string, importId: string, filename: string): Promise<Asset | null> =>
   await prisma.asset.findUnique({ where: { key: importedAssetKey(projectId, importId, filename) } });
 
-const uploadedBytes = async (client: Prisma.TransactionClient, projectId: string, userId: string): Promise<number> =>
-  (await client.asset.aggregate({ where: { projectId, createdById: userId }, _sum: { size: true } }))._sum.size ?? 0;
-
-const quotaExceeded = () =>
-  new AppError({
-    code: 'assets:quota_exceeded',
-    message: 'Contributors can upload at most 50 MB of images per wiki.',
-    details: { limit: CONTRIBUTOR_ASSET_QUOTA_BYTES },
-  });
-
-/** A contributor needs an open change request on the wiki and a file within the per-file cap. */
-const assertContributorUpload = async (projectId: string, userId: string, size: number): Promise<void> => {
-  const open = await prisma.changeRequest.count({ where: { projectId, authorId: userId, status: { in: ['DRAFT', 'IN_REVIEW'] } } });
-  if (open === 0) {
-    throw forbidden('Open a change request before uploading images.');
-  }
-  if (size > CONTRIBUTOR_MAX_ASSET_BYTES) {
-    throw new AppError({
-      code: 'assets:file_too_large',
-      message: 'Contributors can upload images of at most 5 MB.',
-      details: { limit: CONTRIBUTOR_MAX_ASSET_BYTES },
-    });
-  }
-};
-
-/** Presign an upload; `contributorId` applies the outside contributor limits. */
-export const presignAsset = async (organizationId: string, projectId: string, body: PresignAssetBody, contributorId?: string) => {
+export const presignAsset = async (organizationId: string, projectId: string, body: PresignAssetBody) => {
   await assertProjectInOrg(organizationId, projectId);
-  if (contributorId) {
-    await assertContributorUpload(projectId, contributorId, body.size);
-    if ((await uploadedBytes(prisma, projectId, contributorId)) + body.size > CONTRIBUTOR_ASSET_QUOTA_BYTES) {
-      throw quotaExceeded();
-    }
-  }
   const key = assetKey(projectId, body.filename);
   const uploadUrl = await presignPutUrl({ key, contentType: body.contentType });
   return { key, uploadUrl };
@@ -133,48 +102,92 @@ const sanitizeUploadedSvg = async (key: string): Promise<number> => {
   return clean.byteLength;
 };
 
-/**
- * Record a contributor's upload by the stored object's size. The quota is
- * checked under a per-uploader lock so parallel confirms cannot exceed it.
- * Recorded keys are refused untouched; any other refused upload is deleted.
- */
-const confirmContributorAsset = async (projectId: string, userId: string, body: ConfirmAssetBody) => {
-  if (await prisma.asset.findUnique({ where: { key: body.key }, select: { id: true } })) {
-    throw conflict('The upload is already recorded.', { key: body.key });
-  }
-  const head = await headObject(body.key).catch(() => null);
-  if (!head) {
-    throw badRequest('The upload was not found.', { key: body.key });
-  }
-  try {
-    await assertContributorUpload(projectId, userId, head.ContentLength ?? 0);
-    const size = body.contentType === SVG_CONTENT_TYPE ? await sanitizeUploadedSvg(body.key) : (head.ContentLength ?? 0);
-    return await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`asset-quota:${projectId}:${userId}`}))`;
-      if ((await uploadedBytes(tx, projectId, userId)) + size > CONTRIBUTOR_ASSET_QUOTA_BYTES) {
-        throw quotaExceeded();
-      }
-      return tx.asset.create({
-        data: { projectId, key: body.key, url: publicUrlForKey(body.key), contentType: body.contentType, size, createdById: userId },
-      });
-    });
-  } catch (error) {
-    await deleteObject(body.key).catch(() => undefined);
-    throw error;
-  }
-};
-
-/** Record an upload; `contributor` applies the outside contributor limits. */
-export const confirmAsset = async (organizationId: string, projectId: string, userId: string, body: ConfirmAssetBody, contributor = false) => {
+export const confirmAsset = async (organizationId: string, projectId: string, userId: string, body: ConfirmAssetBody) => {
   await assertProjectInOrg(organizationId, projectId);
   assertOwnedKey(projectId, body.key);
-  if (contributor) {
-    return confirmContributorAsset(projectId, userId, body);
-  }
   const size = body.contentType === SVG_CONTENT_TYPE ? await sanitizeUploadedSvg(body.key) : body.size;
   return prisma.asset.create({
     data: { projectId, key: body.key, url: publicUrlForKey(body.key), contentType: body.contentType, size, createdById: userId },
   });
+};
+
+const fileTooLarge = () =>
+  new AppError({
+    code: 'assets:file_too_large',
+    message: 'Contributors can upload images of at most 5 MB.',
+    details: { limit: CONTRIBUTOR_MAX_ASSET_BYTES },
+  });
+
+/** Read a request body, refusing it as soon as it passes `limit` bytes whatever its Content-Length says. */
+const readBodyWithin = async (request: Request, limit: number): Promise<Buffer> => {
+  if (!request.headers.has('transfer-encoding') && Number(request.headers.get('content-length')) > limit) {
+    throw fileTooLarge();
+  }
+  if (!request.body) return Buffer.alloc(0);
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (let read = await reader.read(); !read.done; read = await reader.read()) {
+      total += read.value.byteLength;
+      if (total > limit) throw fileTooLarge();
+      chunks.push(read.value);
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  return Buffer.concat(chunks, total);
+};
+
+const assertWithinQuota = async (client: Prisma.TransactionClient, projectId: string, userId: string, size: number): Promise<void> => {
+  const used = (await client.asset.aggregate({ where: { projectId, createdById: userId }, _sum: { size: true } }))._sum.size ?? 0;
+  if (used + size > CONTRIBUTOR_ASSET_QUOTA_BYTES) {
+    throw new AppError({
+      code: 'assets:quota_exceeded',
+      message: 'Contributors can upload at most 50 MB of images per wiki.',
+      details: { limit: CONTRIBUTOR_ASSET_QUOTA_BYTES },
+    });
+  }
+};
+
+/**
+ * Store an outside contributor's image sent through the API. The body is
+ * capped while streaming, raster types are checked by magic bytes and SVG is
+ * sanitized; the quota is rechecked under a per-uploader lock and the object
+ * is deleted when recording it fails.
+ */
+export const uploadContributorAsset = async (
+  organizationId: string,
+  projectId: string,
+  userId: string,
+  { filename, contentType, request }: { filename: string; contentType: string; request: Request },
+) => {
+  await assertProjectInOrg(organizationId, projectId);
+  const open = await prisma.changeRequest.count({ where: { projectId, authorId: userId, status: { in: ['DRAFT', 'IN_REVIEW'] } } });
+  if (open === 0) {
+    throw forbidden('Open a change request before uploading images.');
+  }
+  const bytes = await readBodyWithin(request, CONTRIBUTOR_MAX_ASSET_BYTES);
+  const stored = contentType === SVG_CONTENT_TYPE ? sanitizeSvg(bytes) : bytes;
+  const storedType = contentType === SVG_CONTENT_TYPE ? SVG_CONTENT_TYPE : sniffImageType(bytes);
+  if (!(stored && storedType)) {
+    throw badRequest('The file is not a supported image.');
+  }
+  await assertWithinQuota(prisma, projectId, userId, stored.byteLength);
+  const key = assetKey(projectId, filename);
+  await putObject(key, stored, storedType);
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`asset-quota:${projectId}:${userId}`}))`;
+      await assertWithinQuota(tx, projectId, userId, stored.byteLength);
+      return tx.asset.create({
+        data: { projectId, key, url: publicUrlForKey(key), contentType: storedType, size: stored.byteLength, createdById: userId },
+      });
+    });
+  } catch (error) {
+    await deleteObject(key).catch(() => undefined);
+    throw error;
+  }
 };
 
 export const listAssets = async (projectId: string): Promise<Asset[]> =>

@@ -134,7 +134,7 @@ function EditorPage() {
   const createPage = useCreatePage(projectId);
   const deletePage = useDeletePage(projectId);
   const updatePage = useUpdatePage(projectId);
-  const uploadAsset = useUploadAsset(projectId);
+  const uploadAsset = useUploadAsset(projectId, contributor);
   const reorderPages = useReorderPages(projectId);
   const confirm = useConfirm();
   const configDirtySources = useRef(new Set<string>());

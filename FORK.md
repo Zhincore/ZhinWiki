@@ -18,7 +18,7 @@ Behaviour that exists only in this fork. Naming and branch rules:
   [#71](https://github.com/Zhincore/ZhinWiki/pull/71)); reviews, merge gate,
   outside contributors, notifications
   ([#79](https://github.com/Zhincore/ZhinWiki/pull/79)); publish on merge,
-  history, revert.
+  history, revert ([#85](https://github.com/Zhincore/ZhinWiki/pull/85)).
 - **Runtime branding**: `APP_NAME`, `BRAND_*` from env, ZhinWiki default
   ([#10](https://github.com/Zhincore/ZhinWiki/pull/10),
   [#11](https://github.com/Zhincore/ZhinWiki/pull/11),

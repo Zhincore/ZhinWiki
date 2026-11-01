@@ -3,7 +3,7 @@ import { wikiSlugUnavailable } from '@nibleaf/auth/wiki-slugs';
 import { assignDefaultUsagePlan, type Prisma, prisma } from '@nibleaf/database';
 import { addonDefinitions, defaultProjectAddonProvisioning, projectConfigWithAddons } from '@nibleaf/shared/addons';
 import { MemberRole } from '@nibleaf/shared/constants';
-import { effectiveWikiRole, platformWikiGrant } from '@nibleaf/shared/rbac';
+import { acceptsOutsideContributions, effectiveWikiRole, platformWikiGrant } from '@nibleaf/shared/rbac';
 import { THEME_PRESETS, THEME_SCHEMA_VERSION } from '@nibleaf/shared/themes';
 import { slugify } from '@nibleaf/shared/utils';
 import { isReservedWikiSlug, nextPreviousSlugs } from '@nibleaf/shared/wiki-paths';
@@ -63,6 +63,41 @@ export const assertProjectAccess = async (userId: string, projectId: string) => 
     throw notFound('project', { id: projectId });
   }
   return { project, organizationId: project.organizationId, role };
+};
+
+/** Access to a project: an effective wiki role, or `contributor` for a
+ *  signed-in non-member on a wiki that accepts outside change requests. */
+export type ProjectViewer =
+  | { organizationId: string; role: MemberRole; contributor: false }
+  | { organizationId: string; role: null; contributor: true };
+
+/** Resolve the caller's access to a project; notFound when they have none. */
+export const resolveProjectViewer = async (userId: string, projectId: string): Promise<ProjectViewer> => {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { organizationId: true, config: true, accessMode: true, takedownAt: true },
+  });
+  if (!project) {
+    throw notFound('project', { id: projectId });
+  }
+  const role = await resolveWikiRole(userId, project.organizationId);
+  if (role) {
+    return { organizationId: project.organizationId, role, contributor: false };
+  }
+  const open =
+    acceptsOutsideContributions(env.TENANCY, { ...project, published: true }) &&
+    (await prisma.deployment.count({ where: { projectId, status: 'READY' } })) > 0;
+  if (!open) {
+    throw notFound('project', { id: projectId });
+  }
+  return { organizationId: project.organizationId, role: null, contributor: true };
+};
+
+/** What a contributor sees of a project: its name and the typography the editor renders with. */
+export const getContributorProject = async (id: string) => {
+  const project = await prisma.project.findUniqueOrThrow({ where: { id }, select: { id: true, name: true, slug: true, icon: true, config: true } });
+  const typography = (project.config as { typography?: unknown } | null)?.typography;
+  return { ...project, config: typography === undefined ? {} : { typography } };
 };
 
 const candidateSlug = (base: string, index: number) => {

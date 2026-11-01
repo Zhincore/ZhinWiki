@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { MemberRole } from './constants';
 import {
   ASSIGNABLE_MEMBER_ROLES,
+  acceptsOutsideContributions,
   canAdminister,
   canAssignRole,
   canCreateWiki,
   canEdit,
   canManageMember,
+  changeRequestPolicy,
   EXPORT_CREATE_ROLE,
   EXPORT_SCHEDULE_ROLE,
   effectiveWikiRole,
@@ -176,5 +178,37 @@ describe('export permissions', () => {
     expect(roleAtLeast(MemberRole.MEMBER, EXPORT_SCHEDULE_ROLE)).toBe(false);
     expect(roleAtLeast(MemberRole.ADMIN, EXPORT_SCHEDULE_ROLE)).toBe(true);
     expect(roleAtLeast('viewer', EXPORT_CREATE_ROLE)).toBe(false);
+  });
+});
+
+describe('changeRequestPolicy', () => {
+  it('defaults to one approval and open contributions', () => {
+    expect(changeRequestPolicy(null)).toEqual({ requiredApprovals: 1, outsideContributions: true });
+    expect(changeRequestPolicy({ changeRequests: { requiredApprovals: -1 } }).requiredApprovals).toBe(1);
+  });
+  it('reads explicit settings, including zero approvals', () => {
+    expect(changeRequestPolicy({ changeRequests: { requiredApprovals: 0, outsideContributions: false } })).toEqual({
+      requiredApprovals: 0,
+      outsideContributions: false,
+    });
+  });
+});
+
+describe('acceptsOutsideContributions', () => {
+  const open = { config: null, accessMode: 'PUBLIC', takedownAt: null, published: true };
+  it('accepts a published public wiki in shared tenancy', () => {
+    expect(acceptsOutsideContributions('shared', open)).toBe(true);
+  });
+  it('never accepts in independent tenancy', () => {
+    expect(acceptsOutsideContributions('independent', open)).toBe(false);
+  });
+  it.each([
+    ['private site', { accessMode: 'WORKSPACE' }],
+    ['reader-only site', { accessMode: 'READERS' }],
+    ['taken down', { takedownAt: new Date() }],
+    ['unpublished', { published: false }],
+    ['turned off', { config: { changeRequests: { outsideContributions: false } } }],
+  ])('refuses a %s', (_label, patch) => {
+    expect(acceptsOutsideContributions('shared', { ...open, ...patch })).toBe(false);
   });
 });

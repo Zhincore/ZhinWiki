@@ -13,6 +13,8 @@ type HonoVariables = RequestIdVariables & {
   project: ProjectContext | null;
   /** Membership (role) of the current user in the current organization. */
   membership: MembershipContext | null;
+  /** Set by `requireProjectViewer` for a signed-in non-member contributing to a public wiki. */
+  contributor: boolean;
   /** Present when the request is authenticated via an SDK API key. */
   apiKey: ApiKeyContext | null;
   /** Interface locale selected by Paraglide or resolved from Accept-Language. */
@@ -48,5 +50,7 @@ export const getContextMembershipOrThrow = (): MembershipContext => {
   }
   return membership;
 };
+
+export const isContextContributor = () => getContext<HonoEnv>().var.contributor === true;
 
 export const getContextLocale = () => getContext<HonoEnv>().var.locale;

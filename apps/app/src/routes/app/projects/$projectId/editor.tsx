@@ -34,7 +34,7 @@ import {
 import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { ChangeRequestHeader, isChangeRequestEditable } from '@/components/change-requests/change-request-header';
+import { ChangeRequestHeader, isChangeRequestEditable, useChangeRequestAccess } from '@/components/change-requests/change-request-header';
 import { ChangeRequestsMenu } from '@/components/change-requests/change-requests-menu';
 import { AddLanguageDialog } from '@/components/editor/add-language-dialog';
 import { AiAssist } from '@/components/editor/ai-assist';
@@ -102,8 +102,12 @@ function EditorPage() {
   // ─── Change request: pages are edited only in one; main is read-only ─────────
   const { data: changeRequests, isFetching: changeRequestsFetching } = useChangeRequests(projectId);
   const changeRequest = cr === undefined ? undefined : changeRequests?.find((c) => c.number === cr);
+  // Outside contributors get only content editing, in their own change requests.
+  const { contributor, canEdit } = useChangeRequestAccess(projectId, changeRequest);
+  const notYours = Boolean(changeRequest) && !canEdit;
   const changeRequestUnavailable =
-    cr !== undefined && (changeRequest ? !isChangeRequestEditable(changeRequest) : changeRequests !== undefined && !changeRequestsFetching);
+    cr !== undefined &&
+    (changeRequest ? !isChangeRequestEditable(changeRequest) || notYours : changeRequests !== undefined && !changeRequestsFetching);
   const activeBranchId = changeRequest && !changeRequestUnavailable ? changeRequest.branchId : null;
   // Pages are writable only once the change request's branch is known.
   const readOnly = !activeBranchId;
@@ -201,7 +205,7 @@ function EditorPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [requestedRailTab, setRailTab] = useState<'comments' | 'ai'>('comments');
-  const aiRail = aiDraft && !readOnly;
+  const aiRail = aiDraft && !readOnly && !contributor;
   const railTab = aiRail ? requestedRailTab : 'comments';
   // The comments/AI rail starts closed (an empty "No comments yet" panel would
   // otherwise claim 300px on the first visit); the author's toggle is persisted.
@@ -573,7 +577,7 @@ function EditorPage() {
     mode: effectiveMode,
     hasPage: Boolean(activeId && page),
     sidebarCollapsed,
-    railOpen,
+    railOpen: railOpen && !contributor,
     focusedTreeOpen,
   });
   useEffect(() => {
@@ -604,7 +608,7 @@ function EditorPage() {
   // Comments on the active page — anchored highlights in the editor + the rail.
   // A change-request copy shares its main page's comments, which a merge keeps.
   const commentPageId = (activeId && (allPages ?? []).find((p) => p.id === activeId)?.sourcePageId) || activeId;
-  const { data: pageComments } = useComments(projectId, commentPageId ?? undefined);
+  const { data: pageComments } = useComments(projectId, contributor ? undefined : (commentPageId ?? undefined));
   const commentMarkers = useMemo(
     () => (pageComments ?? []).filter((c) => c.anchor?.quote).map((c) => ({ id: c.id, quote: c.anchor?.quote ?? '', resolved: c.resolved })),
     [pageComments],
@@ -658,9 +662,11 @@ function EditorPage() {
       back={{ to: '/app/projects/$projectId/editor', label: t('changeRequest.backToMain') }}
     >
       {saveStatus}
-      <Button aria-label={t('project.preview')} onClick={() => void openDraftPreview()} size="sm" variant="outline" className="cursor-pointer">
-        <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
-      </Button>
+      {contributor ? null : (
+        <Button aria-label={t('project.preview')} onClick={() => void openDraftPreview()} size="sm" variant="outline" className="cursor-pointer">
+          <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
+        </Button>
+      )}
     </ChangeRequestHeader>
   ) : (
     <header className="flex h-14 shrink-0 items-center gap-1.5 border-border border-b bg-background px-2 sm:gap-2.5 sm:px-3">
@@ -682,27 +688,31 @@ function EditorPage() {
       ) : null}
       <div className="ms-auto flex items-center gap-1 sm:gap-2">
         <ChangeRequestsMenu projectId={projectId} userId={session?.user.id} />
-        <Button
-          aria-label={t('editor.mode.configuration')}
-          size="sm"
-          variant={view === 'config' ? 'secondary' : 'ghost'}
-          className="cursor-pointer"
-          onClick={async () => {
-            const nextView = view === 'config' ? 'content' : 'config';
-            if (view === 'config' && !(await guardConfigChanges())) return;
-            setView(nextView);
-            if (nextView === 'config') {
-              setSidebarCollapsed(false);
-              setMobileSidebarOpen(true);
-            }
-          }}
-        >
-          <SlidersHorizontal className="size-3.5" /> <span className="hidden md:inline">{t('editor.mode.configuration')}</span>
-        </Button>
-        <Button aria-label={t('project.preview')} onClick={() => void openDraftPreview()} size="sm" variant="outline" className="cursor-pointer">
-          <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
-        </Button>
-        {project ? <PublishControl project={project} initialPublishOpen={publishParam} beforePublish={preparePublish} /> : null}
+        {contributor ? null : (
+          <>
+            <Button
+              aria-label={t('editor.mode.configuration')}
+              size="sm"
+              variant={view === 'config' ? 'secondary' : 'ghost'}
+              className="cursor-pointer"
+              onClick={async () => {
+                const nextView = view === 'config' ? 'content' : 'config';
+                if (view === 'config' && !(await guardConfigChanges())) return;
+                setView(nextView);
+                if (nextView === 'config') {
+                  setSidebarCollapsed(false);
+                  setMobileSidebarOpen(true);
+                }
+              }}
+            >
+              <SlidersHorizontal className="size-3.5" /> <span className="hidden md:inline">{t('editor.mode.configuration')}</span>
+            </Button>
+            <Button aria-label={t('project.preview')} onClick={() => void openDraftPreview()} size="sm" variant="outline" className="cursor-pointer">
+              <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
+            </Button>
+            {project ? <PublishControl project={project} initialPublishOpen={publishParam} beforePublish={preparePublish} /> : null}
+          </>
+        )}
         <Button size="sm" className="cursor-pointer" onClick={startChangeRequest.start} disabled={cr !== undefined || startChangeRequest.isPending}>
           {startChangeRequest.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <PenLine className="size-3.5" />} {t('changeRequest.edit')}
         </Button>
@@ -717,7 +727,7 @@ function EditorPage() {
         <section className="grid flex-1 place-items-center px-6 text-center">
           <div className="max-w-sm">
             <Lock className="mx-auto size-7 text-muted-foreground" />
-            <p className="mt-3 font-medium">{t('changeRequest.closed')}</p>
+            <p className="mt-3 font-medium">{t(notYours ? 'changeRequest.notYours' : 'changeRequest.closed')}</p>
             <div className="mt-4 flex justify-center gap-2">
               <Button variant="outline" nativeButton={false} render={<Link to="/app/projects/$projectId/editor" params={{ projectId }} />}>
                 {t('changeRequest.backToMain')}
@@ -848,7 +858,7 @@ function EditorPage() {
                             ) : null}
                           </button>
                           <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-                            {readOnly ? (
+                            {readOnly && !contributor ? (
                               <Button
                                 size="icon-xs"
                                 variant="ghost"
@@ -927,7 +937,7 @@ function EditorPage() {
                   })}
 
                   {/* Add a language */}
-                  {readOnly ? (
+                  {readOnly && !contributor ? (
                     <button
                       type="button"
                       onClick={() => setAddLangOpen(true)}
@@ -1069,17 +1079,19 @@ function EditorPage() {
                   </SegButton>
                 </SegmentedControl>
               )}
-              <Button
-                size="sm"
-                variant={commentMode ? 'secondary' : 'ghost'}
-                aria-pressed={commentMode}
-                className={cn('cursor-pointer', commentMode && 'bg-amber-500/15 text-amber-800 ring-1 ring-amber-500/35 dark:text-amber-300')}
-                onClick={toggleCommentMode}
-                title={t('editor.comments.mode')}
-              >
-                <MessageSquare className="size-4" />
-                <span className="hidden md:inline">{commentMode ? t('editor.comments.commenting') : t('editor.comments.mode')}</span>
-              </Button>
+              {contributor ? null : (
+                <Button
+                  size="sm"
+                  variant={commentMode ? 'secondary' : 'ghost'}
+                  aria-pressed={commentMode}
+                  className={cn('cursor-pointer', commentMode && 'bg-amber-500/15 text-amber-800 ring-1 ring-amber-500/35 dark:text-amber-300')}
+                  onClick={toggleCommentMode}
+                  title={t('editor.comments.mode')}
+                >
+                  <MessageSquare className="size-4" />
+                  <span className="hidden md:inline">{commentMode ? t('editor.comments.commenting') : t('editor.comments.mode')}</span>
+                </Button>
+              )}
               {readOnly ? null : (
                 <>
                   <Button
@@ -1120,7 +1132,7 @@ function EditorPage() {
                   </Button>
                 </>
               )}
-              {!markdownFocused ? (
+              {!markdownFocused && !contributor ? (
                 <Button
                   aria-label={railLabel}
                   aria-pressed={railOpen}

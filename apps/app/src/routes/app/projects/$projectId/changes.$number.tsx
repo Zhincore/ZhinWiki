@@ -9,9 +9,10 @@ import { Archive, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Eye, GitMer
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { ChangeRequestHeader } from '@/components/change-requests/change-request-header';
+import { ChangeRequestHeader, useChangeRequestAccess } from '@/components/change-requests/change-request-header';
 import { ChangedPages, ChangeMarker, changeKey, useChangesByLanguage } from '@/components/change-requests/changed-pages';
 import { MergeDialog } from '@/components/change-requests/merge-dialog';
+import { ApprovalStatus, ParticipantsPanel, ReviewersPanel, ReviewHistory, SubmitReviewMenu } from '@/components/change-requests/reviews';
 import { QueryErrorState } from '@/components/query-error-state';
 import {
   type ChangeRequestDetail,
@@ -86,6 +87,7 @@ function StatusActions({ projectId, changeRequest }: { projectId: string; change
   const confirm = useConfirm();
   const update = useUpdateChangeRequest(projectId, changeRequest.number);
   const [mergeOpen, setMergeOpen] = useState(false);
+  const { contributor, canEdit } = useChangeRequestAccess(projectId, changeRequest);
   const { status, branchId } = changeRequest;
   const open = status === 'DRAFT' || status === 'IN_REVIEW';
   const setStatus = (next: Exclude<ChangeRequestStatus, 'MERGED'>) =>
@@ -101,7 +103,7 @@ function StatusActions({ projectId, changeRequest }: { projectId: string; change
 
   return (
     <>
-      {branchId ? (
+      {branchId && !contributor ? (
         <Button
           nativeButton={false}
           render={<Link to="/app/projects/$projectId/preview" params={{ projectId }} search={{ branchId }} />}
@@ -112,29 +114,31 @@ function StatusActions({ projectId, changeRequest }: { projectId: string; change
           <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
         </Button>
       ) : null}
-      {open ? (
+      {open && canEdit ? (
         <Button size="sm" variant="ghost" onClick={() => void archive()} disabled={update.isPending} aria-label={t('changeRequest.archive')}>
           <Archive className="size-3.5" /> <span className="hidden md:inline">{t('changeRequest.archive')}</span>
         </Button>
       ) : null}
-      {status === 'DRAFT' ? (
+      {status === 'DRAFT' && canEdit ? (
         <Button size="sm" variant="outline" onClick={() => setStatus('IN_REVIEW')} disabled={update.isPending}>
           <Send className="size-3.5" /> {t('changeRequest.markReady')}
         </Button>
       ) : null}
-      {status === 'IN_REVIEW' ? (
+      {status === 'IN_REVIEW' && canEdit ? (
         <Button size="sm" variant="outline" onClick={() => setStatus('DRAFT')} disabled={update.isPending}>
           <Undo2 className="size-3.5" /> {t('changeRequest.backToDraft')}
         </Button>
       ) : null}
-      {status === 'ARCHIVED' && branchId ? (
+      {status === 'ARCHIVED' && branchId && canEdit ? (
         <Button size="sm" variant="outline" onClick={() => setStatus('DRAFT')} disabled={update.isPending}>
           <RotateCcw className="size-3.5" /> {t('changeRequest.reopen')}
         </Button>
       ) : null}
-      {open && branchId ? (
+      {open && !contributor ? <SubmitReviewMenu projectId={projectId} number={changeRequest.number} /> : null}
+      {open && branchId && !contributor ? (
         <>
-          <Button size="sm" onClick={() => setMergeOpen(true)}>
+          <ApprovalStatus review={changeRequest.review} />
+          <Button size="sm" onClick={() => setMergeOpen(true)} disabled={!changeRequest.review.mergeable}>
             <GitMerge className="size-3.5" /> {t('changeRequest.merge')}
           </Button>
           <MergeDialog
@@ -172,6 +176,7 @@ function OverviewTab({
   const save = (body: { title?: string; description?: string | null }) =>
     update.mutate(body, { onError: (error) => toast.error(error.message || t('changeRequest.updateError')) });
   const author = changeRequest.author?.name ?? t('changeRequest.unknownAuthor');
+  const { contributor, canEdit } = useChangeRequestAccess(projectId, changeRequest);
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
@@ -181,6 +186,7 @@ function OverviewTab({
           className="w-full rounded-sm border-0 bg-transparent font-semibold text-2xl tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           dir="auto"
           maxLength={200}
+          readOnly={!canEdit}
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           onBlur={() => {
@@ -214,12 +220,18 @@ function OverviewTab({
           dir="auto"
           maxLength={20_000}
           placeholder={t('changeRequest.descriptionPlaceholder')}
+          readOnly={!canEdit}
           value={description}
           onChange={(event) => setDescription(event.target.value)}
           onBlur={() => {
             if (description !== (changeRequest.description ?? '')) save({ description: description.trim() ? description : null });
           }}
         />
+
+        <div className="mt-6 grid gap-6 rounded-xl border border-border bg-card p-4 sm:grid-cols-2">
+          <ReviewersPanel projectId={projectId} changeRequest={changeRequest} manage={!contributor} />
+          <ParticipantsPanel participants={changeRequest.participants} />
+        </div>
 
         {changeRequest.conflicts.length > 0 ? (
           <div
@@ -289,6 +301,7 @@ function OverviewTab({
             </div>
           </div>
         )}
+        <ReviewHistory reviews={changeRequest.reviews} />
       </div>
     </div>
   );

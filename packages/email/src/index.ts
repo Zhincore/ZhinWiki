@@ -223,3 +223,39 @@ export async function renderDeploymentEmail({
     text,
   };
 }
+
+export type ChangeRequestEmailEvent = 'approved' | 'changesRequested' | 'merged' | 'reviewRequested';
+
+export async function renderChangeRequestEmail({
+  actorName,
+  event,
+  language = DEFAULT_EMAIL_LANGUAGE,
+  number,
+  projectName,
+  title,
+  url,
+}: {
+  actorName: string;
+  event: ChangeRequestEmailEvent;
+  language?: EmailLanguage;
+  number: number;
+  projectName: string;
+  title: string;
+  url: string;
+}): Promise<RenderedEmail> {
+  const t = createEmailTranslator(language);
+  const params = { actorName, number, projectName, title };
+  const subject = t(`email.changeRequest.${event}.subject`, params)
+    .replace(/[\r\n]+/g, ' ')
+    .trim();
+  const { html, text } = await renderEmail(
+    createElement(TransactionalEmail, {
+      action: { label: t('email.changeRequest.action'), url },
+      language,
+      message: t(`email.changeRequest.${event}.message`, params),
+      preview: subject,
+      title: subject,
+    }),
+  );
+  return { subject, html, text };
+}

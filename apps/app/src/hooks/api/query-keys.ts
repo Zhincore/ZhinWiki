@@ -24,6 +24,7 @@ export const queryKeys = {
     all: (projectId: string) => ['change-requests', projectId] as const,
     detail: (projectId: string, number: number) => ['change-requests', projectId, number] as const,
     pageDiff: (projectId: string, number: number, pageId: string) => ['change-requests', projectId, number, 'diff', pageId] as const,
+    reviewerCandidates: (projectId: string) => ['change-request-reviewer-candidates', projectId] as const,
   },
   deployments: {
     all: (projectId: string) => ['deployments', projectId] as const,

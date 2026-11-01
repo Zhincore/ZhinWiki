@@ -1,6 +1,9 @@
 import { prisma } from '@nibleaf/database';
 import type { MarkNotificationsReadBody } from '@nibleaf/validators';
 
+/** Name shown for a user in notifications and emails: their name, else their email. */
+export const notificationName = (user: { name: string; email: string }): string => user.name || user.email;
+
 /**
  * Workspace notification preferences live as a JSON blob on `Organization.metadata`
  * (`{ notifications: { [id]: boolean } }`), edited in the per-site Notifications

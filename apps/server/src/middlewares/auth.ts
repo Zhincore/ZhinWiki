@@ -11,6 +11,7 @@ export const sessionMiddleware = (): MiddlewareHandler<HonoEnv> => async (ctx, n
   ctx.set('apiKey', null);
   ctx.set('project', null);
   ctx.set('membership', null);
+  ctx.set('contributor', false);
 
   try {
     const result = await auth.api.getSession({ headers: ctx.req.raw.headers });

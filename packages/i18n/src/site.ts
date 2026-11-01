@@ -73,6 +73,7 @@ import { site_searchplaceholder } from './paraglide/messages/site_searchplacehol
 import { site_searchprompt } from './paraglide/messages/site_searchprompt.js';
 import { site_showproperties } from './paraglide/messages/site_showproperties.js';
 import { site_sources } from './paraglide/messages/site_sources.js';
+import { site_suggestchanges } from './paraglide/messages/site_suggestchanges.js';
 import { site_tab } from './paraglide/messages/site_tab.js';
 import { site_tags } from './paraglide/messages/site_tags.js';
 import { site_togglesubpages } from './paraglide/messages/site_togglesubpages.js';
@@ -115,6 +116,7 @@ const siteMessages = {
   feedbackNo: site_feedbackno,
   feedbackThanks: site_feedbackthanks,
   editPage: site_editpage,
+  suggestChanges: site_suggestchanges,
   raiseIssue: site_raiseissue,
   analyticsConsentBody: site_analyticsconsentbody,
   analyticsConsentAccept: site_analyticsconsentaccept,

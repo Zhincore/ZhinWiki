@@ -14,6 +14,7 @@ import {
   ChartNoAxesCombined,
   CirclePlus,
   GitBranch,
+  GitPullRequest,
   Globe2,
   Import,
   KeyRound,
@@ -28,6 +29,7 @@ import {
 import type { ReactNode } from 'react';
 import { AddonsSection } from '@/components/project-settings/addons-section';
 import { AuthenticationSection } from '@/components/project-settings/authentication-section';
+import { ChangeRequestsSection } from '@/components/project-settings/change-requests-section';
 import { DangerSection } from '@/components/project-settings/danger-section';
 import { DomainSection } from '@/components/project-settings/domain-section';
 import { ExportsSection } from '@/components/project-settings/exports-section';
@@ -59,6 +61,7 @@ type SectionId =
   | 'authentication'
   | 'search'
   | 'addons'
+  | 'changeRequests'
   | 'git'
   | 'openapi'
   | 'contentImport'
@@ -84,6 +87,7 @@ const SECTIONS = [
   { id: 'authentication', group: 'site', icon: LockKeyhole },
   { id: 'search', group: 'site', icon: Search },
   { id: 'addons', group: 'site', icon: Blocks },
+  { id: 'changeRequests', group: 'site', icon: GitPullRequest },
   { id: 'git', group: 'deployment', icon: GitBranch },
   { id: 'openapi', group: 'deployment', icon: Braces },
   { id: 'contentImport', group: 'deployment', icon: Import },
@@ -257,6 +261,7 @@ function ActiveSection({
     authentication: <AuthenticationSection key={`authentication-${project.id}`} project={project} />,
     search: <SearchSection key={`search-${project.id}`} project={project} />,
     addons: <AddonsSection key={`addons-${project.id}`} projectId={project.id} />,
+    changeRequests: <ChangeRequestsSection key={`change-requests-${project.id}`} project={project} />,
     git: <GitTab key={`git-${projectId}`} projectId={projectId} />,
     openapi: <OpenApiSection key={`openapi-${projectId}`} projectId={projectId} />,
     contentImport: <ImportTab key={`import-${projectId}`} projectId={projectId} />,

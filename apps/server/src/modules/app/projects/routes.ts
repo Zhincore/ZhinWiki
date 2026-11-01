@@ -2,7 +2,7 @@ import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { MemberRole } from '@nibleaf/shared/constants';
 import { errorResponses } from '@/errors/utils';
 import { createRouteConfig } from '@/lib/hono/route-config';
-import { isAuthenticated, requireProjectMember, requireProjectRole } from '@/middlewares/guard';
+import { isAuthenticated, requireProjectMember, requireProjectRole, requireProjectViewer } from '@/middlewares/guard';
 import { canCreateProject } from '@/middlewares/guard/can-create-project';
 
 // The projects module mounts these at the top level, so the project id arrives
@@ -23,9 +23,10 @@ const projectsRoutes = {
     responses: { 201: { description: 'created' }, ...errorResponses },
   }),
   get: createRouteConfig({
-    guard: [isAuthenticated, requireProjectMember('id')],
+    // Contributors get only the name and typography (`viewerRole: contributor`).
+    guard: [isAuthenticated, requireProjectViewer('id')],
     tags: ['projects'],
-    description: 'Retrieve a documentation site.',
+    description: "Retrieve a documentation site and the caller's role in it.",
     responses: { 200: { description: 'ok' }, ...errorResponses },
   }),
   export: createRouteConfig({

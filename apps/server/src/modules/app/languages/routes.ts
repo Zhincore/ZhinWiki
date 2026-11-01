@@ -1,14 +1,14 @@
 import { MemberRole } from '@nibleaf/shared/constants';
 import { errorResponses } from '@/errors/utils';
 import { createRouteConfig } from '@/lib/hono/route-config';
-import { isAuthenticated, requireProjectMember, requireProjectRole } from '@/middlewares/guard';
+import { isAuthenticated, requireProjectRole, requireProjectViewer } from '@/middlewares/guard';
 
 const ok = { 200: { description: 'ok' }, ...errorResponses };
 const editor = [isAuthenticated, requireProjectRole(MemberRole.MEMBER)] as const;
 
 const languagesRoutes = {
   list: createRouteConfig({
-    guard: [isAuthenticated, requireProjectMember()],
+    guard: [isAuthenticated, requireProjectViewer()],
     tags: ['languages'],
     description: "List a project's languages and default-branch translation coverage.",
     responses: ok,

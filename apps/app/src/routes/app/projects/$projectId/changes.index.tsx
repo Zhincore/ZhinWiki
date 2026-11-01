@@ -3,12 +3,12 @@ import { SegmentedControl, SegmentedControlItem } from '@nibleaf/design-system/c
 import { Skeleton } from '@nibleaf/design-system/components/ui/skeleton';
 import { useT } from '@nibleaf/i18n/react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { GitPullRequest, Loader2, Plus, User } from 'lucide-react';
+import { GitPullRequest, Loader2, Plus, User, UserCheck } from 'lucide-react';
 import { useMemo } from 'react';
 import { z } from 'zod';
 import { ChangeRequestStatusBadge } from '@/components/change-requests/change-request-header';
 import { QueryErrorState } from '@/components/query-error-state';
-import { type ChangeRequestStatus, useChangeRequests, useStartChangeRequest } from '@/hooks/api';
+import { type ChangeRequestStatus, useChangeRequests, useProject, useStartChangeRequest } from '@/hooks/api';
 import { useFormatters } from '@/lib/format';
 import { useSession } from '@/services/auth-client';
 
@@ -25,6 +25,7 @@ export const Route = createFileRoute('/app/projects/$projectId/changes/')({
       .object({
         status: z.enum(['open', 'merged', 'archived']).optional().catch(undefined),
         mine: z.preprocess((value) => (value === true || value === 'true' ? true : undefined), z.literal(true).optional()),
+        awaiting: z.preprocess((value) => (value === true || value === 'true' ? true : undefined), z.literal(true).optional()),
       })
       .parse(search),
 });
@@ -32,20 +33,24 @@ export const Route = createFileRoute('/app/projects/$projectId/changes/')({
 function ChangeRequestsPage() {
   const t = useT();
   const { projectId } = Route.useParams();
-  const { status = 'open', mine } = Route.useSearch();
+  const { status = 'open', mine, awaiting } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const { relativeTime } = useFormatters();
   const { data: session } = useSession();
   const userId = session?.user.id;
   const { data, isPending, isError, refetch, isRefetching } = useChangeRequests(projectId);
   const startChangeRequest = useStartChangeRequest(projectId);
+  const { data: project } = useProject(projectId);
+  const reviewer = project !== undefined && project.viewerRole !== 'contributor';
   const rows = useMemo(
     () =>
       (data ?? []).filter(
         (changeRequest) =>
-          (FILTERS[status] as readonly ChangeRequestStatus[]).includes(changeRequest.status) && (!mine || changeRequest.authorId === userId),
+          (FILTERS[status] as readonly ChangeRequestStatus[]).includes(changeRequest.status) &&
+          (!mine || changeRequest.authorId === userId) &&
+          (!awaiting || Boolean(changeRequest.reviewers?.some((reviewer) => reviewer.userId === userId && reviewer.awaiting))),
       ),
-    [data, status, mine, userId],
+    [data, status, mine, awaiting, userId],
   );
 
   return (
@@ -80,6 +85,16 @@ function ChangeRequestsPage() {
         >
           <User className="size-3.5" /> {t('changeRequest.filter.yours')}
         </Button>
+        {reviewer ? (
+          <Button
+            size="sm"
+            variant={awaiting ? 'secondary' : 'outline'}
+            aria-pressed={Boolean(awaiting)}
+            onClick={() => void navigate({ search: (prev) => ({ ...prev, awaiting: awaiting ? undefined : true }) })}
+          >
+            <UserCheck className="size-3.5" /> {t('changeRequest.filter.awaitingReview')}
+          </Button>
+        ) : null}
       </div>
 
       <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card">

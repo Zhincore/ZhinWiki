@@ -3,7 +3,7 @@ import { instanceBrand } from '@nibleaf/shared/brand/server';
 import type { MemberRole } from '@nibleaf/shared/constants';
 import { roleAtLeast } from '@nibleaf/shared/rbac';
 import type { Context, MiddlewareHandler } from 'hono';
-import { assertProjectAccess } from '@/actions/projects';
+import { assertProjectAccess, resolveProjectViewer } from '@/actions/projects';
 import { AppError } from '@/errors';
 import type { HonoEnv } from '@/lib/hono/context';
 
@@ -86,6 +86,30 @@ export const requireProjectRole =
     const role = await resolveProjectOrg(ctx, paramKey);
     if (!roleAtLeast(role, required)) {
       throw new AppError({ code: 'auth:insufficient_role' });
+    }
+    await next();
+  };
+
+/** Require a member of the project's org, or a contributor on a wiki that
+ *  accepts outside change requests (`contributor` is set, no membership).
+ *  Routes using it limit contributors to change request work themselves. */
+export const requireProjectViewer =
+  (paramKey = 'projectId'): MiddlewareHandler<HonoEnv> =>
+  async (ctx, next) => {
+    const user = ctx.get('user');
+    if (!user) {
+      throw new AppError({ code: 'auth:no_user', message: 'Authentication required.' });
+    }
+    const projectId = ctx.req.param(paramKey);
+    if (!projectId) {
+      throw new AppError({ code: 'http:bad_request', message: 'Missing project id.' });
+    }
+    const viewer = await resolveProjectViewer(user.id, projectId);
+    ctx.set('organizationId', viewer.organizationId);
+    if (viewer.contributor) {
+      ctx.set('contributor', true);
+    } else {
+      ctx.set('membership', { organizationId: viewer.organizationId, role: viewer.role });
     }
     await next();
   };

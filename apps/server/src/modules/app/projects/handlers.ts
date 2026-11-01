@@ -2,10 +2,10 @@ import { createProjectBody, themeImportBodySchema, updateProjectBody } from '@ni
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { exportProjectMarkdown, exportProjectThemeRepository } from '@/actions/export';
-import { createProject, deleteProject, getProject, listProjects, updateProject } from '@/actions/projects';
+import { createProject, deleteProject, getContributorProject, getProject, listProjects, updateProject } from '@/actions/projects';
 import { exportProjectTheme, getProjectThemeCatalog, importProjectTheme } from '@/actions/themes';
 import { badRequest } from '@/errors';
-import { getContextOrganizationIdOrThrow, getContextUserOrThrow, type HonoEnv } from '@/lib/hono/context';
+import { getContextMembership, getContextOrganizationIdOrThrow, getContextUserOrThrow, type HonoEnv, isContextContributor } from '@/lib/hono/context';
 import { validator } from '@/lib/hono/validate';
 import projectsRoutes from './routes';
 
@@ -19,8 +19,12 @@ const app = new Hono<HonoEnv>()
     return ctx.json({ data: await createProject(user.id, ctx.req.valid('json')) }, 201);
   })
   .get('/:id', ...projectsRoutes.get, async (ctx) => {
+    if (isContextContributor()) {
+      return ctx.json({ data: { ...(await getContributorProject(ctx.req.param('id'))), viewerRole: 'contributor' as const } }, 200);
+    }
     const organizationId = getContextOrganizationIdOrThrow();
-    return ctx.json({ data: await getProject(organizationId, ctx.req.param('id')) }, 200);
+    const project = await getProject(organizationId, ctx.req.param('id'));
+    return ctx.json({ data: { ...project, viewerRole: getContextMembership()?.role ?? null } }, 200);
   })
   .get('/:id/export', ...projectsRoutes.export, async (ctx) => {
     // Guard (requireProjectMember) already verified membership in the site's org.

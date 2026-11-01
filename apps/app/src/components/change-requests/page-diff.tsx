@@ -8,7 +8,9 @@ import { Markdown } from '@/components/markdown';
 import { type ChangeRequestDiffSide, useChangeRequestPageDiff } from '@/hooks/api';
 import { type BlockDiffRow, collapseUnchanged, diffBlocks } from '@/lib/block-diff';
 
-const FIELDS: { key: keyof ChangeRequestDiffSide; label: MessageKey }[] = [
+type ScalarField = Exclude<keyof ChangeRequestDiffSide, 'config'>;
+
+const FIELDS: { key: ScalarField; label: MessageKey }[] = [
   { key: 'title', label: 'changeRequest.field.title' },
   { key: 'slug', label: 'changeRequest.field.slug' },
   { key: 'path', label: 'changeRequest.field.path' },
@@ -16,7 +18,28 @@ const FIELDS: { key: keyof ChangeRequestDiffSide; label: MessageKey }[] = [
   { key: 'description', label: 'changeRequest.field.description' },
   { key: 'hidden', label: 'changeRequest.field.hidden' },
   { key: 'position', label: 'changeRequest.field.position' },
+  { key: 'translationKey', label: 'editor.pageSettings.translationKey' },
 ];
+
+/** Page settings as `dotted.key → JSON value` leaves, so nested changes show one row each. */
+const flattenConfig = (value: unknown, prefix = '', out = new Map<string, string>()) => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    for (const [key, child] of Object.entries(value)) flattenConfig(child, prefix ? `${prefix}.${key}` : key, out);
+  } else if (prefix && value !== undefined && value !== null) {
+    out.set(prefix, typeof value === 'string' ? value : JSON.stringify(value));
+  }
+  return out;
+};
+
+/** Changed page settings between two sides, sorted by key. */
+const configChanges = (main: ChangeRequestDiffSide['config'], change: ChangeRequestDiffSide['config']) => {
+  const before = flattenConfig(main);
+  const after = flattenConfig(change);
+  return [...new Set([...before.keys(), ...after.keys()])]
+    .sort()
+    .filter((key) => before.get(key) !== after.get(key))
+    .map((key) => ({ key, before: before.get(key) ?? null, after: after.get(key) ?? null }));
+};
 
 /** Rendered block-level diff of one page between main and a change request,
  *  with its changed metadata above. `pageId` names either side. */
@@ -38,30 +61,48 @@ export default function PageDiff({ projectId, number, pageId, dir }: { projectId
     return <p className="p-4 text-destructive text-sm">{t('changeRequest.diff.loadError')}</p>;
   }
   const { main, change } = data;
-  const fields = main && change ? FIELDS.filter(({ key }) => main[key] !== change[key]) : [];
-  const format = (value: ChangeRequestDiffSide[keyof ChangeRequestDiffSide]) =>
+  const format = (value: ChangeRequestDiffSide[ScalarField]) =>
     typeof value === 'boolean'
       ? t(value ? 'changeRequest.field.yes' : 'changeRequest.field.no')
       : value === null || value === ''
         ? '—'
         : String(value);
+  const fields = [
+    ...(main && change
+      ? FIELDS.filter(({ key }) => main[key] !== change[key]).map(({ key, label }) => ({
+          key,
+          label: t(label),
+          before: format(main[key]),
+          after: format(change[key]),
+        }))
+      : []),
+    // Settings of added pages too, so reviewers see SEO overrides such as a canonical URL.
+    ...(change
+      ? configChanges(main?.config ?? null, change.config).map(({ key, before, after }) => ({
+          key: `config.${key}`,
+          label: `${t('editor.pageSettings.title')}: ${key}`,
+          before: format(before),
+          after: format(after),
+        }))
+      : []),
+  ];
 
   return (
     <div className="space-y-3 p-3 sm:p-4" dir={dir}>
       {fields.length > 0 ? (
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md border border-border bg-muted/30 px-3 py-2 text-[13px]">
-          {fields.map(({ key, label }) => (
+          {fields.map(({ key, label, before, after }) => (
             <div key={key} className="contents">
-              <dt className="text-muted-foreground">{t(label)}</dt>
+              <dt className="text-muted-foreground">{label}</dt>
               <dd className="flex min-w-0 flex-wrap items-center gap-x-2">
                 <span className="break-all text-red-700 line-through decoration-red-500/60 dark:text-red-400" dir="auto">
-                  {format(main?.[key] ?? null)}
+                  {before}
                 </span>
                 <span aria-hidden className="text-muted-foreground rtl:-scale-x-100">
                   →
                 </span>
                 <span className="break-all text-emerald-700 dark:text-emerald-400" dir="auto">
-                  {format(change?.[key] ?? null)}
+                  {after}
                 </span>
               </dd>
             </div>

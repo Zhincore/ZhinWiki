@@ -1,7 +1,19 @@
 import { cn } from '@nibleaf/design-system/lib/utils';
 import { siteT } from '@nibleaf/i18n/site';
 import { protectMarkdownCode } from '@nibleaf/shared/markdown-code';
-import { CalendarClock, Check, ChevronLeft, ChevronRight, CircleAlert, Clock3, Image, PencilLine, ThumbsDown, ThumbsUp } from 'lucide-react';
+import {
+  CalendarClock,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
+  Clock3,
+  GitPullRequest,
+  Image,
+  PencilLine,
+  ThumbsDown,
+  ThumbsUp,
+} from 'lucide-react';
 import { lazy, Suspense, startTransition, useEffect, useState } from 'react';
 import { DocumentationPageLayout } from '@/components/site/documentation-theme-provider';
 import { useSitePageAlternates } from '@/components/site/page-alternates-context';
@@ -25,18 +37,20 @@ const applyUrlTemplate = (template: string | undefined, path: string, fallbackUr
     .replaceAll('{url}', encodeURIComponent(fallbackUrl));
 };
 
-/** "Was this page helpful?" + edit/issue links, rendered at the end of the
- *  article so it always aligns with the reading column. */
+/** "Was this page helpful?" + edit/issue/suggest links, rendered at the end of
+ *  the article so it always aligns with the reading column. */
 function ReaderActions({
   projectId,
   path,
   language,
   addons,
+  suggestUrl,
 }: {
   projectId: string;
   path: string;
   language?: string;
   addons: NonNullable<ProjectConfig['addons']> | undefined;
+  suggestUrl: string | null;
 }) {
   const t = siteT(language);
   const { track } = useSiteAnalytics();
@@ -50,7 +64,7 @@ function ReaderActions({
   const showFeedback = addons?.feedback !== false;
   const presentation = addons?.feedbackPresentation ?? 'compact';
 
-  if (!showFeedback && !editUrl && !issueUrl) {
+  if (!showFeedback && !editUrl && !issueUrl && !suggestUrl) {
     return null;
   }
 
@@ -100,8 +114,16 @@ function ReaderActions({
         <div />
       )}
 
-      {editUrl || issueUrl ? (
+      {editUrl || issueUrl || suggestUrl ? (
         <div className="flex flex-wrap items-center gap-4">
+          {suggestUrl ? (
+            <a
+              className="inline-flex items-center gap-1.5 font-medium text-muted-foreground transition-colors hover:text-foreground"
+              href={suggestUrl}
+            >
+              <GitPullRequest className="size-3.5" /> {t('suggestChanges')}
+            </a>
+          ) : null}
           {editUrl ? (
             <a
               className="inline-flex items-center gap-1.5 font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -158,7 +180,9 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
   // Whether ReaderActions will render — when it doesn't, the prev/next pager
   // takes over the article-footer divider it normally provides.
   const addons = data.project.config?.addons;
+  const suggestUrl = data.project.contributeUrl ? `${data.project.contributeUrl}?page=${encodeURIComponent(page.id)}` : null;
   const hasReaderActions =
+    Boolean(suggestUrl) ||
     addons?.feedback !== false ||
     (addons?.editSuggestions !== false && Boolean(addons?.editUrl?.trim())) ||
     (addons?.issueLinks !== false && Boolean(addons?.issueUrl?.trim()));
@@ -231,6 +255,7 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
           path={page.path}
           language={language}
           addons={addons}
+          suggestUrl={suggestUrl}
         />
       )}
 
@@ -273,6 +298,7 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
           path={page.path}
           language={language}
           addons={addons}
+          suggestUrl={suggestUrl}
         />
       ) : null}
     </article>

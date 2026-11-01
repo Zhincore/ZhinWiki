@@ -1,12 +1,12 @@
 import { useT } from '@nibleaf/i18n/react';
-import type { CreateChangeRequestBody, UpdateChangeRequestBody } from '@nibleaf/validators';
+import type { CreateChangeRequestBody, SubmitChangeRequestReviewBody, UpdateChangeRequestBody } from '@nibleaf/validators';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { api } from '@/services/api';
 import { getData, mutateData } from './client-helpers';
 import { queryKeys } from './query-keys';
-import type { ChangeRequest, ChangeRequestDetail, ChangeRequestPageDiff } from './types';
+import type { ChangeRequest, ChangeRequestDetail, ChangeRequestPageDiff, ChangeRequestUser } from './types';
 
 const changeRequests = api.app.projects[':projectId']['change-requests'];
 
@@ -96,5 +96,42 @@ export const useMergeChangeRequest = (projectId: string, number: number) => {
       qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.deployments.changes(projectId) });
     },
+  });
+};
+
+/** Users who can be asked to review (members only). */
+export const useReviewerCandidates = (projectId: string, enabled: boolean) =>
+  useQuery({
+    queryKey: queryKeys.changeRequests.reviewerCandidates(projectId),
+    enabled,
+    queryFn: async () => getData<ChangeRequestUser[]>(await changeRequests['reviewer-candidates'].$get({ param: { projectId } }), 'reviewers'),
+  });
+
+/** Add a reviewer, ask them again (`request`) or remove them. */
+export const useChangeRequestReviewer = (projectId: string, number: number) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, remove }: { userId: string; remove?: boolean }) => {
+      const param = { projectId, number: String(number) };
+      return mutateData<{ userId: string }>(
+        remove
+          ? await changeRequests[':number'].reviewers[':userId'].$delete({ param: { ...param, userId } })
+          : await changeRequests[':number'].reviewers.$post({ param, json: { userId } }),
+        'Could not update the reviewers.',
+      );
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.changeRequests.all(projectId) }),
+  });
+};
+
+export const useSubmitChangeRequestReview = (projectId: string, number: number) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: SubmitChangeRequestReviewBody) =>
+      mutateData<{ state: string }>(
+        await changeRequests[':number'].reviews.$post({ param: { projectId, number: String(number) }, json: body }),
+        'Could not submit the review.',
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.changeRequests.all(projectId) }),
   });
 };

@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { type Branch, Prisma, prisma } from '@nibleaf/database';
 import { newId } from '@nibleaf/shared/ids';
 import { AppError, conflict, forbidden, notFound } from '@/errors';
+import { OPEN_CHANGE_REQUEST_STATUSES } from '@/lib/change-request-status';
+import { cleanupContributorAssets } from './assets';
 import { contentHash, type ForkBase, pageFingerprint } from './change-request-merge';
 
 /** Every branch of a project, default ('main') first. */
@@ -53,7 +55,7 @@ export const assertPagesEditable = async (
   }
   if (branchIds.length === 0) return [];
   const open = await prisma.changeRequest.findMany({
-    where: { projectId, branchId: { in: branchIds }, status: { in: ['DRAFT', 'IN_REVIEW'] } },
+    where: { projectId, branchId: { in: branchIds }, status: { in: [...OPEN_CHANGE_REQUEST_STATUSES] } },
     select: { id: true, authorId: true },
   });
   if (open.length < branchIds.length) {
@@ -262,9 +264,11 @@ export const deleteBranch = async (projectId: string, id: string) => {
   if (branch.isDefault) {
     throw conflict('You cannot delete the default branch.');
   }
+  const changeRequest = await prisma.changeRequest.findUnique({ where: { branchId: id }, select: { authorId: true } });
   await prisma.$transaction([
     prisma.changeRequest.updateMany({ where: { branchId: id, status: { not: 'MERGED' } }, data: { status: 'ARCHIVED' } }),
     prisma.branch.delete({ where: { id } }),
   ]);
+  if (changeRequest?.authorId) await cleanupContributorAssets(projectId, changeRequest.authorId);
   return { id };
 };

@@ -4,6 +4,8 @@ import { changerequest_defaulttitle } from '@nibleaf/i18n/messages';
 import { changeRequestPolicy } from '@nibleaf/shared/rbac';
 import type { CreateChangeRequestBody, UpdateChangeRequestBody } from '@nibleaf/validators';
 import { AppError, conflict, forbidden, notFound } from '@/errors';
+import { OPEN_CHANGE_REQUEST_STATUSES } from '@/lib/change-request-status';
+import { cleanupContributorAssets } from './assets';
 import { assertNoTrackedChangeRequests, createBranch, getDefaultBranch } from './branches';
 import { type ForkBase, type MergedFields, type MergePage, type MergeRecordEntry, planMerge, summarizeChanges } from './change-request-merge';
 import { capableReviewSummary, mergeReviewSummary, reviewCapableUserIds, reviewSummary } from './change-request-reviews';
@@ -83,7 +85,7 @@ export const createChangeRequest = async (
   options: { locale?: Locale; contributor?: boolean } = {},
 ) => {
   if (options.contributor) {
-    const open = await prisma.changeRequest.count({ where: { projectId, authorId: author.id, status: { in: ['DRAFT', 'IN_REVIEW'] } } });
+    const open = await prisma.changeRequest.count({ where: { projectId, authorId: author.id, status: { in: [...OPEN_CHANGE_REQUEST_STATUSES] } } });
     if (open >= CONTRIBUTOR_OPEN_LIMIT) {
       throw new AppError({
         code: 'change_requests:open_limit',
@@ -189,6 +191,7 @@ export const updateChangeRequest = async (projectId: string, number: number, bod
     },
   });
   if (count === 0) throw conflict('This change request changed meanwhile. Reload and try again.');
+  if (statusChange && body.status === 'ARCHIVED' && changeRequest.authorId) await cleanupContributorAssets(projectId, changeRequest.authorId);
   return prisma.changeRequest.findUniqueOrThrow({ where: { id: changeRequest.id }, omit: internalColumns, include: { author: userSelect } });
 };
 
@@ -207,7 +210,7 @@ const pageData = <T extends Partial<MergedFields>>(data: T) => {
 export const mergeChangeRequest = async (projectId: string, number: number, userId: string, force: readonly string[]) => {
   const { id } = await findChangeRequest(projectId, number);
   const main = await getDefaultBranch(projectId);
-  return prisma.$transaction(
+  const merged = await prisma.$transaction(
     async (tx) => {
       // Serialize merges per project and hold main's rows against concurrent edits until commit.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${projectId}))`;
@@ -266,6 +269,8 @@ export const mergeChangeRequest = async (projectId: string, number: number, user
     },
     { timeout: MERGE_TIMEOUT_MS },
   );
+  if (merged.authorId) await cleanupContributorAssets(projectId, merged.authorId);
+  return merged;
 };
 
 type DiffPage = {

@@ -9,6 +9,7 @@ describe('publicAssetResponseHeaders', () => {
         contentType: contentType.toLowerCase().split(';')[0],
         contentDisposition: undefined,
         contentSecurityPolicy: undefined,
+        crossOriginResourcePolicy: 'same-origin',
       });
     },
   );
@@ -24,6 +25,7 @@ describe('publicAssetResponseHeaders', () => {
       contentType: 'application/octet-stream',
       contentDisposition: 'attachment',
       contentSecurityPolicy: 'sandbox',
+      crossOriginResourcePolicy: 'same-origin',
     });
   });
 });

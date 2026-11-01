@@ -152,7 +152,8 @@ function EditorPage() {
     });
   };
 
-  // Upload an image (paste/drop/pick) and return its hosted URL for the editor.
+  // Upload an image (paste/drop/pick) and return its hosted URL for the editor;
+  // offered once the project tells whether the viewer uploads as a contributor.
   const onUploadImage = async (file: File): Promise<string | null> => {
     try {
       return (await uploadAsset.mutateAsync(file)).url;
@@ -1195,7 +1196,7 @@ function EditorPage() {
                   dir={activeLangDir}
                   lang={activeLanguage?.code}
                   style={typographyVars(project?.config?.typography)}
-                  onUpload={onUploadImage}
+                  onUpload={project ? onUploadImage : undefined}
                   comments={commentMarkers}
                   activeCommentId={activeCommentId}
                   commentMode={commentMode}

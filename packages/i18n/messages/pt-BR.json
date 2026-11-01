@@ -451,6 +451,8 @@
   "editor_table_toggleheader": "Alternar linha do cabeçalho",
   "editor_table_delete": "Excluir tabela",
   "editor_imageuploadfailed": "Falha no upload da imagem.",
+  "editor_imageuploadtoolarge": "Colaboradores podem enviar imagens de no máximo 5 MB.",
+  "editor_imageuploadquota": "Você atingiu o limite de 50 MB de imagens enviadas para esta wiki.",
   "editor_createfailed": "Falha",
   "editor_newgroup": "Novo grupo",
   "editor_newpage": "Nova página",

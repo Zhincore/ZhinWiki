@@ -1,7 +1,7 @@
 import { MemberRole } from '@nibleaf/shared/constants';
 import { errorResponses } from '@/errors/utils';
 import { createRouteConfig } from '@/lib/hono/route-config';
-import { isAuthenticated, requireProjectMember, requireProjectRole } from '@/middlewares/guard';
+import { isAuthenticated, requireProjectMember, requireProjectRole, requireProjectViewer } from '@/middlewares/guard';
 
 const ok = { 200: { description: 'ok' }, ...errorResponses };
 const editor = [isAuthenticated, requireProjectRole(MemberRole.MEMBER)] as const;
@@ -18,6 +18,12 @@ const assetsRoutes = {
     guard: [...editor],
     tags: ['assets'],
     description: 'Record an uploaded asset.',
+    responses: { 201: { description: 'created' }, ...errorResponses },
+  }),
+  upload: createRouteConfig({
+    guard: [isAuthenticated, requireProjectViewer()],
+    tags: ['assets'],
+    description: 'Upload an image through the API (outside contributors with an open change request).',
     responses: { 201: { description: 'created' }, ...errorResponses },
   }),
 };

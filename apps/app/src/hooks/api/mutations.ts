@@ -317,12 +317,24 @@ export const useDeleteDomain = (projectId: string) => {
 /** Browsers occasionally omit File.type for valid images; never infer an active type. */
 const uploadContentType = (file: File): string => file.type.trim() || inferUploadableAssetContentType(file.name) || 'application/octet-stream';
 
-/** Presign → PUT bytes → confirm. Returns the recorded asset. */
-export const useUploadAsset = (projectId: string) => {
+/**
+ * Members: presign → PUT bytes to storage → confirm. Outside contributors send
+ * the bytes through the API, which enforces their size limits. Returns the recorded asset.
+ */
+export const useUploadAsset = (projectId: string, contributor = false) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (file: File): Promise<Asset> => {
       const contentType = uploadContentType(file);
+      if (contributor) {
+        return mutateData(
+          await api.app.projects[':projectId'].assets.upload.$post(
+            { param: { projectId }, query: { filename: file.name }, header: { 'content-type': contentType } },
+            { init: { body: file } },
+          ),
+          'Could not upload the image.',
+        );
+      }
       const presign = await mutateData(
         await api.app.projects[':projectId'].assets.presign.$post({
           param: { projectId },

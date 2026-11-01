@@ -30,6 +30,10 @@ A wildcard project domain needs wildcard DNS and a certificate covering
 For custom domains, preserve the validated original `Host` header through the
 ingress because Nibleaf uses it to select the project.
 
+Let the ingress pass request bodies of at least 15 MB to the dashboard origin:
+Ghost imports send up to 15 MB and outside contributors upload images of up to
+5 MB through `/api`. nginx allows only 1 MB unless `client_max_body_size` is raised.
+
 ## Verify service health
 
 Run from the deployment directory:

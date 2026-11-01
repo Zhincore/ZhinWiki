@@ -16,6 +16,7 @@ import {
 } from '@nibleaf/validators';
 import got from 'got';
 import { isPublicAddress } from '@/lib/domain-checks';
+import { sniffImageType } from '@/lib/image-type';
 import { findImportedAsset, storeAsset } from '../assets';
 import { htmlImageReferences, markdownReferences, remoteImageSources, replaceImportReferences } from './import-references';
 
@@ -65,18 +66,6 @@ const publicDnsLookup: LookupFunction = (hostname, options, callback) => {
 
 const importIdForSource = (namespace: string, source: string): string =>
   `${namespace}-${createHash('sha256').update(source).digest('hex').slice(0, 24)}`;
-
-/** Image type from magic bytes. GitBook stores many uploads without an
- * extension, which raw.githubusercontent.com serves as application/octet-stream. */
-const sniffImageType = (bytes: Uint8Array): string => {
-  const ascii = (start: number, end: number) => String.fromCharCode(...bytes.subarray(start, end));
-  if (bytes[0] === 0x89 && ascii(1, 4) === 'PNG') return 'image/png';
-  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
-  if (ascii(0, 6) === 'GIF87a' || ascii(0, 6) === 'GIF89a') return 'image/gif';
-  if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'image/webp';
-  if (ascii(4, 8) === 'ftyp' && ['avif', 'avis'].includes(ascii(8, 12))) return 'image/avif';
-  return '';
-};
 
 const fetchPublicImage = async (source: string): Promise<{ bytes: Uint8Array; contentType: string; filename: string }> => {
   let url = publicHttpUrl(source);

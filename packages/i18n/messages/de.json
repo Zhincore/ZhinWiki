@@ -451,6 +451,8 @@
   "editor_table_toggleheader": "Kopfzeile umschalten",
   "editor_table_delete": "Tabelle löschen",
   "editor_imageuploadfailed": "Das Hochladen des Bildes ist fehlgeschlagen.",
+  "editor_imageuploadtoolarge": "Mitwirkende können Bilder mit höchstens 5 MB hochladen.",
+  "editor_imageuploadquota": "Sie haben das Upload-Limit von 50 MB für Bilder in diesem Wiki erreicht.",
   "editor_createfailed": "Fehlgeschlagen",
   "editor_newgroup": "Neue Gruppe",
   "editor_newpage": "Neue Seite",

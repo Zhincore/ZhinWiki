@@ -54,3 +54,39 @@ it('bounds each expanded page independently of cumulative work', () => {
   const budget = new GitBookImportBudget();
   expect(() => budget.page('x'.repeat(2 * 1024 * 1024 + 1), 'big.md')).toThrow(/Expanded page/);
 });
+
+it('counts each nested include body once', async () => {
+  const chunk = 'x'.repeat(5 * 1024 * 1024);
+  const bodies: Record<string, string> = {
+    'a.md': `${chunk}\n{% include "b.md" %}`,
+    'b.md': `${chunk}\n{% include "c.md" %}`,
+    'c.md': `${chunk}\n{% include "d.md" %}`,
+    'd.md': `${chunk}\n{% include "e.md" %}`,
+    'e.md': chunk,
+  };
+  const expanded = await expandGitBookIncludes(
+    '{% include "a.md" %}',
+    'page.md',
+    (reference) => reference,
+    async (path) => bodies[path] ?? null,
+    [],
+  );
+  expect(expanded.length).toBeGreaterThan(25 * 1024 * 1024);
+});
+
+it('still bounds include fanout that multiplies expanded output', async () => {
+  const bodies: Record<string, string> = {
+    'a.md': '{% include "b.md" %}'.repeat(5),
+    'b.md': '{% include "c.md" %}'.repeat(5),
+    'c.md': 'x'.repeat(1024 * 1024),
+  };
+  await expect(
+    expandGitBookIncludes(
+      '{% include "a.md" %}'.repeat(5),
+      'page.md',
+      (reference) => reference,
+      async (path) => bodies[path] ?? null,
+      [],
+    ),
+  ).rejects.toThrow(/expansion budget/);
+});

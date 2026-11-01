@@ -210,8 +210,9 @@ export type CreateBranchInput = {
   authorId: string | null;
   /** Start from a copy of the default branch (default) or empty; an empty
    *  branch is untracked and merges by replacing the default branch. */
-  fork?: boolean /** Runs in the creating transaction after the fork, e.g. to rewrite its pages;
-   *  reruns when a concurrent create forces a retry. */;
+  fork?: boolean;
+  /** Runs in the creating transaction after the fork, e.g. to rewrite its pages;
+   *  reruns when a concurrent create forces a retry. */
   prepare?: (tx: Prisma.TransactionClient, branchId: string) => Promise<void>;
 };
 

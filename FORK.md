@@ -160,9 +160,11 @@ branch stores one change request (CR), reviewed and merged back.
   `change_request_reviewed`, `change_request_merged`.
 - Publish on merge: `config.changeRequests.publishOnMerge` (admin setting,
   default off). After a merge the handler calls `createDeployment` (`auto`);
-  a refused publish leaves the merge and answers `publish: 'failed'`, build
-  failures show as failed deployments. Publish button and first-publish nudge
-  hidden; rollback and "publish anyway" stay.
+  a refused publish leaves the merge, answers `publish: 'failed'` and is
+  stored as a FAILED deployment (`recordRefusedDeployment`), like build
+  failures. Publish button and first-publish nudge hidden; the overview
+  failure card offers Publish, rollback stays. Settings-only edits wait for
+  the next merge.
 - History: `GET …/change-requests/history?cursor=` (viewer rule, like the
   list): merged CRs by `mergedAt` desc, 20 per page, `pagesCount` from the
   merge record.
@@ -170,7 +172,8 @@ branch stores one change request (CR), reviewed and merged back.
   draft CR on a fresh fork (`createBranch` `prepare`, same transaction) with
   the record's pages set to `before`: added → deleted (children move up),
   removed or gone from `main` → re-created, edited/moved → `before` fields and
-  parent; a missing parent, a loop or a gone language → `warnings`. Later
+  parent (by id, else the page at its former path); a missing parent, a loop
+  or a gone language → `warnings`. Later
   `main` edits are overwritten and show in its diff.
 - UI: **Edit** on `main` opens a CR; `?cr=<n>` binds the editor; list at
   `/app/projects/:id/changes`, CR at `/changes/:n`, history at `/history`.

@@ -28,18 +28,31 @@ const mocks = vi.hoisted(() => {
     prisma: {
       $transaction: vi.fn(async (run: (client: typeof tx) => unknown) => run(tx)),
       branch: { findFirst: vi.fn(), findMany: vi.fn() },
-      changeRequest: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), count: vi.fn(), updateMany: vi.fn() },
+      $queryRaw: vi.fn(),
+      changeRequest: { findMany: vi.fn(), findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), count: vi.fn(), updateMany: vi.fn() },
     },
   };
 });
 
 vi.mock('@nibleaf/database', () => ({
-  Prisma: { DbNull: 'DbNull', JsonNull: 'JsonNull', PrismaClientKnownRequestError: mocks.PrismaClientKnownRequestError },
+  Prisma: {
+    DbNull: 'DbNull',
+    JsonNull: 'JsonNull',
+    join: (values: unknown[]) => values,
+    PrismaClientKnownRequestError: mocks.PrismaClientKnownRequestError,
+  },
   prisma: mocks.prisma,
 }));
 
 import { createBranch, createImportReplacementBranch } from './branches';
-import { CONTRIBUTOR_OPEN_LIMIT, createChangeRequest, mergeChangeRequest, revertChangeRequest, updateChangeRequest } from './change-requests';
+import {
+  CONTRIBUTOR_OPEN_LIMIT,
+  createChangeRequest,
+  listMergedChangeRequests,
+  mergeChangeRequest,
+  revertChangeRequest,
+  updateChangeRequest,
+} from './change-requests';
 
 const { tx, prisma } = mocks;
 const mainBranch = { id: 'main', projectId: 'p', isDefault: true };
@@ -289,5 +302,38 @@ describe('outside contributors', () => {
     prisma.changeRequest.findUnique.mockResolvedValue({ id: 'cr-1', authorId: 'guest', status: 'ARCHIVED', branchId: 'cr' });
     await expect(updateChangeRequest('p', 1, { status: 'DRAFT' }, 'guest')).rejects.toMatchObject({ status: 403 });
     expect(prisma.changeRequest.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('listMergedChangeRequests', () => {
+  const rows = (count: number) => Array.from({ length: count }, (_, index) => ({ id: `cr-${index + 1}`, number: index + 1 }));
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    prisma.$queryRaw.mockResolvedValue([{ id: 'cr-1', pages: 3 }]);
+  });
+
+  it('returns a page of 20 with the 20th id as cursor when more follow', async () => {
+    prisma.changeRequest.findMany.mockResolvedValue(rows(21));
+    const result = await listMergedChangeRequests('p');
+    expect(result.items).toHaveLength(20);
+    expect(result.nextCursor).toBe('cr-20');
+    expect(prisma.changeRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { projectId: 'p', status: 'MERGED' }, orderBy: [{ mergedAt: 'desc' }, { id: 'desc' }], take: 21 }),
+    );
+  });
+
+  it('ends at exactly 20 rows and counts pages from the record, 0 when missing', async () => {
+    prisma.changeRequest.findMany.mockResolvedValue(rows(20));
+    const result = await listMergedChangeRequests('p', 'cr-0');
+    expect(result.nextCursor).toBeNull();
+    expect(result.items.slice(0, 2).map((item) => item.pagesCount)).toEqual([3, 0]);
+    expect(prisma.changeRequest.findMany).toHaveBeenCalledWith(expect.objectContaining({ cursor: { id: 'cr-0' }, skip: 1 }));
+  });
+
+  it('skips the count query on an empty page', async () => {
+    prisma.changeRequest.findMany.mockResolvedValue([]);
+    expect(await listMergedChangeRequests('p')).toEqual({ items: [], nextCursor: null });
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
   });
 });

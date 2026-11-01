@@ -115,7 +115,8 @@ request, and can have up to five open at once. Turn this off under
 Turn on **Settings → Change requests → Publish on merge** (admins) to publish
 the site each time a change request is merged. The **Publish** button is then
 hidden; a failed publish leaves the merge in place and shows on the overview
-like any failed publish, and deployment rollback stays available.
+with a **Publish** button to try again, and deployment rollback stays
+available. Settings changes go live with the next merge.
 
 **History** in the dashboard lists merged change requests, newest first, with
 who merged them and how many pages each changed. **Revert** on a merged change
@@ -123,7 +124,8 @@ request (members) opens a new draft change request that restores those pages
 to how they were before the merge: added pages are removed, removed pages come
 back, and edited or moved pages get their former content and place. Later
 edits to those pages on `main` show in its diff. A page whose former parent no
-longer exists goes to the top level, and you are told which ones. Review and
+longer exists goes under the page now at that parent's path, or else to the
+top level, and you are told which ones. Review and
 merge it like any other change request.
 
 ## Recover from a bad draft

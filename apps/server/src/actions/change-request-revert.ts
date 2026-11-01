@@ -32,7 +32,8 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stri
  * merge added are deleted, removed ones re-created, edited or moved ones get
  * their former fields, position and parent back. Later edits on main to those
  * pages are overwritten, so the new change request's diff shows them. A former
- * parent that no longer exists puts the page at the root, with a warning.
+ * parent missing by id is looked up by its former path; one that no longer
+ * exists puts the page at the root, with a warning.
  */
 export const planRevert = (input: {
   record: readonly MergeRecordEntry[];
@@ -82,11 +83,19 @@ export const planRevert = (input: {
     return id;
   };
 
+  const branchIdAt = new Map(input.branch.map((page) => [`${page.languageId}\u0000${page.path}`, page.id]));
+  /** The kept page at the former parent's path, for parents whose id is gone (e.g. replaced by a whole-wiki merge). */
+  const pageAtParentPath = (languageId: string, path: string) => {
+    const cut = path.lastIndexOf('/');
+    const id = cut > 0 ? branchIdAt.get(`${languageId}\u0000${path.slice(0, cut)}`) : undefined;
+    return id && !deletes.has(id) ? id : undefined;
+  };
+
   const placed = new Set<string>();
   for (const { id, entry } of restored) {
     const before = entry.before;
     if (!before) continue;
-    const wanted = before.parentId ? branchIdOf.get(before.parentId) : null;
+    const wanted = before.parentId ? (branchIdOf.get(before.parentId) ?? pageAtParentPath(entry.languageId, before.path)) : null;
     if (wanted === undefined) warn(entry, 'PARENT_UNAVAILABLE');
     pages.set(id, { ...fieldsOf(before), parentId: wanted ?? null, id, languageId: entry.languageId, path: before.path });
     placed.add(id);

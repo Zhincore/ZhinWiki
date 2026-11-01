@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   listMergedChangeRequests: vi.fn(async () => ({ items: [], nextCursor: null })),
   revertChangeRequest: vi.fn(async () => ({ changeRequest: { number: 2 }, warnings: [] })),
   createDeployment: vi.fn(async () => ({ id: 'deployment' })),
+  recordRefusedDeployment: vi.fn(async () => ({ id: 'failed' })),
 }));
 
 vi.mock('@/env', async (importOriginal) => {
@@ -59,7 +60,7 @@ vi.mock('@/actions/projects', async (importOriginal) => ({
   assertProjectInOrg: vi.fn(async () => ({ id: 'project', organizationId: 'org', config: state.config })),
 }));
 
-vi.mock('@/actions/deployments', () => ({ createDeployment: mocks.createDeployment }));
+vi.mock('@/actions/deployments', () => ({ createDeployment: mocks.createDeployment, recordRefusedDeployment: mocks.recordRefusedDeployment }));
 
 vi.mock('@/actions/change-requests', () => ({
   createChangeRequest: mocks.createChangeRequest,
@@ -248,6 +249,14 @@ describe('publish on merge', () => {
     state.config = { changeRequests: { publishOnMerge: true } };
     mocks.createDeployment.mockRejectedValueOnce(new Error('redirect loop'));
     expect(await merge()).toEqual({ status: 200, publish: 'failed' });
+    expect(mocks.recordRefusedDeployment).toHaveBeenCalledWith('project', 'user', 'Merge #1: Fix', 'redirect loop');
     expect(mocks.notifyChangeRequest).toHaveBeenCalledWith(expect.objectContaining({ event: 'merged' }));
+  });
+
+  it('keeps the merge when the refused publish cannot be recorded either', async () => {
+    state.config = { changeRequests: { publishOnMerge: true } };
+    mocks.createDeployment.mockRejectedValueOnce(new Error('taken down'));
+    mocks.recordRefusedDeployment.mockRejectedValueOnce(new Error('database down'));
+    expect(await merge()).toEqual({ status: 200, publish: 'failed' });
   });
 });

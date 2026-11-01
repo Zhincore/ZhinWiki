@@ -24,7 +24,7 @@ import {
   revertChangeRequest,
   updateChangeRequest,
 } from '@/actions/change-requests';
-import { createDeployment } from '@/actions/deployments';
+import { createDeployment, recordRefusedDeployment } from '@/actions/deployments';
 import { assertProjectInOrg } from '@/actions/projects';
 import { getContextLocale, getContextOrganizationIdOrThrow, getContextUserOrThrow, type HonoEnv, isContextContributor } from '@/lib/hono/context';
 import { validator } from '@/lib/hono/validate';
@@ -37,19 +37,24 @@ const scopedProject = (ctx: ScopeContext) => assertProjectInOrg(getContextOrgani
 const projectScope = async (ctx: ScopeContext) => (await scopedProject(ctx)).id;
 
 /** Publish after a merge on wikis that publish on merge, like the Publish
- *  button. A failure never undoes the merge: `'failed'` is reported and later
- *  build failures show as failed deployments. Null when the wiki does not. */
+ *  button. A failure never undoes the merge: `'failed'` is reported, a refused
+ *  publish is recorded as a failed deployment like later build failures. Null
+ *  when the wiki does not. */
 const publishMerged = async (
   project: { id: string; organizationId: string; config: unknown },
   changeRequest: { number: number; title: string },
 ): Promise<'queued' | 'failed' | null> => {
   if (!changeRequestPolicy(project.config).publishOnMerge) return null;
   const message = `Merge #${changeRequest.number}: ${changeRequest.title}`.slice(0, 200);
+  const userId = getContextUserOrThrow().id;
   try {
-    await createDeployment(project.organizationId, project.id, getContextUserOrThrow().id, { message }, getContextLocale(), true);
+    await createDeployment(project.organizationId, project.id, userId, { message }, getContextLocale(), true);
     return 'queued';
   } catch (error) {
     logger.warn({ error, projectId: project.id, number: changeRequest.number }, 'publish on merge failed; the change request stays merged');
+    await recordRefusedDeployment(project.id, userId, message, error instanceof Error ? error.message : String(error)).catch((recordError) =>
+      logger.error({ error: recordError, projectId: project.id }, 'could not record the refused publish on merge'),
+    );
     return 'failed';
   }
 };

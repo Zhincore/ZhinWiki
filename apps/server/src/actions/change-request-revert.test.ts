@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { MergePage, MergeRecordEntry } from './change-request-merge';
+import { contentHash, type MergePage, type MergeRecordEntry, pageFingerprint, planMerge } from './change-request-merge';
 import { planRevert } from './change-request-revert';
 
 const page = (id: string, overrides: Partial<MergePage> = {}): MergePage => ({
@@ -111,6 +111,15 @@ describe('planRevert', () => {
     expect(result.creates).toMatchObject([{ slug: 'p-2', path: 'p-2' }]);
   });
 
+  it('finds a former parent by path when its id is gone', () => {
+    const group = page('g2', { slug: 'g', path: 'g' });
+    const before = page('x', { parentId: 'g1', path: 'g/x' });
+    const after = page('x');
+    const result = plan([entry('modified', before, after)], [group, after]);
+    expect(result.updates).toEqual([{ id: 'b-x', data: { parentId: 'b-g2', path: 'g/x' } }]);
+    expect(result.warnings).toEqual([]);
+  });
+
   it('breaks a loop with a move made on main since', () => {
     const groupA = page('ga');
     const before = page('gb', { parentId: 'ga', path: 'ga/gb' });
@@ -119,5 +128,69 @@ describe('planRevert', () => {
     const result = plan([entry('moved', before, after)], [{ ...groupA, parentId: 'gb', path: 'gb/ga' }, after]);
     expect(result.warnings).toMatchObject([{ pageId: 'gb', reason: 'PARENT_UNAVAILABLE' }]);
     expect(result.updates).toEqual([]);
+  });
+});
+
+describe('planRevert then planMerge', () => {
+  /** Main after a merge that removed group `g` (moving `c` out of it), edited `p` and added `a`. */
+  const merged = () => {
+    const group = page('g', { kind: 'GROUP' });
+    const childBefore = page('c', { parentId: 'g', path: 'g/c' });
+    const child = page('c');
+    const edited = page('p', { content: '# merged', position: 1 });
+    const added = page('a', { position: 2 });
+    const record = [
+      entry('removed', group, null),
+      entry('moved', childBefore, child),
+      entry('modified', { ...edited, content: '# old' }, edited),
+      entry('added', null, added),
+    ];
+    return { record, main: [child, edited, added] };
+  };
+
+  /** A fresh fork of `main` with the revert plan applied, and its fork base. */
+  const revertBranch = (record: MergeRecordEntry[], main: MergePage[]) => {
+    const forked = main.map((source) => ({
+      ...source,
+      id: `b-${source.id}`,
+      parentId: source.parentId ? `b-${source.parentId}` : null,
+      sourcePageId: source.id,
+      forkFingerprint: pageFingerprint(source, source.parentId),
+    }));
+    const forkBase = Object.fromEntries(main.map((source) => [source.id, { hash: contentHash(source), copyId: `b-${source.id}` }]));
+    let next = 0;
+    const result = planRevert({ record, branch: forked, languageIds: new Set(['en']), newId: () => `new-${++next}` });
+    const branch = [
+      ...forked
+        .filter((copy) => !result.deletes.includes(copy.id))
+        .map((copy) => ({ ...copy, ...result.updates.find((update) => update.id === copy.id)?.data })),
+      ...result.creates.map((created) => ({ ...created, sourcePageId: null, forkFingerprint: null })),
+    ];
+    return { branch, forkBase };
+  };
+
+  it('merges back onto the main ids: re-creates the parent, moves the child under it, restores and deletes', () => {
+    const { record, main } = merged();
+    const { branch, forkBase } = revertBranch(record, main);
+    const plan = planMerge({ main, branch, forkBase, force: new Set() });
+    if (plan.legacy) throw new Error('expected a page merge');
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.inserts).toMatchObject([{ id: 'new-1', data: { parentId: null, path: 'g', kind: 'GROUP' } }]);
+    expect(plan.updates).toEqual(
+      expect.arrayContaining([
+        { id: 'c', data: { parentId: 'new-1', path: 'g/c' } },
+        { id: 'p', data: { content: '# old' } },
+      ]),
+    );
+    expect(plan.updates).toHaveLength(2);
+    expect(plan.deletes).toEqual(['a']);
+  });
+
+  it('conflicts when main edits a restored page after the revert fork', () => {
+    const { record, main } = merged();
+    const { branch, forkBase } = revertBranch(record, main);
+    const later = main.map((source) => (source.id === 'p' ? { ...source, content: '# later' } : source));
+    const plan = planMerge({ main: later, branch, forkBase, force: new Set() });
+    expect(plan).toMatchObject({ blocked: true, conflicts: [{ pageId: 'p', reason: 'BOTH_CHANGED' }] });
   });
 });

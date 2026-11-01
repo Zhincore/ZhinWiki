@@ -157,7 +157,7 @@ function StatusActions({ projectId, changeRequest }: { projectId: string; change
           <RotateCcw className="size-3.5" /> {t('changeRequest.reopen')}
         </Button>
       ) : null}
-      {status === 'MERGED' && !contributor ? (
+      {status === 'MERGED' && !contributor && changeRequest.changes.length > 0 ? (
         <Button size="sm" variant="outline" onClick={() => void confirmRevert()} disabled={revert.isPending}>
           {revert.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Undo2 className="size-3.5" />} {t('changeRequest.revert')}
         </Button>

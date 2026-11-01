@@ -28,7 +28,7 @@ import { z } from 'zod';
 import { SectionCard } from '@/components/analytics/section-card';
 import { ViewsAreaChart } from '@/components/analytics/views-area-chart';
 import type { AnalyticsRange, Deployment } from '@/hooks/api';
-import { useDeployments, useDomains, usePages, useProject, useProjectMembers, usePublishAnyway } from '@/hooks/api';
+import { useDeployments, useDomains, usePages, useProject, useProjectMembers, usePublish, usePublishAnyway } from '@/hooks/api';
 import { useProjectAnalytics } from '@/hooks/api/analytics';
 import { deploymentStatusLabel, deploymentStatusVariant } from '@/lib/deployment-status';
 import { useFormatters, viewsTrend } from '@/lib/format';
@@ -61,6 +61,7 @@ function SiteOverviewPage() {
   const latestDeployment = deployments?.[0];
   const hasReadyDeployment = (deployments ?? []).some((deployment) => deployment.status === 'READY');
   const publishFailed = latestDeployment?.status === 'FAILED';
+  const publishOnMerge = project !== undefined && changeRequestPolicy(project.config).publishOnMerge;
   const primaryDomain = domains?.find((domain) => domain.isPrimary && domain.verified) ?? domains?.find((domain) => domain.verified);
   const baseDomain = publicUrls().siteBaseDomain;
   // Prefer a verified custom domain; else a configured free-subdomain host; else
@@ -101,14 +102,14 @@ function SiteOverviewPage() {
 
       {/* Publish-failure triage: what blocked the last publish, with per-page
           links into the editor and a grammar-only "Publish anyway" escape hatch. */}
-      {publishFailed && latestDeployment ? <PublishFailureCard projectId={projectId} deployment={latestDeployment} pages={pages ?? []} /> : null}
+      {publishFailed && latestDeployment ? (
+        <PublishFailureCard projectId={projectId} deployment={latestDeployment} pages={pages ?? []} publishOnMerge={publishOnMerge} />
+      ) : null}
 
       {/* First-publish nudge: shown until the site has one READY deployment.
           Hidden while the latest attempt is FAILED (the failure card leads)
           and on wikis that publish on merge (no Publish button to lead to). */}
-      {deployments && !hasReadyDeployment && !publishFailed && project && !changeRequestPolicy(project.config).publishOnMerge ? (
-        <PublishNudge projectId={projectId} />
-      ) : null}
+      {deployments && !hasReadyDeployment && !publishFailed && project && !publishOnMerge ? <PublishNudge projectId={projectId} /> : null}
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.4fr]">
         <div className="rounded-xl border border-border bg-card p-5">
@@ -264,28 +265,35 @@ const publishIssuesOf = (deployment: Deployment) => {
 };
 
 /** Why the last publish failed: the structured check issues, each linking into
- *  the editor, plus "Publish anyway" when only the grammar linter is blocking. */
+ *  the editor, plus "Publish anyway" when only the grammar linter is blocking,
+ *  or "Publish" on wikis that publish on merge (no Publish button elsewhere). */
 function PublishFailureCard({
   projectId,
   deployment,
   pages,
+  publishOnMerge,
 }: {
   projectId: string;
   deployment: Deployment;
   pages: Array<{ id: string; path: string }>;
+  publishOnMerge: boolean;
 }) {
   const t = useT();
   const issues = publishIssuesOf(deployment);
   const grammarOnly = issues.length > 0 && issues.every((issue) => issue.type === 'grammar');
 
   const publishAnyway = usePublishAnyway(projectId);
-  const publishAnywayWithFeedback = () => {
-    publishAnyway.mutate(undefined, {
+  const publishAgain = usePublish(projectId);
+  const publishing = publishAnyway.isPending || publishAgain.isPending;
+  const publishWithFeedback = () => {
+    const feedback = {
       onSuccess: () => {
         toast.success(t('overview.publishFailed.queued'));
       },
-      onError: (error) => toast.error(error instanceof Error ? error.message : t('overview.publishFailed.error')),
-    });
+      onError: (error: Error) => toast.error(error.message || t('overview.publishFailed.error')),
+    };
+    if (grammarOnly) publishAnyway.mutate(undefined, feedback);
+    else publishAgain.mutate({}, feedback);
   };
 
   // Map a check issue's page path back to the draft page, for an editor deep link.
@@ -303,13 +311,15 @@ function PublishFailureCard({
         <div className="min-w-0 flex-1 leading-snug">
           <div className="font-semibold text-sm">{t('overview.publishFailed.title', { version: deployment.version })}</div>
           <p className="mt-0.5 text-muted-foreground text-sm">
-            {grammarOnly ? t('overview.publishFailed.grammarOnly') : t('overview.publishFailed.body')}
+            {grammarOnly
+              ? t('overview.publishFailed.grammarOnly')
+              : t(publishOnMerge ? 'overview.publishFailed.bodyPublishOnMerge' : 'overview.publishFailed.body')}
           </p>
         </div>
-        {grammarOnly ? (
-          <Button size="sm" disabled={publishAnyway.isPending} onClick={publishAnywayWithFeedback}>
-            {publishAnyway.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Rocket className="size-3.5" />}
-            {publishAnyway.isPending ? t('overview.publishFailed.publishing') : t('overview.publishFailed.publishAnyway')}
+        {grammarOnly || publishOnMerge ? (
+          <Button size="sm" disabled={publishing} onClick={publishWithFeedback}>
+            {publishing ? <Loader2 className="size-3.5 animate-spin" /> : <Rocket className="size-3.5" />}
+            {publishing ? t('overview.publishFailed.publishing') : t(grammarOnly ? 'overview.publishFailed.publishAnyway' : 'project.publish')}
           </Button>
         ) : null}
       </div>

@@ -481,6 +481,15 @@ export const createDeployment = async (
   return deployment;
 };
 
+/** Record a publish refused before it started (takedown, redirect errors) as
+ *  FAILED, so it shows on the overview like a failed build. */
+export const recordRefusedDeployment = (projectId: string, userId: string, message: string, error: string) =>
+  createWithNextVersion(projectId, (version) =>
+    prisma.deployment.create({
+      data: { projectId, version, status: 'FAILED', commitMessage: message, createdById: userId, error, completedAt: new Date() },
+    }),
+  );
+
 /** Re-publish a previous READY deployment's snapshot as a new deployment. */
 export const rollbackDeployment = async (organizationId: string, projectId: string, deploymentId: string, userId: string) => {
   const project = await assertProjectInOrg(organizationId, projectId);

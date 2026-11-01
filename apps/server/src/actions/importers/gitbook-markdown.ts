@@ -435,7 +435,7 @@ export const convertGitBookMarkdown = (source: string, context: GitBookConversio
         }
       }
     } else if (openapi.has(token.name) && closing) {
-      warnings.add('OpenAPI blocks were converted to links ? import the specification under API reference to render it.');
+      warnings.add('OpenAPI blocks were converted to links — import the specification under API reference to render it.');
       if (token.name !== 'openapi-schemas') {
         const { src, spec, path = '', method = '' } = attributes;
         const title = `${method.toUpperCase()} ${path}`.trim() || 'API reference';
@@ -564,7 +564,8 @@ const rebaseGitBookReferences = (content: string, fromDirectory: string, toDirec
  * Paths resolve relative to the including file; nested includes are expanded up
  * to a fixed depth and cycles (including back to the page itself) are cut.
  * Relative links and images inside included content are rebased onto the
- * including file. `resolve` maps a reference to a repo path.
+ * including file. `resolve` maps a reference to a repo path. Each inserted
+ * include body counts once toward the expansion budget.
  */
 export const expandGitBookIncludes = async (
   content: string,
@@ -575,6 +576,7 @@ export const expandGitBookIncludes = async (
   stack: readonly string[] = [sourceFile],
   budget = new GitBookImportBudget(),
 ): Promise<string> => {
+  if (stack.length > 1) budget.expansion(content);
   const protectedCode = protectMarkdownCode(content, { maxFenceIndent: Number.POSITIVE_INFINITY });
   const matches = liquidTokens(protectedCode.content).filter((token) => token.name === 'include');
   if (matches.length === 0) return content;
@@ -609,9 +611,7 @@ export const expandGitBookIncludes = async (
       });
     const { body } = parseGitBookFrontmatter(raw);
     const expanded = await expandGitBookIncludes(body.trim(), path, resolve, load, warnings, [...stack, path], budget);
-    const rebased = rebaseGitBookReferences(expanded, posix.dirname(path), posix.dirname(sourceFile));
-    budget.expansion(rebased);
-    replacements.push(rebased);
+    replacements.push(rebaseGitBookReferences(expanded, posix.dirname(path), posix.dirname(sourceFile)));
   }
   const output: string[] = [];
   let cursor = 0;
@@ -620,7 +620,5 @@ export const expandGitBookIncludes = async (
     cursor = match.end;
   }
   output.push(protectedCode.content.slice(cursor));
-  const expanded = protectedCode.restore(output.join(''));
-  budget.expansion(expanded);
-  return expanded;
+  return protectedCode.restore(output.join(''));
 };

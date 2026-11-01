@@ -13,6 +13,10 @@ const enqueueProjectStorageErasure = async (projectId: string) => {
   await createJob(QueueNames.ERASURE, { name: 'erase-project-storage', data: { projectId } }, { jobId, delay: ERASE_PROJECT_STORAGE_START_DELAY_MS });
 };
 
+/** Outlasts a Qdrant outage (~40 minutes of exponential backoff). A failed job is
+ * dropped so a retried deletion can queue the same job id again. */
+const SEARCH_DELETE_RETRY = { attempts: 10, backoff: { type: 'exponential', delay: 5000 }, removeOnFail: true } as const;
+
 export class TenantUsageDeletionPendingError extends Error {
   constructor(readonly pendingCount: number) {
     super('Usage ingestion is still draining.');
@@ -47,7 +51,14 @@ export const eraseProjectOrganization = async (organizationId: string, expectedP
     await Promise.all([deleteProjectAnalytics(organizationId, project.id), deleteProjectUsage(organizationId, project.id)]);
   }
   await enqueueProjectStorageErasure(project.id);
-  await createJob(QueueNames.SEARCH, { name: 'delete-project', data: { projectId: project.id } }, { jobId: `search-delete-${project.id}` });
+  await createJob(
+    QueueNames.SEARCH,
+    { name: 'delete-project', data: { projectId: project.id } },
+    {
+      jobId: `search-delete-${project.id}`,
+      ...SEARCH_DELETE_RETRY,
+    },
+  );
   await prisma.usageProviderCheckpoint.updateMany({
     where: { organizationId },
     data: { status: 'deletion_pending', hasError: false },

@@ -1,5 +1,5 @@
 import { Octokit, RequestError } from 'octokit';
-import { badRequest, ImportError } from '@/errors';
+import { AppError, badRequest, ImportError } from '@/errors';
 
 const github = new Octokit({
   userAgent: 'nibleaf-importer',
@@ -30,33 +30,105 @@ const githubFailureMessage = (error: RequestError) => {
 };
 
 const githubFailure = (error: unknown) => {
+  if (error instanceof AppError) return error;
   if (error instanceof RequestError) {
     return badRequest(githubFailureMessage(error), { provider: 'github', providerStatus: error.status });
   }
   return badRequest('Could not reach GitHub. Try again shortly.', { provider: 'github' });
 };
 
-/** Recursive tree listing of a public GitHub repository at a branch. */
+type GitHubFile = { path: string; type: 'blob' | 'tree' };
+
+/** Scope and bounds for listing a tree too large for one recursive request. */
+export type GitHubTreeWalk = {
+  /** Repository directories to list completely; `''` is the whole repository. */
+  within: readonly string[];
+  /** Called once per tree request; throws to stop the walk. */
+  request: () => void;
+};
+
+const TREE_WALK_CONCURRENCY = 4;
+
+const truncatedTree = (path: string) =>
+  new ImportError({
+    code: 'import:incomplete',
+    message: 'Repository tree is too large to list completely; import stopped.',
+    details: { path },
+  });
+
+const fetchTree = async (owner: string, repo: string, sha: string, recursive: boolean) => {
+  const { data } = await github.rest.git.getTree({ owner, repo, tree_sha: sha, ...(recursive ? { recursive: 'true' } : {}) });
+  return data;
+};
+
+const treeFiles = (tree: { path?: string; type?: string; sha?: string }[], directory: string) =>
+  tree.flatMap((entry): (GitHubFile & { sha?: string })[] =>
+    entry.path && (entry.type === 'blob' || entry.type === 'tree')
+      ? [{ path: directory ? `${directory}/${entry.path}` : entry.path, type: entry.type, sha: entry.sha }]
+      : [],
+  );
+
+const inside = (path: string, directory: string) => !directory || path === directory || path.startsWith(`${directory}/`);
+
+/** List the `within` directories (and the ancestors leading to them) one subtree at a time,
+ * trying a recursive request per in-scope subtree before descending further. */
+const walkTree = async (owner: string, repo: string, sha: string, walk: GitHubTreeWalk) => {
+  const files: GitHubFile[] = [];
+  let pending = [{ path: '', sha, recursive: false }];
+  while (pending.length > 0) {
+    const next: typeof pending = [];
+    const queue = [...pending];
+    const worker = async () => {
+      for (let dir = queue.shift(); dir; dir = queue.shift()) {
+        walk.request();
+        const data = await fetchTree(owner, repo, dir.sha, dir.recursive);
+        if (data.truncated && !dir.recursive) throw truncatedTree(dir.path);
+        if (data.truncated) {
+          next.push({ ...dir, recursive: false });
+          continue;
+        }
+        for (const entry of treeFiles(data.tree, dir.path)) {
+          if (dir.recursive || walk.within.some((scope) => inside(entry.path, scope))) {
+            files.push({ path: entry.path, type: entry.type });
+            if (!dir.recursive && entry.type === 'tree' && entry.sha) next.push({ path: entry.path, sha: entry.sha, recursive: true });
+          } else if (entry.type === 'tree' && entry.sha && walk.within.some((scope) => scope.startsWith(`${entry.path}/`))) {
+            next.push({ path: entry.path, sha: entry.sha, recursive: false });
+          }
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(TREE_WALK_CONCURRENCY, queue.length) }, worker));
+    pending = next;
+  }
+  return files;
+};
+
+const listTree = async (owner: string, repo: string, sha: string, walk?: GitHubTreeWalk) => {
+  const data = await fetchTree(owner, repo, sha, true);
+  if (!data.truncated) return { files: treeFiles(data.tree, '').map(({ path, type }) => ({ path, type })), walked: false };
+  if (!walk) throw truncatedTree('');
+  return { files: await walkTree(owner, repo, sha, walk), walked: true };
+};
+
+/** Recursive tree listing of a public GitHub repository at a branch; fails if GitHub truncates it. */
 export const listGitHubFiles = async (owner: string, repo: string, branch: string) => {
   try {
-    const response = await github.rest.git.getTree({ owner, repo, tree_sha: branch, recursive: 'true' });
-    return response.data.tree.flatMap((entry) =>
-      entry.path && (entry.type === 'blob' || entry.type === 'tree') ? [{ path: entry.path, type: entry.type }] : [],
-    );
+    return (await listTree(owner, repo, branch)).files;
   } catch (error) {
     throw githubFailure(error);
   }
 };
 
-/** Resolve a mutable ref once; raw content must use a commit, not a tree object ID. */
-export const getGitHubSnapshot = async (owner: string, repo: string, ref: string) => {
+/** Resolve a mutable ref once; raw content must use a commit, not a tree object ID.
+ * A tree GitHub truncates is listed through `walk`; `walked` reports that. */
+export const getGitHubSnapshot = async (owner: string, repo: string, ref: string, walk?: GitHubTreeWalk) => {
   let revision: string;
   try {
     revision = (await github.rest.repos.getCommit({ owner, repo, ref })).data.sha;
   } catch (error) {
     throw githubFailure(error);
   }
-  return { revision, files: await listGitHubFiles(owner, repo, revision) };
+  return { revision, ...(await listTree(owner, repo, revision, walk)) };
 };
 
 /** Default branch of a public GitHub repository (used when the caller omits one). */

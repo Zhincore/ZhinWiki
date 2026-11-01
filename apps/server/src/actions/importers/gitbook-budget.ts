@@ -7,6 +7,7 @@ export class GitBookImportBudget {
   private bytes = 0;
   private includes = 0;
   private expanded = 0;
+  private trees = 0;
 
   check() {
     if (Date.now() - this.started > 10 * 60_000)
@@ -25,6 +26,13 @@ export class GitBookImportBudget {
     this.check();
     if (Buffer.byteLength(content) > 2 * 1024 * 1024)
       throw new ImportError({ code: 'import:limit', message: 'Expanded page exceeds 2 MiB; the draft was preserved.', details: { path } });
+  }
+
+  /** GitHub allows 60 unauthenticated API requests per hour; a tree walk keeps headroom below that. */
+  treeRequest() {
+    this.check();
+    if (++this.trees > 40)
+      throw new ImportError({ code: 'import:limit', message: 'GitBook repository tree is too large to list; the draft was preserved.' });
   }
 
   include() {

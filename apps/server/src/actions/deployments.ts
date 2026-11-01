@@ -435,8 +435,16 @@ export interface PublishDeploymentBody extends CreateDeploymentBody {
   skipGrammarChecks?: boolean;
 }
 
-/** Create a PENDING deployment and enqueue the publish job for the worker to build. */
-export const createDeployment = async (organizationId: string, projectId: string, userId: string, body: PublishDeploymentBody, locale?: string) => {
+/** Create a PENDING deployment and enqueue the publish job for the worker to build.
+ *  `auto` marks system publishes (publish on merge), kept out of the manual-publish count. */
+export const createDeployment = async (
+  organizationId: string,
+  projectId: string,
+  userId: string,
+  body: PublishDeploymentBody,
+  locale?: string,
+  auto = false,
+) => {
   const project = await assertProjectInOrg(organizationId, projectId);
   if (project.takedownAt) {
     throw badRequest(`This site has been taken down by the platform moderators and cannot be published. Contact ${instanceBrand().supportEmail}.`, {
@@ -465,11 +473,11 @@ export const createDeployment = async (organizationId: string, projectId: string
     deploymentId: deployment.id,
     projectId,
     skipGrammarChecks: body.skipGrammarChecks === true,
-    auto: false,
+    auto,
     locale,
   };
   await createJob(QueueNames.PUBLISH, { name: 'publish-deployment', data: jobData });
-  logPlatformEvent('publish_clicked', { userId, projectId, metadata: { auto: false, version: deployment.version } });
+  logPlatformEvent('publish_clicked', { userId, projectId, metadata: { auto, version: deployment.version } });
   return deployment;
 };
 

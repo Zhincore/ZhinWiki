@@ -2621,6 +2621,21 @@ export const MESSAGE_IDS = {
   'admin.status.disabled': 'admin_status_disabled',
   'admin.operations.gitKind.pull': 'admin_operations_gitkind_pull',
   'admin.operations.gitKind.push': 'admin_operations_gitkind_push',
+  'settings.changeRequests.publishOnMerge.title': 'settings_changerequests_publishonmerge_title',
+  'settings.changeRequests.publishOnMerge.hint': 'settings_changerequests_publishonmerge_hint',
+  'changeRequest.revertTitle': 'changerequest_reverttitle',
+  'changeRequest.revertDescription': 'changerequest_revertdescription',
+  'changeRequest.revert': 'changerequest_revert',
+  'changeRequest.revertConfirm': 'changerequest_revertconfirm',
+  'changeRequest.revertError': 'changerequest_reverterror',
+  'changeRequest.revertWarnings': 'changerequest_revertwarnings',
+  'changeRequest.mergedPublishing': 'changerequest_mergedpublishing',
+  'changeRequest.mergePublishFailed': 'changerequest_mergepublishfailed',
+  'changeRequest.history.title': 'changerequest_history_title',
+  'changeRequest.history.subtitle': 'changerequest_history_subtitle',
+  'changeRequest.history.empty': 'changerequest_history_empty',
+  'changeRequest.history.pages': 'changerequest_history_pages',
+  'changeRequest.history.loadMore': 'changerequest_history_loadmore',
 } as const;
 
 export type MessageKey = keyof typeof MESSAGE_IDS;

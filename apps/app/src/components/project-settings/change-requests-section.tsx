@@ -8,7 +8,7 @@ import { useUpdateProjectConfig } from '@/hooks/api';
 import { useTenancy } from '@/hooks/use-tenancy';
 import { FIELD_INPUT, Field, SaveBar, SectionHeader, saveConfigSection, ToggleRow } from './shared';
 
-/** Merge policy: required approvals, and outside contributions on shared instances. */
+/** Merge policy: required approvals, publish on merge, and outside contributions on shared instances. */
 export function ChangeRequestsSection({ project }: { project: Project }) {
   const t = useT();
   const shared = useTenancy() === 'shared';
@@ -16,6 +16,7 @@ export function ChangeRequestsSection({ project }: { project: Project }) {
   const policy = changeRequestPolicy(project.config);
   const [requiredApprovals, setRequiredApprovals] = useState(String(policy.requiredApprovals));
   const [outsideContributions, setOutsideContributions] = useState(policy.outsideContributions);
+  const [publishOnMerge, setPublishOnMerge] = useState(policy.publishOnMerge);
   const [saving, setSaving] = useState(false);
   const approvals = Number(requiredApprovals);
   const valid = requiredApprovals.trim() !== '' && Number.isInteger(approvals) && approvals >= 0 && approvals <= 10;
@@ -27,7 +28,7 @@ export function ChangeRequestsSection({ project }: { project: Project }) {
         if (!valid) return;
         setSaving(true);
         try {
-          await saveConfigSection(update, { changeRequests: { requiredApprovals: approvals, outsideContributions } });
+          await saveConfigSection(update, { changeRequests: { requiredApprovals: approvals, outsideContributions, publishOnMerge } });
         } finally {
           setSaving(false);
         }
@@ -46,6 +47,12 @@ export function ChangeRequestsSection({ project }: { project: Project }) {
           aria-invalid={!valid}
         />
       </Field>
+      <ToggleRow
+        checked={publishOnMerge}
+        hint={t('settings.changeRequests.publishOnMerge.hint')}
+        onCheckedChange={setPublishOnMerge}
+        title={t('settings.changeRequests.publishOnMerge.title')}
+      />
       {shared ? (
         <ToggleRow
           checked={outsideContributions}
@@ -56,10 +63,14 @@ export function ChangeRequestsSection({ project }: { project: Project }) {
       ) : null}
       <div className="mt-4">
         <SaveBar
-          defaults={{ requiredApprovals: String(policy.requiredApprovals), outsideContributions: policy.outsideContributions }}
+          defaults={{
+            requiredApprovals: String(policy.requiredApprovals),
+            outsideContributions: policy.outsideContributions,
+            publishOnMerge: policy.publishOnMerge,
+          }}
           invalid={!valid}
           isSubmitting={saving}
-          values={{ requiredApprovals, outsideContributions }}
+          values={{ requiredApprovals, outsideContributions, publishOnMerge }}
         />
       </div>
     </form>

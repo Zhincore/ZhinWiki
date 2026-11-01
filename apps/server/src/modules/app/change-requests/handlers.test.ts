@@ -26,6 +26,9 @@ const mocks = vi.hoisted(() => ({
   ),
   requestReview: vi.fn(async () => ({ number: 1, title: 'Fix', authorId: 'author' })),
   notifyChangeRequest: vi.fn(async () => undefined),
+  listMergedChangeRequests: vi.fn(async () => ({ items: [], nextCursor: null })),
+  revertChangeRequest: vi.fn(async () => ({ changeRequest: { number: 2 }, warnings: [] })),
+  createDeployment: vi.fn(async () => ({ id: 'deployment' })),
 }));
 
 vi.mock('@/env', async (importOriginal) => {
@@ -53,15 +56,19 @@ vi.mock('@nibleaf/database', () => ({
 
 vi.mock('@/actions/projects', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/actions/projects')>()),
-  assertProjectInOrg: vi.fn(async () => undefined),
+  assertProjectInOrg: vi.fn(async () => ({ id: 'project', organizationId: 'org', config: state.config })),
 }));
+
+vi.mock('@/actions/deployments', () => ({ createDeployment: mocks.createDeployment }));
 
 vi.mock('@/actions/change-requests', () => ({
   createChangeRequest: mocks.createChangeRequest,
   getChangeRequest: vi.fn(async () => ({ id: 'cr' })),
   getChangeRequestPageDiff: vi.fn(),
   listChangeRequests: mocks.listChangeRequests,
+  listMergedChangeRequests: mocks.listMergedChangeRequests,
   mergeChangeRequest: mocks.mergeChangeRequest,
+  revertChangeRequest: mocks.revertChangeRequest,
   updateChangeRequest: mocks.updateChangeRequest,
 }));
 
@@ -109,6 +116,7 @@ describe('outside contributors (shared tenancy)', () => {
   it('list, open and update change requests, limited to their own', async () => {
     asContributor();
     expect((await send('GET', '')).status).toBe(200);
+    expect((await send('GET', '/history')).status).toBe(200);
     expect((await send('POST', '', {})).status).toBe(201);
     expect((await send('PATCH', '/1', { status: 'IN_REVIEW' })).status).toBe(200);
     expect(mocks.updateChangeRequest).toHaveBeenCalledWith('project', 1, { status: 'IN_REVIEW' }, 'user');
@@ -125,7 +133,9 @@ describe('outside contributors (shared tenancy)', () => {
     expect((await send('POST', '/1/reviewers', { userId: 'other' })).status).toBe(404);
     expect((await send('DELETE', '/1/reviewers/other')).status).toBe(404);
     expect((await send('GET', '/reviewer-candidates')).status).toBe(404);
+    expect((await send('POST', '/1/revert')).status).toBe(404);
     expect(mocks.mergeChangeRequest).not.toHaveBeenCalled();
+    expect(mocks.revertChangeRequest).not.toHaveBeenCalled();
     expect(mocks.submitReview).not.toHaveBeenCalled();
   });
 
@@ -138,6 +148,7 @@ describe('outside contributors (shared tenancy)', () => {
   ])('get nothing on %s', async (_label, patch) => {
     Object.assign(state, patch);
     expect((await send('GET', '')).status).toBe(404);
+    expect((await send('GET', '/history')).status).toBe(404);
     expect((await send('POST', '', {})).status).toBe(404);
   });
 });
@@ -158,6 +169,15 @@ describe('members and platform roles', () => {
     });
     expect((await send('POST', '/1/reviews', { state: 'APPROVED' })).status).toBe(201);
     expect((await send('POST', '/1/merge', {})).status).toBe(200);
+    expect((await send('GET', '/history?cursor=abc')).status).toBe(200);
+    expect(mocks.listMergedChangeRequests).toHaveBeenCalledWith('project', 'abc');
+    expect((await send('POST', '/1/revert')).status).toBe(201);
+    expect(mocks.revertChangeRequest).toHaveBeenCalledWith('project', 1, expect.objectContaining({ id: 'user' }), 'en');
+  });
+
+  it('sees the history of a private wiki as a member', async () => {
+    Object.assign(state, { membership: 'member', accessMode: 'WORKSPACE' });
+    expect((await send('GET', '/history')).status).toBe(200);
   });
 
   it('gives platform editors nothing in independent tenancy', async () => {
@@ -203,5 +223,31 @@ describe('notifications', () => {
   it('never fails the action when delivery fails', async () => {
     mocks.notifyChangeRequest.mockRejectedValueOnce(new Error('queue down'));
     expect((await send('POST', '/1/merge', {})).status).toBe(200);
+  });
+});
+
+describe('publish on merge', () => {
+  beforeEach(() => Object.assign(state, { membership: 'member' }));
+  const merge = async () => {
+    const response = await send('POST', '/1/merge', {});
+    return { status: response.status, publish: ((await response.json()) as { data: { publish: unknown } }).data.publish };
+  };
+
+  it('does not publish when the wiki leaves it off', async () => {
+    expect(await merge()).toEqual({ status: 200, publish: null });
+    expect(mocks.createDeployment).not.toHaveBeenCalled();
+  });
+
+  it('publishes like the Publish button when on', async () => {
+    state.config = { changeRequests: { publishOnMerge: true } };
+    expect(await merge()).toEqual({ status: 200, publish: 'queued' });
+    expect(mocks.createDeployment).toHaveBeenCalledWith('org', 'project', 'user', { message: 'Merge #1: Fix' }, 'en', true);
+  });
+
+  it('keeps the merge and reports a publish that cannot start', async () => {
+    state.config = { changeRequests: { publishOnMerge: true } };
+    mocks.createDeployment.mockRejectedValueOnce(new Error('redirect loop'));
+    expect(await merge()).toEqual({ status: 200, publish: 'failed' });
+    expect(mocks.notifyChangeRequest).toHaveBeenCalledWith(expect.objectContaining({ event: 'merged' }));
   });
 });

@@ -1,4 +1,7 @@
+import { logger } from '@nibleaf/logger';
+import { changeRequestPolicy } from '@nibleaf/shared/rbac';
 import {
+  changeRequestHistoryQuery,
   changeRequestParams,
   changeRequestReviewerBody,
   changeRequestReviewerParams,
@@ -16,18 +19,39 @@ import {
   getChangeRequest,
   getChangeRequestPageDiff,
   listChangeRequests,
+  listMergedChangeRequests,
   mergeChangeRequest,
+  revertChangeRequest,
   updateChangeRequest,
 } from '@/actions/change-requests';
+import { createDeployment } from '@/actions/deployments';
 import { assertProjectInOrg } from '@/actions/projects';
 import { getContextLocale, getContextOrganizationIdOrThrow, getContextUserOrThrow, type HonoEnv, isContextContributor } from '@/lib/hono/context';
 import { validator } from '@/lib/hono/validate';
 import changeRequestsRoutes from './routes';
 
-const projectScope = async (ctx: { req: { param: (k: string) => string } }) => {
-  const projectId = ctx.req.param('projectId');
-  await assertProjectInOrg(getContextOrganizationIdOrThrow(), projectId);
-  return projectId;
+type ScopeContext = { req: { param: (k: string) => string } };
+
+const scopedProject = (ctx: ScopeContext) => assertProjectInOrg(getContextOrganizationIdOrThrow(), ctx.req.param('projectId'));
+
+const projectScope = async (ctx: ScopeContext) => (await scopedProject(ctx)).id;
+
+/** Publish after a merge on wikis that publish on merge, like the Publish
+ *  button. A failure never undoes the merge: `'failed'` is reported and later
+ *  build failures show as failed deployments. Null when the wiki does not. */
+const publishMerged = async (
+  project: { id: string; organizationId: string; config: unknown },
+  changeRequest: { number: number; title: string },
+): Promise<'queued' | 'failed' | null> => {
+  if (!changeRequestPolicy(project.config).publishOnMerge) return null;
+  const message = `Merge #${changeRequest.number}: ${changeRequest.title}`.slice(0, 200);
+  try {
+    await createDeployment(project.organizationId, project.id, getContextUserOrThrow().id, { message }, getContextLocale(), true);
+    return 'queued';
+  } catch (error) {
+    logger.warn({ error, projectId: project.id, number: changeRequest.number }, 'publish on merge failed; the change request stays merged');
+    return 'failed';
+  }
 };
 
 /** Notifications never fail the action that triggered them. */
@@ -53,6 +77,10 @@ const app = new Hono<HonoEnv>()
     await projectScope(ctx);
     return ctx.json({ data: await listReviewerCandidates(getContextOrganizationIdOrThrow()) }, 200);
   })
+  .get('/history', ...changeRequestsRoutes.history, validator('query', changeRequestHistoryQuery), async (ctx) => {
+    const projectId = await projectScope(ctx);
+    return ctx.json({ data: await listMergedChangeRequests(projectId, ctx.req.valid('query').cursor) }, 200);
+  })
   .get('/:number', ...changeRequestsRoutes.get, validator('param', changeRequestParams), async (ctx) => {
     const projectId = await projectScope(ctx);
     return ctx.json({ data: await getChangeRequest(projectId, ctx.req.valid('param').number) }, 200);
@@ -75,13 +103,19 @@ const app = new Hono<HonoEnv>()
     validator('param', changeRequestParams),
     validator('json', mergeChangeRequestBody),
     async (ctx) => {
-      const projectId = await projectScope(ctx);
-      const { number } = ctx.req.valid('param');
-      const data = await mergeChangeRequest(projectId, number, getContextUserOrThrow().id, ctx.req.valid('json').force ?? []);
+      const project = await scopedProject(ctx);
+      const projectId = project.id;
+      const data = await mergeChangeRequest(projectId, ctx.req.valid('param').number, getContextUserOrThrow().id, ctx.req.valid('json').force ?? []);
+      const publish = await publishMerged(project, data);
       await notify({ projectId, changeRequest: data, event: 'merged', recipients: [data.authorId] });
-      return ctx.json({ data }, 200);
+      return ctx.json({ data: { ...data, publish } }, 200);
     },
   )
+  .post('/:number/revert', ...changeRequestsRoutes.revert, validator('param', changeRequestParams), async (ctx) => {
+    const projectId = await projectScope(ctx);
+    const data = await revertChangeRequest(projectId, ctx.req.valid('param').number, getContextUserOrThrow(), getContextLocale());
+    return ctx.json({ data }, 201);
+  })
   .post(
     '/:number/reviewers',
     ...changeRequestsRoutes.requestReview,

@@ -28,8 +28,20 @@ const changeRequestsRoutes = {
     guard: [...editor],
     tags,
     description:
-      'Merge a change request into the default branch. Refused (409) without the required approvals or while a reviewer requests changes; conflicting pages return 409 unless forced.',
+      'Merge a change request into the default branch, then publish when the wiki publishes on merge (`publish`: queued, failed or null). Refused (409) without the required approvals or while a reviewer requests changes; conflicting pages return 409 unless forced.',
     responses: ok,
+  }),
+  history: createRouteConfig({
+    guard: [...viewer],
+    tags,
+    description: 'Merged change requests, newest merge first, with how many pages each touched. Paginated by `cursor`.',
+    responses: ok,
+  }),
+  revert: createRouteConfig({
+    guard: [...editor],
+    tags,
+    description: 'Open a draft change request restoring the pages a merged one touched to their state before its merge.',
+    responses: { 201: { description: 'created' }, ...errorResponses },
   }),
   pageDiff: createRouteConfig({
     guard: [...viewer],

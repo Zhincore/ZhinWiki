@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => {
     changeRequest: { aggregate: vi.fn(), count: vi.fn(), create: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
     page: { createMany: vi.fn(), deleteMany: vi.fn(), findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     project: { findUniqueOrThrow: vi.fn() },
+    language: { findMany: vi.fn() },
     changeRequestReviewer: { findMany: vi.fn() },
     changeRequestReview: { findMany: vi.fn() },
     user: { findMany: vi.fn() },
@@ -27,7 +28,7 @@ const mocks = vi.hoisted(() => {
     prisma: {
       $transaction: vi.fn(async (run: (client: typeof tx) => unknown) => run(tx)),
       branch: { findFirst: vi.fn(), findMany: vi.fn() },
-      changeRequest: { findUnique: vi.fn(), count: vi.fn(), updateMany: vi.fn() },
+      changeRequest: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), count: vi.fn(), updateMany: vi.fn() },
     },
   };
 });
@@ -38,7 +39,7 @@ vi.mock('@nibleaf/database', () => ({
 }));
 
 import { createBranch, createImportReplacementBranch } from './branches';
-import { CONTRIBUTOR_OPEN_LIMIT, createChangeRequest, mergeChangeRequest, updateChangeRequest } from './change-requests';
+import { CONTRIBUTOR_OPEN_LIMIT, createChangeRequest, mergeChangeRequest, revertChangeRequest, updateChangeRequest } from './change-requests';
 
 const { tx, prisma } = mocks;
 const mainBranch = { id: 'main', projectId: 'p', isDefault: true };
@@ -229,6 +230,43 @@ describe('createBranch', () => {
     await createImportReplacementBranch('p', 'gitbook', true);
     expect(tx.changeRequest.create).not.toHaveBeenCalled();
     expect(tx.page.createMany.mock.calls[0]?.[0].data[0]).not.toHaveProperty('sourcePageId');
+  });
+});
+
+describe('revertChangeRequest', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    tx.branch.findFirst.mockResolvedValue(null);
+    tx.branch.findFirstOrThrow.mockResolvedValue(mainBranch);
+    tx.branch.create.mockResolvedValue({ id: 'new-branch' });
+    tx.changeRequest.aggregate.mockResolvedValue({ _max: { number: 3 } });
+    tx.language.findMany.mockResolvedValue([{ id: 'en' }]);
+  });
+
+  it('refuses a change request that is not merged', async () => {
+    prisma.changeRequest.findUnique.mockResolvedValue({ id: 'cr-1', number: 1, status: 'IN_REVIEW', mergeRecord: null });
+    await expect(revertChangeRequest('p', 1, { id: 'user-1' })).rejects.toMatchObject({ status: 409 });
+    expect(tx.branch.create).not.toHaveBeenCalled();
+  });
+
+  it('opens a draft on a fork of main with the merge undone, in one transaction', async () => {
+    const added = page('m1');
+    const { id: _id, languageId: _language, sourcePageId: _source, forkFingerprint: _fp, ...fields } = added;
+    prisma.changeRequest.findUnique.mockResolvedValue({
+      id: 'cr-1',
+      number: 1,
+      title: 'Fix',
+      status: 'MERGED',
+      mergeRecord: { pages: [{ pageId: 'm1', languageId: 'en', action: 'added', before: null, after: fields }] },
+    });
+    givenPages([added], [{ ...added, id: 'b1', sourcePageId: 'm1', forkFingerprint: pageFingerprint(added, null) }]);
+    prisma.changeRequest.findUniqueOrThrow.mockResolvedValue({ number: 4 });
+    const result = await revertChangeRequest('p', 1, { id: 'user-1' });
+    expect(tx.changeRequest.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ number: 4, title: 'Revert "Fix"', authorId: 'user-1', branchId: 'new-branch' }),
+    });
+    expect(tx.page.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['b1'] }, branchId: 'new-branch' } });
+    expect(result).toEqual({ changeRequest: { number: 4 }, warnings: [] });
   });
 });
 

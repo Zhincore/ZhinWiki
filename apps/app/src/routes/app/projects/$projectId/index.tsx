@@ -2,6 +2,7 @@ import { Badge } from '@nibleaf/design-system/components/ui/badge';
 import { Button } from '@nibleaf/design-system/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@nibleaf/design-system/components/ui/table';
 import { useT } from '@nibleaf/i18n/react';
+import { changeRequestPolicy } from '@nibleaf/shared/rbac';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import {
   ArrowRight,
@@ -103,8 +104,11 @@ function SiteOverviewPage() {
       {publishFailed && latestDeployment ? <PublishFailureCard projectId={projectId} deployment={latestDeployment} pages={pages ?? []} /> : null}
 
       {/* First-publish nudge: shown until the site has one READY deployment.
-          Hidden while the latest attempt is FAILED (the failure card leads). */}
-      {deployments && !hasReadyDeployment && !publishFailed ? <PublishNudge projectId={projectId} /> : null}
+          Hidden while the latest attempt is FAILED (the failure card leads)
+          and on wikis that publish on merge (no Publish button to lead to). */}
+      {deployments && !hasReadyDeployment && !publishFailed && project && !changeRequestPolicy(project.config).publishOnMerge ? (
+        <PublishNudge projectId={projectId} />
+      ) : null}
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.4fr]">
         <div className="rounded-xl border border-border bg-card p-5">

@@ -22,11 +22,11 @@ export { defaultTarget, getBucket, getPublicBaseUrl, getS3Client, publicTarget, 
 const DELETE_BATCH_SIZE = 1000;
 export const DEFAULT_PRESIGN_EXPIRES_IN_SECONDS = 3600;
 
-/** `DeleteObjects` reports per-object failures inside an HTTP success. Only counts
- * and an error code leave this module: object keys can be personal. */
 /** S3 error codes are short identifiers. Anything else a backend sends stays out of logs. */
 const safeErrorCode = (code: string | undefined): string => (code && /^\w{1,64}$/.test(code) ? code : 'unknown');
 
+/** `DeleteObjects` reports per-object failures inside an HTTP success. Only counts
+ * and an error code leave this module: object keys can be personal. */
 export class StorageDeleteError extends Error {
   constructor(
     readonly failedCount: number,

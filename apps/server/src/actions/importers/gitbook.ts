@@ -64,7 +64,7 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
     });
     const paths = tree.filter((item) => item.type === 'blob').map((item) => item.path);
     const blobs = new Set(paths);
-    const textCache = new Map<string, Promise<string | null>>();
+    const textCache = new Map<string, Promise<string>>();
     const loadText = (filePath: string) => {
       const cached = textCache.get(filePath);
       if (cached) return cached;
@@ -198,7 +198,7 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
 
 interface ImportContext {
   budget: GitBookImportBudget;
-  repo: { owner: string; name: string; branch: string; loadText(filePath: string): Promise<string | null> };
+  repo: { owner: string; name: string; branch: string; loadText(filePath: string): Promise<string> };
   blobs: ReadonlySet<string>;
   /** Space root directory in the repository ('' = repo root). */
   root: string;
@@ -211,7 +211,7 @@ interface ImportContext {
 
 interface LoadContext {
   repoPath(rootRelative: string): string;
-  loadText(filePath: string): Promise<string | null>;
+  loadText(filePath: string): Promise<string>;
   state: { pages: number };
 }
 
@@ -246,13 +246,6 @@ const loadNodes = async (nodes: readonly PlannedGitBookNode[], context: LoadCont
 
     const filePath = context.repoPath(node.path);
     const raw = await context.loadText(filePath);
-    if (raw === null) {
-      throw new ImportError({
-        code: 'import:incomplete',
-        message: 'GitBook source content is missing; the draft was preserved.',
-        details: { path: filePath },
-      });
-    }
     state.pages++;
     loaded.push({ node, page: { path: node.path, filePath, raw }, children: await loadNodes(node.children, context) });
   }

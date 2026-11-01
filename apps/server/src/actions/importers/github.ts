@@ -122,13 +122,13 @@ export const listGitHubFiles = async (owner: string, repo: string, branch: strin
 /** Resolve a mutable ref once; raw content must use a commit, not a tree object ID.
  * A tree GitHub truncates is listed through `walk`; `walked` reports that. */
 export const getGitHubSnapshot = async (owner: string, repo: string, ref: string, walk?: GitHubTreeWalk) => {
+  let revision: string;
   try {
-    const commit = await github.rest.repos.getCommit({ owner, repo, ref });
-    const revision = commit.data.sha;
-    return { revision, ...(await listTree(owner, repo, revision, walk)) };
+    revision = (await github.rest.repos.getCommit({ owner, repo, ref })).data.sha;
   } catch (error) {
     throw githubFailure(error);
   }
+  return { revision, ...(await listTree(owner, repo, revision, walk)) };
 };
 
 /** Default branch of a public GitHub repository (used when the caller omits one). */

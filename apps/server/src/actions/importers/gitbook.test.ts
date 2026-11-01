@@ -24,7 +24,9 @@ const mem = vi.hoisted(() => ({
   nextId: 1,
   repoFiles: new Map<string, string>(),
   failing: new Set<string>(),
+  walked: false,
   reset() {
+    this.walked = false;
     this.rows.length = 0;
     this.nextId = 1;
     this.repoFiles.clear();
@@ -42,7 +44,11 @@ vi.mock('../projects', () => ({ assertProjectInOrg: vi.fn(async () => ({ id: 'pr
 vi.mock('../assets', () => ({ findImportedAsset: vi.fn(async () => ({ url: 'https://cdn.example/stored.png' })), storeAsset: vi.fn() }));
 vi.mock('./github', () => ({
   getGitHubDefaultBranch: async () => 'main',
-  getGitHubSnapshot: async () => ({ revision: 'pinned-commit', files: [...mem.repoFiles.keys()].map((path) => ({ path, type: 'blob' as const })) }),
+  getGitHubSnapshot: async () => ({
+    revision: 'pinned-commit',
+    files: [...mem.repoFiles.keys()].map((path) => ({ path, type: 'blob' as const })),
+    walked: mem.walked,
+  }),
   getGitHubTextFile: async (_owner: string, _name: string, _branch: string, path: string) => {
     expect(_branch).toBe('pinned-commit');
     return mem.failing.has(path) ? null : (mem.repoFiles.get(path) ?? null);
@@ -207,4 +213,19 @@ it('reports the unchanged navigation limit before promotion', async () => {
   mem.repoFiles.set('SUMMARY.md', Array.from({ length: 501 }, (_, index) => `* [Page ${index}](p${index}.md)`).join('\n'));
   await expect(runImport()).rejects.toMatchObject({ code: 'import:limit', details: { limit: 500 } });
   expect(promoteImportReplacementBranch).not.toHaveBeenCalled();
+});
+
+it('reports a scoped listing of a truncated repository tree', async () => {
+  mem.walked = true;
+  mem.repoFiles.set('spaces/docs/README.md', '# Welcome\n');
+  const summary = await runImport({ path: 'spaces/docs' });
+  expect(summary.imported).toBe(1);
+  expect(summary.warnings).toContain('The repository is too large to list in full; only "spaces/docs" and .gitbook/ were read.');
+});
+
+it('refuses a space root outside the scoped listing of a truncated tree', async () => {
+  mem.walked = true;
+  mem.repoFiles.set('spaces/docs/.gitbook.yaml', 'root: ../shared/\n');
+  mem.repoFiles.set('spaces/docs/README.md', '# Welcome\n');
+  await expect(runImport({ path: 'spaces/docs' })).rejects.toMatchObject({ code: 'import:incomplete', details: { path: 'spaces/shared' } });
 });

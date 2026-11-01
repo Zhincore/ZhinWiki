@@ -45,19 +45,26 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
 
   async run({ organizationId, projectId, input }): Promise<ImportSummary> {
     const budget = new GitBookImportBudget();
-    await assertProjectInOrg(organizationId, projectId);
-    const draft = await captureImportDraft(projectId);
     const project = await assertProjectInOrg(organizationId, projectId);
+    const draft = await captureImportDraft(projectId);
 
     const [owner, name] = input.repo.split('/');
     if (!owner || !name) {
       throw badRequest('Use the form owner/repo.');
     }
     const ref = input.branch?.trim() || (await getGitHubDefaultBranch(owner, name));
-    const { revision: branch, files: tree } = await getGitHubSnapshot(owner, name, ref);
+    const requestedPath = input.path?.trim().replace(/^\/+|\/+$/g, '') ?? '';
+    const {
+      revision: branch,
+      files: tree,
+      walked,
+    } = await getGitHubSnapshot(owner, name, ref, {
+      within: [requestedPath, '.gitbook'],
+      request: () => budget.treeRequest(),
+    });
     const paths = tree.filter((item) => item.type === 'blob').map((item) => item.path);
     const blobs = new Set(paths);
-    const textCache = new Map<string, Promise<string | null>>();
+    const textCache = new Map<string, Promise<string>>();
     const loadText = (filePath: string) => {
       const cached = textCache.get(filePath);
       if (cached) return cached;
@@ -76,7 +83,6 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
       return pending;
     };
 
-    const requestedPath = input.path?.trim().replace(/^\/+|\/+$/g, '') ?? '';
     const space = findGitBookSpace(paths, requestedPath);
     if (!space) {
       throw badRequest('The folder path must stay inside the repository.');
@@ -88,6 +94,15 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
       space.directory,
     );
     summary.warnings.push(...configWarnings);
+    if (walked && requestedPath) {
+      if (config.root !== requestedPath && !config.root.startsWith(`${requestedPath}/`))
+        throw new ImportError({
+          code: 'import:incomplete',
+          message: 'GitBook space root lies outside the listed folder of a very large repository; the draft was preserved.',
+          details: { path: config.root },
+        });
+      summary.warnings.push(`The repository is too large to list in full; only "${requestedPath}" and .gitbook/ were read.`);
+    }
     const repoPath = (rootRelative: string) => (config.root ? `${config.root}/${rootRelative}` : rootRelative);
     const rootRelative = new Set(
       paths.flatMap((path) => (!config.root ? [path] : path.startsWith(`${config.root}/`) ? [path.slice(config.root.length + 1)] : [])),
@@ -183,7 +198,7 @@ export const gitbookImporter: ImporterSource<GitbookImportBody> = {
 
 interface ImportContext {
   budget: GitBookImportBudget;
-  repo: { owner: string; name: string; branch: string; loadText(filePath: string): Promise<string | null> };
+  repo: { owner: string; name: string; branch: string; loadText(filePath: string): Promise<string> };
   blobs: ReadonlySet<string>;
   /** Space root directory in the repository ('' = repo root). */
   root: string;
@@ -196,7 +211,7 @@ interface ImportContext {
 
 interface LoadContext {
   repoPath(rootRelative: string): string;
-  loadText(filePath: string): Promise<string | null>;
+  loadText(filePath: string): Promise<string>;
   state: { pages: number };
 }
 
@@ -231,13 +246,6 @@ const loadNodes = async (nodes: readonly PlannedGitBookNode[], context: LoadCont
 
     const filePath = context.repoPath(node.path);
     const raw = await context.loadText(filePath);
-    if (raw === null) {
-      throw new ImportError({
-        code: 'import:incomplete',
-        message: 'GitBook source content is missing; the draft was preserved.',
-        details: { path: filePath },
-      });
-    }
     state.pages++;
     loaded.push({ node, page: { path: node.path, filePath, raw }, children: await loadNodes(node.children, context) });
   }

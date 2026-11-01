@@ -3,9 +3,6 @@ import { protectMarkdownCode } from '@nibleaf/shared/markdown-code';
 import { safeDecodeUri } from './gitbook-markdown';
 import { markdownReferences, replaceImportReferences } from './import-references';
 
-/** `![alt](<path with spaces>)`, `![alt](path "title")`, and one level of
- * balanced parentheses in bare destinations (`image (1).png` after encoding). */
-
 const cleanReference = (value: string): string => safeDecodeUri(value.split(/[?#]/, 1)[0] ?? value);
 
 /**

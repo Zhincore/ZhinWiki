@@ -50,13 +50,13 @@ export const listGitHubFiles = async (owner: string, repo: string, branch: strin
 
 /** Resolve a mutable ref once; raw content must use a commit, not a tree object ID. */
 export const getGitHubSnapshot = async (owner: string, repo: string, ref: string) => {
+  let revision: string;
   try {
-    const commit = await github.rest.repos.getCommit({ owner, repo, ref });
-    const revision = commit.data.sha;
-    return { revision, files: await listGitHubFiles(owner, repo, revision) };
+    revision = (await github.rest.repos.getCommit({ owner, repo, ref })).data.sha;
   } catch (error) {
     throw githubFailure(error);
   }
+  return { revision, files: await listGitHubFiles(owner, repo, revision) };
 };
 
 /** Default branch of a public GitHub repository (used when the caller omits one). */

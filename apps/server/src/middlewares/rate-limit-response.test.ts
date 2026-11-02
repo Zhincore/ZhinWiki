@@ -1,10 +1,15 @@
 import { Hono } from 'hono';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { errorMiddleware } from '@/errors/handler';
 import type { HonoEnv } from '@/lib/hono/context';
 import { rateLimit } from './rate-limit';
 
 describe('rate-limit retry guidance', () => {
+  // Pin the per-process store whatever the shell exports.
+  beforeAll(() => {
+    delete process.env.REDIS_HOST;
+  });
+
   afterEach(() => vi.useRealTimers());
 
   it('reports the remaining window and permits requests after it expires', async () => {

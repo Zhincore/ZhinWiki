@@ -6,7 +6,15 @@ import { toast } from 'sonner';
 import { api } from '@/services/api';
 import { getData, mutateData } from './client-helpers';
 import { queryKeys } from './query-keys';
-import type { ChangeRequest, ChangeRequestDetail, ChangeRequestPageDiff, ChangeRequestUser } from './types';
+import type {
+  ChangeRequest,
+  ChangeRequestDetail,
+  ChangeRequestHistoryPage,
+  ChangeRequestPageDiff,
+  ChangeRequestUser,
+  MergedChangeRequest,
+  RevertWarning,
+} from './types';
 
 const changeRequests = api.app.projects[':projectId']['change-requests'];
 
@@ -26,6 +34,14 @@ export const useChangeRequest = (projectId: string, number: number | undefined) 
     staleTime: 0,
     queryFn: async () =>
       getData<ChangeRequestDetail>(await changeRequests[':number'].$get({ param: { projectId, number: String(number) } }), 'change request'),
+  });
+
+/** One page of merged change requests, newest merge first; `cursor` is the previous page's `nextCursor`. */
+export const useChangeRequestHistory = (projectId: string, cursor: string | undefined) =>
+  useQuery({
+    queryKey: queryKeys.changeRequests.history(projectId, cursor),
+    queryFn: async () =>
+      getData<ChangeRequestHistoryPage>(await changeRequests.history.$get({ param: { projectId }, query: cursor ? { cursor } : {} }), 'history'),
   });
 
 export const useChangeRequestPageDiff = (projectId: string, number: number, pageId: string | undefined) =>
@@ -86,7 +102,7 @@ export const useMergeChangeRequest = (projectId: string, number: number) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (force: string[]) =>
-      mutateData<ChangeRequest>(
+      mutateData<MergedChangeRequest>(
         await changeRequests[':number'].merge.$post({ param: { projectId, number: String(number) }, json: { force } }),
         'Could not merge the change request.',
       ),
@@ -94,9 +110,35 @@ export const useMergeChangeRequest = (projectId: string, number: number) => {
       qc.invalidateQueries({ queryKey: queryKeys.changeRequests.all(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.branches.all(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
-      qc.invalidateQueries({ queryKey: queryKeys.deployments.changes(projectId) });
+      qc.invalidateQueries({ queryKey: queryKeys.deployments.all(projectId) });
     },
   });
+};
+
+/** Open a change request undoing a merged one and continue on it; pages it could not put back are listed in a warning toast. */
+export const useRevertChangeRequest = (projectId: string, number: number) => {
+  const t = useT();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const revert = useMutation({
+    mutationFn: async () =>
+      mutateData<{ changeRequest: ChangeRequest; warnings: RevertWarning[] }>(
+        await changeRequests[':number'].revert.$post({ param: { projectId, number: String(number) } }),
+        'Could not revert the change request.',
+      ),
+    onSuccess: ({ changeRequest, warnings }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.changeRequests.all(projectId) });
+      qc.invalidateQueries({ queryKey: queryKeys.branches.all(projectId) });
+      if (warnings.length > 0) {
+        toast.warning(t('changeRequest.revertWarnings', { count: warnings.length }), {
+          description: warnings.map((warning) => warning.title || warning.path).join(', '),
+        });
+      }
+      void navigate({ to: '/app/projects/$projectId/changes/$number', params: { projectId, number: String(changeRequest.number) } });
+    },
+    onError: (error) => toast.error(error.message || t('changeRequest.revertError')),
+  });
+  return { revert: () => revert.mutate(), isPending: revert.isPending };
 };
 
 /** Users who can be asked to review (members only). */

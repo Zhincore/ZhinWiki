@@ -17,7 +17,8 @@ Behaviour that exists only in this fork. Naming and branch rules:
   through change requests ([#70](https://github.com/Zhincore/ZhinWiki/pull/70),
   [#71](https://github.com/Zhincore/ZhinWiki/pull/71)); reviews, merge gate,
   outside contributors, notifications
-  ([#79](https://github.com/Zhincore/ZhinWiki/pull/79)).
+  ([#79](https://github.com/Zhincore/ZhinWiki/pull/79)); publish on merge,
+  history, revert ([#85](https://github.com/Zhincore/ZhinWiki/pull/85)).
 - **Runtime branding**: `APP_NAME`, `BRAND_*` from env, ZhinWiki default
   ([#10](https://github.com/Zhincore/ZhinWiki/pull/10),
   [#11](https://github.com/Zhincore/ZhinWiki/pull/11),
@@ -163,8 +164,25 @@ branch stores one change request (CR), reviewed and merged back.
   review requests, verdicts and merges (never the actor or suspended users);
   workspace toggles `change_request_review_requested`,
   `change_request_reviewed`, `change_request_merged`.
+- Publish on merge: `config.changeRequests.publishOnMerge` (admin setting,
+  default off). After a merge the handler calls `createDeployment` (`auto`);
+  a refused publish leaves the merge, answers `publish: 'failed'` and is
+  stored as a FAILED deployment (`recordRefusedDeployment`), like build
+  failures. Publish button and first-publish nudge hidden; the overview
+  failure card offers Publish, rollback stays. Settings-only edits wait for
+  the next merge.
+- History: `GET …/change-requests/history?cursor=` (viewer rule, like the
+  list): merged CRs by `mergedAt` desc, 20 per page, `pagesCount` from the
+  merge record.
+- Revert (`change-request-revert.ts`): `POST …/:number/revert`, members. New
+  draft CR on a fresh fork (`createBranch` `prepare`, same transaction) with
+  the record's pages set to `before`: added → deleted (children move up),
+  removed or gone from `main` → re-created, edited/moved → `before` fields and
+  parent (by id, else the page at its former path); a missing parent, a loop
+  or a gone language → `warnings`. Later
+  `main` edits are overwritten and show in its diff.
 - UI: **Edit** on `main` opens a CR; `?cr=<n>` binds the editor; list at
-  `/app/projects/:id/changes`, CR at `/changes/:n`.
+  `/app/projects/:id/changes`, CR at `/changes/:n`, history at `/history`.
 - Public output (`buildSnapshot`, publish, served snapshots) reads only `main`;
   exports and the MCP `versions` resource still list CR branches.
 
@@ -191,15 +209,16 @@ upgrade does not apply: ZhinWiki v0.1.0 already runs BullMQ 6.
 - Brand: `packages/shared/src/brand.ts`, `apps/app/src/lib/brand.ts`,
   `apps/app/src/components/welcome-page.tsx`.
 - Change requests:
-  `apps/server/src/actions/change-request{s,-merge,-reviews,-notifications}.ts`,
+  `apps/server/src/actions/change-request{s,-merge,-reviews,-notifications,-revert}.ts`,
   `apps/app/src/components/project-settings/change-requests-section.tsx`,
   `apps/server/src/modules/app/change-requests/`,
   `apps/app/src/components/change-requests/`, `apps/app/src/lib/block-diff.ts`,
-  `apps/app/src/routes/app/projects/$projectId/changes.*.tsx`.
+  `apps/app/src/routes/app/projects/$projectId/{changes.*,history}.tsx`.
 - Upstream files with fork edits: `packages/auth/src/keys.server.ts`,
   `packages/auth/src/account-deletion.ts`, `packages/shared/src/rbac.ts`,
   `packages/design-system/src/brand/`, `apps/server/src/actions/branches.ts`,
-  `packages/shared/src/site.ts`, `apps/server/src/middlewares/guard/index.ts`
+  `packages/shared/src/site.ts`, `apps/server/src/actions/deployments.ts`
+  (`createDeployment` `auto`), `apps/server/src/middlewares/guard/index.ts`
   (`requireProjectViewer`), `apps/server/src/actions/sites.ts`
   (`contributeUrl`).
 

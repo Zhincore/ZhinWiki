@@ -2,6 +2,7 @@ import { Button } from '@nibleaf/design-system/components/ui/button';
 import { SegmentedControl, SegmentedControlItem } from '@nibleaf/design-system/components/ui/segmented-control';
 import { Skeleton } from '@nibleaf/design-system/components/ui/skeleton';
 import { useT } from '@nibleaf/i18n/react';
+import { changeRequestPolicy } from '@nibleaf/shared/rbac';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { GitPullRequest, Loader2, Plus, User, UserCheck } from 'lucide-react';
 import { useMemo } from 'react';
@@ -58,7 +59,9 @@ function ChangeRequestsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-semibold text-2xl tracking-tight">{t('changeRequest.title')}</h1>
-          <p className="mt-1 text-muted-foreground text-sm">{t('changeRequest.subtitle')}</p>
+          <p className="mt-1 text-muted-foreground text-sm">
+            {t(project && changeRequestPolicy(project.config).publishOnMerge ? 'changeRequest.subtitlePublishOnMerge' : 'changeRequest.subtitle')}
+          </p>
         </div>
         <Button size="sm" onClick={startChangeRequest.start} disabled={startChangeRequest.isPending}>
           {startChangeRequest.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />} {t('changeRequest.new')}

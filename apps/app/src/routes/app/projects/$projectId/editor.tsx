@@ -5,6 +5,7 @@ import { SegmentedControl, SegmentedControlItem } from '@nibleaf/design-system/c
 import { Tabs, TabsList, TabsTrigger } from '@nibleaf/design-system/components/ui/tabs';
 import { cn } from '@nibleaf/design-system/lib/utils';
 import { useT } from '@nibleaf/i18n/react';
+import { changeRequestPolicy } from '@nibleaf/shared/rbac';
 import { useDebouncer } from '@tanstack/react-pacer';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import {
@@ -721,7 +722,9 @@ function EditorPage() {
             <Button aria-label={t('project.preview')} onClick={() => void openDraftPreview()} size="sm" variant="outline" className="cursor-pointer">
               <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
             </Button>
-            {project ? <PublishControl project={project} initialPublishOpen={publishParam} beforePublish={preparePublish} /> : null}
+            {project && !changeRequestPolicy(project.config).publishOnMerge ? (
+              <PublishControl project={project} initialPublishOpen={publishParam} beforePublish={preparePublish} />
+            ) : null}
           </>
         )}
         <Button size="sm" className="cursor-pointer" onClick={startChangeRequest.start} disabled={cr !== undefined || startChangeRequest.isPending}>

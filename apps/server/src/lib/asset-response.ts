@@ -4,15 +4,10 @@ import { normalizeAssetContentType, SVG_CONTENT_TYPE, safeInlineAssetContentType
  * even when the SVG is opened directly. */
 const SVG_CONTENT_SECURITY_POLICY = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox";
 
-/**
- * Turn untrusted object-storage metadata into safe browser response headers.
- *
- * Asset URLs share an origin with the dashboard. Anything other than our small
- * raster-image allowlist must therefore download rather than render as HTML or
- * another active document. SVG (sanitized when stored) renders inline under a
- * script-free CSP sandbox.
- */
-export const publicAssetResponseHeaders = (storedContentType: string | undefined) => {
+/** Wiki pages load assets from their own host (app, custom domain or edge proxy alike), so browsers refuse embeds by other sites. */
+const CROSS_ORIGIN_RESOURCE_POLICY = 'same-origin';
+
+const contentHeaders = (storedContentType: string | undefined) => {
   const inlineContentType = safeInlineAssetContentType(storedContentType);
   if (inlineContentType) {
     return { contentType: inlineContentType, contentDisposition: undefined, contentSecurityPolicy: undefined };
@@ -27,3 +22,16 @@ export const publicAssetResponseHeaders = (storedContentType: string | undefined
     contentSecurityPolicy: 'sandbox',
   };
 };
+
+/**
+ * Turn untrusted object-storage metadata into safe browser response headers.
+ *
+ * Asset URLs share an origin with the dashboard. Anything other than our small
+ * raster-image allowlist must therefore download rather than render as HTML or
+ * another active document. SVG (sanitized when stored) renders inline under a
+ * script-free CSP sandbox.
+ */
+export const publicAssetResponseHeaders = (storedContentType: string | undefined) => ({
+  ...contentHeaders(storedContentType),
+  crossOriginResourcePolicy: CROSS_ORIGIN_RESOURCE_POLICY,
+});

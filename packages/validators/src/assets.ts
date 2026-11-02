@@ -49,6 +49,13 @@ export const isUploadableAssetContentType = (value: string): boolean => isSafeIn
 export const inferUploadableAssetContentType = (filename: string): string | undefined =>
   inferSafeInlineAssetContentType(filename) ?? (filename.trim().toLowerCase().endsWith('.svg') ? SVG_CONTENT_TYPE : undefined);
 
+/** File extension for an uploadable type, or undefined for any other type. */
+export const assetExtensionForContentType = (value: string): string | undefined => {
+  if (value === SVG_CONTENT_TYPE) return 'svg';
+  if (value === 'image/vnd.microsoft.icon') return 'ico';
+  return Object.entries(contentTypeByExtension).find(([, type]) => type === value)?.[0];
+};
+
 /** Return a canonical safe type, or undefined when an object must download. */
 export const safeInlineAssetContentType = (value: string | null | undefined): string | undefined => {
   if (!value) {

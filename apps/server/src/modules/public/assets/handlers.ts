@@ -57,6 +57,7 @@ const app = new Hono<HonoEnv>().get('/*', ...assetRoutes.get, async (ctx) => {
   const stream = await getObjectStream(key);
   const headers = publicAssetResponseHeaders(head.ContentType);
   ctx.header('Content-Type', headers.contentType);
+  ctx.header('Cross-Origin-Resource-Policy', headers.crossOriginResourcePolicy);
   if (headers.contentDisposition) {
     ctx.header('Content-Disposition', headers.contentDisposition);
   }

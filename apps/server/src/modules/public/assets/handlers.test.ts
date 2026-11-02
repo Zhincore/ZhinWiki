@@ -44,6 +44,7 @@ describe('public asset delivery', () => {
     expect(response.status).toBe(200);
     expect(await response.text()).toBe('image-bytes');
     expect(response.headers.get('content-type')).toBe('image/png');
+    expect(response.headers.get('cross-origin-resource-policy')).toBe('same-origin');
     expect(response.headers.get('cache-control')).toBe('public, max-age=86400');
     expect(mocks.getProjectDeliveryAccess).toHaveBeenCalledWith('project-a', expect.any(Headers));
     expect(mocks.headObject).toHaveBeenCalledWith('projects/project-a/assets/logo.png');

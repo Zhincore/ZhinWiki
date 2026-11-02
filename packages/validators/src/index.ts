@@ -28,6 +28,7 @@ export {
   updateProjectAddonBody,
 } from './addons';
 export {
+  assetExtensionForContentType,
   inferSafeInlineAssetContentType,
   inferUploadableAssetContentType,
   isSafeInlineAssetContentType,
@@ -357,12 +358,14 @@ export const projectConfigSchema = z
       .optional(),
     redirects: redirectsSchema.optional(),
     variables: z.array(kvPair).max(100).optional(),
-    /** Change request policy: approvals a merge needs (default 1) and whether
-     *  signed-in non-members may open change requests (shared tenancy, default on). */
+    /** Change request policy: approvals a merge needs (default 1), whether
+     *  signed-in non-members may open change requests (shared tenancy, default on)
+     *  and whether a merge publishes the site (default off). */
     changeRequests: z
       .object({
         requiredApprovals: z.number().int().min(0).max(10).optional(),
         outsideContributions: z.boolean().optional(),
+        publishOnMerge: z.boolean().optional(),
       })
       .strict()
       .optional(),
@@ -631,6 +634,9 @@ export const listChangeRequestsQuery = z.object({ status: z.enum(['DRAFT', 'IN_R
 export type ListChangeRequestsQuery = z.infer<typeof listChangeRequestsQuery>;
 
 export const changeRequestParams = z.object({ number: z.coerce.number().int().positive() });
+
+/** Cursor pagination for merged change requests (`cursor` = last row id). */
+export const changeRequestHistoryQuery = z.object({ cursor: z.string().max(64).optional() });
 
 export const createChangeRequestBody = z.object({
   title: z.string().trim().max(200).optional(),

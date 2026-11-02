@@ -5,7 +5,20 @@ import { Textarea } from '@nibleaf/design-system/components/ui/textarea';
 import { cn } from '@nibleaf/design-system/lib/utils';
 import { useT } from '@nibleaf/i18n/react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Archive, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Eye, GitMerge, RotateCcw, Send, TriangleAlert, Undo2 } from 'lucide-react';
+import {
+  Archive,
+  ArrowLeft,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  GitMerge,
+  Loader2,
+  RotateCcw,
+  Send,
+  TriangleAlert,
+  Undo2,
+} from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -21,6 +34,7 @@ import {
   type Language,
   useChangeRequest,
   useLanguages,
+  useRevertChangeRequest,
   useUpdateChangeRequest,
 } from '@/hooks/api';
 import { useFormatters } from '@/lib/format';
@@ -86,6 +100,7 @@ function StatusActions({ projectId, changeRequest }: { projectId: string; change
   const t = useT();
   const confirm = useConfirm();
   const update = useUpdateChangeRequest(projectId, changeRequest.number);
+  const revert = useRevertChangeRequest(projectId, changeRequest.number);
   const [mergeOpen, setMergeOpen] = useState(false);
   const { contributor, canEdit } = useChangeRequestAccess(projectId, changeRequest);
   const { status, branchId } = changeRequest;
@@ -99,6 +114,14 @@ function StatusActions({ projectId, changeRequest }: { projectId: string; change
       confirmLabel: t('changeRequest.archive'),
     });
     if (ok) setStatus('ARCHIVED');
+  };
+  const confirmRevert = async () => {
+    const ok = await confirm({
+      title: t('changeRequest.revert'),
+      description: t('changeRequest.revertConfirm'),
+      confirmLabel: t('changeRequest.revert'),
+    });
+    if (ok) revert.revert();
   };
 
   return (
@@ -132,6 +155,11 @@ function StatusActions({ projectId, changeRequest }: { projectId: string; change
       {status === 'ARCHIVED' && branchId && canEdit ? (
         <Button size="sm" variant="outline" onClick={() => setStatus('DRAFT')} disabled={update.isPending}>
           <RotateCcw className="size-3.5" /> {t('changeRequest.reopen')}
+        </Button>
+      ) : null}
+      {status === 'MERGED' && !contributor && changeRequest.changes.length > 0 ? (
+        <Button size="sm" variant="outline" onClick={() => void confirmRevert()} disabled={revert.isPending}>
+          {revert.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Undo2 className="size-3.5" />} {t('changeRequest.revert')}
         </Button>
       ) : null}
       {open && !contributor ? <SubmitReviewMenu projectId={projectId} number={changeRequest.number} /> : null}

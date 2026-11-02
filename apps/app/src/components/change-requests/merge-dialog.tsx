@@ -63,8 +63,9 @@ export function MergeDialog({
     setError(null);
     if (unresolved > 0) return;
     merge.mutate(force, {
-      onSuccess: () => {
-        toast.success(t('changeRequest.merged'));
+      onSuccess: ({ publish }) => {
+        if (publish === 'failed') toast.warning(t('changeRequest.mergePublishFailed'));
+        else toast.success(t(publish === 'queued' ? 'changeRequest.mergedPublishing' : 'changeRequest.merged'));
         onOpenChange(false);
       },
       onError: (failure) => {

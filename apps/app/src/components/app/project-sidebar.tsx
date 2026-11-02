@@ -12,7 +12,7 @@ import {
 import type { MessageKey } from '@nibleaf/i18n';
 import { useLocale } from '@nibleaf/i18n/react';
 import { Link, useRouterState } from '@tanstack/react-router';
-import { BarChart3, GitPullRequest, LayoutDashboard, type LucideIcon, PenLine, Settings as SettingsIcon } from 'lucide-react';
+import { BarChart3, GitPullRequest, History, LayoutDashboard, type LucideIcon, PenLine, Settings as SettingsIcon } from 'lucide-react';
 import { SidebarAccountFooter } from '@/components/app/sidebar-account-footer';
 import { SiteSwitcher } from '@/components/app/site-switcher';
 import { useProject } from '@/hooks/api';
@@ -43,6 +43,13 @@ export function ProjectSidebar({ projectId }: { projectId: string }) {
       to: '/app/projects/$projectId/changes',
       icon: GitPullRequest,
       isActive: pathname.startsWith(`${base}/changes`),
+      contributor: true,
+    },
+    {
+      labelKey: 'changeRequest.history.title',
+      to: '/app/projects/$projectId/history',
+      icon: History,
+      isActive: pathname.startsWith(`${base}/history`),
       contributor: true,
     },
     { labelKey: 'project.analytics', to: '/app/projects/$projectId/analytics', icon: BarChart3, isActive: pathname.startsWith(`${base}/analytics`) },

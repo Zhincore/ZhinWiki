@@ -1,11 +1,15 @@
 import { type ChangeRequestStatus, Prisma, prisma } from '@nibleaf/database';
 import type { Locale } from '@nibleaf/i18n/locales';
-import { changerequest_defaulttitle } from '@nibleaf/i18n/messages';
+import { changerequest_defaulttitle, changerequest_revertdescription, changerequest_reverttitle } from '@nibleaf/i18n/messages';
+import { newId } from '@nibleaf/shared/ids';
 import { changeRequestPolicy } from '@nibleaf/shared/rbac';
 import type { CreateChangeRequestBody, UpdateChangeRequestBody } from '@nibleaf/validators';
 import { AppError, conflict, forbidden, notFound } from '@/errors';
+import { OPEN_CHANGE_REQUEST_STATUSES } from '@/lib/change-request-status';
+import { cleanupContributorAssets } from './assets';
 import { assertNoTrackedChangeRequests, createBranch, getDefaultBranch } from './branches';
 import { type ForkBase, type MergedFields, type MergePage, type MergeRecordEntry, planMerge, summarizeChanges } from './change-request-merge';
+import { planRevert, type RevertWarning } from './change-request-revert';
 import { capableReviewSummary, mergeReviewSummary, reviewCapableUserIds, reviewSummary } from './change-request-reviews';
 
 const MERGE_TIMEOUT_MS = 60_000;
@@ -83,7 +87,7 @@ export const createChangeRequest = async (
   options: { locale?: Locale; contributor?: boolean } = {},
 ) => {
   if (options.contributor) {
-    const open = await prisma.changeRequest.count({ where: { projectId, authorId: author.id, status: { in: ['DRAFT', 'IN_REVIEW'] } } });
+    const open = await prisma.changeRequest.count({ where: { projectId, authorId: author.id, status: { in: [...OPEN_CHANGE_REQUEST_STATUSES] } } });
     if (open >= CONTRIBUTOR_OPEN_LIMIT) {
       throw new AppError({
         code: 'change_requests:open_limit',
@@ -104,6 +108,33 @@ const loadPages = (projectId: string, branchId: string, client: Prisma.Transacti
   client.page.findMany({ where: { projectId, branchId }, select: mergePageSelect, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] });
 
 const recordEntries = (mergeRecord: Prisma.JsonValue | null) => (mergeRecord as { pages?: MergeRecordEntry[] } | null)?.pages ?? [];
+
+const HISTORY_PAGE_SIZE = 20;
+
+/** One page of merged change requests, newest merge first, with how many pages
+ *  each touched. `cursor` is the previous page's last id. */
+export const listMergedChangeRequests = async (projectId: string, cursor?: string) => {
+  const rows = await prisma.changeRequest.findMany({
+    where: { projectId, status: 'MERGED' },
+    orderBy: [{ mergedAt: 'desc' }, { id: 'desc' }],
+    take: HISTORY_PAGE_SIZE + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    select: { id: true, number: true, title: true, mergedAt: true, author: userSelect, mergedBy: userSelect },
+  });
+  const items = rows.slice(0, HISTORY_PAGE_SIZE);
+  // Counted in SQL: the record holds every touched page's content.
+  const counts =
+    items.length === 0
+      ? []
+      : await prisma.$queryRaw<{ id: string; pages: number }[]>`
+          SELECT "id", COALESCE(jsonb_array_length("mergeRecord"->'pages'), 0)::int AS "pages"
+          FROM "change_request" WHERE "id" IN (${Prisma.join(items.map((item) => item.id))})`;
+  const pagesById = new Map(counts.map((row) => [row.id, row.pages]));
+  return {
+    items: items.map((item) => ({ ...item, pagesCount: pagesById.get(item.id) ?? 0 })),
+    nextCursor: rows.length > HISTORY_PAGE_SIZE ? (items.at(-1)?.id ?? null) : null,
+  };
+};
 
 /** A change request with the pages it changes: compared against the default
  *  branch while open, read from the merge record once merged. */
@@ -189,6 +220,7 @@ export const updateChangeRequest = async (projectId: string, number: number, bod
     },
   });
   if (count === 0) throw conflict('This change request changed meanwhile. Reload and try again.');
+  if (statusChange && body.status === 'ARCHIVED' && changeRequest.authorId) await cleanupContributorAssets(projectId, changeRequest.authorId);
   return prisma.changeRequest.findUniqueOrThrow({ where: { id: changeRequest.id }, omit: internalColumns, include: { author: userSelect } });
 };
 
@@ -207,7 +239,7 @@ const pageData = <T extends Partial<MergedFields>>(data: T) => {
 export const mergeChangeRequest = async (projectId: string, number: number, userId: string, force: readonly string[]) => {
   const { id } = await findChangeRequest(projectId, number);
   const main = await getDefaultBranch(projectId);
-  return prisma.$transaction(
+  const merged = await prisma.$transaction(
     async (tx) => {
       // Serialize merges per project and hold main's rows against concurrent edits until commit.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${projectId}))`;
@@ -266,6 +298,8 @@ export const mergeChangeRequest = async (projectId: string, number: number, user
     },
     { timeout: MERGE_TIMEOUT_MS },
   );
+  if (merged.authorId) await cleanupContributorAssets(projectId, merged.authorId);
+  return merged;
 };
 
 type DiffPage = {
@@ -317,4 +351,41 @@ export const getChangeRequestPageDiff = async (projectId: string, number: number
   }
   const source = page.sourcePageId ? await prisma.page.findFirst({ where: { id: page.sourcePageId, projectId, branchId: main.id } }) : null;
   return { main: diffSide(source), change: diffSide(page) };
+};
+
+/**
+ * Open a draft change request that restores the pages a merged one touched to
+ * their state before its merge (see `planRevert`), on a fresh copy of the
+ * default branch. It goes through review and merge like any other. Returns it
+ * with the pages that could not be put back where they were.
+ */
+export const revertChangeRequest = async (projectId: string, number: number, author: { id: string }, locale?: Locale) => {
+  const changeRequest = await findChangeRequest(projectId, number);
+  const record = recordEntries(changeRequest.mergeRecord);
+  if (changeRequest.status !== 'MERGED' || record.length === 0) throw conflict('Only a merged change request with recorded pages can be reverted.');
+  let warnings: RevertWarning[] = [];
+  const branch = await createBranch(projectId, {
+    title: changerequest_reverttitle({ title: changeRequest.title }, { locale }).slice(0, 200),
+    description: changerequest_revertdescription({ number }, { locale }),
+    authorId: author.id,
+    prepare: async (tx, branchId) => {
+      const [pages, languages] = await Promise.all([
+        loadPages(projectId, branchId, tx),
+        tx.language.findMany({ where: { projectId }, select: { id: true } }),
+      ]);
+      const plan = planRevert({ record, branch: pages, languageIds: new Set(languages.map((language) => language.id)), newId });
+      for (const { id, languageId, ...data } of plan.creates) {
+        await tx.page.create({ data: { ...pageData(data), id, languageId, projectId, branchId } });
+      }
+      for (const update of plan.updates) await tx.page.update({ where: { id: update.id }, data: pageData(update.data) });
+      if (plan.deletes.length > 0) await tx.page.deleteMany({ where: { id: { in: plan.deletes }, branchId } });
+      warnings = plan.warnings;
+    },
+  });
+  const created = await prisma.changeRequest.findUniqueOrThrow({
+    where: { branchId: branch.id },
+    omit: internalColumns,
+    include: { author: userSelect },
+  });
+  return { changeRequest: created, warnings };
 };

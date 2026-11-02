@@ -12,7 +12,7 @@ describe('rate-limit retry guidance', () => {
     vi.setSystemTime(new Date('2026-10-17T12:00:00Z'));
     const app = new Hono<HonoEnv>();
     app.onError(errorMiddleware({ isDevelopment: false }));
-    app.use('*', rateLimit({ windowMs: 60_000, max: 1 }));
+    app.use('*', rateLimit({ name: 'test', windowMs: 60_000, max: 1 }));
     app.get('/', (context) => context.json({ ok: true }));
     expect((await app.request('/')).status).toBe(200);
     vi.setSystemTime(new Date('2026-10-17T12:00:32.200Z'));

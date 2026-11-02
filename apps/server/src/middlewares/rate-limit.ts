@@ -5,17 +5,21 @@ import { AppError } from '@/errors';
 import { clientIpFromForwardedFor, isPrivateIp } from '@/lib/client-ip';
 import { envExtras } from '@/lib/env-extras';
 import type { HonoEnv } from '@/lib/hono/context';
+import { slidingWindow } from '@/lib/sliding-window';
+
+/** Resolves a request's bucket; `null` exempts the request. */
+type RateLimitKey = (ctx: Context<HonoEnv>) => string | null | Promise<string | null>;
 
 interface RateLimitOptions {
+  /** Namespace of this limiter's buckets, unique across limiters. */
+  name: string;
   /** Sliding window length in milliseconds. */
   windowMs: number;
   /** Maximum number of requests allowed per client within the window. */
   max: number;
+  /** Bucket per request; defaults to the client IP. */
+  key?: RateLimitKey;
 }
-
-/** Hard bound on distinct client buckets kept in memory per limiter instance —
- *  a spoofed-IP flood evicts the oldest buckets instead of growing the heap. */
-const MAX_TRACKED_KEYS = 10_000;
 
 /** Constant-time secret comparison — `===` short-circuits on the first differing
  *  byte, leaking a timing oracle on a value that gates a trust decision. */
@@ -52,7 +56,7 @@ const socketAddress = (ctx: Context<HonoEnv>): string | null => {
  * Never a shared constant: worst case is 'unknown', which only happens when a
  * runtime has neither headers nor socket info.
  */
-const resolveClientKey = (ctx: Context<HonoEnv>): string => {
+export const resolveClientKey = (ctx: Context<HonoEnv>): string => {
   const peer = socketAddress(ctx);
   const hinted = ctx.req.header('x-nibleaf-client-ip')?.trim();
   const secret = envExtras.INTERNAL_API_SECRET;
@@ -68,51 +72,21 @@ const resolveClientKey = (ctx: Context<HonoEnv>): string => {
 };
 
 /**
- * Lightweight in-memory sliding-window rate limiter (no external deps).
- *
- * NOTE: state is per-instance — behind multiple replicas each process tracks its
- * own counters, so the effective limit scales with instance count. Use a
- * Redis-backed limiter for accurate enforcement across a multi-instance deployment.
+ * Sliding-window rate limiter. Counters live in Redis when it is configured,
+ * so every replica shares one budget; otherwise (or while Redis is down) each
+ * process keeps its own.
  */
-export const rateLimit = ({ windowMs, max }: RateLimitOptions): MiddlewareHandler<HonoEnv> => {
-  const hits = new Map<string, number[]>();
-
-  // Periodically drop buckets with no in-window activity so idle clients don't
-  // accumulate forever. unref() keeps the timer from holding the process open.
-  const sweep = () => {
-    const cutoff = Date.now() - windowMs;
-    for (const [key, stamps] of hits) {
-      if ((stamps[stamps.length - 1] ?? 0) <= cutoff) {
-        hits.delete(key);
-      }
-    }
-  };
-  setInterval(sweep, Math.max(windowMs, 30_000)).unref();
-
+export const rateLimit = ({ name, windowMs, max, key = resolveClientKey }: RateLimitOptions): MiddlewareHandler<HonoEnv> => {
+  const window = slidingWindow({ name, windowMs, max });
   return async (ctx, next) => {
-    const key = resolveClientKey(ctx);
-    const now = Date.now();
-    const cutoff = now - windowMs;
-
-    // Bound the map even between sweeps: evict the oldest-tracked bucket, not the new one.
-    if (!hits.has(key) && hits.size >= MAX_TRACKED_KEYS) {
-      const oldest = hits.keys().next();
-      if (!oldest.done) {
-        hits.delete(oldest.value);
+    const bucket = await key(ctx);
+    if (bucket !== null) {
+      const { allowed, retryAfterMs } = await window.hit(bucket);
+      if (!allowed) {
+        ctx.header('Retry-After', String(Math.max(1, Math.ceil(retryAfterMs / 1000))));
+        throw new AppError({ code: 'http:rate_limited', message: 'Too many requests, please slow down.' });
       }
     }
-
-    const recent = (hits.get(key) ?? []).filter((ts) => ts > cutoff);
-    if (recent.length >= max) {
-      hits.set(key, recent);
-      const retrySeconds = Math.max(1, Math.ceil(((recent[0] ?? now) + windowMs - now) / 1000));
-      ctx.header('Retry-After', String(retrySeconds));
-      throw new AppError({ code: 'http:rate_limited', message: 'Too many requests, please slow down.' });
-    }
-
-    recent.push(now);
-    hits.set(key, recent);
-
     await next();
   };
 };

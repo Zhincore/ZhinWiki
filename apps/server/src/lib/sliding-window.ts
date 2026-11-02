@@ -6,13 +6,15 @@ import { markRedisUnhealthy, redisConfigured, sharedRedis } from './redis';
 
 interface WindowHit {
   allowed: boolean;
-  /** Milliseconds until the oldest in-window hit expires; 0 when allowed. */
+  /** Milliseconds until enough in-window amounts expire to reopen; 0 when allowed. */
   retryAfterMs: number;
 }
 
 export interface SlidingWindow {
-  /** Record one hit for `key` unless its window is already full. */
-  hit: (key: string) => Promise<WindowHit>;
+  /** Book `amount` for `key` unless its in-window total already reached `max`; 0 only checks. */
+  hit: (key: string, amount?: number) => Promise<WindowHit>;
+  /** Book `amount` for `key` regardless of its total. */
+  record: (key: string, amount: number) => Promise<void>;
 }
 
 interface WindowOptions {
@@ -26,54 +28,96 @@ interface WindowOptions {
  *  flood evicts the oldest buckets instead of growing the heap. */
 const MAX_TRACKED_KEYS = 10_000;
 
-/** Per-process sliding log; idle buckets are swept on a timer. */
+interface Entry {
+  at: number;
+  amount: number;
+}
+
+/** Per-process sliding log of amounts; idle buckets are swept on a timer. */
 export const memoryWindow = (windowMs: number, max: number): SlidingWindow => {
-  const hits = new Map<string, number[]>();
+  const buckets = new Map<string, Entry[]>();
 
   // unref() keeps the sweep timer from holding the process open.
   const sweep = () => {
     const cutoff = Date.now() - windowMs;
-    for (const [key, stamps] of hits) {
-      if ((stamps[stamps.length - 1] ?? 0) <= cutoff) {
-        hits.delete(key);
+    for (const [key, entries] of buckets) {
+      if ((entries[entries.length - 1]?.at ?? 0) <= cutoff) {
+        buckets.delete(key);
       }
     }
   };
   setInterval(sweep, Math.max(windowMs, 30_000)).unref();
 
+  /** In-window entries of `key`, pruned; evicts the oldest bucket for a new key when full. */
+  const recent = (key: string, now: number): Entry[] => {
+    if (!buckets.has(key) && buckets.size >= MAX_TRACKED_KEYS) {
+      const oldest = buckets.keys().next();
+      if (!oldest.done) {
+        buckets.delete(oldest.value);
+      }
+    }
+    const entries = (buckets.get(key) ?? []).filter((entry) => entry.at > now - windowMs);
+    buckets.set(key, entries);
+    return entries;
+  };
+
   return {
-    hit: async (key) => {
+    hit: async (key, amount = 1) => {
       const now = Date.now();
-      if (!hits.has(key) && hits.size >= MAX_TRACKED_KEYS) {
-        const oldest = hits.keys().next();
-        if (!oldest.done) {
-          hits.delete(oldest.value);
+      const entries = recent(key, now);
+      let total = entries.reduce((sum, entry) => sum + entry.amount, 0);
+      if (total >= max) {
+        let reopensAt = now;
+        for (const entry of entries) {
+          total -= entry.amount;
+          reopensAt = entry.at + windowMs;
+          if (total < max) {
+            break;
+          }
         }
+        return { allowed: false, retryAfterMs: reopensAt - now };
       }
-      const recent = (hits.get(key) ?? []).filter((ts) => ts > now - windowMs);
-      if (recent.length >= max) {
-        hits.set(key, recent);
-        return { allowed: false, retryAfterMs: (recent[0] ?? now) + windowMs - now };
+      if (amount > 0) {
+        entries.push({ at: now, amount });
       }
-      recent.push(now);
-      hits.set(key, recent);
       return { allowed: true, retryAfterMs: 0 };
+    },
+    record: async (key, amount) => {
+      const now = Date.now();
+      recent(key, now).push({ at: now, amount });
     },
   };
 };
 
-/** Atomic sliding log over one sorted set: prune, count, then admit or report
- *  the oldest hit. The set holds at most `max` members and expires with the window. */
+/** Atomic sliding log over one sorted set scored by time, each member ending in
+ *  its amount. Prunes, then (unless forced) sums the window and refuses at `max`
+ *  with the time until enough of the oldest amounts expire; otherwise books
+ *  the amount and expires the set with the window. */
 const SLIDING_WINDOW_SCRIPT = `
 local now = tonumber(ARGV[1])
 local window = tonumber(ARGV[2])
+local max = tonumber(ARGV[3])
+local amount = tonumber(ARGV[5])
 redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now - window)
-if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[3]) then
-  local oldest = redis.call('ZRANGE', KEYS[1], 0, 0, 'WITHSCORES')
-  return {0, tonumber(oldest[2]) + window - now}
+if ARGV[6] ~= '1' then
+  local entries = redis.call('ZRANGE', KEYS[1], 0, -1, 'WITHSCORES')
+  local total = 0
+  for i = 1, #entries, 2 do
+    total = total + tonumber(string.match(entries[i], ':(%d+)$'))
+  end
+  if total >= max then
+    for i = 1, #entries, 2 do
+      total = total - tonumber(string.match(entries[i], ':(%d+)$'))
+      if total < max then
+        return {0, tonumber(entries[i + 1]) + window - now}
+      end
+    end
+  end
 end
-redis.call('ZADD', KEYS[1], now, ARGV[4])
-redis.call('PEXPIRE', KEYS[1], window)
+if amount > 0 then
+  redis.call('ZADD', KEYS[1], now, ARGV[4])
+  redis.call('PEXPIRE', KEYS[1], window)
+end
 return {1, 0}
 `;
 
@@ -88,8 +132,8 @@ const bucketKey = (name: string, key: string): string => {
 
 /** Sliding log shared by every replica through Redis. Rejects when Redis does;
  *  a failed or timed-out command also marks the shared connection unhealthy. */
-export const redisWindow = ({ name, windowMs, max }: WindowOptions, connect: () => Promise<Redis> = sharedRedis): SlidingWindow => ({
-  hit: async (key) => {
+export const redisWindow = ({ name, windowMs, max }: WindowOptions, connect: () => Promise<Redis> = sharedRedis): SlidingWindow => {
+  const run = async (key: string, amount: number, force: boolean): Promise<WindowHit> => {
     const client = await connect();
     const now = Date.now();
     try {
@@ -100,15 +144,23 @@ export const redisWindow = ({ name, windowMs, max }: WindowOptions, connect: () 
         now,
         windowMs,
         max,
-        `${now}:${randomBytes(6).toString('base64url')}`,
+        `${now}:${randomBytes(6).toString('base64url')}:${amount}`,
+        amount,
+        force ? 1 : 0,
       )) as [number, number];
       return { allowed: allowed === 1, retryAfterMs };
     } catch (error) {
       markRedisUnhealthy();
       throw error;
     }
-  },
-});
+  };
+  return {
+    hit: (key, amount = 1) => run(key, amount, false),
+    record: async (key, amount) => {
+      await run(key, amount, true);
+    },
+  };
+};
 
 let lastFallbackLog = 0;
 
@@ -122,17 +174,20 @@ export const slidingWindow = (options: WindowOptions, connect: () => Promise<Red
     return memory;
   }
   const shared = redisWindow(options, connect);
-  return {
-    hit: async (key) => {
-      try {
-        return await shared.hit(key);
-      } catch (error) {
-        if (Date.now() - lastFallbackLog > 60_000) {
-          lastFallbackLog = Date.now();
-          logger.warn({ error, limiter: options.name }, 'rate limit store unreachable; using per-process limits');
-        }
-        return memory.hit(key);
+  /** Runs `op` against Redis, or against this process's memory when Redis fails. */
+  const fallback = async <T>(op: (window: SlidingWindow) => Promise<T>): Promise<T> => {
+    try {
+      return await op(shared);
+    } catch (error) {
+      if (Date.now() - lastFallbackLog > 60_000) {
+        lastFallbackLog = Date.now();
+        logger.warn({ error, limiter: options.name }, 'rate limit store unreachable; using per-process limits');
       }
-    },
+      return op(memory);
+    }
+  };
+  return {
+    hit: (key, amount) => fallback((window) => window.hit(key, amount)),
+    record: (key, amount) => fallback((window) => window.record(key, amount)),
   };
 };

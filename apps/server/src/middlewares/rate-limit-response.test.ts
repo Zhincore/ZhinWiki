@@ -47,11 +47,11 @@ describe('rate-limit retry guidance', () => {
   it('refuses once the byte budget is spent until enough bytes leave the window', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-17T12:00:00Z'));
-    const budget = byteBudget({ windowMs: 60_000, maxBytes: 100, key: () => 'user' });
+    const budget = byteBudget({ name: 'test-bytes', windowMs: 60_000, maxBytes: 100, key: () => 'user' });
     const app = new Hono<HonoEnv>();
     app.onError(errorMiddleware({ isDevelopment: false }));
-    app.post('/', budget.guard, (context) => {
-      budget.record(context, Number(context.req.query('bytes')));
+    app.post('/', budget.guard, async (context) => {
+      await budget.record(context, Number(context.req.query('bytes')));
       return context.json({ ok: true });
     });
     const send = (bytes: number) => app.request(`/?bytes=${bytes}`, { method: 'POST' });

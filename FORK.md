@@ -159,8 +159,8 @@ branch stores one change request (CR), reviewed and merged back.
   advisory lock; a refused object is deleted. When their CR is archived,
   merged or its branch deleted, their uploads no page on `main` or an open CR
   (nor the wiki config) references are deleted (`cleanupContributorAssets`).
-  Per user, in memory: 30 uploads / 10 min, 200 MB stored / 24 h (429
-  `http:rate_limited`, Retry-After).
+  Per user, shared like other rate limits: 30 uploads / 10 min, 200 MB
+  stored / 24 h (429 `http:rate_limited`, Retry-After).
 - Public assets send `Cross-Origin-Resource-Policy: same-origin`: no
   hotlinking from other sites.
 - Notifications (`change-request-notifications.ts`): in-app plus email for
@@ -203,11 +203,11 @@ branch stores one change request (CR), reviewed and merged back.
 - Code emails: `OTP_SEND_LIMIT_PER_IP` (20/h) and `OTP_SEND_LIMIT_PER_EMAIL`
   (5/h) after the captcha, so unsolved requests cannot lock out an IP or an
   address. Verify attempts stay on Better Auth (`allowedAttempts: 3`).
-- `rateLimit` keeps a sliding log per bucket in Dragonfly (one Lua script,
-  HMAC-keyed pseudonymous keys, TTL = window) when `REDIS_HOST` is set; per
-  process otherwise or while Dragonfly is down or slow (a failed command pauses
-  Dragonfly use for 5 s). IP buckets group IPv6 by /64. Each limiter has a
-  unique `name`.
+- `rateLimit` and `byteBudget` keep a weighted sliding log per bucket in
+  Dragonfly (one Lua script, HMAC-keyed pseudonymous keys, TTL = window) when
+  `REDIS_HOST` is set; per process otherwise or while Dragonfly is down or slow
+  (a failed command pauses Dragonfly use for 5 s). IP buckets group IPv6 by
+  /64. Each limiter has a unique `name`.
 - Email-OTP password-reset routes are disabled (password auth is off).
 - GitHub (`user:email`) and Discord (`identify email`) sign-in beside Google;
   Better Auth's default account linking (verified emails only). OAuth sign-up

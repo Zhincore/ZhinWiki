@@ -2,21 +2,23 @@ import { Button } from '@nibleaf/design-system/components/ui/button';
 import { Input } from '@nibleaf/design-system/components/ui/input';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@nibleaf/design-system/components/ui/input-otp';
 import { Label } from '@nibleaf/design-system/components/ui/label';
+import { useCaptcha } from '@nibleaf/design-system/hooks/use-captcha';
 import { useOtpResendCountdown } from '@nibleaf/design-system/hooks/use-otp-resend-countdown';
+import { getLocale } from '@nibleaf/i18n';
 import { useT } from '@nibleaf/i18n/react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { z } from 'zod';
-import { GoogleIcon } from '@/components/icons/brand';
 import { LegalNotice } from '@/components/legal-notice';
+import { SocialSignIn } from '@/components/social-sign-in';
 import { useGetPublicMeta } from '@/hooks/api/public';
 import { useTenancy } from '@/hooks/use-tenancy';
 import { AuthLayout } from '@/layouts/auth';
-import { authEmailErrorMessage } from '@/lib/auth-errors';
+import { authEmailErrorMessage, isCaptchaError } from '@/lib/auth-errors';
 import { brandedTitle } from '@/lib/brand';
 import { readPendingInvitation } from '@/lib/invitations';
-import { authClient, signIn } from '@/services/auth-client';
+import { authClient } from '@/services/auth-client';
 
 export const Route = createFileRoute('/(auth)/sign-in')({
   validateSearch: (search) =>
@@ -34,11 +36,10 @@ function SignInPage() {
   const [otp, setOtp] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { resendIn, resetCountdown, startCountdown } = useOtpResendCountdown();
   const { data: publicMeta } = useGetPublicMeta();
-  const googleEnabled = publicMeta?.providers.google ?? false;
+  const captcha = useCaptcha(publicMeta?.captcha, getLocale());
 
   const normalizedEmail = email.trim().toLowerCase();
   const invitationId = search.invite ?? readPendingInvitation() ?? undefined;
@@ -56,9 +57,14 @@ function SignInPage() {
     setIsSubmitting(true);
     setError(null);
     try {
-      const result = await authClient.emailOtp.sendVerificationOtp({ email: normalizedEmail, type: 'sign-in' });
+      const headers = await captcha.headers().catch(() => null);
+      if (!headers) {
+        setError(t('auth.captcha.failed'));
+        return;
+      }
+      const result = await authClient.emailOtp.sendVerificationOtp({ email: normalizedEmail, type: 'sign-in', fetchOptions: { headers } });
       if (result.error) {
-        setError(authEmailErrorMessage(result.error, t('auth.otp.sendError')));
+        setError(isCaptchaError(result.error) ? t('auth.captcha.failed') : authEmailErrorMessage(result.error, t('auth.otp.sendError')));
         return;
       }
       setCodeSent(true);
@@ -87,16 +93,6 @@ function SignInPage() {
     }
   };
 
-  const signInWithGoogle = async () => {
-    setError(null);
-    setIsGoogleSubmitting(true);
-    const result = await signIn.social({ provider: 'google', callbackURL: afterAuthPath });
-    if (result.error) {
-      setError(result.error.message ?? t('auth.signIn.error'));
-      setIsGoogleSubmitting(false);
-    }
-  };
-
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (codeSent) await verifyCode();
@@ -105,19 +101,7 @@ function SignInPage() {
 
   return (
     <AuthLayout subtitle={codeSent ? t('auth.otp.checkEmail', { email: normalizedEmail }) : subtitle}>
-      {!codeSent && googleEnabled ? (
-        <>
-          <Button className="mb-4 w-full gap-2" disabled={isGoogleSubmitting} onClick={signInWithGoogle} type="button" variant="outline">
-            <GoogleIcon className="size-4" />
-            {isGoogleSubmitting ? t('auth.google.submitting') : t('auth.google.signIn')}
-          </Button>
-          <div className="mb-4 flex items-center gap-3 text-muted-foreground text-xs">
-            <span className="h-px flex-1 bg-border" />
-            <span>{t('auth.divider.or')}</span>
-            <span className="h-px flex-1 bg-border" />
-          </div>
-        </>
-      ) : null}
+      {!codeSent ? <SocialSignIn callbackURL={afterAuthPath} enabled={publicMeta?.providers} mode="signIn" onError={setError} /> : null}
       <form className="flex flex-col gap-4" onSubmit={submit}>
         {!codeSent ? (
           <div className="flex flex-col gap-1.5">
@@ -161,6 +145,7 @@ function SignInPage() {
             <p className="text-center text-muted-foreground text-xs">{t('auth.otp.hint')}</p>
           </div>
         )}
+        <div className="flex justify-center empty:hidden" ref={captcha.container} />
         {error ? (
           <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-destructive text-sm" role="alert">
             {error}

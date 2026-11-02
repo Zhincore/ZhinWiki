@@ -82,6 +82,14 @@ x-service-env: &service-env
   BETTER_AUTH_URL: ${BETTER_AUTH_URL:-https://nibleaf.com}
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+  GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+  DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+  DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+  CAPTCHA_PROVIDER: ${CAPTCHA_PROVIDER:-altcha}
+  CAPTCHA_HMAC_KEY: ${CAPTCHA_HMAC_KEY:-}
+  TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+  TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
   # Public-instance default: require a verified email before sign-in. Needs
   # POSTMARK_API_KEY (or SMTP_URL) configured so the mail can be delivered.
   TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-https://nibleaf.com,https://www.nibleaf.com,https://admin.nibleaf.com}
@@ -122,6 +130,8 @@ x-service-env: &service-env
   AI_DRAFT_MODEL: ${AI_DRAFT_MODEL:-openai/gpt-4o-mini}
   AI_DAILY_LIMIT: ${AI_DAILY_LIMIT:-}
   RATE_LIMIT_PUBLIC_PER_MIN: ${RATE_LIMIT_PUBLIC_PER_MIN:-}
+  OTP_SEND_LIMIT_PER_EMAIL: ${OTP_SEND_LIMIT_PER_EMAIL:-}
+  OTP_SEND_LIMIT_PER_IP: ${OTP_SEND_LIMIT_PER_IP:-}
   # Keep this at 0 unless the public ingress sanitizes X-Forwarded-For and you
   # have captured the real header chain. Cloudflare -> Traefik commonly needs 1
   # because Traefik appends Cloudflare's source address. See:

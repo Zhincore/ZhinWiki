@@ -16,3 +16,8 @@ export function isEmailNotVerifiedError(error: AuthErrorLike | null | undefined)
   const value = `${error.code ?? ''} ${error.message ?? ''}`.toUpperCase().replaceAll(' ', '_');
   return value.includes('EMAIL_NOT_VERIFIED');
 }
+
+/** The API's bot check refused the request (missing, failed or unavailable). */
+export function isCaptchaError(error: AuthErrorLike | null | undefined): boolean {
+  return Boolean(error?.code?.startsWith('CAPTCHA_'));
+}

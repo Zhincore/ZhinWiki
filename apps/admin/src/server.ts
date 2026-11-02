@@ -45,7 +45,7 @@ const handleRequest: RequestHandler<Register> = async (request, ...rest) => {
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
     }
 
-    headers.set('Content-Security-Policy', adminContentSecurityPolicy(nonce, serverEnv.APP_URL));
+    headers.set('Content-Security-Policy', adminContentSecurityPolicy(nonce, serverEnv.APP_URL, serverEnv.CAPTCHA_PROVIDER === 'turnstile'));
     headers.set('cache-control', 'private, no-store');
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   });

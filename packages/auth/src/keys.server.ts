@@ -27,6 +27,10 @@ export const keys = () =>
       TRUSTED_ORIGINS: z.string().default('http://localhost:4310,http://localhost:4311,http://localhost:4315').transform(csv),
       GOOGLE_CLIENT_ID: z.string().optional(),
       GOOGLE_CLIENT_SECRET: z.string().optional(),
+      GITHUB_CLIENT_ID: z.string().optional(),
+      GITHUB_CLIENT_SECRET: z.string().optional(),
+      DISCORD_CLIENT_ID: z.string().optional(),
+      DISCORD_CLIENT_SECRET: z.string().optional(),
       // Optional: refuse ALL new sign-ups (email OTP and social). Existing
       // accounts keep signing in. Useful for closed instances and as an
       // emergency brake on open ones. Default off.

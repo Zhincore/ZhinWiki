@@ -2,11 +2,14 @@ import { Button } from '@nibleaf/design-system/components/ui/button';
 import { Input } from '@nibleaf/design-system/components/ui/input';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@nibleaf/design-system/components/ui/input-otp';
 import { Label } from '@nibleaf/design-system/components/ui/label';
+import { useCaptcha } from '@nibleaf/design-system/hooks/use-captcha';
 import { useOtpResendCountdown } from '@nibleaf/design-system/hooks/use-otp-resend-countdown';
+import { getLocale } from '@nibleaf/i18n';
 import { useT } from '@nibleaf/i18n/react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ArrowLeft, KeyRound, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
+import { usePublicMeta } from '@/hooks/api/queries';
 import { authClient } from '@/services/auth-client';
 
 export const Route = createFileRoute('/(auth)/sign-in')({
@@ -22,14 +25,21 @@ function SignInPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { resendIn, resetCountdown, startCountdown } = useOtpResendCountdown();
+  const { data: publicMeta } = usePublicMeta();
+  const captcha = useCaptcha(publicMeta?.captcha, getLocale());
 
   const requestCode = async () => {
     setIsSubmitting(true);
     setError(null);
     try {
-      const result = await authClient.emailOtp.sendVerificationOtp({ email: email.trim().toLowerCase(), type: 'sign-in' });
+      const headers = await captcha.headers().catch(() => null);
+      if (!headers) {
+        setError(t('auth.captcha.failed'));
+        return;
+      }
+      const result = await authClient.emailOtp.sendVerificationOtp({ email: email.trim().toLowerCase(), type: 'sign-in', fetchOptions: { headers } });
       if (result.error) {
-        setError(t('admin.signIn.sendError'));
+        setError(t(result.error.code?.startsWith('CAPTCHA_') ? 'auth.captcha.failed' : 'admin.signIn.sendError'));
         return;
       }
       setCodeSent(true);
@@ -129,6 +139,7 @@ function SignInPage() {
               <p className="text-center text-muted-foreground text-xs">{t('admin.signIn.expiry')}</p>
             </div>
           )}
+          <div className="flex justify-center empty:hidden" ref={captcha.container} />
           {error ? (
             <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-destructive text-sm" role="alert">
               {error}

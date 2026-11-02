@@ -68,8 +68,8 @@ agree. Upload and open a real image before inviting writers.
 
 ## Configure sign-up and mail
 
-Sign-in uses email codes, or Google when `GOOGLE_CLIENT_ID` and
-`GOOGLE_CLIENT_SECRET` are configured. Set a verified `EMAIL_FROM` and configure
+Sign-in uses email codes, plus Google, GitHub, or Discord for each provider whose
+`<PROVIDER>_CLIENT_ID` and `<PROVIDER>_CLIENT_SECRET` are both set. Set a verified `EMAIL_FROM` and configure
 Postmark or `SMTP_URL`. Send a sign-in code to an external mailbox; a container
 health check cannot prove delivery.
 
@@ -79,6 +79,42 @@ through Google: without a provider, the first owner cannot receive an email code
 
 After creating the intended owners, set `DISABLE_SIGNUP=true` if registration
 should close. Existing accounts can still sign in.
+
+### Add GitHub or Discord sign-in
+
+The callback URL is `${APP_URL}/api/auth/callback/<provider>`, for example
+`https://docs.example.com/api/auth/callback/github`.
+
+- **GitHub**: Settings → Developer settings → OAuth Apps → New OAuth App. Set the
+  homepage URL to `APP_URL` and the callback URL above, then generate a client
+  secret into `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`. Only the `user:email`
+  scope is requested.
+- **Discord**: Developer Portal → New Application → OAuth2. Add the callback URL
+  as a redirect and copy the client ID and secret into `DISCORD_CLIENT_ID` and
+  `DISCORD_CLIENT_SECRET`. Only the `identify` and `email` scopes are requested.
+
+Buttons appear only for configured providers, and `DISABLE_SIGNUP` applies to
+them too. A provider sign-in joins an existing account only when the provider
+reports the address as verified and the account's address is verified.
+
+## Limit sign-in code abuse
+
+Sign-in code emails need a solved bot check, chosen by `CAPTCHA_PROVIDER`:
+
+- `altcha` (default): a self-hosted proof of work the browser solves in the
+  background. Nothing leaves your server. Challenges expire after 10 minutes and each
+  solution works once. `CAPTCHA_HMAC_KEY` signs them; unset, a key is derived from
+  `BETTER_AUTH_SECRET`, so rotating that secret also invalidates open challenges.
+- `turnstile`: Cloudflare Turnstile. Set `TURNSTILE_SITE_KEY` and
+  `TURNSTILE_SECRET_KEY` (the API refuses to start without both). Turnstile sends
+  visitor signals to Cloudflare; name it in your privacy policy.
+- `off`: no bot check, for development and tests.
+
+Each address receives at most `OTP_SEND_LIMIT_PER_EMAIL` codes per hour (default
+5) and each client IP may request `OTP_SEND_LIMIT_PER_IP` (default 20). A code
+allows three attempts. Rate limits are shared across replicas through Dragonfly
+when `REDIS_HOST` is set; while Dragonfly is unreachable, each process enforces
+its own limits.
 
 ## Run a shared instance
 

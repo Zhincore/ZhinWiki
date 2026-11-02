@@ -15,6 +15,15 @@ describe('contentSecurityPolicy', () => {
     expect(policy).not.toContain('frame-src');
   });
 
+  it('allows Turnstile only when it is the captcha provider', () => {
+    expect(contentSecurityPolicy('n')).not.toContain('challenges.cloudflare.com');
+    const policy = contentSecurityPolicy('n', true);
+    expect(policy).toContain(
+      "script-src 'self' 'nonce-n' https://static.cloudflareinsights.com https://www.googletagmanager.com https://plausible.io https://challenges.cloudflare.com",
+    );
+    expect(policy).toContain('frame-src https://challenges.cloudflare.com');
+  });
+
   it('locks down embedding, plugins, and base URLs without breaking HTTP deployments', () => {
     const policy = contentSecurityPolicy('another-nonce');
 

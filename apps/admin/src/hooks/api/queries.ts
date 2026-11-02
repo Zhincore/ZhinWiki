@@ -107,3 +107,18 @@ export function useAdminFunnel() {
     },
   });
 }
+
+/** Public instance metadata (captcha provider for the sign-in form). */
+export function usePublicMeta() {
+  return useQuery({
+    queryKey: ['public', 'meta'],
+    queryFn: async () => {
+      const res = await api.public.meta.$get();
+      if (!res.ok) {
+        throw new AdminApiError(res.status);
+      }
+      return (await res.json()).data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}

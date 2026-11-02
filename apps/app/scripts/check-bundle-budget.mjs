@@ -28,7 +28,7 @@ const gzipBudgets = {
 
 // A size budget catches overall growth; these signatures make accidental
 // provider-boundary regressions actionable even when another chunk shrinks.
-const forbiddenPublicAssetPatterns = [/\/assets\/(?:app|auth-providers|localized-product-providers|queries|mutations|auth-client)-/];
+const forbiddenPublicAssetPatterns = [/\/assets\/(?:app|auth-providers|localized-product-providers|queries|mutations|auth-client|use-captcha)-/];
 const forbiddenPublicSourceTokens = ['settings.workspace.dangerDescription', 'editor.pageSettings.translationKey'];
 
 const formatBytes = (bytes) => `${(bytes / 1024).toFixed(2)} KiB`;

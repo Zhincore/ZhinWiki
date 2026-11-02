@@ -31,6 +31,17 @@ export const envExtras = createEnv({
      *  could spoof the hint through the app's /api proxy into fresh buckets.
      *  Unset (default) the hint is ignored entirely, which is the safe default. */
     INTERNAL_API_SECRET: z.string().optional(),
+    /** Bot check on unauthenticated email sends: self-hosted proof of work
+     *  (`altcha`), Cloudflare Turnstile, or `off`. */
+    CAPTCHA_PROVIDER: z.enum(['altcha', 'turnstile', 'off']).default('altcha'),
+    /** ALTCHA signing key; unset derives one from BETTER_AUTH_SECRET. */
+    CAPTCHA_HMAC_KEY: z.string().min(32).optional(),
+    TURNSTILE_SITE_KEY: z.string().optional(),
+    TURNSTILE_SECRET_KEY: z.string().optional(),
+    /** Sign-in code emails per address per hour. */
+    OTP_SEND_LIMIT_PER_EMAIL: z.coerce.number().int().positive().default(5),
+    /** Sign-in code emails per client IP per hour. */
+    OTP_SEND_LIMIT_PER_IP: z.coerce.number().int().positive().default(20),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

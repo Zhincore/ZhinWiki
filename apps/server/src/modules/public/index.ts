@@ -3,6 +3,7 @@ import { envExtras } from '@/lib/env-extras';
 import type { HonoEnv } from '@/lib/hono/context';
 import { rateLimit } from '@/middlewares/rate-limit';
 import assets from './assets/handlers';
+import captcha from './captcha/handlers';
 import domains from './domains/handlers';
 import git from './git/handlers';
 import invitations from './invitations/handlers';
@@ -20,23 +21,25 @@ import sites from './sites/handlers';
 const LOW_COST_PATH = /(\/sitemap\.xml|\/robots\.txt)$|\/api\/public\/(?:domains|sites)\/resolve$|\/api\/public\/meta\/?$/;
 
 const publicPerMinute = envExtras.RATE_LIMIT_PUBLIC_PER_MIN;
-const standardLimiter = rateLimit({ windowMs: 60_000, max: publicPerMinute });
+const standardLimiter = rateLimit({ name: 'public', windowMs: 60_000, max: publicPerMinute });
 // Generous (not unlimited) so a misbehaving crawler is still bounded.
-const lowCostLimiter = rateLimit({ windowMs: 60_000, max: publicPerMinute * 10 });
+const lowCostLimiter = rateLimit({ name: 'public-low-cost', windowMs: 60_000, max: publicPerMinute * 10 });
 
 // Throttle unauthenticated public traffic (site shell, search, pageview tracking).
 const app = new Hono<HonoEnv>()
   .use('*', (ctx, next) => (LOW_COST_PATH.test(ctx.req.path) ? lowCostLimiter(ctx, next) : standardLimiter(ctx, next)))
   // Activation and JWT exchange create credentials. Give them a tighter
   // abuse budget than ordinary content/search requests.
-  .use('/reader-access/*', rateLimit({ windowMs: 60_000, max: 20 }))
-  .use('/sites/:id/answer', rateLimit({ windowMs: 60_000, max: envExtras.SEARCH_ANSWER_RATE_LIMIT_PER_MIN }))
+  .use('/reader-access/*', rateLimit({ name: 'reader-access', windowMs: 60_000, max: 20 }))
+  .use('/captcha', rateLimit({ name: 'captcha-challenge', windowMs: 60_000, max: 30 }))
+  .use('/sites/:id/answer', rateLimit({ name: 'search-answer', windowMs: 60_000, max: envExtras.SEARCH_ANSWER_RATE_LIMIT_PER_MIN }))
   .route('/sites', sites)
   .route('/domains', domains)
   .route('/git', git)
   .route('/invitations', invitations)
   .route('/assets', assets)
   .route('/reader-access', readerAccess)
-  .route('/meta', meta);
+  .route('/meta', meta)
+  .route('/captcha', captcha);
 
 export default app;

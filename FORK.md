@@ -20,7 +20,7 @@ Behaviour that exists only in this fork. Naming and branch rules:
   ([#79](https://github.com/Zhincore/ZhinWiki/pull/79)).
 - **Sign-up hardening**: bot check on sign-in code emails, per-address and
   per-IP code limits, rate limits shared through Dragonfly, GitHub and Discord
-  sign-in.
+  sign-in ([#87](https://github.com/Zhincore/ZhinWiki/pull/87)).
 - **Runtime branding**: `APP_NAME`, `BRAND_*` from env, ZhinWiki default
   ([#10](https://github.com/Zhincore/ZhinWiki/pull/10),
   [#11](https://github.com/Zhincore/ZhinWiki/pull/11),

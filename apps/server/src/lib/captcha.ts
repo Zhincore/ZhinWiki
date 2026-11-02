@@ -117,8 +117,15 @@ export const verifyTurnstile = async (token: string, remoteIp: string | null, ho
     try {
       const response = await fetch(TURNSTILE_SITEVERIFY, { method: 'POST', body, signal: AbortSignal.timeout(5000) });
       if (response.ok) {
-        const outcome = (await response.json()) as { success?: boolean; hostname?: string; action?: string };
-        const ours = outcome.action === TURNSTILE_ACTION && hostnames.includes(outcome.hostname ?? '');
+        const outcome = (await response.json()) as {
+          success?: boolean;
+          hostname?: string;
+          action?: string;
+          metadata?: { result_with_testing_key?: boolean };
+        };
+        // Cloudflare's test secrets answer for a fixed hostname without an action.
+        const testing = outcome.metadata?.result_with_testing_key === true;
+        const ours = testing || (outcome.action === TURNSTILE_ACTION && hostnames.includes(outcome.hostname ?? ''));
         return outcome.success === true && ours ? 'verified' : 'invalid';
       }
     } catch {

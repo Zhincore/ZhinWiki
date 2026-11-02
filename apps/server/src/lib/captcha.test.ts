@@ -106,6 +106,15 @@ describe('Turnstile verification', () => {
     expect(await verifyCaptcha('token', null, hosts)).toBe('invalid');
   });
 
+  it("accepts Cloudflare's test-key results only when flagged as such", async () => {
+    const { verifyCaptcha } = await turnstile();
+    const testResult = { success: true, hostname: 'example.com' };
+    fetchMock.mockResolvedValueOnce(Response.json({ ...testResult, metadata: { result_with_testing_key: true } }));
+    expect(await verifyCaptcha('token', null, hosts)).toBe('verified');
+    fetchMock.mockResolvedValueOnce(Response.json(testResult));
+    expect(await verifyCaptcha('token', null, hosts)).toBe('invalid');
+  });
+
   it('retries a network failure with the same idempotency key, then fails closed', async () => {
     fetchMock.mockRejectedValueOnce(new Error('reset')).mockResolvedValueOnce(Response.json(issued));
     const { verifyCaptcha } = await turnstile();

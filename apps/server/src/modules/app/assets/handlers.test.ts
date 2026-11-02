@@ -1,10 +1,12 @@
 import { Hono } from 'hono';
 import { contextStorage } from 'hono/context-storage';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppError } from '@/errors';
 import type { HonoEnv } from '@/lib/hono/context';
 
 const MB = 1024 * 1024;
+const MINUTE = 60 * 1000;
+const DAY = 24 * 60 * MINUTE;
 
 const state = vi.hoisted(() => ({
   tenancy: 'shared' as 'shared' | 'independent',
@@ -130,11 +132,24 @@ const expectError = async (response: Response, status: number, code: string) => 
   expect(await response.json()).toMatchObject({ error: { code } });
 };
 
+let test = 0;
+
 beforeEach(() => {
+  // Upload limits live in module state: each test starts a day past the last one's windows.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(Date.UTC(2026, 0, 1) + ++test * 2 * DAY);
   vi.clearAllMocks();
   Object.assign(state, { tenancy: 'shared', membership: null, accessMode: 'PUBLIC', openChangeRequests: 1, usedBytes: 0 });
   state.objects = new Map();
 });
+
+afterEach(() => vi.useRealTimers());
+
+const uploadTimes = async (times: number, size = MB) => {
+  for (let i = 0; i < times; i++) {
+    expect((await upload(png(size))).status).toBe(201);
+  }
+};
 
 describe('contributor uploads', () => {
   it('stores an image while the contributor has an open change request', async () => {
@@ -209,6 +224,28 @@ describe('contributor uploads', () => {
     expect(state.objects.size).toBe(0);
   });
 
+  it('refuses a 31st upload within 10 minutes until the window slides', async () => {
+    await uploadTimes(30);
+    const refused = await upload(png(MB));
+    await expectError(refused, 429, 'http:rate_limited');
+    expect(Number(refused.headers.get('retry-after'))).toBe(600);
+    vi.advanceTimersByTime(10 * MINUTE + 1);
+    expect((await upload(png(MB))).status).toBe(201);
+    expect(mocks.createAsset).toHaveBeenCalledTimes(31);
+  });
+
+  it('refuses uploads once 200 MB were stored within 24 hours', async () => {
+    await uploadTimes(30, 5 * MB);
+    vi.advanceTimersByTime(10 * MINUTE + 1);
+    await uploadTimes(10, 5 * MB);
+    const refused = await upload(png(MB));
+    await expectError(refused, 429, 'http:rate_limited');
+    expect(Number(refused.headers.get('retry-after'))).toBe((DAY - 10 * MINUTE) / 1000);
+    expect(mocks.putObject).toHaveBeenCalledTimes(40);
+    vi.advanceTimersByTime(DAY);
+    expect((await upload(png(MB))).status).toBe(201);
+  });
+
   it('may not presign or confirm, so never receives a storage URL', async () => {
     await expectError(await presign(MB), 404, 'database:not_found');
     await expectError(await confirm(MB), 404, 'database:not_found');
@@ -239,10 +276,13 @@ describe('member uploads', () => {
     expect(mocks.createAsset).toHaveBeenCalledWith({ data: expect.objectContaining({ key, size: 20 * MB, createdById: 'user' }) });
   });
 
-  it('do not use the contributor upload route', async () => {
+  it('do not use the contributor upload route and are not rate limited on it', async () => {
     state.membership = 'member';
-    await expectError(await upload(png(MB)), 403, 'auth:insufficient_role');
+    for (let i = 0; i < 31; i++) {
+      await expectError(await upload(png(MB)), 403, 'auth:insufficient_role');
+    }
     expect(mocks.putObject).not.toHaveBeenCalled();
+    expect((await presign(MB)).status).toBe(200);
   });
 
   it('work in independent tenancy', async () => {

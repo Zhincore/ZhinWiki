@@ -453,6 +453,7 @@
   "editor_imageuploadfailed": "Image upload failed.",
   "editor_imageuploadtoolarge": "Contributors can upload images of at most 5 MB.",
   "editor_imageuploadquota": "You've reached the 50 MB image upload limit for this wiki.",
+  "editor_imageuploadratelimited": "Too many uploads. Try again later.",
   "editor_createfailed": "Failed",
   "editor_newgroup": "New group",
   "editor_newpage": "New page",

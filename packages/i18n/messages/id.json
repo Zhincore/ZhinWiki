@@ -453,6 +453,7 @@
   "editor_imageuploadfailed": "Gagal mengunggah gambar.",
   "editor_imageuploadtoolarge": "Kontributor dapat mengunggah gambar berukuran maksimal 5 MB.",
   "editor_imageuploadquota": "Anda telah mencapai batas unggahan gambar 50 MB untuk wiki ini.",
+  "editor_imageuploadratelimited": "Terlalu banyak unggahan. Coba lagi nanti.",
   "editor_createfailed": "Gagal",
   "editor_newgroup": "Grup baru",
   "editor_newpage": "Halaman baru",

@@ -453,6 +453,7 @@
   "editor_imageuploadfailed": "Le téléchargement de l'image a échoué.",
   "editor_imageuploadtoolarge": "Les contributeurs peuvent téléverser des images de 5 Mo au maximum.",
   "editor_imageuploadquota": "Vous avez atteint la limite de 50 Mo d'images téléversées pour ce wiki.",
+  "editor_imageuploadratelimited": "Trop de téléversements. Réessayez plus tard.",
   "editor_createfailed": "Échec",
   "editor_newgroup": "Nouveau groupe",
   "editor_newpage": "Nouvelle page",

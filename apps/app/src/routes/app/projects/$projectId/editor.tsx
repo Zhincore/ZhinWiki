@@ -92,6 +92,7 @@ const imageUploadErrorMessage = (error: unknown) => {
   const code = error instanceof ApiResponseError ? error.code : undefined;
   if (code === 'assets:file_too_large') return 'editor.imageUploadTooLarge';
   if (code === 'assets:quota_exceeded') return 'editor.imageUploadQuota';
+  if (code === 'http:rate_limited') return 'editor.imageUploadRateLimited';
   return 'editor.imageUploadFailed';
 };
 

@@ -466,6 +466,7 @@ export const MESSAGE_IDS = {
   'editor.imageUploadFailed': 'editor_imageuploadfailed',
   'editor.imageUploadTooLarge': 'editor_imageuploadtoolarge',
   'editor.imageUploadQuota': 'editor_imageuploadquota',
+  'editor.imageUploadRateLimited': 'editor_imageuploadratelimited',
   'editor.createFailed': 'editor_createfailed',
   'editor.newGroup': 'editor_newgroup',
   'editor.newPage': 'editor_newpage',

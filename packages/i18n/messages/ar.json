@@ -453,6 +453,7 @@
   "editor_imageuploadfailed": "فشل رفع الصورة.",
   "editor_imageuploadtoolarge": "يمكن للمساهمين رفع صور بحجم 5 ميغابايت كحد أقصى.",
   "editor_imageuploadquota": "لقد بلغت حد رفع الصور البالغ 50 ميغابايت لهذه الويكي.",
+  "editor_imageuploadratelimited": "عدد كبير جدًا من عمليات الرفع. حاول مرة أخرى لاحقًا.",
   "editor_createfailed": "فشلت العملية",
   "editor_newgroup": "مجموعة جديدة",
   "editor_newpage": "صفحة جديدة",

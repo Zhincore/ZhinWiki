@@ -169,6 +169,35 @@ export interface ChangeRequestDetail extends Omit<ChangeRequest, 'reviewers'> {
   review: { required: number; approvals: number; changesRequested: number; mergeable: boolean };
 }
 
+/** A merge answer: whether the wiki then published (`null`: it does not publish on merge). */
+export interface MergedChangeRequest extends ChangeRequest {
+  publish: 'queued' | 'failed' | null;
+}
+
+/** A merged change request in the wiki history. */
+interface ChangeRequestHistoryEntry {
+  id: string;
+  number: number;
+  title: string;
+  mergedAt: string | null;
+  author: ChangeRequestUser | null;
+  mergedBy: ChangeRequestUser | null;
+  pagesCount: number;
+}
+
+export interface ChangeRequestHistoryPage {
+  items: ChangeRequestHistoryEntry[];
+  nextCursor: string | null;
+}
+
+/** A page a revert could not put back where it was. */
+export interface RevertWarning {
+  pageId: string;
+  title: string;
+  path: string;
+  reason: 'PARENT_UNAVAILABLE' | 'LANGUAGE_MISSING';
+}
+
 export interface ChangeRequestDiffSide {
   id: string;
   title: string;

@@ -80,6 +80,8 @@ export const assertBranchReadable = async (projectId: string, branchId: string) 
 };
 
 const UNIQUE_VIOLATION = 'P2002';
+/** Forking (and preparing) a large wiki outlasts the default 5 s. */
+const CREATE_BRANCH_OPTIONS = { timeout: 60_000 } as const;
 const MAX_NUMBER_ATTEMPTS = 5;
 
 /** Copy every default-branch page onto `branchId` with fresh ids and remapped
@@ -209,6 +211,9 @@ export type CreateBranchInput = {
   /** Start from a copy of the default branch (default) or empty; an empty
    *  branch is untracked and merges by replacing the default branch. */
   fork?: boolean;
+  /** Runs in the creating transaction after the fork, e.g. to rewrite its pages;
+   *  reruns when a concurrent create forces a retry. */
+  prepare?: (tx: Prisma.TransactionClient, branchId: string) => Promise<void>;
 };
 
 const isUniqueViolation = (error: unknown) => error instanceof Prisma.PrismaClientKnownRequestError && error.code === UNIQUE_VIOLATION;
@@ -247,8 +252,9 @@ export const createBranch = async (projectId: string, input: CreateBranchInput):
             forkBase: forkBase ?? Prisma.DbNull,
           },
         });
+        await input.prepare?.(tx, branch.id);
         return branch;
-      });
+      }, CREATE_BRANCH_OPTIONS);
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
       if (attempt >= MAX_NUMBER_ATTEMPTS) throw conflict('Another change request was created at the same time. Try again.');

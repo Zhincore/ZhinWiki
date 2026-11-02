@@ -81,8 +81,8 @@ export function ProjectLayout({ projectId, children }: { projectId: string; chil
   // render their OWN chrome (top bar + sidebar) and hide the dashboard nav.
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const contributor = project?.viewerRole === 'contributor';
-  // Outside contributors reach only the change requests and the editor.
-  if (contributor && !/\/(editor|changes)(\/|$)/.test(pathname)) {
+  // Outside contributors reach only the change requests, their history and the editor.
+  if (contributor && !/\/(editor|changes|history)(\/|$)/.test(pathname)) {
     return <Navigate to="/app/projects/$projectId/changes" params={{ projectId }} replace />;
   }
   if (pathname.endsWith('/editor') || /\/changes\/\d+\/?$/.test(pathname)) {

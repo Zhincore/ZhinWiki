@@ -1,12 +1,14 @@
 import { type Asset, type Prisma, prisma } from '@nibleaf/database';
+import { logger } from '@nibleaf/logger';
 import { newId } from '@nibleaf/shared/ids';
 import { slugify } from '@nibleaf/shared/utils';
 import { deleteObject, getObjectStream, headObject, presignPutUrl, putObject } from '@nibleaf/storage';
-import { type ConfirmAssetBody, MAX_SVG_BYTES, type PresignAssetBody, SVG_CONTENT_TYPE } from '@nibleaf/validators';
+import { assetExtensionForContentType, type ConfirmAssetBody, MAX_SVG_BYTES, type PresignAssetBody, SVG_CONTENT_TYPE } from '@nibleaf/validators';
 import { AppError, badRequest, forbidden } from '@/errors';
+import { OPEN_CHANGE_REQUEST_STATUSES } from '@/lib/change-request-status';
 import { sniffImageType } from '@/lib/image-type';
 import { sanitizeSvg } from '@/lib/svg';
-import { assertProjectInOrg } from './projects';
+import { assertProjectInOrg, resolveWikiRole } from './projects';
 
 /** Outside contributors upload images only while they have an open change
  *  request, each at most 5 MB and 50 MB in total per wiki. */
@@ -15,10 +17,11 @@ const CONTRIBUTOR_ASSET_QUOTA_BYTES = 50 * 1024 * 1024;
 
 const assetPrefix = (projectId: string): string => `projects/${projectId}/assets/`;
 
-const assetKey = (projectId: string, filename: string): string => {
+/** A fresh key named after the upload; the extension follows the stored type, never the client's name. */
+const assetKey = (projectId: string, filename: string, contentType: string): string => {
   const dot = filename.lastIndexOf('.');
-  const ext = dot > -1 ? filename.slice(dot + 1).toLowerCase() : '';
   const base = slugify(dot > -1 ? filename.slice(0, dot) : filename) || 'file';
+  const ext = assetExtensionForContentType(contentType);
   return `${assetPrefix(projectId)}${newId()}-${base}${ext ? `.${ext}` : ''}`;
 };
 
@@ -60,7 +63,7 @@ export const storeAsset = async ({
   /** Stable source identifier used by importers to make repeated imports idempotent. */
   importId?: string;
 }) => {
-  const key = importId ? importedAssetKey(projectId, importId, filename) : assetKey(projectId, filename);
+  const key = importId ? importedAssetKey(projectId, importId, filename) : assetKey(projectId, filename, contentType);
   const stored = contentType === SVG_CONTENT_TYPE ? sanitizeSvg(bytes) : bytes;
   if (!stored) throw badRequest('The file is not a valid SVG image.');
   await putObject(key, stored, contentType);
@@ -76,7 +79,7 @@ export const findImportedAsset = async (projectId: string, importId: string, fil
 
 export const presignAsset = async (organizationId: string, projectId: string, body: PresignAssetBody) => {
   await assertProjectInOrg(organizationId, projectId);
-  const key = assetKey(projectId, body.filename);
+  const key = assetKey(projectId, body.filename, body.contentType);
   const uploadUrl = await presignPutUrl({ key, contentType: body.contentType });
   return { key, uploadUrl };
 };
@@ -118,7 +121,8 @@ const fileTooLarge = () =>
     details: { limit: CONTRIBUTOR_MAX_ASSET_BYTES },
   });
 
-/** Read a request body, refusing it as soon as it passes `limit` bytes whatever its Content-Length says. */
+/** Read a request body, refusing it as soon as it passes `limit` bytes whatever its Content-Length says.
+ *  Hono's `bodyLimit` trusts a present Content-Length and does not count the bytes. */
 const readBodyWithin = async (request: Request, limit: number): Promise<Buffer> => {
   if (!request.headers.has('transfer-encoding') && Number(request.headers.get('content-length')) > limit) {
     throw fileTooLarge();
@@ -163,7 +167,7 @@ export const uploadContributorAsset = async (
   { filename, contentType, request }: { filename: string; contentType: string; request: Request },
 ) => {
   await assertProjectInOrg(organizationId, projectId);
-  const open = await prisma.changeRequest.count({ where: { projectId, authorId: userId, status: { in: ['DRAFT', 'IN_REVIEW'] } } });
+  const open = await prisma.changeRequest.count({ where: { projectId, authorId: userId, status: { in: [...OPEN_CHANGE_REQUEST_STATUSES] } } });
   if (open === 0) {
     throw forbidden('Open a change request before uploading images.');
   }
@@ -174,7 +178,7 @@ export const uploadContributorAsset = async (
     throw badRequest('The file is not a supported image.');
   }
   await assertWithinQuota(prisma, projectId, userId, stored.byteLength);
-  const key = assetKey(projectId, filename);
+  const key = assetKey(projectId, filename, storedType);
   await putObject(key, stored, storedType);
   try {
     return await prisma.$transaction(async (tx) => {
@@ -192,3 +196,44 @@ export const uploadContributorAsset = async (
 
 export const listAssets = async (projectId: string): Promise<Asset[]> =>
   await prisma.asset.findMany({ where: { projectId }, orderBy: { createdAt: 'desc' }, take: 200 });
+
+/** Uploads younger than this may still be on their way into an open change request's page. */
+const IN_FLIGHT_UPLOAD_MS = 60 * 60 * 1000;
+
+/**
+ * Once an outside contributor's change request closes, delete their uploads to
+ * the wiki that no page on the default branch or in an open change request, nor
+ * the wiki config, references. Members' uploads stay. Never throws: failures
+ * are logged.
+ */
+export const cleanupContributorAssets = async (projectId: string, userId: string): Promise<void> => {
+  try {
+    const project = await prisma.project.findUniqueOrThrow({ where: { id: projectId }, select: { organizationId: true, config: true } });
+    if (await resolveWikiRole(userId, project.organizationId)) return;
+    const stillOpen = await prisma.changeRequest.count({ where: { projectId, authorId: userId, status: { in: [...OPEN_CHANGE_REQUEST_STATUSES] } } });
+    const assets = await prisma.asset.findMany({
+      where: { projectId, createdById: userId, ...(stillOpen > 0 ? { createdAt: { lt: new Date(Date.now() - IN_FLIGHT_UPLOAD_MS) } } : {}) },
+      select: { id: true, key: true },
+    });
+    if (assets.length === 0) return;
+    const pages = await prisma.page.findMany({
+      where: {
+        projectId,
+        branch: { OR: [{ isDefault: true }, { changeRequest: { status: { in: [...OPEN_CHANGE_REQUEST_STATUSES] } } }] },
+        OR: assets.flatMap(({ key }) => [{ content: { contains: key } }, { icon: { contains: key } }]),
+      },
+      select: { content: true, icon: true },
+    });
+    const texts = [JSON.stringify(project.config ?? null), ...pages.flatMap((page) => [page.content, page.icon ?? ''])];
+    for (const asset of assets.filter(({ key }) => !texts.some((text) => text.includes(key)))) {
+      try {
+        await deleteObject(asset.key);
+        await prisma.asset.delete({ where: { id: asset.id } });
+      } catch (error) {
+        logger.warn({ error, projectId, key: asset.key }, 'contributor asset cleanup failed');
+      }
+    }
+  } catch (error) {
+    logger.warn({ error, projectId, userId }, 'contributor asset cleanup failed');
+  }
+};

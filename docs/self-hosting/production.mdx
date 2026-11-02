@@ -95,6 +95,10 @@ Every response carries an explicit `Cache-Control` header:
 | Public uploaded media (`/api/public/assets/*`) | `public, max-age=86400` |
 | Private site data and assets | `private, no-store` |
 
+Uploaded media is served with `Cross-Origin-Resource-Policy: same-origin`:
+wiki pages load it from their own host, but other sites cannot embed (hotlink)
+it. Keep the header when a CDN or proxy sits in front.
+
 Configure the CDN to respect these origin headers. In Cloudflare, keep the edge
 TTL on "Use cache-control header if present" and do not add a "Cache Everything"
 rule with an overriding edge TTL for HTML, `/api/*` or `/_serverFn/*`: an

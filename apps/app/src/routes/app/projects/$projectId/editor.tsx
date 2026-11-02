@@ -93,6 +93,7 @@ const imageUploadErrorMessage = (error: unknown) => {
   const code = error instanceof ApiResponseError ? error.code : undefined;
   if (code === 'assets:file_too_large') return 'editor.imageUploadTooLarge';
   if (code === 'assets:quota_exceeded') return 'editor.imageUploadQuota';
+  if (code === 'http:rate_limited') return 'editor.imageUploadRateLimited';
   return 'editor.imageUploadFailed';
 };
 
@@ -153,7 +154,8 @@ function EditorPage() {
     });
   };
 
-  // Upload an image (paste/drop/pick) and return its hosted URL for the editor.
+  // Upload an image (paste/drop/pick) and return its hosted URL for the editor;
+  // offered once the project tells whether the viewer uploads as a contributor.
   const onUploadImage = async (file: File): Promise<string | null> => {
     try {
       return (await uploadAsset.mutateAsync(file)).url;
@@ -1198,7 +1200,7 @@ function EditorPage() {
                   dir={activeLangDir}
                   lang={activeLanguage?.code}
                   style={typographyVars(project?.config?.typography)}
-                  onUpload={onUploadImage}
+                  onUpload={project ? onUploadImage : undefined}
                   comments={commentMarkers}
                   activeCommentId={activeCommentId}
                   commentMode={commentMode}

@@ -153,7 +153,13 @@ branch stores one change request (CR), reviewed and merged back.
   body is cut at 5 MB while streaming (413 `assets:file_too_large`), raster
   types are checked by magic bytes, SVG is sanitized, and 50 MB per wiki by
   `asset.createdById` (422 `assets:quota_exceeded`) is rechecked under an
-  advisory lock; a refused object is deleted.
+  advisory lock; a refused object is deleted. When their CR is archived,
+  merged or its branch deleted, their uploads no page on `main` or an open CR
+  (nor the wiki config) references are deleted (`cleanupContributorAssets`).
+  Per user, in memory: 30 uploads / 10 min, 200 MB stored / 24 h (429
+  `http:rate_limited`, Retry-After).
+- Public assets send `Cross-Origin-Resource-Policy: same-origin`: no
+  hotlinking from other sites.
 - Notifications (`change-request-notifications.ts`): in-app plus email for
   review requests, verdicts and merges (never the actor or suspended users);
   workspace toggles `change_request_review_requested`,

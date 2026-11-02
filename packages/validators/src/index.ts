@@ -28,6 +28,7 @@ export {
   updateProjectAddonBody,
 } from './addons';
 export {
+  assetExtensionForContentType,
   inferSafeInlineAssetContentType,
   inferUploadableAssetContentType,
   isSafeInlineAssetContentType,

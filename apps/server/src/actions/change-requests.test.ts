@@ -44,6 +44,9 @@ vi.mock('@nibleaf/database', () => ({
   prisma: mocks.prisma,
 }));
 
+vi.mock('./assets', () => ({ cleanupContributorAssets: vi.fn() }));
+
+import { cleanupContributorAssets } from './assets';
 import { createBranch, createImportReplacementBranch } from './branches';
 import {
   CONTRIBUTOR_OPEN_LIMIT,
@@ -105,6 +108,7 @@ describe('mergeChangeRequest', () => {
     prisma.changeRequest.findUnique.mockResolvedValue({ id: 'cr-1' });
     prisma.branch.findMany.mockResolvedValue([mainBranch]);
     givenReviews([{ authorId: 'r1', state: 'APPROVED' }]);
+    tx.changeRequest.update.mockResolvedValue({ id: 'cr-1', authorId: 'author' });
   });
 
   const givenChangeRequest = (forkBase: ForkBase, editedAt: Date | null = null) =>
@@ -128,6 +132,7 @@ describe('mergeChangeRequest', () => {
         }),
       }),
     );
+    expect(cleanupContributorAssets).toHaveBeenCalledWith('p', 'author');
   });
 
   it('answers 409 with the conflicting pages and writes nothing', async () => {
@@ -144,6 +149,7 @@ describe('mergeChangeRequest', () => {
     expect(tx.page.update).not.toHaveBeenCalled();
     expect(tx.branch.delete).not.toHaveBeenCalled();
     expect(tx.changeRequest.update).not.toHaveBeenCalled();
+    expect(cleanupContributorAssets).not.toHaveBeenCalled();
   });
 
   it('refuses a change request merged in the meantime', async () => {
@@ -302,6 +308,17 @@ describe('outside contributors', () => {
     prisma.changeRequest.findUnique.mockResolvedValue({ id: 'cr-1', authorId: 'guest', status: 'ARCHIVED', branchId: 'cr' });
     await expect(updateChangeRequest('p', 1, { status: 'DRAFT' }, 'guest')).rejects.toMatchObject({ status: 403 });
     expect(prisma.changeRequest.updateMany).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['ARCHIVED', true],
+    ['IN_REVIEW', false],
+  ] as const)('moving to %s cleans up the author uploads: %s', async (status, cleaned) => {
+    prisma.changeRequest.findUnique.mockResolvedValue({ id: 'cr-1', authorId: 'guest', status: 'DRAFT', branchId: 'cr' });
+    prisma.changeRequest.updateMany.mockResolvedValue({ count: 1 });
+    await updateChangeRequest('p', 1, { status }, 'guest');
+    if (cleaned) expect(cleanupContributorAssets).toHaveBeenCalledWith('p', 'guest');
+    else expect(cleanupContributorAssets).not.toHaveBeenCalled();
   });
 });
 

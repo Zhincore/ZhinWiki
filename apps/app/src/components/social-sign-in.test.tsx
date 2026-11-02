@@ -22,8 +22,8 @@ afterEach(async () => {
   mocks.social.mockReset();
 });
 
-const render = (enabled: Record<string, boolean> | undefined) =>
-  act(async () => root.render(<SocialSignIn callbackURL="/app" enabled={enabled} mode="signIn" onError={vi.fn()} />));
+const render = (enabled: Record<string, boolean> | undefined, onError = vi.fn()) =>
+  act(async () => root.render(<SocialSignIn callbackURL="/app" enabled={enabled} mode="signIn" onError={onError} />));
 
 it('shows a button only for each configured provider', async () => {
   await render({ google: false, github: true, discord: true });
@@ -38,10 +38,12 @@ it('renders nothing, not even the divider, when no provider is configured', asyn
   expect(container.innerHTML).toBe('');
 });
 
-it('starts the chosen provider with the post-auth destination', async () => {
+it('starts the chosen provider with the post-auth destination, clearing an earlier error', async () => {
   mocks.social.mockReturnValue(new Promise(() => undefined));
-  await render({ discord: true });
+  const onError = vi.fn();
+  await render({ discord: true }, onError);
   await act(async () => container.querySelector('button')?.click());
   expect(mocks.social).toHaveBeenCalledWith({ provider: 'discord', callbackURL: '/app' });
+  expect(onError).toHaveBeenCalledWith(null);
   expect(container.querySelector('button')?.disabled).toBe(true);
 });

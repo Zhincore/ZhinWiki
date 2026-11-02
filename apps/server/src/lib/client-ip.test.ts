@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clientIpFromForwardedFor, isPrivateIp, isValidIp, normalizeIp } from './client-ip';
+import { clientIpFromForwardedFor, isPrivateIp, isValidIp, normalizeIp, rateLimitIdentity } from './client-ip';
 
 describe('normalizeIp', () => {
   it('strips an IPv4 port suffix', () => {
@@ -86,5 +86,22 @@ describe('clientIpFromForwardedFor', () => {
   });
   it('skips invalid hops without giving up on the rest', () => {
     expect(clientIpFromForwardedFor('203.0.113.7, unknown')).toBe('203.0.113.7');
+  });
+});
+
+describe('rateLimitIdentity', () => {
+  it('groups IPv6 addresses by /64 prefix', () => {
+    expect(rateLimitIdentity('2001:db8:1:2:aaaa::1')).toBe('2001:db8:1:2::/64');
+    expect(rateLimitIdentity('2001:0db8:0001:0002:ffff:ffff:ffff:ffff')).toBe('2001:db8:1:2::/64');
+    expect(rateLimitIdentity('2001:db8:1:3::1')).toBe('2001:db8:1:3::/64');
+    expect(rateLimitIdentity('2001:db8::1')).toBe('2001:db8:0:0::/64');
+    expect(rateLimitIdentity('::1')).toBe('0:0:0:0::/64');
+  });
+  it('keeps IPv4, unwraps v4-mapped, and passes malformed values through', () => {
+    expect(rateLimitIdentity('203.0.113.7')).toBe('203.0.113.7');
+    expect(rateLimitIdentity('::ffff:203.0.113.7')).toBe('203.0.113.7');
+    expect(rateLimitIdentity('1:2:3:4:5:6:7:8:9')).toBe('1:2:3:4:5:6:7:8:9');
+    expect(rateLimitIdentity('1::2::3')).toBe('1::2::3');
+    expect(rateLimitIdentity('unknown')).toBe('unknown');
   });
 });

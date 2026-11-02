@@ -1,7 +1,8 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
+import { keys as authKeys } from '@nibleaf/auth/keys.server';
 import { logger } from '@nibleaf/logger';
 import type { Redis } from 'ioredis';
-import { redisConfigured, sharedRedis } from './redis';
+import { markRedisUnhealthy, redisConfigured, sharedRedis } from './redis';
 
 interface WindowHit {
   allowed: boolean;
@@ -76,25 +77,36 @@ redis.call('PEXPIRE', KEYS[1], window)
 return {1, 0}
 `;
 
-/** Bucket ids are hashed so emails and IPs never reach Redis in clear text. */
-const bucketKey = (name: string, key: string): string =>
-  `nibleaf:rate-limit:${name}:${createHash('sha256').update(key).digest('base64url').slice(0, 32)}`;
+let bucketSecret: string | null = null;
 
-/** Sliding log shared by every replica through Redis. Rejects when Redis does. */
+/** Bucket ids are keyed with a secret derived from BETTER_AUTH_SECRET, so
+ *  Redis holds pseudonyms that cannot be checked against guessed emails or IPs. */
+const bucketKey = (name: string, key: string): string => {
+  bucketSecret ??= createHmac('sha256', authKeys().BETTER_AUTH_SECRET).update('nibleaf:rate-limit').digest('hex');
+  return `nibleaf:rate-limit:${name}:${createHmac('sha256', bucketSecret).update(key).digest('base64url').slice(0, 32)}`;
+};
+
+/** Sliding log shared by every replica through Redis. Rejects when Redis does;
+ *  a failed or timed-out command also marks the shared connection unhealthy. */
 export const redisWindow = ({ name, windowMs, max }: WindowOptions, connect: () => Promise<Redis> = sharedRedis): SlidingWindow => ({
   hit: async (key) => {
     const client = await connect();
     const now = Date.now();
-    const [allowed, retryAfterMs] = (await client.eval(
-      SLIDING_WINDOW_SCRIPT,
-      1,
-      bucketKey(name, key),
-      now,
-      windowMs,
-      max,
-      `${now}:${randomBytes(6).toString('base64url')}`,
-    )) as [number, number];
-    return { allowed: allowed === 1, retryAfterMs };
+    try {
+      const [allowed, retryAfterMs] = (await client.eval(
+        SLIDING_WINDOW_SCRIPT,
+        1,
+        bucketKey(name, key),
+        now,
+        windowMs,
+        max,
+        `${now}:${randomBytes(6).toString('base64url')}`,
+      )) as [number, number];
+      return { allowed: allowed === 1, retryAfterMs };
+    } catch (error) {
+      markRedisUnhealthy();
+      throw error;
+    }
   },
 });
 

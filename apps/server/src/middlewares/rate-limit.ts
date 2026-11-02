@@ -2,7 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import type { Context, MiddlewareHandler } from 'hono';
 import { AppError } from '@/errors';
-import { clientIpFromForwardedFor, isPrivateIp } from '@/lib/client-ip';
+import { clientIpFromForwardedFor, isPrivateIp, rateLimitIdentity } from '@/lib/client-ip';
 import { envExtras } from '@/lib/env-extras';
 import type { HonoEnv } from '@/lib/hono/context';
 import { slidingWindow } from '@/lib/sliding-window';
@@ -17,7 +17,7 @@ interface RateLimitOptions {
   windowMs: number;
   /** Maximum number of requests allowed per client within the window. */
   max: number;
-  /** Bucket per request; defaults to the client IP. */
+  /** Bucket per request; defaults to the client's address (IPv6 by /64). */
   key?: RateLimitKey;
 }
 
@@ -71,12 +71,15 @@ export const resolveClientKey = (ctx: Context<HonoEnv>): string => {
   return peer ?? 'unknown';
 };
 
+/** Default bucket: the client address, with IPv6 grouped by /64. */
+export const clientBucket = (ctx: Context<HonoEnv>): string => rateLimitIdentity(resolveClientKey(ctx));
+
 /**
  * Sliding-window rate limiter. Counters live in Redis when it is configured,
  * so every replica shares one budget; otherwise (or while Redis is down) each
  * process keeps its own.
  */
-export const rateLimit = ({ name, windowMs, max, key = resolveClientKey }: RateLimitOptions): MiddlewareHandler<HonoEnv> => {
+export const rateLimit = ({ name, windowMs, max, key = clientBucket }: RateLimitOptions): MiddlewareHandler<HonoEnv> => {
   const window = slidingWindow({ name, windowMs, max });
   return async (ctx, next) => {
     const bucket = await key(ctx);

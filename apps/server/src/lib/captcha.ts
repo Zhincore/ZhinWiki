@@ -3,7 +3,7 @@ import { keys as authKeys } from '@nibleaf/auth/keys.server';
 import { type Challenge, createChallenge, type Payload, randomInt, verifySolution } from 'altcha-lib';
 import { deriveKey } from 'altcha-lib/algorithms/pbkdf2';
 import { envExtras } from './env-extras';
-import { redisConfigured, sharedRedis } from './redis';
+import { markRedisUnhealthy, redisConfigured, sharedRedis } from './redis';
 
 export type CaptchaProvider = 'altcha' | 'turnstile' | 'off';
 export type CaptchaResult = 'verified' | 'invalid' | 'unavailable';
@@ -47,14 +47,17 @@ export const createAltchaChallenge = (): Promise<Challenge> =>
 const remembered = new Map<string, number>();
 
 /** Marks `id` used for `ttlMs`; false when it already was. Shared through
- *  Redis when configured, per process otherwise or while Redis is down. */
+ *  Redis when configured, per process otherwise or while Redis is down; the
+ *  per-process store refuses new claims while full of unexpired ones. */
 export const claimOnce = async (id: string, ttlMs: number): Promise<boolean> => {
   if (redisConfigured()) {
-    try {
-      const client = await sharedRedis();
-      return (await client.set(`nibleaf:captcha:${id}`, '1', 'PX', ttlMs, 'NX')) === 'OK';
-    } catch {
-      // Fall through to this process's memory.
+    const client = await sharedRedis().catch(() => null);
+    if (client) {
+      try {
+        return (await client.set(`nibleaf:captcha:${id}`, '1', 'PX', ttlMs, 'NX')) === 'OK';
+      } catch {
+        markRedisUnhealthy();
+      }
     }
   }
   const now = Date.now();
@@ -63,9 +66,12 @@ export const claimOnce = async (id: string, ttlMs: number): Promise<boolean> => 
   }
   if (remembered.size >= MAX_REMEMBERED_SOLUTIONS) {
     for (const [key, expiresAt] of remembered) {
-      if (expiresAt <= now || remembered.size >= MAX_REMEMBERED_SOLUTIONS) {
+      if (expiresAt <= now) {
         remembered.delete(key);
       }
+    }
+    if (remembered.size >= MAX_REMEMBERED_SOLUTIONS) {
+      return false;
     }
   }
   remembered.set(id, now + ttlMs);
@@ -95,8 +101,14 @@ export const verifyAltcha = async (token: string): Promise<CaptchaResult> => {
   return (await claimOnce(`altcha:${payload.challenge.parameters.nonce}`, expiresAt - Date.now())) ? 'verified' : 'invalid';
 };
 
-/** Cloudflare siteverify; one retry with the same idempotency key on network failure. */
-export const verifyTurnstile = async (token: string, remoteIp: string | null): Promise<CaptchaResult> => {
+/** Widget action the client renders with; tokens from other widgets are refused. */
+const TURNSTILE_ACTION = 'email-send';
+
+/**
+ * Cloudflare siteverify; one retry with the same idempotency key on network
+ * failure. The token must come from our widget action on one of `hostnames`.
+ */
+export const verifyTurnstile = async (token: string, remoteIp: string | null, hostnames: readonly string[]): Promise<CaptchaResult> => {
   const body = new URLSearchParams({ secret: captchaConfig.secretKey ?? '', response: token, idempotency_key: randomUUID() });
   if (remoteIp) {
     body.set('remoteip', remoteIp);
@@ -105,8 +117,9 @@ export const verifyTurnstile = async (token: string, remoteIp: string | null): P
     try {
       const response = await fetch(TURNSTILE_SITEVERIFY, { method: 'POST', body, signal: AbortSignal.timeout(5000) });
       if (response.ok) {
-        const outcome = (await response.json()) as { success?: boolean };
-        return outcome.success === true ? 'verified' : 'invalid';
+        const outcome = (await response.json()) as { success?: boolean; hostname?: string; action?: string };
+        const ours = outcome.action === TURNSTILE_ACTION && hostnames.includes(outcome.hostname ?? '');
+        return outcome.success === true && ours ? 'verified' : 'invalid';
       }
     } catch {
       // Retried below.
@@ -115,5 +128,5 @@ export const verifyTurnstile = async (token: string, remoteIp: string | null): P
   return 'unavailable';
 };
 
-export const verifyCaptcha = (token: string, remoteIp: string | null): Promise<CaptchaResult> =>
-  captchaConfig.provider === 'turnstile' ? verifyTurnstile(token, remoteIp) : verifyAltcha(token);
+export const verifyCaptcha = (token: string, remoteIp: string | null, hostnames: readonly string[]): Promise<CaptchaResult> =>
+  captchaConfig.provider === 'turnstile' ? verifyTurnstile(token, remoteIp, hostnames) : verifyAltcha(token);

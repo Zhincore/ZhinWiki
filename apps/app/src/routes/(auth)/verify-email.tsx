@@ -32,15 +32,17 @@ function VerifyEmailPage() {
   const t = useT();
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const { data: session } = useSession();
+  const { data: session, isPending: sessionPending } = useSession();
   const email = search.email || session?.user?.email || '';
+  // The API waives the bot check only for the signed-in owner of the address.
+  const sessionOwnsEmail = Boolean(email) && session?.user.email.toLowerCase() === email.toLowerCase();
   const [otp, setOtp] = useState('');
   const [error, setError] = useState<string | null>(search.delivery === 'failed' ? t('auth.verify.sendError') : null);
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(Boolean(search.token));
   const [verified, setVerified] = useState(false);
   const { data: publicMeta } = useGetPublicMeta();
-  const captcha = useCaptcha(publicMeta?.captcha, getLocale());
+  const captcha = useCaptcha(sessionPending || sessionOwnsEmail ? undefined : publicMeta?.captcha, getLocale());
 
   const continueAfterVerification = useCallback(() => {
     const inviteId = search.invite ?? readPendingInvitation() ?? undefined;
@@ -83,8 +85,7 @@ function VerifyEmailPage() {
     }
     setError(null);
     setSending(true);
-    // The API waives the bot check only for the signed-in owner of the address.
-    const headers = session?.user.email.toLowerCase() === email.toLowerCase() ? {} : await captcha.headers().catch(() => null);
+    const headers = sessionOwnsEmail ? {} : await captcha.headers().catch(() => null);
     if (!headers) {
       setSending(false);
       setError(t('auth.captcha.failed'));
@@ -189,7 +190,13 @@ function VerifyEmailPage() {
       ) : null}
 
       <div className="mt-3 flex justify-center empty:hidden" ref={captcha.container} />
-      <Button className="mt-3 w-full" disabled={sending || verifying || !email} onClick={resend} type="button" variant="outline">
+      <Button
+        className="mt-3 w-full"
+        disabled={sending || verifying || !email || !(sessionOwnsEmail || captcha.ready)}
+        onClick={resend}
+        type="button"
+        variant="outline"
+      >
         {sending ? t('auth.verify.resending') : t('auth.verify.resend')}
       </Button>
 

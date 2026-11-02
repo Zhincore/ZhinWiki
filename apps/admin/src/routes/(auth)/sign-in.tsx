@@ -145,7 +145,7 @@ function SignInPage() {
               {error}
             </p>
           ) : null}
-          <Button className="mt-1 w-full" disabled={isSubmitting || (codeSent ? otp.length !== 6 : !email.trim())} type="submit">
+          <Button className="mt-1 w-full" disabled={isSubmitting || (codeSent ? otp.length !== 6 : !email.trim() || !captcha.ready)} type="submit">
             {isSubmitting ? (codeSent ? t('admin.signIn.verifying') : t('admin.signIn.sending')) : t('admin.signIn.submit')}
           </Button>
           {codeSent ? (
@@ -153,7 +153,7 @@ function SignInPage() {
               <Button onClick={useDifferentEmail} size="sm" type="button" variant="ghost">
                 <ArrowLeft className="size-4 rtl:rotate-180" /> {t('admin.signIn.changeEmail')}
               </Button>
-              <Button disabled={isSubmitting || resendIn > 0} onClick={requestCode} size="sm" type="button" variant="ghost">
+              <Button disabled={isSubmitting || resendIn > 0 || !captcha.ready} onClick={requestCode} size="sm" type="button" variant="ghost">
                 {resendIn > 0 ? t('admin.signIn.resendIn', { seconds: resendIn }) : t('admin.signIn.resend')}
               </Button>
             </div>

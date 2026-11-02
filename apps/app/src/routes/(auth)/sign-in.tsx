@@ -151,7 +151,7 @@ function SignInPage() {
             {error}
           </p>
         ) : null}
-        <Button className="mt-1 w-full" disabled={isSubmitting || (codeSent ? otp.length !== 6 : !normalizedEmail)} type="submit">
+        <Button className="mt-1 w-full" disabled={isSubmitting || (codeSent ? otp.length !== 6 : !normalizedEmail || !captcha.ready)} type="submit">
           {isSubmitting
             ? codeSent
               ? t('auth.otp.verifying')
@@ -175,7 +175,7 @@ function SignInPage() {
             >
               <ArrowLeft className="size-4 rtl:-scale-x-100" /> {t('auth.otp.differentEmail')}
             </Button>
-            <Button disabled={isSubmitting || resendIn > 0} onClick={requestCode} size="sm" type="button" variant="ghost">
+            <Button disabled={isSubmitting || resendIn > 0 || !captcha.ready} onClick={requestCode} size="sm" type="button" variant="ghost">
               {resendIn > 0 ? t('auth.otp.resendIn', { seconds: resendIn }) : t('auth.otp.resend')}
             </Button>
           </div>

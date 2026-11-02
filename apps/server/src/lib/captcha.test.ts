@@ -41,6 +41,15 @@ describe('ALTCHA verification', { timeout: 30_000 }, () => {
     expect(await verifyAltcha(payload)).toBe('invalid');
   });
 
+  it('refuses new claims while the per-process store is full of unexpired ones', async () => {
+    const { claimOnce } = await load();
+    for (let index = 0; index < 10_000; index += 1) {
+      await claimOnce(`id-${index}`, 60_000);
+    }
+    expect(await claimOnce('one-more', 60_000)).toBe(false);
+    expect(await claimOnce('id-0', 60_000)).toBe(false);
+  });
+
   it('refuses an expired challenge', async () => {
     const { createAltchaChallenge, verifyAltcha } = await load();
     const payload = await solvedPayload(createAltchaChallenge);
@@ -66,6 +75,8 @@ describe('Turnstile verification', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
+  const hosts = ['docs.example.test'];
+  const issued = { success: true, hostname: 'docs.example.test', action: 'email-send' };
   const turnstile = () => load({ CAPTCHA_PROVIDER: 'turnstile', TURNSTILE_SITE_KEY: 'site', TURNSTILE_SECRET_KEY: 'secret' });
 
   it('refuses to boot without both keys', async () => {
@@ -73,9 +84,9 @@ describe('Turnstile verification', () => {
   });
 
   it('verifies server-side with the secret and the visitor IP', async () => {
-    fetchMock.mockResolvedValue(Response.json({ success: true }));
+    fetchMock.mockResolvedValue(Response.json(issued));
     const { verifyCaptcha } = await turnstile();
-    expect(await verifyCaptcha('token', '198.51.100.7')).toBe('verified');
+    expect(await verifyCaptcha('token', '198.51.100.7', hosts)).toBe('verified');
     const body = fetchMock.mock.calls[0]?.[1].body as URLSearchParams;
     expect(Object.fromEntries(body)).toMatchObject({ secret: 'secret', response: 'token', remoteip: '198.51.100.7' });
     expect(body.get('idempotency_key')).toBeTruthy();
@@ -84,19 +95,27 @@ describe('Turnstile verification', () => {
   it('refuses tokens Cloudflare rejects, including reused ones', async () => {
     fetchMock.mockResolvedValue(Response.json({ success: false, 'error-codes': ['timeout-or-duplicate'] }));
     const { verifyCaptcha } = await turnstile();
-    expect(await verifyCaptcha('token', null)).toBe('invalid');
+    expect(await verifyCaptcha('token', null, hosts)).toBe('invalid');
+  });
+
+  it('refuses tokens solved on another hostname or widget action', async () => {
+    const { verifyCaptcha } = await turnstile();
+    fetchMock.mockResolvedValueOnce(Response.json({ ...issued, hostname: 'elsewhere.example' }));
+    expect(await verifyCaptcha('token', null, hosts)).toBe('invalid');
+    fetchMock.mockResolvedValueOnce(Response.json({ ...issued, action: 'login' }));
+    expect(await verifyCaptcha('token', null, hosts)).toBe('invalid');
   });
 
   it('retries a network failure with the same idempotency key, then fails closed', async () => {
-    fetchMock.mockRejectedValueOnce(new Error('reset')).mockResolvedValueOnce(Response.json({ success: true }));
+    fetchMock.mockRejectedValueOnce(new Error('reset')).mockResolvedValueOnce(Response.json(issued));
     const { verifyCaptcha } = await turnstile();
-    expect(await verifyCaptcha('token', null)).toBe('verified');
+    expect(await verifyCaptcha('token', null, hosts)).toBe('verified');
     const keys = fetchMock.mock.calls.map((call) => (call[1].body as URLSearchParams).get('idempotency_key'));
     expect(keys[0]).toBe(keys[1]);
 
     fetchMock.mockReset();
     fetchMock.mockRejectedValue(new Error('down'));
-    expect(await verifyCaptcha('token', null)).toBe('unavailable');
+    expect(await verifyCaptcha('token', null, hosts)).toBe('unavailable');
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

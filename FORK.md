@@ -172,17 +172,22 @@ branch stores one change request (CR), reviewed and merged back.
   `POST /api/auth/email-otp/send-verification-otp` and
   `/api/auth/send-verification-email`, except for a signed-in user mailing their
   own address. Solution in the `x-captcha-response` header; ALTCHA solutions
-  are single-use (Dragonfly `SET NX` until expiry).
+  are single-use (Dragonfly `SET NX` until expiry; per process while
+  Dragonfly is down). Turnstile tokens must carry action `email-send` and the
+  `APP_URL` or `ADMIN_URL` hostname.
 - Better Auth's captcha plugin is not used: it has no self-hosted provider.
-- Code emails: `OTP_SEND_LIMIT_PER_IP` (20/h) before the captcha,
-  `OTP_SEND_LIMIT_PER_EMAIL` (5/h) after it, so unsolved requests cannot lock
-  out an address. Verify attempts stay on Better Auth (`allowedAttempts: 3`).
+- Code emails: `OTP_SEND_LIMIT_PER_IP` (20/h) and `OTP_SEND_LIMIT_PER_EMAIL`
+  (5/h) after the captcha, so unsolved requests cannot lock out an IP or an
+  address. Verify attempts stay on Better Auth (`allowedAttempts: 3`).
 - `rateLimit` keeps a sliding log per bucket in Dragonfly (one Lua script,
-  hashed keys, TTL = window) when `REDIS_HOST` is set; per process otherwise or
-  while Dragonfly is down. Each limiter has a unique `name`.
+  HMAC-keyed pseudonymous keys, TTL = window) when `REDIS_HOST` is set; per
+  process otherwise or while Dragonfly is down or slow (a failed command pauses
+  Dragonfly use for 5 s). IP buckets group IPv6 by /64. Each limiter has a
+  unique `name`.
 - Email-OTP password-reset routes are disabled (password auth is off).
 - GitHub (`user:email`) and Discord (`identify email`) sign-in beside Google;
-  Better Auth's default account linking (verified emails only).
+  Better Auth's default account linking (verified emails only). OAuth sign-up
+  with an address the provider has not verified is refused.
 
 ## Branding
 

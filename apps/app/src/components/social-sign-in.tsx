@@ -18,7 +18,8 @@ interface SocialSignInProps {
   mode: 'signIn' | 'signUp';
   callbackURL: string;
   disabled?: boolean;
-  onError: (message: string) => void;
+  /** Receives the failure message, or null when a new attempt starts. */
+  onError: (message: string | null) => void;
 }
 
 /** One button per configured OAuth provider, followed by an "or" divider. */
@@ -32,6 +33,7 @@ export function SocialSignIn({ enabled, mode, callbackURL, disabled = false, onE
 
   const start = async (provider: SocialProvider) => {
     setPending(provider);
+    onError(null);
     const result = await signIn.social({ provider, callbackURL });
     if (result.error) {
       onError(result.error.message ?? t(mode === 'signIn' ? 'auth.signIn.error' : 'auth.signUp.error'));

@@ -24,7 +24,7 @@ import { prepareAccountDeletion } from './account-deletion';
 import { requireAuthEmailEnqueue, trackRequiredAuthEmail, withRequiredAuthEmailScope } from './auth-email-delivery';
 import { deliverAuthOtpEmail } from './auth-email-expiry';
 import { keys } from './keys.server';
-import { oauthCredentials } from './providers';
+import { isUnverifiedOAuthSignUp, oauthCredentials } from './providers';
 import { onUserCreated, organizationTenancyOptions } from './tenancy';
 import { wikiSlugUnavailable } from './wiki-slugs';
 
@@ -874,6 +874,12 @@ const authInstance = betterAuth({
   databaseHooks: {
     user: {
       create: {
+        before: async (user, context) => {
+          if (isUnverifiedOAuthSignUp(user, context?.path)) {
+            throw new APIError('FORBIDDEN', { code: 'EMAIL_NOT_VERIFIED', message: 'Verify this email address with the provider first.' });
+          }
+          return { data: user };
+        },
         after: (user, context) => handleUserCreated(user, resolveRequestLocale(context?.headers)),
       },
     },

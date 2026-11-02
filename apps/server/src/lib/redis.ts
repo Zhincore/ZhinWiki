@@ -50,3 +50,11 @@ export const sharedRedis = (): Promise<Redis> => {
     });
   return connecting;
 };
+
+/** Drops a connection whose command failed or timed out and pauses
+ *  reconnecting, so a hung Redis costs one timeout per pause, not per request. */
+export const markRedisUnhealthy = (): void => {
+  pausedUntil = Date.now() + RECONNECT_PAUSE_MS;
+  redis?.disconnect();
+  redis = null;
+};

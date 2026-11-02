@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/captcha', () => ({ captchaConfig: mocks.config, verifyCaptcha: mocks.verify }));
 vi.mock('@/lib/env-extras', () => ({ envExtras: mocks.extras }));
+vi.mock('@/env', () => ({ env: { APP_URL: 'https://docs.example.test', ADMIN_URL: 'https://admin.example.test:8443' } }));
 
 import { emailSendGuards } from './email-send';
 
@@ -60,7 +61,7 @@ describe('email send guards', () => {
     expect(unavailable.status).toBe(503);
     expect(await unavailable.json()).toMatchObject({ code: 'CAPTCHA_UNAVAILABLE' });
     expect(sent).not.toHaveBeenCalled();
-    expect(mocks.verify).toHaveBeenCalledWith('solution', '198.51.100.7');
+    expect(mocks.verify).toHaveBeenCalledWith('solution', '198.51.100.7', ['docs.example.test', 'admin.example.test']);
   });
 
   it('skips the captcha when the provider is off or the request is exempt', async () => {
@@ -101,5 +102,24 @@ describe('email send guards', () => {
     expect((await send(app, { ip: '198.51.100.12' })).status).toBe(403);
     mocks.verify.mockResolvedValue('verified');
     expect((await send(app, { ip: '198.51.100.13' })).status).toBe(200);
+  });
+
+  it('spends the per-IP budget only on solved requests', async () => {
+    const { app } = build();
+    mocks.verify.mockResolvedValue('invalid');
+    for (const name of ['a', 'b', 'c', 'd', 'e', 'f']) {
+      expect((await send(app, { email: `${name}@example.test`, ip: '198.51.100.21' })).status).toBe(403);
+    }
+    mocks.verify.mockResolvedValue('verified');
+    expect((await send(app, { email: 'g@example.test', ip: '198.51.100.21' })).status).toBe(200);
+  });
+
+  it('counts one IPv6 /64 as one client', async () => {
+    const { app } = build();
+    for (const host of ['1', '2', '3', '4']) {
+      expect((await send(app, { email: `${host}@example.test`, ip: `2001:db8:5:6::${host}` })).status).toBe(200);
+    }
+    expect((await send(app, { email: '5@example.test', ip: '2001:db8:5:6:ffff::5' })).status).toBe(429);
+    expect((await send(app, { email: '6@example.test', ip: '2001:db8:5:7::6' })).status).toBe(200);
   });
 });

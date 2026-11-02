@@ -10,10 +10,22 @@ const CAPTCHA_HEADER = 'x-captcha-response';
 
 const ALTCHA_CHALLENGE_URL = '/api/public/captcha';
 const TURNSTILE_SCRIPT = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+/** Must match the action the API accepts. */
+const TURNSTILE_ACTION = 'email-send';
+/** How long a send waits for Turnstile before reporting the check as failed. */
+const TURNSTILE_WAIT_MS = 30_000;
+/** Interface locales Turnstile translates; others follow the browser. */
+const TURNSTILE_LANGUAGES = new Set(['ar', 'de', 'en', 'es', 'fr', 'hi', 'id', 'pt-br', 'ru', 'zh-cn']);
+
+const turnstileLanguage = (locale: string): string => {
+  const code = locale.toLowerCase();
+  return TURNSTILE_LANGUAGES.has(code) ? code : 'auto';
+};
 
 interface TurnstileOptions {
   sitekey: string;
   language: string;
+  action: string;
   appearance: 'interaction-only';
   callback: (token: string) => void;
   'expired-callback': () => void;
@@ -65,7 +77,9 @@ const solveAltcha = async (): Promise<string | null> => {
  * The instance's bot check for unauthenticated email sends. ALTCHA solves
  * invisibly on demand; Turnstile renders into `container` and asks for
  * interaction only when Cloudflare needs it. `headers()` resolves to the
- * request headers carrying a fresh single-use solution, or rejects.
+ * request headers carrying a fresh single-use solution, or rejects; a
+ * Turnstile send gives up after TURNSTILE_WAIT_MS. `ready` is false until the
+ * instance's captcha config has loaded.
  */
 export function useCaptcha(config: CaptchaConfig | undefined, language: string) {
   const container = useRef<HTMLDivElement>(null);
@@ -73,6 +87,7 @@ export function useCaptcha(config: CaptchaConfig | undefined, language: string) 
   const token = useRef<string | null>(null);
   const waiting = useRef<((value: string | null) => void) | null>(null);
   const unavailable = useRef(false);
+  const failed = useRef(false);
   const provider = config?.provider;
   const siteKey = config?.siteKey;
 
@@ -83,8 +98,10 @@ export function useCaptcha(config: CaptchaConfig | undefined, language: string) 
     }
     let cancelled = false;
     unavailable.current = false;
+    failed.current = false;
     const settle = (value: string | null) => {
       token.current = value;
+      failed.current = value === null;
       waiting.current?.(value);
       waiting.current = null;
     };
@@ -93,7 +110,8 @@ export function useCaptcha(config: CaptchaConfig | undefined, language: string) 
         if (cancelled) return;
         const id = turnstile.render(element, {
           sitekey: siteKey,
-          language,
+          language: turnstileLanguage(language),
+          action: TURNSTILE_ACTION,
           appearance: 'interaction-only',
           callback: settle,
           'expired-callback': () => {
@@ -111,7 +129,7 @@ export function useCaptcha(config: CaptchaConfig | undefined, language: string) 
       cancelled = true;
       widget.current?.turnstile.remove(widget.current.id);
       widget.current = null;
-      token.current = null;
+      settle(null);
     };
   }, [provider, siteKey, language]);
 
@@ -119,15 +137,31 @@ export function useCaptcha(config: CaptchaConfig | undefined, language: string) 
     if (unavailable.current) {
       return null;
     }
-    const value =
-      token.current ??
-      (await new Promise<string | null>((resolve) => {
-        waiting.current = resolve;
-      }));
-    token.current = null;
-    if (widget.current) {
-      widget.current.turnstile.reset(widget.current.id);
+    const reset = () => {
+      if (widget.current) {
+        widget.current.turnstile.reset(widget.current.id);
+      }
+    };
+    if (failed.current) {
+      failed.current = false;
+      reset();
+      return null;
     }
+    let value = token.current;
+    if (value === null) {
+      waiting.current?.(null);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      value = await new Promise<string | null>((resolve) => {
+        waiting.current = resolve;
+        timer = setTimeout(() => {
+          waiting.current = null;
+          resolve(null);
+        }, TURNSTILE_WAIT_MS);
+      });
+      clearTimeout(timer);
+    }
+    token.current = null;
+    reset();
     return value;
   }, []);
 
@@ -142,5 +176,5 @@ export function useCaptcha(config: CaptchaConfig | undefined, language: string) 
     return { [CAPTCHA_HEADER]: solution };
   }, [provider, nextTurnstileToken]);
 
-  return { container, headers };
+  return { container, headers, ready: config !== undefined };
 }

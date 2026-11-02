@@ -2,7 +2,7 @@ import type { Context } from 'hono';
 import { envExtras } from '@/lib/env-extras';
 import type { HonoEnv } from '@/lib/hono/context';
 import { requireCaptcha } from './captcha';
-import { rateLimit, resolveClientKey } from './rate-limit';
+import { clientBucket, rateLimit } from './rate-limit';
 
 const HOUR_MS = 60 * 60_000;
 
@@ -17,18 +17,19 @@ export const emailFromJsonBody = async (request: Request): Promise<string | null
 };
 
 /**
- * Guards for unauthenticated endpoints that send email: a per-IP budget, the
- * captcha, then a per-address budget that only solved requests can spend.
+ * Guards for unauthenticated endpoints that send email: the captcha, then
+ * per-IP and per-address budgets that only solved requests can spend, so
+ * unsolved requests cannot lock a shared IP or an address out.
  */
 export const emailSendGuards = (exemptFromCaptcha: (ctx: Context<HonoEnv>) => Promise<boolean>) =>
   [
+    requireCaptcha(exemptFromCaptcha),
     rateLimit({
       name: 'email-send-ip',
       windowMs: HOUR_MS,
       max: envExtras.OTP_SEND_LIMIT_PER_IP,
-      key: (ctx) => (ctx.req.method === 'POST' ? resolveClientKey(ctx) : null),
+      key: (ctx) => (ctx.req.method === 'POST' ? clientBucket(ctx) : null),
     }),
-    requireCaptcha(exemptFromCaptcha),
     rateLimit({
       name: 'email-send-address',
       windowMs: HOUR_MS,

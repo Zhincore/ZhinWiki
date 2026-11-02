@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { enabledOAuthProviders, oauthCredentials } from './providers';
+import { enabledOAuthProviders, isUnverifiedOAuthSignUp, oauthCredentials } from './providers';
 
 describe('OAuth providers', () => {
   it('enables a provider only when both credentials are non-blank after trimming', () => {
@@ -19,5 +19,13 @@ describe('OAuth providers', () => {
     expect(oauthCredentials({ GITHUB_CLIENT_ID: ' id ', GITHUB_CLIENT_SECRET: ' secret ' })).toEqual({
       github: { clientId: 'id', clientSecret: 'secret' },
     });
+  });
+
+  it('refuses OAuth sign-up for addresses the provider has not verified', () => {
+    expect(isUnverifiedOAuthSignUp({ emailVerified: false }, '/callback/discord')).toBe(true);
+    expect(isUnverifiedOAuthSignUp({}, '/callback/github')).toBe(true);
+    expect(isUnverifiedOAuthSignUp({ emailVerified: true }, '/callback/discord')).toBe(false);
+    expect(isUnverifiedOAuthSignUp({ emailVerified: false }, '/sign-up/email')).toBe(false);
+    expect(isUnverifiedOAuthSignUp({ emailVerified: false }, undefined)).toBe(false);
   });
 });

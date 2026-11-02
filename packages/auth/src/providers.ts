@@ -34,3 +34,9 @@ export function enabledOAuthProviders(environment: OAuthEnvironment): Record<OAu
   const configured = oauthCredentials(environment);
   return { google: Boolean(configured.google), github: Boolean(configured.github), discord: Boolean(configured.discord) };
 }
+
+/** An OAuth callback about to create an account for an address the provider
+ *  has not verified; such sign-ups are refused. */
+export function isUnverifiedOAuthSignUp(user: { emailVerified?: boolean | null }, path: string | undefined): boolean {
+  return Boolean(path?.startsWith('/callback/')) && user.emailVerified !== true;
+}

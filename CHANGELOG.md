@@ -67,7 +67,9 @@ Back up first: the migrations below are forward-only. The full list is in
 
 - Docs versions removed ([#93](https://github.com/Zhincore/ZhinWiki/pull/93)).
 - Plan tab and Cloud wording removed ([#59](https://github.com/Zhincore/ZhinWiki/pull/59), [#60](https://github.com/Zhincore/ZhinWiki/pull/60)); fork docs and rebrand
-  ([#66](https://github.com/Zhincore/ZhinWiki/pull/66), [#76](https://github.com/Zhincore/ZhinWiki/pull/76), [#95](https://github.com/Zhincore/ZhinWiki/pull/95), [#96](https://github.com/Zhincore/ZhinWiki/pull/96)).
+  ([#66](https://github.com/Zhincore/ZhinWiki/pull/66), [#76](https://github.com/Zhincore/ZhinWiki/pull/76), [#95](https://github.com/Zhincore/ZhinWiki/pull/95), [#96](https://github.com/Zhincore/ZhinWiki/pull/96), [#102](https://github.com/Zhincore/ZhinWiki/pull/102)).
+- The privacy page describes self-service account deletion and what happens to
+  contributions ([#97](https://github.com/Zhincore/ZhinWiki/pull/97), [#102](https://github.com/Zhincore/ZhinWiki/pull/102)).
 - Upstream Nibleaf v0.2.0 and later fixes merged ([#74](https://github.com/Zhincore/ZhinWiki/pull/74), [#84](https://github.com/Zhincore/ZhinWiki/pull/84), [#90](https://github.com/Zhincore/ZhinWiki/pull/90));
   see the Nibleaf section below.
 
@@ -75,6 +77,9 @@ Back up first: the migrations below are forward-only. The full list is in
 
 - Background import failures are translated and GitBook starts are capped
   atomically ([#77](https://github.com/Zhincore/ZhinWiki/pull/77)).
+- Better Auth's own sign-in and code-email limits are keyed on the resolved
+  client IP instead of one bucket shared by every client behind a proxy chain
+  ([#103](https://github.com/Zhincore/ZhinWiki/pull/103)).
 
 ## Nibleaf v0.2.0 (upstream)
 

@@ -6,7 +6,6 @@ const BASE = 'https://app.example.com/sites/proj_1';
 
 const page = (over: Partial<SnapshotPage> & Pick<SnapshotPage, 'id'>): SnapshotPage => ({
   parentId: null,
-  versionId: 'v-main',
   updatedAt: '2026-07-01T00:00:00.000Z',
   languageCode: 'en',
   kind: 'PAGE',
@@ -34,10 +33,6 @@ const snapshot = (pages: SnapshotPage[], over?: Partial<SiteSnapshot['project']>
     languages: [
       { code: 'en', label: 'English', direction: 'LTR', isDefault: true, config: null },
       { code: 'ar', label: 'العربية', direction: 'RTL', isDefault: false, config: null },
-    ],
-    versions: [
-      { id: 'v-main', name: 'main', slug: 'main', isDefault: true },
-      { id: 'v-2', name: 'v2', slug: 'v2', isDefault: false },
     ],
     ...over,
   },
@@ -68,13 +63,13 @@ describe('llmsIndexablePages', () => {
 });
 
 describe('llmsPageUrl', () => {
-  it('gives default-language default-version pages the clean canonical URL', () => {
-    const snap = snapshot([page({ id: 'intro', versionId: 'v-main' })]);
+  it('gives default-language pages the clean canonical URL', () => {
+    const snap = snapshot([page({ id: 'intro' })]);
     expect(llmsPageUrl(snap, snap.pages[0] as SnapshotPage, BASE)).toBe(`${BASE}/intro.md`);
   });
-  it('adds a version prefix for non-default versions and ?lang for non-default languages', () => {
-    const snap = snapshot([page({ id: 'guide', versionId: 'v-2', languageCode: 'ar' })]);
-    expect(llmsPageUrl(snap, snap.pages[0] as SnapshotPage, BASE)).toBe(`${BASE}/v2/guide.md?lang=ar`);
+  it('adds ?lang for non-default languages', () => {
+    const snap = snapshot([page({ id: 'guide', languageCode: 'ar' })]);
+    expect(llmsPageUrl(snap, snap.pages[0] as SnapshotPage, BASE)).toBe(`${BASE}/guide.md?lang=ar`);
   });
 
   it('percent-encodes non-ASCII path segments so the link stays a valid ASCII URL', () => {

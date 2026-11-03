@@ -54,7 +54,7 @@ function GitPreviewPage() {
                 <h1 className="mt-2 font-semibold text-3xl tracking-tight">{page.title}</h1>
                 {page.description ? <p className="mt-2 text-muted-foreground">{page.description}</p> : null}
               </div>
-              <Markdown content={page.content} site={{ projectId: snapshot.project.id, lang: page.languageCode, version: page.versionId }} />
+              <Markdown content={page.content} site={{ projectId: snapshot.project.id, lang: page.languageCode }} />
             </>
           ) : (
             <p className="text-muted-foreground">This preview contains no visible pages.</p>

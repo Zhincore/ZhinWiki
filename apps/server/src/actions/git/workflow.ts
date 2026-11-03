@@ -4,6 +4,7 @@ import { type Prisma, prisma } from '@nibleaf/database';
 import { slugify } from '@nibleaf/shared';
 import { SOFTWARE } from '@nibleaf/shared/brand';
 import { instanceBrand } from '@nibleaf/shared/brand/server';
+import { readSnapshot } from '@nibleaf/shared/site';
 import {
   buildThemeRepository,
   type ThemeRepositoryOwnership,
@@ -441,10 +442,10 @@ const applyContentToNibleaf = async (
     }
   }
   const { branch, language } = await authoringContext(connection);
-  // Repository layout v2: the default language/version lives at the content
-  // root, other languages under `<lang>/`, other versions under `versions/<slug>/`.
+  // Repository layout v2: the default language lives at the content root,
+  // other languages under `<lang>/`. Only the published branch is mirrored.
   const location = themeContentLocation(path, snapshot, connection.contentPath);
-  if (!location || location.versionId !== branch.id || location.languageCode !== language.code) {
+  if (!(location && branch.isDefault) || location.languageCode !== language.code) {
     throw new Error(`Git content path ${path} is outside the configured ${branch.name}/${language.code} content directory.`);
   }
   const segments = location.relative.split('/').filter(Boolean);
@@ -947,7 +948,7 @@ export const getReadyGitPreview = async (token: string) => {
   if (!/^[A-Za-z0-9_-]{32,64}$/.test(token)) throw notFound('git preview');
   const preview = await prisma.gitPreview.findUnique({ where: { token }, select: { status: true, snapshot: true, completedAt: true } });
   if (preview?.status !== 'READY' || !preview.snapshot) throw notFound('git preview');
-  return preview;
+  return { ...preview, snapshot: readSnapshot(preview.snapshot) };
 };
 
 export const recordWebhookDelivery = async (input: {

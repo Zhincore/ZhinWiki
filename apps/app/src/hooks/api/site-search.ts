@@ -7,9 +7,9 @@ const requireSiteId = (siteId: string | undefined) => {
   return siteId;
 };
 
-export const useSiteSearch = (siteId: string | undefined, query: string, language?: string, version?: string, limit?: number, enabled = true) =>
+export const useSiteSearch = (siteId: string | undefined, query: string, language?: string, limit?: number, enabled = true) =>
   useQuery({
-    queryKey: queryKeys.site.search(siteId ?? '', query, language, version, limit),
+    queryKey: queryKeys.site.search(siteId ?? '', query, language, limit),
     enabled: Boolean(enabled && siteId && query.trim()),
     queryFn: () =>
       searchSiteFn({
@@ -17,7 +17,6 @@ export const useSiteSearch = (siteId: string | undefined, query: string, languag
           projectId: requireSiteId(siteId),
           query,
           ...(language ? { language } : {}),
-          ...(version ? { version } : {}),
           ...(limit ? { limit } : {}),
         },
       }),
@@ -25,5 +24,5 @@ export const useSiteSearch = (siteId: string | undefined, query: string, languag
 
 export const useAnswerSite = () =>
   useMutation({
-    mutationFn: (input: { projectId: string; query: string; language?: string; version?: string }) => answerSiteFn({ data: input }),
+    mutationFn: (input: { projectId: string; query: string; language?: string }) => answerSiteFn({ data: input }),
   });

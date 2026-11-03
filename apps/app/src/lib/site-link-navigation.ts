@@ -50,9 +50,9 @@ export function siteNavigationHref(
 }
 
 /** First path segments a published site is known to own: its navigation,
- *  versions, API reference and changelog. */
-export function siteRootSegments(site: Pick<SiteShell, 'nav' | 'versions' | 'openapi'>): Set<string> {
-  const segments = new Set(['', 'changelog', ...site.versions.map((version) => version.slug)]);
+ *  API reference and changelog. */
+export function siteRootSegments(site: Pick<SiteShell, 'nav' | 'openapi'>): Set<string> {
+  const segments = new Set(['', 'changelog']);
   const visit = (nodes: NavNode[]) => {
     for (const node of nodes) {
       segments.add(node.path.split('/').find(Boolean) ?? '');

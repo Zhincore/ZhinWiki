@@ -4,19 +4,7 @@ import type { SearchAnswer } from '@/hooks/api/types';
 import { siteHref } from '@/lib/site-paths';
 
 /** Loaded only for an answer; model-authored links, images and HTML stay inert. */
-export default function SiteSearchAnswer({
-  answer,
-  projectId,
-  lang,
-  version,
-  rtl,
-}: {
-  answer: SearchAnswer;
-  projectId: string;
-  lang?: string;
-  version?: string;
-  rtl: boolean;
-}) {
+export default function SiteSearchAnswer({ answer, projectId, lang, rtl }: { answer: SearchAnswer; projectId: string; lang?: string; rtl: boolean }) {
   const t = siteT(lang);
   return (
     <div className="space-y-4">
@@ -44,7 +32,7 @@ export default function SiteSearchAnswer({
             <a
               key={citation.id}
               className="block rounded-md border p-3 text-start transition-colors hover:bg-muted/60"
-              href={siteHref(projectId, citation.path, { lang, version })}
+              href={siteHref(projectId, citation.path, { lang })}
               dir={citation.direction}
             >
               <span className="font-medium text-sm">

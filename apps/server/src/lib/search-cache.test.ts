@@ -7,7 +7,6 @@ const page = (id: string, content: string): SnapshotPage =>
   ({
     id,
     parentId: null,
-    versionId: 'branch-main',
     languageCode: 'en',
     kind: 'PAGE',
     title: id,

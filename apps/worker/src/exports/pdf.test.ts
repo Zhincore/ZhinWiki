@@ -15,13 +15,11 @@ const snapshot: SiteSnapshot = {
     icon: null,
     config: null,
     languages: [{ code: 'en', label: 'English', direction: 'LTR', isDefault: true, enabled: true, config: null }],
-    versions: [{ id: 'main', name: 'Main', slug: 'main', isDefault: true }],
   },
   generatedAt: '2026-10-17T00:00:00.000Z',
   pages: ['first', 'second', 'hidden'].map((id, position) => ({
     id,
     parentId: null,
-    versionId: 'main',
     languageCode: 'en',
     kind: 'PAGE',
     title: id,

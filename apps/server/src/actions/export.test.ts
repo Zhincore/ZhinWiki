@@ -23,13 +23,11 @@ const snapshotFor = (template: (typeof templates)[number][0]) => ({
     icon: null,
     config: { theme: { preset: template } },
     languages: [{ code: 'en', label: 'English', direction: 'LTR', isDefault: true, enabled: true, config: null }],
-    versions: [{ id: 'main', name: 'Main', slug: 'main', isDefault: true }],
   },
   pages: [
     {
       id: 'welcome',
       parentId: null,
-      versionId: 'main',
       languageCode: 'en',
       kind: 'PAGE',
       title: 'Welcome',

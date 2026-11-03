@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { type Brand, DEFAULT_BRAND } from './brand';
-import { buildNavTree, type NavNode, type SiteSnapshot, type SnapshotLanguage, type SnapshotPage, type SnapshotVersion } from './site';
+import { buildNavTree, type NavNode, type SiteSnapshot, type SnapshotLanguage, type SnapshotPage } from './site';
 import { THEME_REPOSITORY_TEMPLATE_META, type ThemeRepositoryTemplateOptions, themeRepositoryTemplateFiles } from './theme-repository-templates';
 import { type ResolvedTheme, resolveTheme, THEME_PRESET_IDS, type ThemePresetId, themeOwnedConfig } from './themes';
 
@@ -18,7 +18,6 @@ export const THEME_REPOSITORY_MANIFEST_PATH = '.nibleaf/manifest.json' as const;
 export const THEME_REPOSITORY_LEGACY_MANIFEST_PATH = 'nibleaf.theme.json' as const;
 export const THEME_REPOSITORY_DOCS_CONFIG_PATH = 'docs.json' as const;
 export const THEME_REPOSITORY_CONTENT_MAP_PATH = '.nibleaf/content-map.json' as const;
-export const THEME_REPOSITORY_VERSIONS_DIRECTORY = 'versions' as const;
 
 export type ThemeRepositoryOwnership = 'PLATFORM' | 'SHARED' | 'CUSTOMER';
 
@@ -47,9 +46,8 @@ export interface ThemeRepositoryImportIssue {
 }
 
 export interface ThemeContentLocation {
-  versionId: string;
   languageCode: string;
-  /** Page path segments relative to the language/version directory, without extension. */
+  /** Page path segments relative to the language directory, without extension. */
   relative: string;
 }
 
@@ -138,21 +136,15 @@ export const validateThemeRepositoryManifest = (
 
 const defaultLanguageOf = (snapshot: SiteSnapshot): SnapshotLanguage | undefined =>
   snapshot.project.languages.find((item) => item.isDefault) ?? snapshot.project.languages[0];
-const defaultVersionOf = (snapshot: SiteSnapshot): SnapshotVersion | undefined =>
-  snapshot.project.versions.find((item) => item.isDefault) ?? snapshot.project.versions[0];
+/** The single docs version runtime contract v2 expects in `docs.json`. */
+const REPOSITORY_VERSION = { id: 'main', name: 'main', slug: 'main', isDefault: true, directory: '' } as const;
 
 const languageDirectory = (snapshot: SiteSnapshot, languageCode: string): string =>
   languageCode === defaultLanguageOf(snapshot)?.code ? '' : safeThemePathSegment(languageCode);
-const versionDirectory = (snapshot: SiteSnapshot, versionId: string): string => {
-  if (versionId === defaultVersionOf(snapshot)?.id) return '';
-  const version = snapshot.project.versions.find((item) => item.id === versionId);
-  return `${THEME_REPOSITORY_VERSIONS_DIRECTORY}/${safeThemePathSegment(version?.slug ?? versionId)}`;
-};
-
-/** Directory holding the pages of one version/language: the content root for
- * the defaults, `<root>/<lang>`, `<root>/versions/<slug>`, or `<root>/versions/<slug>/<lang>`. */
-export const themeContentDirectory = (snapshot: SiteSnapshot, versionId: string, languageCode: string, contentPath = 'content'): string =>
-  [normalizedContentPath(contentPath), versionDirectory(snapshot, versionId), languageDirectory(snapshot, languageCode)].filter(Boolean).join('/');
+/** Directory holding the pages of one language: the content root for the
+ * default language, otherwise `<root>/<lang>`. */
+const themeContentDirectory = (snapshot: SiteSnapshot, languageCode: string, contentPath = 'content'): string =>
+  [normalizedContentPath(contentPath), languageDirectory(snapshot, languageCode)].filter(Boolean).join('/');
 
 export const themeContentPath = (page: SnapshotPage, snapshot: SiteSnapshot, contentPath = 'content'): string => {
   const relative =
@@ -161,11 +153,11 @@ export const themeContentPath = (page: SnapshotPage, snapshot: SiteSnapshot, con
       .filter((segment) => segment && segment !== '.' && segment !== '..')
       .map(safeThemePathSegment)
       .join('/') || 'index';
-  const directory = themeContentDirectory(snapshot, page.versionId, page.languageCode, contentPath);
+  const directory = themeContentDirectory(snapshot, page.languageCode, contentPath);
   return `${directory ? `${directory}/` : ''}${relative}.mdx`;
 };
 
-/** Inverse of themeContentPath: which version/language a repository file
+/** Inverse of themeContentPath: which language a repository file
  * belongs to. Returns null for files outside the content root or paths that
  * cannot be attributed unambiguously. */
 export const themeContentLocation = (path: string, snapshot: SiteSnapshot, contentPath = 'content'): ThemeContentLocation | null => {
@@ -178,24 +170,15 @@ export const themeContentLocation = (path: string, snapshot: SiteSnapshot, conte
     .replace(/\.mdx?$/i, '')
     .split('/')
     .filter(Boolean);
-  const defaultVersion = defaultVersionOf(snapshot);
   const defaultLanguage = defaultLanguageOf(snapshot);
-  let versionId = defaultVersion?.id ?? '';
   let languageCode = defaultLanguage?.code ?? '';
-  if (segments[0] === THEME_REPOSITORY_VERSIONS_DIRECTORY && segments.length > 1) {
-    const version = snapshot.project.versions.find((item) => item.id !== defaultVersion?.id && safeThemePathSegment(item.slug) === segments[1]);
-    if (version) {
-      versionId = version.id;
-      segments = segments.slice(2);
-    }
-  }
   const language = snapshot.project.languages.find((item) => item.code !== defaultLanguage?.code && safeThemePathSegment(item.code) === segments[0]);
   if (language) {
     languageCode = language.code;
     segments = segments.slice(1);
   }
-  if (segments.length === 0 || !versionId || !languageCode) return null;
-  return { versionId, languageCode, relative: segments.join('/') };
+  if (segments.length === 0 || !languageCode) return null;
+  return { languageCode, relative: segments.join('/') };
 };
 
 export const themeContentMap = (snapshot: SiteSnapshot, contentPath = 'content'): Record<string, string> => {
@@ -209,9 +192,9 @@ export const themeContentMap = (snapshot: SiteSnapshot, contentPath = 'content')
       throw new Error(`Pages ${existing.id} and ${page.id} map to the same theme repository path: ${path}.`);
     }
     const location = themeContentLocation(path, snapshot, contentPath);
-    if (!location || location.versionId !== page.versionId || location.languageCode !== page.languageCode) {
+    if (!location || location.languageCode !== page.languageCode) {
       throw new Error(
-        `Page ${page.id} (${page.path}) maps to ${path}, which reads back as a different language or version. Rename the page so its path does not start with a language code or "${THEME_REPOSITORY_VERSIONS_DIRECTORY}".`,
+        `Page ${page.id} (${page.path}) maps to ${path}, which reads back as a different language. Rename the page so its path does not start with a language code.`,
       );
     }
     byPath.set(collisionKey, { id: page.id, path });
@@ -223,10 +206,6 @@ export const themeContentMap = (snapshot: SiteSnapshot, contentPath = 'content')
 const repositoryLanguages = (snapshot: SiteSnapshot): SnapshotLanguage[] => {
   const defaultLanguage = defaultLanguageOf(snapshot);
   return [...snapshot.project.languages].sort((a, b) => Number(b.code === defaultLanguage?.code) - Number(a.code === defaultLanguage?.code));
-};
-const repositoryVersions = (snapshot: SiteSnapshot): SnapshotVersion[] => {
-  const defaultVersion = defaultVersionOf(snapshot);
-  return [...snapshot.project.versions].sort((a, b) => Number(b.id === defaultVersion?.id) - Number(a.id === defaultVersion?.id));
 };
 
 const resolvedRepositoryTheme = (snapshot: SiteSnapshot, templateId: ThemePresetId): ResolvedTheme => {
@@ -260,7 +239,7 @@ const docsNavigationPages = (nodes: NavNode[], pageById: Map<string, SnapshotPag
   });
 
 /** Mintlify-compatible `docs.json` plus an `x-nibleaf` block with everything
- * the generated app needs (resolved theme, languages with direction, versions). */
+ * the generated app needs (resolved theme, languages with direction). */
 export const themeRepositoryDocsConfig = (
   snapshot: SiteSnapshot,
   contentPath = 'content',
@@ -268,34 +247,15 @@ export const themeRepositoryDocsConfig = (
 ): Record<string, unknown> => {
   const theme = resolvedRepositoryTheme(snapshot, templateId);
   const languages = repositoryLanguages(snapshot);
-  const versions = repositoryVersions(snapshot);
   const defaultLanguage = defaultLanguageOf(snapshot);
-  const defaultVersion = defaultVersionOf(snapshot);
   const pageById = new Map(snapshot.pages.map((page) => [page.id, page]));
-  const languageNavigation = (version: SnapshotVersion) =>
-    languages.map((language) => ({
+  const navigation = {
+    languages: languages.map((language) => ({
       language: language.code,
       'x-nibleaf': { label: language.label, direction: language.direction, default: language.code === defaultLanguage?.code },
-      pages: docsNavigationPages(
-        buildNavTree(
-          snapshot.pages.filter((page) => page.versionId === version.id),
-          language.code,
-        ),
-        pageById,
-        snapshot,
-        contentPath,
-      ),
-    }));
-  const navigation =
-    versions.length > 1
-      ? {
-          versions: versions.map((version) => ({
-            version: version.name,
-            'x-nibleaf': { slug: version.slug, default: version.id === defaultVersion?.id },
-            languages: languageNavigation(version),
-          })),
-        }
-      : { languages: versions[0] ? languageNavigation(versions[0]) : [] };
+      pages: docsNavigationPages(buildNavTree(snapshot.pages, language.code), pageById, snapshot, contentPath),
+    })),
+  };
   return {
     $schema: 'https://mintlify.com/docs.json',
     name: snapshot.project.name,
@@ -315,13 +275,7 @@ export const themeRepositoryDocsConfig = (
         enabled: language.enabled !== false,
         directory: languageDirectory(snapshot, language.code),
       })),
-      versions: versions.map((version) => ({
-        id: version.id,
-        name: version.name,
-        slug: version.slug,
-        isDefault: version.id === defaultVersion?.id,
-        directory: versionDirectory(snapshot, version.id),
-      })),
+      versions: [REPOSITORY_VERSION],
       contentPath: normalizedContentPath(contentPath),
     },
   };

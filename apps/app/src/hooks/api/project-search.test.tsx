@@ -27,8 +27,7 @@ const diagnostics = (status: NonNullable<SearchIndexDiagnosticsResult['latestRun
     chunks: status === 'READY' ? 1 : null,
     pages: status === 'READY' ? 1 : null,
     languages: [],
-    versions: [],
-    distributionTruncated: { languages: false, versions: false },
+    distributionTruncated: { languages: false },
   },
   latestRun: status
     ? {

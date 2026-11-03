@@ -33,7 +33,6 @@ import { runPublishedSearch } from './runtime';
 const scope: SearchScope = {
   projectId: 'project',
   deploymentId: 'deployment',
-  versionSlug: 'main',
   language: 'ar',
   visibility: 'public',
   allowedPageIds: null,

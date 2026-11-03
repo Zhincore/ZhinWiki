@@ -36,7 +36,6 @@ import { getSitePage, getSitePageMarkdown, invalidatePublishedSiteConfig, resolv
 
 const page = (over: Partial<SnapshotPage> & Pick<SnapshotPage, 'id' | 'path' | 'position'>): SnapshotPage => ({
   parentId: null,
-  versionId: 'version-1',
   updatedAt: '2026-08-01T00:00:00.000Z',
   languageCode: 'en',
   kind: 'PAGE',
@@ -63,7 +62,6 @@ const snapshot: SiteSnapshot = {
     icon: null,
     config: {},
     languages: [{ code: 'en', label: 'English', direction: 'LTR', isDefault: true, config: null }],
-    versions: [{ id: 'version-1', name: 'main', slug: 'main', isDefault: true }],
   },
   pages: [
     page({ id: 'page-lede', path: 'authentication', position: 0, title: 'Authentication', description: '  How tokens work.  ', content: body }),

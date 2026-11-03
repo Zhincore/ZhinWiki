@@ -80,9 +80,7 @@ it.each(['en', 'ar'])(
         config: { mode: 'center' },
       },
       activeLanguage: language,
-      activeVersion: 'main',
       languageConfig: null,
-      versions: [{ id: 'version-1', name: 'Main', slug: 'main', isDefault: true }],
       languages: [
         { code: 'en', isDefault: true, path: 'guide' },
         { code: 'ar', isDefault: false, path: 'guide' },

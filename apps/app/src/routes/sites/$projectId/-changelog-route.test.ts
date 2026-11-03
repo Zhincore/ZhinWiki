@@ -59,7 +59,7 @@ describe('published changelog route', () => {
   });
 
   it('keeps the site shell when only the optional changelog feed fails', async () => {
-    const site = { project: { id: 'qa-site' }, nav: [], languages: [], versions: [] };
+    const site = { project: { id: 'qa-site' }, nav: [], languages: [] };
     mocks.getSite.mockResolvedValueOnce(Response.json({ data: site }));
     mocks.getChangelog.mockResolvedValueOnce(apiError(503));
 
@@ -67,7 +67,7 @@ describe('published changelog route', () => {
   });
 
   it('returns published entries with the site shell', async () => {
-    const site = { project: { id: 'qa-site' }, nav: [], languages: [], versions: [] };
+    const site = { project: { id: 'qa-site' }, nav: [], languages: [] };
     const entries = [{ version: 2, publishedAt: '2026-10-01T00:00:00.000Z' }];
     mocks.getSite.mockResolvedValueOnce(Response.json({ data: site }));
     mocks.getChangelog.mockResolvedValueOnce(Response.json({ data: entries }));
@@ -78,7 +78,7 @@ describe('published changelog route', () => {
 });
 
 it('reuses the loaded parent shell without another getSite call', async () => {
-  const site = { project: { id: 'qa-site' }, nav: [], languages: [], versions: [] };
+  const site = { project: { id: 'qa-site' }, nav: [], languages: [] };
   mocks.getChangelog.mockResolvedValueOnce(Response.json({ data: [] }));
   const loader = Route.options.loader as (input: {
     params: { projectId: string };

@@ -32,16 +32,11 @@ export const llmsIndexablePages = (snapshot: SiteSnapshot): SnapshotPage[] => {
  * canonical HTML URL and appends `.md`; query parameters remain intact. */
 export const llmsPageUrl = (snapshot: SiteSnapshot, page: SnapshotPage, base: string): string => {
   const defaultCode = defaultLanguage(snapshot.project).code;
-  const pageVersion = snapshot.project.versions.find((version) => version.id === page.versionId);
-  if (!pageVersion) {
-    throw new Error(`Snapshot page ${page.id} references an unknown version.`);
-  }
-  const versionPath = !pageVersion.isDefault ? `/${encodeURIComponent(pageVersion.slug)}` : '';
   // Slugs may be non-ASCII (Arabic titles keep Arabic slugs); encode each
   // segment so the URL is a valid ASCII link in a Markdown list.
   const pagePath = page.path ? `/${page.path.split('/').filter(Boolean).map(encodeURIComponent).join('/')}` : '';
   const langQuery = page.languageCode !== defaultCode ? `?lang=${encodeURIComponent(page.languageCode)}` : '';
-  return markdownAlternateUrl(`${base}${versionPath}${pagePath}${langQuery}`);
+  return markdownAlternateUrl(`${base}${pagePath}${langQuery}`);
 };
 
 /** Collapse a description to a single Markdown-safe line. */

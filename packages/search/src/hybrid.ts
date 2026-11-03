@@ -24,7 +24,6 @@ const plainText = (value: string): string =>
 export interface SearchScope {
   projectId: string;
   deploymentId: string;
-  versionSlug: string;
   language: string;
   visibility: 'public' | 'private';
   /** null means the authorized viewer may read every page. */
@@ -74,13 +73,8 @@ const sha256 = (value: string): string => createHash('sha256').update(value).dig
 
 /** Qdrant point ids accept UUIDs. Derive one from immutable scope + content so
  * retries upsert the same point while a changed chunk receives a new identity. */
-export const deterministicChunkId = (
-  scope: Pick<SearchScope, 'projectId' | 'deploymentId' | 'versionSlug'>,
-  pageId: string,
-  ordinal: number,
-  hash: string,
-) => {
-  const hex = sha256(['nibleaf-search-v1', scope.projectId, scope.deploymentId, scope.versionSlug, pageId, ordinal, hash].join('\0')).slice(0, 32);
+export const deterministicChunkId = (scope: Pick<SearchScope, 'projectId' | 'deploymentId'>, pageId: string, ordinal: number, hash: string) => {
+  const hex = sha256(['nibleaf-search-v1', scope.projectId, scope.deploymentId, pageId, ordinal, hash].join('\0')).slice(0, 32);
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20)}`;
 };
 
@@ -245,7 +239,7 @@ export interface ChunkOptions {
 /** Language-aware structural chunking. Headings and fenced code stay attached;
  * Arabic text is never split by a byte/token limit that can corrupt RTL text. */
 export const chunkSearchDocument = (
-  scope: Pick<SearchScope, 'projectId' | 'deploymentId' | 'versionSlug'>,
+  scope: Pick<SearchScope, 'projectId' | 'deploymentId'>,
   source: SearchChunkSource,
   options: ChunkOptions = {},
 ): SearchChunk[] => {
@@ -296,7 +290,6 @@ export const searchCacheKey = (scope: SearchScope, query: string, namespace = 'r
     namespace,
     scope.projectId,
     scope.deploymentId,
-    scope.versionSlug,
     scope.language,
     scope.visibility,
     authorizationScopeKey(scope.allowedPageIds),

@@ -84,7 +84,7 @@ MCP_RATE_LIMIT_PER_MIN=120
 ## حد الإمكانات الحالي
 
 مورد الإمكانات هو المرجع النهائي. يشمل السطح المستقر في هذا الإصدار بيانات
-المشروع؛ وبيانات الصفحات ومحتواها المؤلف؛ واللغات والإصدارات؛ وتحليلات مجمعة من
+المشروع؛ وبيانات الصفحات ومحتواها المؤلف؛ واللغات؛ وتحليلات مجمعة من
 دون عبارات البحث؛ وإعدادات البحث وتشخيص الفهرس الخالي من المحتوى؛ وملخصات
 الاستخدام الدقيقة والاستحقاقات الإرشادية؛ وقراءة كتالوج الإضافات وحالتها وسجلها؛
 وبيانات قالب السمة وكتالوجها الآمنة ومعاينة الاستيراد من دون كتابة؛ وملخصات
@@ -93,7 +93,7 @@ MCP_RATE_LIMIT_PER_MIN=120
 
 نطاقات المجالات القابلة للإصدار حاليًا هي `search:read` و`usage:read` و
 `entitlements:read` و`addons:read` و`themes:read` و`integrations:read`، إضافة
-إلى نطاقات قراءة المشروع والصفحات واللغات والإصدارات والتحليلات والتصدير والنشر.
+إلى نطاقات قراءة المشروع والصفحات واللغات والتحليلات والتصدير والنشر.
 لا يصدر هذا الإصدار أي نطاق كتابة جديد للمجالات، ولا `usage:export`، ولا نطاق
 إعادة فهرسة البحث أو تحقق التكاملات أو حذفها أو بيانات الاعتماد أو الدفع. ويبقى
 `exports:read` سطح قراءة مستقلًا لملخصات مهام التصدير المنقحة.
@@ -105,7 +105,6 @@ nibleaf://projects/{boundProjectId}
 nibleaf://projects/{boundProjectId}/pages
 nibleaf://projects/{boundProjectId}/pages/{pageId}
 nibleaf://projects/{boundProjectId}/languages
-nibleaf://projects/{boundProjectId}/versions
 nibleaf://projects/{boundProjectId}/search/configuration
 nibleaf://projects/{boundProjectId}/usage
 nibleaf://projects/{boundProjectId}/entitlements

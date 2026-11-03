@@ -42,14 +42,12 @@ export function SiteAnalyticsProvider({
   projectId,
   path,
   language,
-  version,
   config,
 }: {
   children: ReactNode;
   projectId: string;
   path: string;
   language?: string;
-  version?: string;
   config?: ProjectConfig | null;
 }) {
   const { mutate: createEvent } = useCreateSiteAnalyticsEvent(projectId);
@@ -70,15 +68,13 @@ export function SiteAnalyticsProvider({
     [createEvent, projectId],
   );
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: another version is a distinct view of the same path.
   useEffect(() => {
     if (!path) return;
     const referrer = viewedDocuments.has(document) ? undefined : document.referrer || undefined;
     viewedDocuments.add(document);
     track({ name: 'page_view', path, referrer, language });
-  }, [language, path, track, version]);
+  }, [language, path, track]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: engagement belongs to one version of the page.
   useEffect(() => {
     if (!path) return;
     const started = performance.now();
@@ -106,7 +102,7 @@ export function SiteAnalyticsProvider({
       window.removeEventListener('resize', measureScroll);
       sendEngagement();
     };
-  }, [language, path, track, version]);
+  }, [language, path, track]);
 
   useEffect(() => {
     if (!path) return;

@@ -44,16 +44,16 @@ describe('siteRoutePath', () => {
 });
 
 describe('siteHref', () => {
-  it.each(['en', 'ar'])('omits the configured default %s when switching languages or following header/version links', (defaultCode) => {
+  it.each(['en', 'ar'])('omits the configured default %s when switching languages or following header links', (defaultCode) => {
     const lang = siteLanguageParam(defaultCode, defaultCode);
     expect(lang).toBeUndefined();
     for (const customOrigin of [undefined, 'https://docs.acme.com']) {
       origin.value = customOrigin;
       const base = customOrigin ? '' : '/sites/p1';
-      expect(siteHref('p1', 'translated-start', { lang, version: 'v2' })).toBe(`${base}/v2/translated-start`);
-      expect(siteHref('p1', '', { lang, version: 'v2' })).toBe(`${base}/v2`);
+      expect(siteHref('p1', 'translated-start', { lang })).toBe(`${base}/translated-start`);
+      expect(siteHref('p1', '', { lang })).toBe(base || '/');
       expect(siteHref('p1', 'changelog', { lang })).toBe(`${base}/changelog`);
-      expect(siteHref('p1', '/reference?tab=cli#request', { lang, version: 'v2' })).toBe(`${base}/v2/reference?tab=cli#request`);
+      expect(siteHref('p1', '/reference?tab=cli#request', { lang })).toBe(`${base}/reference?tab=cli#request`);
       expect(siteHref('p1', '/reference?lang=fr', { lang })).toBe(`${base}/reference?lang=fr`);
     }
   });
@@ -64,19 +64,15 @@ describe('siteHref', () => {
     expect(siteHref('p1', 'v2/start', { lang: siteLanguageParam('ar', 'en') })).toBe('/sites/p1/v2/start?lang=ar');
   });
   it('preserves an explicit target language on cross-language links', () => {
-    expect(siteHref('p1', '/arabic/intro?lang=ar&tab=cli#install', { lang: 'en', version: 'v2' })).toBe(
-      '/sites/p1/v2/arabic/intro?lang=ar&tab=cli#install',
-    );
+    expect(siteHref('p1', '/arabic/intro?lang=ar&tab=cli#install', { lang: 'en' })).toBe('/sites/p1/arabic/intro?lang=ar&tab=cli#install');
     origin.value = 'https://docs.acme.com';
     expect(siteHref('p1', '/guides/intro?lang=en', { lang: 'ar' })).toBe('/guides/intro?lang=en');
   });
 
-  it('builds app-origin hrefs with the language and version carried along', () => {
+  it('builds app-origin hrefs with the language carried along', () => {
     expect(siteHref('p1')).toBe('/sites/p1');
     expect(siteHref('p1', '/guides/intro/')).toBe('/sites/p1/guides/intro');
     expect(siteHref('p1', 'guides/intro', { lang: 'ar' })).toBe('/sites/p1/guides/intro?lang=ar');
-    expect(siteHref('p1', 'guides/intro', { lang: 'ar', version: 'v2' })).toBe('/sites/p1/v2/guides/intro?lang=ar');
-    expect(siteHref('p1', '', { version: 'v2' })).toBe('/sites/p1/v2');
   });
 
   it('percent-encodes non-ASCII path segments exactly once', () => {
@@ -87,7 +83,7 @@ describe('siteHref', () => {
     expect(siteHref('p1', '/%D8%A7%D9%84%D9%85%D8%B5%D8%A7%D8%AF%D9%82%D8%A9', { lang: 'ar' })).toBe(
       '/sites/p1/%D8%A7%D9%84%D9%85%D8%B5%D8%A7%D8%AF%D9%82%D8%A9?lang=ar',
     );
-    expect(siteHref('p1', 'api-الوصول', { version: 'v2' })).toBe('/sites/p1/v2/api-%D8%A7%D9%84%D9%88%D8%B5%D9%88%D9%84');
+    expect(siteHref('p1', 'api-الوصول')).toBe('/sites/p1/api-%D8%A7%D9%84%D9%88%D8%B5%D9%88%D9%84');
   });
 
   it('keeps authored anchors and query strings outside the encoded pathname', () => {

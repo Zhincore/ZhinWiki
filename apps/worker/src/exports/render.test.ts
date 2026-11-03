@@ -14,14 +14,12 @@ const snapshot: SiteSnapshot = {
     icon: null,
     config: null,
     languages: [{ code: 'ar', label: 'العربية', direction: 'RTL', isDefault: true, enabled: true, config: null }],
-    versions: [{ id: 'branch_main', name: 'main', slug: 'main', isDefault: true }],
   },
   generatedAt: '2026-08-16T00:00:00.000Z',
   pages: [
     {
       id: 'intro',
       parentId: null,
-      versionId: 'branch_main',
       languageCode: 'ar',
       kind: 'PAGE',
       title: 'مقدمة',
@@ -40,7 +38,6 @@ const snapshot: SiteSnapshot = {
     {
       id: 'setup',
       parentId: null,
-      versionId: 'branch_main',
       languageCode: 'ar',
       kind: 'PAGE',
       title: 'الإعداد',
@@ -95,14 +92,14 @@ describe('export renderers', () => {
     const page = { ...required(snapshot.pages[0]), content };
     const files = unzipSync(renderStaticHtml({ ...snapshot, pages: [page] }, assets).bytes);
 
-    expect(text(required(files['main/ar/intro/index.md']))).toBe(`# مقدمة\n\n${normalizePublicMarkdownContent(content)}\n`);
+    expect(text(required(files['ar/intro/index.md']))).toBe(`# مقدمة\n\n${normalizePublicMarkdownContent(content)}\n`);
   });
 
   it('rewrites internal links and allowlisted assets for offline static output', () => {
     const files = unzipSync(renderStaticHtml(snapshot, assets).bytes);
-    const intro = text(required(files['main/ar/intro/index.html']));
+    const intro = text(required(files['ar/intro/index.html']));
     expect(intro).toContain('href="../setup/index.html"');
-    expect(intro).toContain('src="../../../assets/logo.png"');
+    expect(intro).toContain('src="../../assets/logo.png"');
     expect(intro).toContain('dir="rtl"');
     expect(files['theme/theme.css']).toBeDefined();
     expect(files['theme/theme.js']).toBeDefined();
@@ -127,7 +124,7 @@ describe('export renderers', () => {
       pages: [intro, required(snapshot.pages[1]), englishSetup],
     };
     const files = unzipSync(renderStaticHtml(bilingual, []).bytes);
-    const html = text(required(files['main/ar/intro/index.html']));
+    const html = text(required(files['ar/intro/index.html']));
     expect(html).toContain('href="../../en/setup/index.html?from=guide&amp;lang=en#install"');
     expect(html).toContain('href="../setup/index.html"');
     expect(html).toContain('href="/setup?lang=fr"');
@@ -139,8 +136,8 @@ describe('export renderers', () => {
     expect(text(required(staticFiles['theme/theme.css']))).toContain('--accent:#4f46e5');
     expect(text(required(staticFiles['theme/theme.css']))).toContain("--font-body:'نسق عربي'");
     expect(text(required(staticFiles['theme/theme.css']))).toContain('--font-size:17px');
-    expect(text(required(staticFiles['main/ar/intro/index.html']))).toContain('data-theme-id="signal"');
-    expect(text(required(staticFiles['main/ar/intro/index.html']))).toContain('data-theme-shell="console"');
+    expect(text(required(staticFiles['ar/intro/index.html']))).toContain('data-theme-id="signal"');
+    expect(text(required(staticFiles['ar/intro/index.html']))).toContain('data-theme-shell="console"');
     expect(renderPdfHtml(themedSnapshot, assets)).toContain('--accent:#4f46e5');
 
     const markdownFiles = unzipSync(renderMarkdownZip(themedSnapshot, assets).bytes);
@@ -163,7 +160,7 @@ describe('export renderers', () => {
         project: { ...snapshot.project, config: { theme: { preset }, search: { placeholder: 'ابحث في الدليل' } } },
       } satisfies SiteSnapshot;
       const files = unzipSync(renderStaticHtml(themed, assets).bytes);
-      const html = text(required(files['main/ar/intro/index.html']));
+      const html = text(required(files['ar/intro/index.html']));
       for (const className of classes) expect(html).toContain(className);
       const ownClasses = new Set<string>(classes);
       for (const other of Object.values(expected)
@@ -205,36 +202,36 @@ describe('export renderers', () => {
       ],
     } satisfies SiteSnapshot;
     const files = unzipSync(renderStaticHtml(bilingual, assets).bytes);
-    const html = text(required(files['main/ar/intro/index.html']));
+    const html = text(required(files['ar/intro/index.html']));
 
-    expect(html).toContain('<link rel="canonical" href="/main/ar/intro/index.html">');
-    expect(html).toContain('hreflang="en" href="/main/en/intro/index.html"');
+    expect(html).toContain('<link rel="canonical" href="/ar/intro/index.html">');
+    expect(html).toContain('hreflang="en" href="/en/intro/index.html"');
     expect(html).toContain('<meta name="robots" content="index,follow">');
     expect(html).toContain('<meta property="og:type" content="article">');
     expect(html).toContain('<link rel="sitemap" type="application/xml" href="/sitemap.xml">');
-    expect(html).toContain('href="/main/ar/llms-full.txt"');
-    expect(html).toContain('rel="alternate" type="text/markdown" href="/main/ar/intro/index.md"');
-    expect(html).toContain('rel="describedby" href="/main/ar/llms.txt"');
+    expect(html).toContain('href="/ar/llms-full.txt"');
+    expect(html).toContain('rel="alternate" type="text/markdown" href="/ar/intro/index.md"');
+    expect(html).toContain('rel="describedby" href="/ar/llms.txt"');
     expect(html).toContain('<script type="application/ld+json">');
     expect(html).toContain('"@type":"TechArticle"');
     expect(html).toContain('id="التثبيت"');
     expect(html).toContain('href="#التثبيت"');
   });
 
-  it('emits root and language/version-scoped machine-readable discovery files', () => {
+  it('emits root and language-scoped machine-readable discovery files', () => {
     const files = unzipSync(renderStaticHtml(snapshot, assets).bytes);
     const rootIndex = text(required(files['llms.txt']));
     const rootFull = text(required(files['llms-full.txt']));
-    const scopedIndex = text(required(files['main/ar/llms.txt']));
-    const scopedFull = text(required(files['main/ar/llms-full.txt']));
+    const scopedIndex = text(required(files['ar/llms.txt']));
+    const scopedFull = text(required(files['ar/llms-full.txt']));
 
     expect(text(required(files['robots.txt']))).toBe('User-agent: OAI-SearchBot\nAllow: /\n\nUser-agent: *\nAllow: /\nSitemap: /sitemap.xml\n');
-    expect(text(required(files['sitemap.xml']))).toContain('<loc>/main/ar/intro/index.html</loc>');
-    expect(rootIndex).toContain('[مقدمة](main/ar/intro/index.md)');
+    expect(text(required(files['sitemap.xml']))).toContain('<loc>/ar/intro/index.html</loc>');
+    expect(rootIndex).toContain('[مقدمة](ar/intro/index.md)');
     expect(scopedIndex).toContain('[مقدمة](intro/index.md)');
-    expect(rootFull).toContain('Source: main/ar/intro/index.md');
+    expect(rootFull).toContain('Source: ar/intro/index.md');
     expect(scopedFull).toContain('Source: intro/index.md');
-    expect(text(required(files['main/ar/intro/index.md']))).toContain('# مقدمة');
+    expect(text(required(files['ar/intro/index.md']))).toContain('# مقدمة');
     expect(rootFull).not.toContain('globalThis.stolen');
     expect(rootFull).not.toContain('<script>');
   });
@@ -304,16 +301,16 @@ Before expression {globalThis.stolen({ nested: true })} after expression.
     const files = unzipSync(renderStaticHtml({ ...snapshot, pages: restrictedPages }, assets).bytes);
     expect(text(required(files['sitemap.xml']))).not.toContain('<url>');
     expect(text(required(files['llms.txt']))).not.toContain('[مقدمة]');
-    expect(files['main/ar/intro/index.md']).toBeUndefined();
-    expect(text(required(files['main/ar/intro/index.html']))).toContain('<meta name="robots" content="noindex,nofollow">');
-    expect(text(required(files['main/ar/setup/index.html']))).toContain('<link rel="canonical" href="https://example.com/setup">');
+    expect(files['ar/intro/index.md']).toBeUndefined();
+    expect(text(required(files['ar/intro/index.html']))).toContain('<meta name="robots" content="noindex,nofollow">');
+    expect(text(required(files['ar/setup/index.html']))).toContain('<link rel="canonical" href="https://example.com/setup">');
 
     const privateFiles = unzipSync(
       renderStaticHtml({ ...snapshot, project: { ...snapshot.project, config: { visibility: 'private' } } }, assets).bytes,
     );
     expect(text(required(privateFiles['robots.txt']))).toBe('User-agent: *\nDisallow: /\n');
     expect(text(required(privateFiles['llms-full.txt']))).toBe('');
-    expect(privateFiles['main/ar/intro/index.md']).toBeUndefined();
+    expect(privateFiles['ar/intro/index.md']).toBeUndefined();
   });
 
   it('does not execute raw published HTML in static archives', () => {
@@ -361,7 +358,7 @@ Before expression {globalThis.stolen({ nested: true })} after expression.
 
       expect(withoutCode(html)).not.toContain('[!');
       expect(html).toContain('<blockquote data-callout="tip">\n<p>استخدم <a href="../setup/index.html">دليل الإعداد</a>.</p>');
-      expect(html).toContain('src="../../../assets/logo.png"');
+      expect(html).toContain('src="../../assets/logo.png"');
       expect(html).toContain('<blockquote data-callout="warning">\n<p>Same-line warning</p>');
       expect(html).toContain('<blockquote data-callout="danger">\n<p>Danger zone</p>');
       expect(html).toContain('<blockquote data-callout="note">\n<blockquote data-callout="info">\n<p>Nested</p>');
@@ -373,7 +370,7 @@ Before expression {globalThis.stolen({ nested: true })} after expression.
 
     it('keeps markers out of static HTML, search text, and PDF HTML', () => {
       const files = unzipSync(renderStaticHtml(calloutSnapshot, assets).bytes);
-      const intro = text(required(files['main/ar/intro/index.html']));
+      const intro = text(required(files['ar/intro/index.html']));
       const css = text(required(files['theme/theme.css']));
       const search = text(required(files['theme/theme.js']));
       const pdf = renderPdfHtml(calloutSnapshot, assets);
@@ -398,7 +395,7 @@ Before expression {globalThis.stolen({ nested: true })} after expression.
 
     it('keeps the authored alert markers in the Markdown archive', () => {
       const files = unzipSync(renderMarkdownZip(calloutSnapshot, assets).bytes);
-      const markdown = text(required(files['main/ar/intro.md']));
+      const markdown = text(required(files['ar/intro.md']));
 
       expect(markdown).toContain('> [!TIP]\n> استخدم [دليل الإعداد](/setup).');
       expect(markdown).toContain('> [!warning] Same-line warning');
@@ -421,7 +418,7 @@ Before expression {globalThis.stolen({ nested: true })} after expression.
       },
     } as SiteSnapshot;
     const files = unzipSync(renderStaticHtml(malformed, assets).bytes);
-    const html = text(required(files['main/ar/intro/index.html']));
+    const html = text(required(files['ar/intro/index.html']));
     expect(html).not.toContain(' onmouseover="');
     expect(html).not.toContain(' autofocus="');
     expect(html).toContain('soft&quot; onmouseover=&quot;alert(1)');
@@ -465,7 +462,7 @@ Before expression {globalThis.stolen({ nested: true })} after expression.
     };
     const files = unzipSync(renderStaticHtml({ ...snapshot, pages: [...snapshot.pages, hidden] }, assets).bytes);
 
-    expect(files['main/ar/internal-plan/index.html']).toBeUndefined();
+    expect(files['ar/internal-plan/index.html']).toBeUndefined();
     expect(text(required(files['theme/theme.js']))).not.toContain('Embargoed roadmap details');
   });
 
@@ -506,7 +503,7 @@ Before expression {globalThis.stolen({ nested: true })} after expression.
 
   it('retains Markdown and published metadata in a snapshot-backed zip', () => {
     const files = unzipSync(renderMarkdownZip(snapshot, assets).bytes);
-    expect(text(required(files['main/ar/intro.md']))).toContain('[التالي](/setup)');
+    expect(text(required(files['ar/intro.md']))).toContain('[التالي](/setup)');
     expect(JSON.parse(text(required(files['project.json'])))).toMatchObject({ slug: 'guide', publishedAt: snapshot.generatedAt, pagesCount: 2 });
   });
 

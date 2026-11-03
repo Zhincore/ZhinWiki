@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { NavNode } from '@/hooks/api';
-import { isVersionIndependentNavNode, SiteNav } from './site-nav';
+import { SiteNav } from './site-nav';
 
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
 const roots: Array<ReturnType<typeof createRoot>> = [];
@@ -36,13 +36,6 @@ const toggleFor = (container: HTMLElement, title: string) =>
 // Collapsed subtrees stay in the DOM under a `hidden` list.
 const visibleTitles = (container: HTMLElement) =>
   [...container.querySelectorAll('a')].filter((anchor) => !anchor.closest('[hidden]')).map((anchor) => anchor.textContent);
-
-describe('isVersionIndependentNavNode', () => {
-  it('keeps synthetic OpenAPI navigation outside branch URL prefixes', () => {
-    expect(isVersionIndependentNavNode({ id: 'openapi:hash' })).toBe(true);
-    expect(isVersionIndependentNavNode({ id: 'page_123' })).toBe(false);
-  });
-});
 
 describe('SiteNav page subtrees', () => {
   it('collapses pages with subpages unless the current page is inside them', async () => {

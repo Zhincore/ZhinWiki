@@ -161,12 +161,6 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
 
   const { page, breadcrumbs, prev, next } = data;
   const language = data.activeLanguage ?? lang;
-  // Build links with the RESOLVED version, not the raw first-path-segment
-  // candidate the route passes in: for a page like `getting-started/quickstart`
-  // that candidate is a content segment, and prefixing it onto sibling links
-  // would produce `/getting-started/getting-started/…`.
-  const resolvedVersion = data.versions.find((item) => item.slug === data.activeVersion);
-  const versionPrefix = resolvedVersion && !resolvedVersion.isDefault ? resolvedVersion.slug : undefined;
   const defaultLanguage = data.languages.find((item) => item.isDefault)?.code;
   const navigationLanguage = data.activeLanguage !== defaultLanguage ? data.activeLanguage : undefined;
   // Article-level chrome strings follow the page's RESOLVED language (which can
@@ -206,10 +200,7 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
                   /
                 </span>
               ) : null}
-              <a
-                href={siteHref(projectId, crumb.path, { lang: navigationLanguage, version: versionPrefix })}
-                className="transition-opacity hover:opacity-80"
-              >
+              <a href={siteHref(projectId, crumb.path, { lang: navigationLanguage })} className="transition-opacity hover:opacity-80">
                 {crumb.title}
               </a>
             </span>
@@ -244,13 +235,13 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
       ) : null}
       <div className="mt-8">
         <Suspense fallback={null}>
-          <Markdown content={page.content} site={{ projectId, lang: language, defaultLanguage, version: versionPrefix }} />
+          <Markdown content={page.content} site={{ projectId, lang: language, defaultLanguage }} />
         </Suspense>
       </div>
 
       {readerActionsAfterNavigation ? null : (
         <ReaderActions
-          key={JSON.stringify([projectId, page.path, language, data.activeVersion])}
+          key={JSON.stringify([projectId, page.path, language])}
           projectId={projectId}
           path={page.path}
           language={language}
@@ -269,7 +260,7 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
         >
           {prev ? (
             <a
-              href={siteHref(projectId, prev.path, { lang: navigationLanguage, version: versionPrefix })}
+              href={siteHref(projectId, prev.path, { lang: navigationLanguage })}
               className="group inline-flex min-w-0 items-center gap-1.5 font-medium text-muted-foreground transition-colors hover:text-primary"
             >
               <ChevronLeft className="size-4 shrink-0 rtl:-scale-x-100" />
@@ -280,7 +271,7 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
           )}
           {next ? (
             <a
-              href={siteHref(projectId, next.path, { lang: navigationLanguage, version: versionPrefix })}
+              href={siteHref(projectId, next.path, { lang: navigationLanguage })}
               className="group inline-flex min-w-0 items-center gap-1.5 text-end font-medium text-muted-foreground transition-colors hover:text-primary"
             >
               <span className="truncate">{next.title}</span>
@@ -293,7 +284,7 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
       ) : null}
       {readerActionsAfterNavigation ? (
         <ReaderActions
-          key={JSON.stringify([projectId, page.path, language, data.activeVersion])}
+          key={JSON.stringify([projectId, page.path, language])}
           projectId={projectId}
           path={page.path}
           language={language}

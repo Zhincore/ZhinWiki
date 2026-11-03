@@ -35,8 +35,6 @@ const data = (overrides: Partial<SitePage> = {}): SitePage => ({
     config: { mode: 'center' },
   },
   activeLanguage: 'en',
-  activeVersion: 'main',
-  versions: [{ id: 'version-1', name: 'Main', slug: 'main', isDefault: true }],
   languageConfig: null,
   languages: [
     { code: 'en', isDefault: true, path: 'start' },
@@ -48,7 +46,7 @@ const data = (overrides: Partial<SitePage> = {}): SitePage => ({
   ...overrides,
 });
 
-it.each(['page', 'language', 'version'])('resets reader feedback and URL when %s changes', async (change) => {
+it.each(['page', 'language'])('resets reader feedback and URL when %s changes', async (change) => {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -64,9 +62,8 @@ it.each(['page', 'language', 'version'])('resets reader feedback and URL when %s
     ...initial,
     page: { ...initial.page, path: change === 'page' ? 'next' : 'start' },
     activeLanguage: change === 'language' ? 'ar' : 'en',
-    activeVersion: change === 'version' ? 'v2' : 'main',
   };
-  const url = `/sites/project-1/${change === 'version' ? 'v2/' : ''}${next.page.path}${change === 'language' ? '?lang=ar' : ''}`;
+  const url = `/sites/project-1/${next.page.path}${change === 'language' ? '?lang=ar' : ''}`;
   window.history.replaceState(null, '', url);
   await act(async () => root.render(<SitePageView data={next} projectId="project-1" />));
   expect(container.querySelector('button')).not.toBeNull();

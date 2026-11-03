@@ -31,8 +31,6 @@ const base = (over: Partial<SitePage> = {}): SitePage => ({
     config: { visibility: 'public', seo: { metaTitle: 'Acme', metaDescription: 'Site SEO desc', socialImage: 'https://cdn/site-og.png' } },
   },
   activeLanguage: 'en',
-  activeVersion: 'main',
-  versions: [{ id: 'main', name: 'main', slug: 'main', isDefault: true }],
   page: {
     id: 'pg',
     createdAt: '2025-12-15T00:00:00.000Z',
@@ -398,9 +396,7 @@ describe('siteHead analytics scripts', () => {
     },
     nav: [],
     languages: [],
-    versions: [],
     activeLanguage: 'en',
-    activeVersion: 'main',
     languageConfig,
     version: 1,
     generatedAt: '2026-07-01T00:00:00.000Z',

@@ -3,9 +3,9 @@ import {
   buildNavTree,
   buildSnapshot,
   defaultLanguage,
-  defaultVersionOnly,
   explicitPageDescription,
   extractHeadings,
+  hasLegacyVersions,
   interpolateVariables,
   isPageTranslation,
   mergeLanguageChrome,
@@ -14,6 +14,7 @@ import {
   projectSlugFromSubdomainHost,
   publicLanguages,
   publicSiteSnapshot,
+  readSnapshot,
   resolvePageCategory,
   type SiteSnapshot,
   type SnapshotLanguage,
@@ -73,7 +74,6 @@ describe('extractHeadings', () => {
 
 const page = (over: Partial<SnapshotPage> & Pick<SnapshotPage, 'id'>): SnapshotPage => ({
   parentId: null,
-  versionId: 'v-main',
   updatedAt: '2026-01-01T00:00:00.000Z',
   languageCode: 'en',
   kind: 'PAGE',
@@ -198,11 +198,11 @@ describe('buildSnapshot', () => {
     hidden: false,
   };
 
-  it('preserves the required page language, version, and timestamp', () => {
+  it('preserves the required page language and timestamp', () => {
     const snap = buildSnapshot(projectRow, [rawPage], '2026-01-01');
     expect(snap.pages[0]?.kind).toBe('PAGE');
     expect(snap.pages[0]?.languageCode).toBe('en');
-    expect(snap.pages[0]?.versionId).toBe('branch_main');
+    expect(snap.pages[0]).not.toHaveProperty('versionId');
     expect(snap.pages[0]?.updatedAt).toBe('2026-01-01T00:00:00.000Z');
   });
   it('freezes theme schema v1 settings into the immutable deployment snapshot', () => {
@@ -266,8 +266,8 @@ describe('buildSnapshot', () => {
       {
         ...projectRow,
         branches: [
-          { id: 'branch_main', name: 'main', isDefault: true },
-          { id: 'branch_cr', name: 'cr-1', isDefault: false },
+          { id: 'branch_main', isDefault: true },
+          { id: 'branch_cr', isDefault: false },
         ],
       },
       [
@@ -276,22 +276,39 @@ describe('buildSnapshot', () => {
       ],
       '2026-01-01',
     );
-    expect(snap.project.versions.map((version) => version.id)).toEqual(['branch_main']);
     expect(snap.pages.map((page) => page.id)).toEqual(['a']);
   });
   it('rejects pages from a branch outside the project', () => {
     expect(() => buildSnapshot(projectRow, [{ ...rawPage, id: 'x', branchId: 'branch_elsewhere' }], '2026-01-01')).toThrow(/outside project/);
   });
-  it('strips non-default versions from an older snapshot', () => {
+  it('keeps only default-version pages of a snapshot published with docs versions', () => {
     const snap = buildSnapshot(projectRow, [{ ...rawPage, id: 'a', branchId: 'branch_main' }], '2026-01-01');
+    const page = snap.pages[0] as SnapshotPage;
     const old = {
       ...snap,
-      project: { ...snap.project, versions: [...snap.project.versions, { id: 'v2', name: 'v2', slug: 'v2', isDefault: false }] },
-      pages: [...snap.pages, { ...(snap.pages[0] as SnapshotPage), id: 'draft', versionId: 'v2' }],
+      project: {
+        ...snap.project,
+        config: { search: { maxResults: 5, versionFilterEnabled: false } },
+        versions: [
+          { id: 'branch_main', name: 'main', slug: 'main', isDefault: true },
+          { id: 'v2', name: 'v2', slug: 'v2', isDefault: false },
+        ],
+      },
+      pages: [
+        { ...page, versionId: 'branch_main' },
+        { ...page, id: 'draft', versionId: 'v2' },
+      ],
     };
-    const stripped = defaultVersionOnly(old);
-    expect(stripped.project.versions).toEqual(snap.project.versions);
-    expect(stripped.pages.map((page) => page.id)).toEqual(['a']);
+    expect(hasLegacyVersions(old)).toBe(true);
+    const read = readSnapshot(old);
+    expect(read.project).not.toHaveProperty('versions');
+    expect(read.project.config).toEqual({ search: { maxResults: 5 } });
+    expect(read.pages).toEqual([page]);
+  });
+  it('reads a current snapshot unchanged', () => {
+    const snap = buildSnapshot(projectRow, [{ ...rawPage, id: 'a', branchId: 'branch_main' }], '2026-01-01');
+    expect(hasLegacyVersions(snap)).toBe(false);
+    expect(readSnapshot(snap)).toBe(snap);
   });
   it('interpolates {{ variables }} from config into page title/description/content at build time', () => {
     const snap = buildSnapshot(
@@ -505,7 +522,6 @@ describe('publicSiteSnapshot', () => {
         { code: 'en', label: 'English', direction: 'LTR', isDefault: true, enabled: true, config: null },
         { code: 'ar', label: 'العربية', direction: 'RTL', isDefault: false, enabled: false, config: null },
       ],
-      versions: [{ id: 'v1', name: 'main', slug: 'main', isDefault: true }],
     },
     pages: [page({ id: 'en1', languageCode: 'en' }), page({ id: 'ar1', languageCode: 'ar' })],
     generatedAt: '2026-01-01',

@@ -201,7 +201,7 @@ describe('published reader search', () => {
     expect(document.body.textContent).toContain('searchPrompt');
   });
 
-  it.each(['query', 'language', 'version'])('hides AI answers and citations when their %s scope changes', async (scope) => {
+  it.each(['query', 'language'])('hides AI answers and citations when their %s scope changes', async (scope) => {
     mocks.answer.mockReturnValue({
       mutate: mocks.mutate,
       variables: { projectId: 'docs', query: 'setup', language: 'en' },
@@ -218,7 +218,7 @@ describe('published reader search', () => {
     expect(document.body.textContent).toContain('The saved answer');
     expect(document.body.textContent).toContain('Saved source');
     if (scope === 'query') await typeQuery('billing');
-    else await rerender(scope === 'language' ? { lang: 'ar' } : { version: 'v2' });
+    else await rerender({ lang: 'ar' });
     expect(document.body.textContent).not.toContain('The saved answer');
     expect(document.body.textContent).not.toContain('Saved source');
   });
@@ -247,15 +247,15 @@ describe('published reader search', () => {
   });
 });
 
-it('routes a selected search result with its language and selected version', async () => {
+it('routes a selected search result with its language', async () => {
   window.history.replaceState(null, '', '/sites/docs/start');
   mocks.search.mockReturnValue({ data: [{ ...hit, language: 'ar' }], isFetching: false, error: null });
-  await render({ lang: 'ar', version: 'v2' });
+  await render({ lang: 'ar' });
   await typeQuery('Setup');
   const result = document.querySelector<HTMLElement>('[role="option"]');
   if (!result) throw new Error('Missing search result');
   await act(async () => result.click());
-  expect(mocks.navigate).toHaveBeenCalledExactlyOnceWith({ href: '/sites/docs/v2/setup?lang=ar' });
+  expect(mocks.navigate).toHaveBeenCalledExactlyOnceWith({ href: '/sites/docs/setup?lang=ar' });
   window.history.replaceState(null, '', '/');
 });
 

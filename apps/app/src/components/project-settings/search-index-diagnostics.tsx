@@ -131,11 +131,10 @@ function DiagnosticsContent({
         <Badge variant={healthVariant(data.health)}>{healthLabel}</Badge>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Metric label={t('settings.search.diagnostics.chunks')} value={data.corpus.chunks} />
         <Metric label={t('settings.search.diagnostics.pages')} value={data.corpus.pages} />
         <Metric label={t('settings.search.diagnostics.languages')} value={data.corpus.languages.length} />
-        <Metric label={t('settings.search.diagnostics.versions')} value={data.corpus.versions.length} />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
@@ -151,14 +150,10 @@ function DiagnosticsContent({
             value={data.corpus.languages.map((item) => `${item.code} · ${item.count}`).join(', ') || t('settings.search.diagnostics.none')}
           />
           <Detail
-            label={t('settings.search.diagnostics.versions')}
-            value={data.corpus.versions.map((item) => `${item.slug} · ${item.count}`).join(', ') || t('settings.search.diagnostics.none')}
-          />
-          <Detail
             label={t('settings.search.diagnostics.lastRun')}
             value={data.latestRun?.completedAt ? formatCompletedAt(data.latestRun.completedAt) : t('settings.search.diagnostics.none')}
           />
-          {data.corpus.distributionTruncated.languages || data.corpus.distributionTruncated.versions ? (
+          {data.corpus.distributionTruncated.languages ? (
             <p className="text-muted-foreground text-xs">{t('settings.search.diagnostics.distributionBounded')}</p>
           ) : null}
         </DetailCard>
@@ -193,7 +188,7 @@ function DiagnosticsContent({
                   <p className="mt-0.5 text-muted-foreground">{t('settings.search.diagnostics.ordinal', { ordinal: item.ordinal })}</p>
                 </div>
                 <span className="text-muted-foreground" dir="ltr">
-                  {item.language} · {item.versionSlug}
+                  {item.language}
                 </span>
                 <Badge variant={item.status === 'failed' ? 'destructive' : 'outline'}>
                   {item.errorCode
@@ -218,7 +213,7 @@ function DiagnosticsContent({
         ) : (
           <div className="divide-y">
             {data.samples.items.map((item) => (
-              <div className="grid gap-1 px-4 py-3 text-xs sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-4" key={item.pointId}>
+              <div className="grid gap-1 px-4 py-3 text-xs sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4" key={item.pointId}>
                 <div className="min-w-0">
                   <p className="truncate font-mono font-medium" dir="ltr">
                     {item.pageId}
@@ -228,9 +223,6 @@ function DiagnosticsContent({
                 <span className="text-muted-foreground" dir="ltr">
                   {item.language}
                 </span>
-                <Badge dir="ltr" variant="outline">
-                  {item.versionSlug}
-                </Badge>
               </div>
             ))}
           </div>
@@ -298,7 +290,7 @@ function DiagnosticsSkeleton() {
   return (
     <div className="space-y-4">
       <Skeleton className="h-12 w-full" />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         {['a', 'b', 'c', 'd'].map((key) => (
           <Skeleton className="h-20" key={key} />
         ))}

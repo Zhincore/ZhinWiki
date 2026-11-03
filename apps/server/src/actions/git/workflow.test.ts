@@ -102,7 +102,6 @@ const currentSnapshot = {
     icon: null,
     config: null,
     languages: [{ code: 'en', label: 'English', direction: 'LTR' as const, isDefault: true, config: null }],
-    versions: [{ id: 'branch-1', name: 'Main', slug: 'main', isDefault: true }],
   },
   pages: [],
   generatedAt: '2026-08-23T00:00:00.000Z',
@@ -321,7 +320,6 @@ describe('processGitOperation', () => {
     const page = {
       id: 'page-1',
       parentId: null,
-      versionId: 'branch-1',
       languageCode: 'en',
       kind: 'PAGE' as const,
       title: 'Welcome',

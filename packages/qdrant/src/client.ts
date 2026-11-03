@@ -73,20 +73,19 @@ export interface QdrantClientOptions {
   vectorSize?: number;
 }
 
-const requiredRetrievalFields = ['project_id', 'deployment_id', 'version_slug', 'language', 'visibility', 'visible'] as const;
+const requiredRetrievalFields = ['project_id', 'deployment_id', 'language', 'visibility', 'visible'] as const;
 const pointPayloadSchema = z.record(z.string(), z.unknown());
 const diagnosticPayloadSchema = z.object({
   page_id: z.string(),
   ordinal: z.number().int().nonnegative(),
   language: z.string(),
-  version_slug: z.string(),
 });
 const namedVectorSchema = z.object({
   dense: z.array(z.number()),
   bm25: z.object({ indices: z.array(z.number()), values: z.array(z.number()) }),
 });
 const facetHitSchema = z.object({ value: z.union([z.string(), z.number(), z.boolean()]), count: z.number().int().nonnegative() });
-const diagnosticPayloadFields = ['page_id', 'ordinal', 'language', 'version_slug'] as const;
+const diagnosticPayloadFields = ['page_id', 'ordinal', 'language'] as const;
 
 const matchCondition = (condition: QdrantMatchCondition | QdrantHasIdCondition): condition is QdrantMatchCondition => 'key' in condition;
 
@@ -158,7 +157,6 @@ export class QdrantClient {
         field_schema: { type: 'keyword', is_tenant: true },
       });
       await this.sdk.createPayloadIndex(this.collection, { wait: true, field_name: 'deployment_id', field_schema: 'keyword' });
-      await this.sdk.createPayloadIndex(this.collection, { wait: true, field_name: 'version_slug', field_schema: 'keyword' });
       await this.sdk.createPayloadIndex(this.collection, { wait: true, field_name: 'language', field_schema: 'keyword' });
       await this.sdk.createPayloadIndex(this.collection, { wait: true, field_name: 'visibility', field_schema: 'keyword' });
       await this.sdk.createPayloadIndex(this.collection, { wait: true, field_name: 'page_id', field_schema: 'keyword' });
@@ -294,7 +292,7 @@ export class QdrantClient {
     return result.count;
   }
 
-  async facetCounts(filter: QdrantFilter, key: 'language' | 'version_slug', limit: number, signal?: AbortSignal): Promise<QdrantFacetCount[]> {
+  async facetCounts(filter: QdrantFilter, key: 'language', limit: number, signal?: AbortSignal): Promise<QdrantFacetCount[]> {
     assertTenantFilter(filter);
     ensureNotAborted(signal);
     const result = await this.sdk.facet(this.alias, { key, filter, limit, exact: true });

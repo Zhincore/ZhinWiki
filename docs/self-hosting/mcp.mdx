@@ -88,8 +88,8 @@ capability.
 ## Current capability boundary
 
 The capability resource is authoritative. On this release the stable surface
-includes project metadata; page metadata and authored page content; languages
-and versions; aggregate analytics without search terms; search configuration and
+includes project metadata; published page metadata and authored page content;
+languages; aggregate analytics without search terms; search configuration and
 content-free index diagnostics; exact aggregate usage and advisory entitlement
 summaries; add-on catalog, state, and audit reads; safe theme template/catalog
 metadata and non-writing import preview; redacted export and deployment
@@ -98,7 +98,7 @@ connection, and Git status reads.
 
 The currently issuable domain scopes are `search:read`, `usage:read`,
 `entitlements:read`, `addons:read`, `themes:read`, and `integrations:read`, in
-addition to the project/page/language/version/analytics/export/deployment reads.
+addition to the project/page/language/analytics/export/deployment reads.
 No new-domain write scope, `usage:export`, search reindex, integration
 verification/deletion, credential, or payment scope is issuable through this
 release. `exports:read` remains the separate redacted export-job read surface.
@@ -110,7 +110,6 @@ nibleaf://projects/{boundProjectId}
 nibleaf://projects/{boundProjectId}/pages
 nibleaf://projects/{boundProjectId}/pages/{pageId}
 nibleaf://projects/{boundProjectId}/languages
-nibleaf://projects/{boundProjectId}/versions
 nibleaf://projects/{boundProjectId}/search/configuration
 nibleaf://projects/{boundProjectId}/usage
 nibleaf://projects/{boundProjectId}/entitlements

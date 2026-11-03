@@ -3,7 +3,7 @@ import { THEME_STORAGE_KEY } from '@nibleaf/design-system/theme';
 import { resolveLocale } from '@nibleaf/i18n/locales';
 import { deploy_close } from '@nibleaf/i18n/messages';
 import { siteT } from '@nibleaf/i18n/site';
-import { createFileRoute, Outlet, rootRouteId, useLoaderData, useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
+import { createFileRoute, Outlet, rootRouteId, useLoaderData, useNavigate, useRouterState } from '@tanstack/react-router';
 import { BookOpen, ExternalLink, Link2, Moon, Search, Sun } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
@@ -17,10 +17,9 @@ import { SiteAnalyticsConsent } from '@/components/site/site-analytics-consent';
 import { SiteBanner } from '@/components/site/site-banner';
 import { firstLeafPath, SiteNav } from '@/components/site/site-nav';
 import { SiteSearch } from '@/components/site/site-search';
-import { VersionSwitcher } from '@/components/site/version-switcher';
 import { getSiteFn } from '@/functions/site';
 import { ApiResponseError } from '@/hooks/api/client-helpers';
-import type { ProjectConfig, SiteShell } from '@/hooks/api/types';
+import type { ProjectConfig } from '@/hooks/api/types';
 import { useTenancy } from '@/hooks/use-tenancy';
 import { QueryProvider } from '@/integrations/tanstack-query/root-provider';
 import { loadedBrand, useBrand } from '@/lib/brand';
@@ -38,19 +37,13 @@ export const Route = createFileRoute('/sites/$projectId')({
   // The active language lives in the URL so it survives reloads and is shareable.
   validateSearch: (search) => z.object({ lang: z.string().min(1).optional().catch(undefined) }).parse(search),
   loaderDeps: ({ search }) => ({ lang: search.lang }),
-  // Version changes explicitly invalidate this shell; ordinary page clicks reuse it.
+  // Ordinary page clicks reuse the shell; a language change reloads it.
   shouldReload: false,
   // Fetch the site shell on the server so the chrome (nav, branding) is in the
-  // initial HTML; the result also feeds site-level SEO tags via head(). The
-  // first path segment is passed as a version candidate so versioned URLs
-  // (`/sites/:id/v2/...`) SSR with that version's nav — the server ignores
-  // candidates that aren't real version slugs.
-  loader: async ({ params, deps, location }) => {
+  // initial HTML; the result also feeds site-level SEO tags via head().
+  loader: async ({ params, deps }) => {
     try {
-      const rest = siteRoutePath(location.pathname).replace(/\/+$/, '');
-      const segment = rest.split('/')[0];
-      const candidate = segment && rest !== 'changelog' ? decodeURIComponent(segment) : undefined;
-      const site = await getSiteFn({ data: { projectId: params.projectId, language: deps.lang, version: candidate } });
+      const site = await getSiteFn({ data: { projectId: params.projectId, language: deps.lang } });
       return { site, siteOrigin: customDomainOrigin() };
     } catch (error) {
       if (!(error instanceof ApiResponseError) || error.status !== 404) throw error;
@@ -104,7 +97,6 @@ function SiteChrome() {
     const segments = siteRootSegments(site);
     return (segment: string) => segments.has(segment);
   }, [site, tenancy, homepage, projectId]);
-  const router = useRouter();
   const announcement = useSiteLinkNavigation(projectId, ownsRootSegment);
   const brand = useBrand();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -126,36 +118,12 @@ function SiteChrome() {
   const pathname = committedLocation.pathname;
   const currentPath = decodeURIComponent(siteRoutePath(pathname)).replace(/\/+$/, '');
   const isChangelog = currentPath === 'changelog';
-  const currentVersion = site?.versions.find((item) => item.slug === site.activeVersion) ?? site?.versions.find((item) => item.isDefault);
-  const pathVersion = site?.versions.find((item) => item.slug === currentPath.split('/')[0]);
-  const resolvedVersion = pathVersion ?? site?.versions.find((item) => item.isDefault);
-  const resolvedVersionSlug = resolvedVersion?.slug;
-  const attemptedVersion = useRef<{ key: string; site: SiteShell } | undefined>(undefined);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a new pathname retries an interrupted fetch for the same version.
-  useEffect(() => {
-    if (!site || !resolvedVersionSlug) return;
-    if (site.activeVersion === resolvedVersionSlug) {
-      attemptedVersion.current = undefined;
-      return;
-    }
-    const attempt = JSON.stringify([projectId, lang, resolvedVersionSlug]);
-    const previous = attemptedVersion.current;
-    // A fresh shell can refuse a version; an unchanged shell can mean an interrupted fetch.
-    if (previous?.key === attempt && previous.site !== site) return;
-    attemptedVersion.current = { key: attempt, site };
-    void router.invalidate({ filter: (match) => match.routeId === Route.id, sync: true });
-  }, [site, resolvedVersionSlug, pathname, router, projectId, lang]);
-  const activeVersionPrefix = currentVersion && !currentVersion.isDefault ? currentVersion.slug : undefined;
-  const contentPath = pathVersion ? currentPath.slice(pathVersion.slug.length).replace(/^\/+/, '') : currentPath;
   // The home route (empty path) renders the site's first page server-side, so
   // highlight that page's nav entry rather than leaving the sidebar inert.
-  const effectiveCurrentPath = contentPath || firstLeafPath(site?.nav ?? []) || '';
-  const shellMatchesVersion = !resolvedVersionSlug || site?.activeVersion === resolvedVersionSlug;
-  const analyticsPath = contentPath || (shellMatchesVersion ? effectiveCurrentPath : '');
+  const effectiveCurrentPath = currentPath || firstLeafPath(site?.nav ?? []) || '';
 
   const config: ProjectConfig | null = site?.project.config ?? null;
   const languages = site?.languages ?? [];
-  const versions = site?.versions ?? [];
   // Resolve the active language: URL param → server-reported active → default → first.
   const activeLanguage = useMemo(() => {
     const code = lang ?? site?.activeLanguage;
@@ -331,26 +299,19 @@ function SiteChrome() {
     const targetLanguage = siteLanguageParam(code, defaultLanguage);
     const alternate = pageAlternates.find((item) => item.code === code && item.path);
     if (!isChangelog && alternate?.path) {
-      navigate({ href: siteHref(projectId, alternate.path, { lang: targetLanguage, version: activeVersionPrefix }) });
+      navigate({ href: siteHref(projectId, alternate.path, { lang: targetLanguage }) });
       return;
     }
     navigate({ search: (prev) => ({ ...prev, lang: targetLanguage }) });
   };
-  const changeVersion = (slug: string) => {
-    const defaultVersion = versions.find((item) => item.isDefault);
-    const targetPrefix = defaultVersion?.slug === slug ? '' : slug;
-    const targetPath = [targetPrefix, isChangelog ? '' : contentPath].filter(Boolean).join('/');
-    navigate({ href: siteHref(projectId, targetPath, { lang: navigationLanguage }) });
-  };
-  const activeVersion = site?.activeVersion ?? versions.find((item) => item.isDefault)?.slug ?? '';
-  const sitePath = (path = '') => siteHref(projectId, path, { lang: navigationLanguage, version: activeVersionPrefix });
+  const sitePath = (path = '') => siteHref(projectId, path, { lang: navigationLanguage });
 
   // Only configured navigation renders — the chrome imposes no IA of its own.
   // Root-relative hrefs are site-internal: resolve them to the site base (and
-  // keep the active language/version) so `/guides`-style links work on both
+  // keep the active language) so `/guides`-style links work on both
   // path-based (/sites/:id) and custom-domain serving.
   const resolveNavHref = (href: string): string =>
-    href.startsWith('/') && !href.startsWith('//') ? siteHref(projectId, href, { lang: navigationLanguage, version: activeVersionPrefix }) : href;
+    href.startsWith('/') && !href.startsWith('//') ? siteHref(projectId, href, { lang: navigationLanguage }) : href;
   const isNavActive = (href: string): boolean => {
     if (!href.startsWith('/') || href.startsWith('//')) {
       return false;
@@ -374,7 +335,7 @@ function SiteChrome() {
   ];
 
   return (
-    <SiteAnalyticsProvider projectId={projectId} path={analyticsPath} language={analyticsLanguage} version={resolvedVersionSlug} config={config}>
+    <SiteAnalyticsProvider projectId={projectId} path={effectiveCurrentPath} language={analyticsLanguage} config={config}>
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-site-route-announcer>
         {announcement}
       </div>
@@ -406,7 +367,6 @@ function SiteChrome() {
                   projectId={projectId}
                   currentPath={effectiveCurrentPath}
                   lang={navigationLanguage}
-                  version={activeVersionPrefix}
                   label={t('docs')}
                   closeLabel={deploy_close(undefined, { locale: resolveLocale(activeLanguage?.code) ?? 'en' })}
                   toggleLabel={t('toggleSubpages')}
@@ -488,7 +448,6 @@ function SiteChrome() {
 
                 <div className="ms-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5 sm:flex-nowrap">
                   <LanguageSwitcher languages={languages} activeCode={activeLanguage?.code ?? ''} onChange={changeLanguage} />
-                  <VersionSwitcher versions={versions} activeSlug={activeVersion} onChange={changeVersion} lang={activeLanguage?.code} />
                   <button
                     className="grid size-9 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     onClick={toggleSiteTheme}
@@ -564,7 +523,6 @@ function SiteChrome() {
                 projectId={projectId}
                 currentPath={effectiveCurrentPath}
                 lang={navigationLanguage}
-                version={activeVersionPrefix}
                 toggleLabel={t('toggleSubpages')}
               />
             </>
@@ -640,12 +598,9 @@ function SiteChrome() {
                   lang={activeLanguage?.code}
                   defaultLanguage={defaultLanguage}
                   direction={isRtl ? 'rtl' : 'ltr'}
-                  version={activeVersionPrefix}
                   placeholder={config?.search?.placeholder}
                   hotkey={searchHotkey}
                   maxResults={config?.search?.maxResults}
-                  versions={versions}
-                  versionFilterEnabled={config?.search?.versionFilterEnabled !== false}
                   aiAnswers={site?.capabilities?.answer === true}
                 />
               ) : null}

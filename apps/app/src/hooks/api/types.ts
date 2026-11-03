@@ -415,9 +415,7 @@ export interface SiteShell {
   nav: NavNode[];
   /** Only ENABLED languages — the server filters disabled ones out. */
   languages: Array<{ code: string; label: string; direction: 'LTR' | 'RTL'; isDefault: boolean; enabled?: boolean }>;
-  versions: Array<{ id: string; name: string; slug: string; isDefault: boolean }>;
   activeLanguage: string;
-  activeVersion: string;
   /** The ACTIVE language's config (localized site name/description + SEO
    *  defaults) — lets the chrome and site-level head localize the brand. */
   languageConfig: PublishedLanguageConfig | null;
@@ -455,9 +453,6 @@ export interface SitePage {
   };
   /** The language the page actually resolved in (drives canonical/og/hreflang). */
   activeLanguage: string;
-  /** The docs version the page resolved in. */
-  activeVersion: string;
-  versions: SiteShell['versions'];
   /** SEO defaults of the page's language (layered under the page's own SEO). */
   languageConfig: PublishedLanguageConfig | null;
   /** hreflang alternates: `path` is the page's URL in that language, or null

@@ -51,12 +51,12 @@ describe('app API transport origins', () => {
     const transport = vi.fn<typeof fetch>(async () => Response.json({ data: {} }));
     vi.stubGlobal('fetch', transport);
     const { api } = await import('./api');
-    await api.public.sites[':id'].page.$get({ param: { id: 'synthetic-site' }, query: { path: '/المقدمة', lang: 'ar', version: '2' } });
+    await api.public.sites[':id'].page.$get({ param: { id: 'synthetic-site' }, query: { path: '/المقدمة', lang: 'ar' } });
     const [input, init] = transport.mock.calls[0] as unknown as [string, RequestInit];
     const target = new URL(input);
     expect(target.origin).toBe(`http://localhost:${internalPort}`);
     expect(target.pathname).toBe('/api/public/sites/synthetic-site/page');
-    expect(Object.fromEntries(target.searchParams)).toEqual({ path: '/المقدمة', lang: 'ar', version: '2' });
+    expect(Object.fromEntries(target.searchParams)).toEqual({ path: '/المقدمة', lang: 'ar' });
     expect(init.credentials).toBe('include');
     expect(new Headers(init.headers).get('x-nibleaf-locale')).toBe('ar');
     await import('./auth-client');

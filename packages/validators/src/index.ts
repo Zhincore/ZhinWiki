@@ -109,7 +109,6 @@ export const searchConfigurationSchema = z
   .object({
     maxResults: z.number().int().min(SEARCH_MAX_RESULTS.min).max(SEARCH_MAX_RESULTS.max).default(SEARCH_MAX_RESULTS.default),
     filtersEnabled: z.boolean().default(true),
-    versionFilterEnabled: z.boolean().default(true),
     aiAnswers: z.boolean().default(false),
     hotkey: z.enum(['cmdk', 'slash']).default('cmdk'),
     placeholder: z.string().trim().max(80).optional(),
@@ -148,7 +147,6 @@ const searchIndexSampleSchema = z
     pageId: z.string(),
     ordinal: z.number().int().nonnegative(),
     language: z.string(),
-    versionSlug: z.string(),
     status: z.enum(['indexed', 'stale', 'failed']),
     errorCode: z.string().max(80).optional(),
   })
@@ -182,8 +180,7 @@ export const searchIndexDiagnosticsResultSchema = z
         chunks: z.number().int().nonnegative().nullable(),
         pages: z.number().int().nonnegative().nullable(),
         languages: z.array(z.object({ code: z.string(), count: z.number().int().nonnegative() }).strict()).max(100),
-        versions: z.array(z.object({ slug: z.string(), count: z.number().int().nonnegative() }).strict()).max(100),
-        distributionTruncated: z.object({ languages: z.boolean(), versions: z.boolean() }).strict(),
+        distributionTruncated: z.object({ languages: z.boolean() }).strict(),
       })
       .strict(),
     latestRun: z
@@ -314,7 +311,6 @@ export const projectConfigSchema = z
         hotkey: z.enum(['cmdk', 'slash']).optional(),
         maxResults: z.number().int().min(SEARCH_MAX_RESULTS.min).max(SEARCH_MAX_RESULTS.max).optional(),
         filtersEnabled: z.boolean().optional(),
-        versionFilterEnabled: z.boolean().optional(),
         aiAnswers: z.boolean().optional(),
       })
       .strict()
@@ -807,7 +803,6 @@ export const searchAnswerBody = z
   .object({
     q: z.string().trim().min(2).max(500),
     lang: z.string().trim().min(2).max(35).optional(),
-    version: z.string().trim().min(1).max(120).optional(),
   })
   .strict();
 

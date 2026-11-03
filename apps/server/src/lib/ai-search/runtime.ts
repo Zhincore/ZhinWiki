@@ -29,7 +29,6 @@ const qdrant = getQdrantClient();
 const indexedChunkPayloadSchema = z.object({
   project_id: z.string(),
   deployment_id: z.string(),
-  version_slug: z.string(),
   language: z.string(),
   visibility: z.enum(['public', 'private']),
   visible: z.literal(true),
@@ -67,7 +66,6 @@ export const filterForSearchScope = (scope: SearchScope): QdrantFilter | null =>
     must: [
       { key: 'project_id', match: { value: scope.projectId } },
       { key: 'deployment_id', match: { value: scope.deploymentId } },
-      { key: 'version_slug', match: { value: scope.versionSlug } },
       { key: 'language', match: { value: scope.language } },
       { key: 'visibility', match: { value: scope.visibility } },
       { key: 'visible', match: { value: true } },
@@ -85,7 +83,6 @@ export const chunkFromPoint = (point: QdrantScoredPoint, scope: SearchScope): Hy
   if (
     payload.project_id !== scope.projectId ||
     payload.deployment_id !== scope.deploymentId ||
-    payload.version_slug !== scope.versionSlug ||
     payload.language !== scope.language ||
     payload.visibility !== scope.visibility
   ) {

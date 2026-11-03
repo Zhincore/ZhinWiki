@@ -227,6 +227,10 @@ branch stores one change request (CR), reviewed and merged back.
 - Code emails: `OTP_SEND_LIMIT_PER_IP` (20/h) and `OTP_SEND_LIMIT_PER_EMAIL`
   (5/h) after the captcha, so unsolved requests cannot lock out an IP or an
   address. Verify attempts stay on Better Auth (`allowedAttempts: 3`).
+- Better Auth's own per-path limits and session IPs read only
+  `x-nibleaf-auth-client-ip`, which the gateway overwrites with the client
+  address the API resolved (`TRUSTED_PROXY_HOPS`-aware); without it a
+  multi-hop `X-Forwarded-For` put every client into one shared bucket.
 - `rateLimit` and `byteBudget` keep a weighted sliding log per bucket in
   Dragonfly (one Lua script, HMAC-keyed pseudonymous keys, TTL = window) when
   `REDIS_HOST` is set; per process otherwise or while Dragonfly is down or slow

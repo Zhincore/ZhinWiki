@@ -147,6 +147,23 @@ export function PrivacyPage() {
       ),
     },
     {
+      heading: 'Contributions',
+      body: (
+        <>
+          <p>
+            When you delete your account, your open change requests are closed. Files you uploaded to a wiki as an outside contributor are deleted,
+            including from storage, unless a page on the wiki's main branch, another open change request or the wiki's settings still use them. Files
+            you uploaded as a member of the wiki stay.
+          </p>
+          <p>
+            Edits from your merged change requests stay in the wiki without your name. Your change requests and reviews stay, shown with no author;
+            default change request titles that contain your name are renamed, while titles, descriptions and review text you wrote stay as written.
+            Your page comments are deleted.
+          </p>
+        </>
+      ),
+    },
+    {
       heading: 'Deletion',
       body: (
         <p>

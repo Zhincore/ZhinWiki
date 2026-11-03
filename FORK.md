@@ -167,6 +167,12 @@ branch stores one change request (CR), reviewed and merged back.
   (nor the wiki config) references are deleted (`cleanupContributorAssets`).
   Per user, shared like other rate limits: 30 uploads / 10 min, 200 MB
   stored / 24 h (429 `http:rate_limited`, Retry-After).
+- Account deletion (`eraseUserContributions`, registered into the auth
+  `beforeDelete` hook via `setContributionErasure`): archives the user's open
+  CRs (branches kept, as a normal archive), renames default `{name}’s
+  changes` titles in every locale to the unknown-author form, then runs
+  `cleanupContributorAssets` per wiki. DB errors abort deletion; storage
+  cleanup is best-effort. Merged pages stay; CR/review authors are SetNull.
 - Public assets send `Cross-Origin-Resource-Policy: same-origin`: no
   hotlinking from other sites.
 - Notifications (`change-request-notifications.ts`): in-app plus email for

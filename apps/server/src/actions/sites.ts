@@ -593,7 +593,8 @@ const crossWikiSearchEnabled = (config: unknown): boolean =>
 /** Public base URL of a wiki, in `canonicalSiteBase` order (the home wiki's `/<slug>` 301s to the root). */
 const publicWikiUrl = (project: PublicSnapshotProject): string => {
   if (project.primaryDomain) return `https://${project.primaryDomain}`;
-  if (env.SITE_BASE_DOMAIN && project.slug) return `https://${project.slug}.${env.SITE_BASE_DOMAIN}`;
+  const baseDomain = env.SITE_BASE_DOMAIN?.trim().replace(/^\*\./, '').replace(/\.$/, '');
+  if (baseDomain && project.slug) return `https://${project.slug}.${baseDomain}`;
   if (project.slug && isWikiPathSlug(project.slug)) return `${env.APP_URL}/${project.slug}`;
   return `${env.APP_URL}/sites/${project.id}`;
 };

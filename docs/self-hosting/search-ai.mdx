@@ -182,16 +182,18 @@ with its name and public URL.
 - Searched wikis: public, published, not taken down, and opted in (**Search →
   Cross-wiki search**, default included). Private, workspace and reader-only
   wikis never appear. The current wiki is always searched; when it opts out,
-  its readers get no toggle and `scope=all` searches only it. Under
-  `independent` tenancy `scope=all` is ignored.
+  its readers get no toggle and `scope=all` searches only it, as under
+  `independent` tenancy.
 - Caps: at most 10 other wikis (alphabetical by name) per query, each searched
   for the request's result limit; the fused response keeps that limit in total.
 - Each wiki is searched on its own (same tenant filter, hybrid or in-memory
   runtime) and the lists are merged with Reciprocal Rank Fusion (`k = 60`),
   since scores of different wikis are not comparable. On equal rank the current
   wiki comes first.
-- Every searched wiki and language takes a slot in the 50-index in-memory cache;
-  hybrid search embeds a query once and reuses it across wikis.
+- Every searched wiki takes a slot in the 50-entry snapshot cache and, per
+  language, in the 50-index in-memory search cache; hybrid search embeds a
+  query once and reuses it across wikis. The opted-in wiki list is cached for
+  15 seconds.
 - Search analytics are recorded for the current wiki only. Grounded answers
   stay single-wiki.
 

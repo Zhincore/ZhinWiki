@@ -24,6 +24,8 @@ import { TtlCache } from '@/lib/lru';
 const log = createLogger({ component: 'ai-search' });
 const retrievalCache = new TtlCache<string, HybridChunkHit[]>(500, env.SEARCH_CACHE_TTL_MS);
 const answerCache = new TtlCache<string, GroundedAnswer>(250, env.SEARCH_CACHE_TTL_MS);
+/** Query embeddings are tenant-independent, so per-language and cross-wiki fan-out embed a query once. */
+const queryEmbeddingCache = new TtlCache<string, number[]>(500, env.SEARCH_CACHE_TTL_MS);
 const qdrant = getQdrantClient();
 
 const indexedChunkPayloadSchema = z.object({
@@ -130,10 +132,15 @@ const retrieveHybrid = async (scope: SearchScope, query: string, limit: number, 
   );
   const cached = retrievalCache.get(key);
   if (cached) return { cacheHit: true, chunks: cached, confidence: retrievalConfidence(cached) };
-  const embedded = await provider.embed([query], signal);
+  const embeddingKey = `${env.SEARCH_EMBEDDING_MODEL}:${provider.dimensions}:${query}`;
+  let dense = queryEmbeddingCache.get(embeddingKey);
+  if (!dense) {
+    dense = (await provider.embed([query], signal)).vectors[0] ?? [];
+    if (dense.length > 0) queryEmbeddingCache.set(embeddingKey, dense);
+  }
   const points = await client.queryHybrid(
     {
-      dense: embedded.vectors[0] ?? [],
+      dense,
       sparse: sparseVectorForQuery(query, scope.language),
       filter,
       // Security takes precedence over a broader statistical population: an

@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { getData } from '@/hooks/api/client-helpers';
-import type { SearchAnswer, SiteSearchHit } from '@/hooks/api/types';
+import type { SearchAnswer, SiteSearchGroup, SiteSearchHit } from '@/hooks/api/types';
 import { api } from '@/services/api';
 
 const searchSiteInput = z.object({
@@ -10,6 +10,8 @@ const searchSiteInput = z.object({
   language: z.string().min(1).optional(),
   limit: z.number().int().min(1).max(50).optional(),
 });
+
+const searchWikisInput = searchSiteInput.omit({ language: true });
 
 const answerSiteInput = searchSiteInput.omit({ limit: true }).extend({ query: z.string().trim().min(2).max(300) });
 
@@ -32,6 +34,20 @@ export const searchSiteFn = createServerFn({ method: 'GET' })
       'search',
     );
     return result.hits;
+  });
+
+/** "All wikis" search: hits grouped by wiki, the current wiki first on ties. */
+export const searchWikisFn = createServerFn({ method: 'GET' })
+  .validator(searchWikisInput)
+  .handler(async ({ data }) => {
+    const result = await getData<{ groups: SiteSearchGroup[] }>(
+      await api.public.sites[':id'].search.$get({
+        param: { id: data.projectId },
+        query: { q: data.query, scope: 'all', ...(data.limit ? { limit: String(data.limit) } : {}) },
+      }),
+      'search',
+    );
+    return result.groups;
   });
 
 export const answerSiteFn = createServerFn({ method: 'POST' })

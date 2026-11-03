@@ -25,7 +25,12 @@ const sitesRoutes = {
     description: 'The validated OpenAPI document frozen in the latest published deployment.',
     responses: ok,
   }),
-  search: createRouteConfig({ guard: passthrough, tags: ['public'], description: 'Search a published site (full-text + fuzzy).', responses: ok }),
+  search: createRouteConfig({
+    guard: passthrough,
+    tags: ['public'],
+    description: 'Search a published site (full-text + fuzzy); `scope=all` adds other public wikis under shared tenancy.',
+    responses: ok,
+  }),
   answer: createRouteConfig({
     guard: passthrough,
     tags: ['public'],

@@ -424,8 +424,9 @@ export interface SiteShell {
   /** Validated OpenAPI document metadata frozen in the current deployment. */
   openapi?: PublishedOpenApi | null;
   /** `answer`: the site enables AI answers and the instance can serve them.
-   *  Optional because a response from an older API omits it; treat as off. */
-  capabilities?: { answer: boolean };
+   *  `crossWikiSearch`: readers may search all public wikis (shared tenancy, opted in).
+   *  Optional because a response from an older API omits them; treat as off. */
+  capabilities?: { answer: boolean; crossWikiSearch?: boolean };
 }
 
 interface Heading {
@@ -483,6 +484,13 @@ export interface SiteSearchHit {
   score: number;
   /** Language of the matched published page; used to build its localized URL. */
   language: string;
+}
+
+/** One wiki's hits in an "All wikis" search. */
+export interface SiteSearchGroup {
+  wiki: { id: string; name: string; url: string; current: boolean };
+  /** Hits of other wikis carry their absolute public `url`. */
+  hits: Array<SiteSearchHit & { url?: string }>;
 }
 
 export interface SearchAnswer {

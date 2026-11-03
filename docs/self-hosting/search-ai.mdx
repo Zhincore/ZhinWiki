@@ -172,6 +172,29 @@ rollback, stop API/worker processes and execute
 `packages/database/prisma/migrations/20260823180000_search_configuration_diagnostics/rollback.sql`.
 It deletes diagnostics history only; Qdrant data is unchanged.
 
+## Cross-wiki search
+
+With `TENANCY=shared`, the reader search dialog offers **This wiki / All
+wikis**; in-wiki search stays the default. `GET
+/api/public/sites/:id/search?scope=all` returns results grouped by wiki, each
+with its name and public URL.
+
+- Searched wikis: public, published, not taken down, and opted in (**Search →
+  Cross-wiki search**, default included). Private, workspace and reader-only
+  wikis never appear. The current wiki is always searched; when it opts out,
+  its readers get no toggle and `scope=all` searches only it. Under
+  `independent` tenancy `scope=all` is ignored.
+- Caps: at most 10 other wikis (alphabetical by name) per query, each searched
+  for the request's result limit; the fused response keeps that limit in total.
+- Each wiki is searched on its own (same tenant filter, hybrid or in-memory
+  runtime) and the lists are merged with Reciprocal Rank Fusion (`k = 60`),
+  since scores of different wikis are not comparable. On equal rank the current
+  wiki comes first.
+- Every searched wiki and language takes a slot in the 50-index in-memory cache;
+  hybrid search embeds a query once and reuses it across wikis.
+- Search analytics are recorded for the current wiki only. Grounded answers
+  stay single-wiki.
+
 ## Remove data
 
 Project deletion enqueues a project-filtered Qdrant delete across every retained

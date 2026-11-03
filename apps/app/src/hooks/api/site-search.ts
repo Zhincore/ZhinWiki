@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { answerSiteFn, searchSiteFn } from '@/functions/site-search';
+import { answerSiteFn, searchSiteFn, searchWikisFn } from '@/functions/site-search';
 import { queryKeys } from './query-keys';
 
 const requireSiteId = (siteId: string | undefined) => {
@@ -20,6 +20,13 @@ export const useSiteSearch = (siteId: string | undefined, query: string, languag
           ...(limit ? { limit } : {}),
         },
       }),
+  });
+
+export const useSearchWikis = (siteId: string | undefined, query: string, limit?: number, enabled = true) =>
+  useQuery({
+    queryKey: queryKeys.site.searchWikis(siteId ?? '', query, limit),
+    enabled: Boolean(enabled && siteId && query.trim()),
+    queryFn: () => searchWikisFn({ data: { projectId: requireSiteId(siteId), query, ...(limit ? { limit } : {}) } }),
   });
 
 export const useAnswerSite = () =>

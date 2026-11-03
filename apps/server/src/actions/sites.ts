@@ -28,13 +28,15 @@ import {
   type SnapshotProject,
   withOpenApiNav,
 } from '@nibleaf/shared/site';
-import { RESERVED_WIKI_SLUGS, withoutSlugHistory } from '@nibleaf/shared/wiki-paths';
+import { isWikiPathSlug, RESERVED_WIKI_SLUGS, withoutSlugHistory } from '@nibleaf/shared/wiki-paths';
+import type { SiteSearchScope } from '@nibleaf/validators';
 import { getContext } from 'hono/context-storage';
 import { env } from '@/env';
 import { AppError, notFound } from '@/errors';
 import { consumeAnswerQuota } from '@/lib/ai-search/quota';
-import { answerPublishedSearch, answerSearchAvailable, runPublishedSearch } from '@/lib/ai-search/runtime';
+import { answerPublishedSearch, answerSearchAvailable, runPublishedSearch, type SearchRuntimeResult } from '@/lib/ai-search/runtime';
 import { buildChangelogRss } from '@/lib/changelog-rss';
+import { CROSS_WIKI_MAX_WIKIS, fuseRankedLists, type RankedList } from '@/lib/cross-wiki-search';
 import type { HonoEnv } from '@/lib/hono/context';
 import { buildLlmsFullTxt, buildLlmsTxt } from '@/lib/llms-txt';
 import { LruCache, TtlCache } from '@/lib/lru';
@@ -126,10 +128,14 @@ const llmsFullTxtCache = new LruCache<string, string>(50);
  *  redirects are the exception and remain sourced from the READY snapshot. */
 const liveChromeCache = new TtlCache<string, LiveChromeRow | null>(200, 15_000);
 
+/** Ids of opted-in public wikis for cross-wiki search, under the same 15s TTL. */
+const crossWikiCandidatesCache = new TtlCache<'all', string[]>(1, 15_000);
+
 /** Apply local settings mutations immediately. Other API replicas remain
  * bounded by the documented 15-second live-chrome TTL. */
 export const invalidatePublishedSiteConfig = (projectId: string): void => {
   liveChromeCache.delete(projectId);
+  crossWikiCandidatesCache.delete('all');
 };
 
 const getLiveChrome = async (projectId: string): Promise<LiveChromeRow | null> => {
@@ -357,7 +363,10 @@ export const getSite = async (identifier: string, lang?: string) => {
       : null,
     version: deploymentVersion,
     generatedAt: snapshot.generatedAt,
-    capabilities: { answer: resolvePublishedSearchRequest(snapshot.project.config, {}).configuration.aiAnswers && answerSearchAvailable() },
+    capabilities: {
+      answer: resolvePublishedSearchRequest(snapshot.project.config, {}).configuration.aiAnswers && answerSearchAvailable(),
+      crossWikiSearch: crossWikiSearchEnabled(snapshot.project.config),
+    },
   };
 };
 
@@ -529,18 +538,27 @@ const breadcrumbTrail = (pages: SnapshotPage[], page: SnapshotPage): Array<{ tit
 };
 
 type LocalizedSearchHit = SearchHit & { language: string };
+type SearchRuntime = SearchRuntimeResult['runtime'];
 
-/** Full-text + fuzzy search over a published site; records a search analytics event.
- *  The reader UI searches every published language. An explicit `lang` remains
- *  supported for API clients that intentionally want a single-language scope. */
-export const searchSite = async (identifier: string, query: string, lang?: string, limit?: number) => {
-  const analyticsStartedAt = performance.now();
-  const { snapshot, deploymentId, viewer, searchPageIds } = await getPublished(identifier);
-  const request = resolvePublishedSearchContext(snapshot, { language: lang, limit });
-  const resultLimit = request.limit;
-  const requestedLanguages = resolvePublishedSearchLanguages(snapshot, lang);
+/** The most degraded runtime of several searches. */
+const combinedRuntime = (runtimes: SearchRuntime[]): SearchRuntime =>
+  runtimes.includes('legacy-fallback')
+    ? 'legacy-fallback'
+    : runtimes.includes('hybrid')
+      ? 'hybrid'
+      : runtimes.includes('shadow')
+        ? 'shadow'
+        : 'legacy';
+
+/** Ranked hits of one published site across the requested languages; records nothing. */
+const searchPublishedSite = async (
+  { snapshot, deploymentId, viewer, searchPageIds }: PublishedSite,
+  query: string,
+  languages: string[],
+  limit: number,
+): Promise<{ hits: LocalizedSearchHit[]; runtime: SearchRuntime }> => {
   const perLanguage = await Promise.all(
-    requestedLanguages.map(async (language) => {
+    languages.map(async (language) => {
       const scope: SearchScope = {
         projectId: snapshot.project.id,
         deploymentId,
@@ -551,27 +569,93 @@ export const searchSite = async (identifier: string, query: string, lang?: strin
       const result = await runPublishedSearch(
         scope,
         query,
-        resultLimit,
+        limit,
         async () => {
           const index = await getCachedIndex(snapshot.project.id, deploymentId, language, snapshot.pages, viewer.allowedPageIds);
-          return searchDocs(index, query, { limit: resultLimit });
+          return searchDocs(index, query, { limit });
         },
         getContext<HonoEnv>().req.raw.signal,
       );
       return { language, result };
     }),
   );
-  const hits: LocalizedSearchHit[] = perLanguage
+  const hits = perLanguage
     .flatMap(({ language, result }) => result.hits.map((hit) => ({ ...hit, language })))
     .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title) || left.id.localeCompare(right.id))
-    .slice(0, resultLimit);
-  const runtime = perLanguage.some(({ result }) => result.runtime === 'legacy-fallback')
-    ? 'legacy-fallback'
-    : perLanguage.some(({ result }) => result.runtime === 'hybrid')
-      ? 'hybrid'
-      : perLanguage.some(({ result }) => result.runtime === 'shadow')
-        ? 'shadow'
-        : 'legacy';
+    .slice(0, limit);
+  return { hits, runtime: combinedRuntime(perLanguage.map(({ result }) => result.runtime)) };
+};
+
+/** Whether readers may search across wikis from this site: shared tenancy and the wiki opted in. */
+const crossWikiSearchEnabled = (config: unknown): boolean =>
+  env.TENANCY === 'shared' && resolvePublishedSearchRequest(config, {}).configuration.crossWikiSearch;
+
+/** Public base URL of a wiki, in `canonicalSiteBase` order (the home wiki's `/<slug>` 301s to the root). */
+const publicWikiUrl = (project: PublicSnapshotProject): string => {
+  if (project.primaryDomain) return `https://${project.primaryDomain}`;
+  if (env.SITE_BASE_DOMAIN && project.slug) return `https://${project.slug}.${env.SITE_BASE_DOMAIN}`;
+  if (project.slug && isWikiPathSlug(project.slug)) return `${env.APP_URL}/${project.slug}`;
+  return `${env.APP_URL}/sites/${project.id}`;
+};
+
+/** Other wikis an "All wikis" search may include: public, published, not taken
+ *  down and opted in, by name. Only ids; each is re-checked through `getPublished`. */
+const crossWikiCandidates = async (currentProjectId: string): Promise<string[]> => {
+  let ids = crossWikiCandidatesCache.get('all');
+  if (!ids) {
+    const projects = await prisma.project.findMany({
+      where: { accessMode: 'PUBLIC', takedownAt: null, deployments: { some: { status: 'READY' } } },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      select: { id: true, config: true },
+    });
+    ids = projects.filter((project) => resolvePublishedSearchRequest(project.config, {}).configuration.crossWikiSearch).map((project) => project.id);
+    crossWikiCandidatesCache.set('all', ids);
+  }
+  return ids.filter((id) => id !== currentProjectId).slice(0, CROSS_WIKI_MAX_WIKIS);
+};
+
+type CrossWikiHit = LocalizedSearchHit & { url: string };
+
+/** Hits of other public wikis, ranked per wiki; wikis that fail any publication gate are dropped. */
+const searchOtherWikis = async (currentProjectId: string, query: string, limit: number) => {
+  const ids = await crossWikiCandidates(currentProjectId);
+  const settled = await Promise.allSettled(
+    ids.map(async (id) => {
+      const published = await getPublished(id);
+      const project = published.snapshot.project as PublicSnapshotProject;
+      if (project.accessMode !== 'PUBLIC' || !crossWikiSearchEnabled(project.config)) return null;
+      const languages = resolvePublishedSearchLanguages(published.snapshot);
+      const result = await searchPublishedSite(published, query, languages, limit);
+      const base = publicWikiUrl(project);
+      const defaultCode = defaultLanguage(project).code;
+      const hits: CrossWikiHit[] = result.hits.map((hit) => ({
+        ...hit,
+        url: `${base}${hit.path ? `/${hit.path}` : ''}${hit.language !== defaultCode ? `?lang=${encodeURIComponent(hit.language)}` : ''}`,
+      }));
+      return { wiki: { id: project.id, name: project.name, url: base }, hits, runtime: result.runtime };
+    }),
+  );
+  return settled.flatMap((outcome) => (outcome.status === 'fulfilled' && outcome.value ? [outcome.value] : []));
+};
+
+/** Full-text + fuzzy search over a published site; records a search analytics event.
+ *  The reader UI searches every published language. An explicit `lang` remains
+ *  supported for API clients that intentionally want a single-language scope.
+ *  `scope: 'all'` (shared tenancy, wiki opted in) adds other public wikis,
+ *  fused with Reciprocal Rank Fusion and grouped by wiki; otherwise it is ignored. */
+export const searchSite = async (identifier: string, query: string, lang?: string, limit?: number, scope: SiteSearchScope = 'wiki') => {
+  const analyticsStartedAt = performance.now();
+  const published = await getPublished(identifier);
+  const { snapshot } = published;
+  const request = resolvePublishedSearchContext(snapshot, { language: lang, limit });
+  const resultLimit = request.limit;
+  const crossWiki = crossWikiSearchEnabled(snapshot.project.config);
+  const [own, others] = await Promise.all([
+    searchPublishedSite(published, query, resolvePublishedSearchLanguages(snapshot, lang), resultLimit),
+    scope === 'all' && crossWiki && query.trim() ? searchOtherWikis(snapshot.project.id, query, resultLimit) : null,
+  ]);
+  const { hits } = own;
+  const runtime = combinedRuntime([own.runtime, ...(others ?? []).map((other) => other.runtime)]);
   const analyticsLanguage = lang ? request.language : 'all';
   // Only track queries of a meaningful length so the search-terms analytics
   // aren't flooded with single-keystroke typeahead fragments (i, in, int…).
@@ -596,7 +680,24 @@ export const searchSite = async (identifier: string, query: string, lang?: strin
         : []),
     ]);
   }
-  return { hits, runtime, capabilities: { answer: request.configuration.aiAnswers && answerSearchAvailable() } };
+  const capabilities = { answer: request.configuration.aiAnswers && answerSearchAvailable(), crossWikiSearch: crossWiki };
+  if (scope === 'wiki') return { hits, runtime, capabilities };
+  const project = snapshot.project as PublicSnapshotProject;
+  const wikis = new Map(
+    [
+      { id: project.id, name: project.name, url: publicWikiUrl(project), current: true },
+      ...(others ?? []).map((other) => ({ ...other.wiki, current: false })),
+    ].map((wiki) => [wiki.id, wiki]),
+  );
+  const lists: RankedList<LocalizedSearchHit & { url?: string }>[] = [
+    { wikiId: project.id, hits },
+    ...(others ?? []).map((other) => ({ wikiId: other.wiki.id, hits: other.hits })),
+  ];
+  const groups = fuseRankedLists(lists, (hit) => hit.id, resultLimit).flatMap((group) => {
+    const wiki = wikis.get(group.wikiId);
+    return wiki ? [{ wiki, hits: group.hits }] : [];
+  });
+  return { groups, runtime, capabilities };
 };
 
 /** Grounded answer mode uses the exact same server-derived publication and

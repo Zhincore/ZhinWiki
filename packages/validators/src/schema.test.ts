@@ -93,6 +93,7 @@ describe('projectConfigSchema', () => {
       maxResults: 12,
       filtersEnabled: true,
       aiAnswers: false,
+      crossWikiSearch: true,
       hotkey: 'cmdk',
     });
     expect(searchConfigurationSchema.safeParse({ maxResults: 0 }).success).toBe(false);

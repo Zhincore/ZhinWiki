@@ -7,7 +7,8 @@ import { useRouter } from '@tanstack/react-router';
 import { AlertCircle, FileText, Loader2, Search, Sparkles, X } from 'lucide-react';
 import { lazy, Suspense, useId, useState } from 'react';
 import { hasIcon, PageIcon } from '@/components/site/page-icon';
-import { useAnswerSite, useSiteSearch } from '@/hooks/api/site-search';
+import { useAnswerSite, useSearchWikis, useSiteSearch } from '@/hooks/api/site-search';
+import type { SiteSearchHit } from '@/hooks/api/types';
 import { LANGUAGE_CATALOG } from '@/lib/languages';
 import { siteHref, siteLanguageParam } from '@/lib/site-paths';
 import { useSiteAnalytics } from '@/providers/site-analytics-provider';
@@ -51,6 +52,26 @@ function Highlight({ text, query }: { text: string; query: string }) {
   );
 }
 
+function SearchHitItem({ hit, query, onSelect }: { hit: SiteSearchHit; query: string; onSelect: () => void }) {
+  return (
+    <CommandItem value={hit.id} onSelect={onSelect}>
+      {hasIcon(hit.icon) ? (
+        <PageIcon name={hit.icon} className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+      ) : (
+        <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+      )}
+      <div className="min-w-0" dir="auto" lang={hit.language}>
+        <div className="font-medium">
+          <Highlight text={hit.title} query={query} />
+        </div>
+        <div className="truncate text-muted-foreground text-xs">
+          <Highlight text={hit.snippet} query={query} />
+        </div>
+      </div>
+    </CommandItem>
+  );
+}
+
 export default function SiteSearchDialog({
   projectId,
   open,
@@ -61,6 +82,7 @@ export default function SiteSearchDialog({
   placeholder,
   maxResults,
   aiAnswers,
+  crossWikiSearch,
 }: {
   projectId: string;
   open: boolean;
@@ -78,6 +100,8 @@ export default function SiteSearchDialog({
   /** Shows the "Ask AI" mode: the site enables AI answers and the instance
    * can serve them. The answer endpoint still enforces both server-side. */
   aiAnswers?: boolean;
+  /** Shows the "This wiki / All wikis" scope toggle (shared tenancy, wiki opted in). */
+  crossWikiSearch?: boolean;
 }) {
   const { track } = useSiteAnalytics();
   const router = useRouter();
@@ -85,6 +109,8 @@ export default function SiteSearchDialog({
   const [query, setQuery] = useState('');
   const [requestedMode, setMode] = useState<'search' | 'answer'>('search');
   const mode = aiAnswers ? requestedMode : 'search';
+  const [requestedScope, setScope] = useState<'wiki' | 'all'>('wiki');
+  const scope = crossWikiSearch ? requestedScope : 'wiki';
   const modeId = useId();
   const baseLanguage = lang?.toLowerCase().split(/[-_]/)[0];
   const rtl = direction ? direction === 'rtl' : (LANGUAGE_CATALOG.find((language) => language.code === baseLanguage)?.rtl ?? false);
@@ -94,10 +120,19 @@ export default function SiteSearchDialog({
   // Keyword search is intentionally language-independent. Omitting `language`
   // asks the public endpoint to search every enabled language in the published
   // snapshot; each hit carries its own language for correct localized routing.
-  const hitsQuery = useSiteSearch(projectId, debouncedQuery.trim(), undefined, maxResults, open && mode === 'search');
+  const wikiQuery = useSiteSearch(projectId, debouncedQuery.trim(), undefined, maxResults, open && mode === 'search' && scope === 'wiki');
+  const wikisQuery = useSearchWikis(projectId, debouncedQuery.trim(), maxResults, open && mode === 'search' && scope === 'all');
+  const hitsQuery = scope === 'all' ? wikisQuery : wikiQuery;
   const answerMutation = useAnswerSite();
   const queryPending = query.trim() !== debouncedQuery.trim() || hitsQuery.isFetching;
-  const hits = query.trim() && !queryPending && !hitsQuery.error ? (hitsQuery.data ?? []) : [];
+  const showResults = Boolean(query.trim()) && !queryPending && !hitsQuery.error;
+  const hits = showResults && scope === 'wiki' ? (wikiQuery.data ?? []) : [];
+  const groups = showResults && scope === 'all' ? (wikisQuery.data ?? []) : [];
+  const openCurrentWikiHit = (hit: SiteSearchHit, index: number) => {
+    track({ name: 'search_result_clicked', path: hit.path, resultId: hit.id, resultPosition: index + 1, language: hit.language });
+    onOpenChange(false);
+    void router.navigate({ href: siteHref(projectId, hit.path, { lang: siteLanguageParam(hit.language, defaultLanguage) }) });
+  };
   // A completed request belongs to the exact question and language that
   // produced it. Editing the query must never relabel old evidence.
   const answerMatchesScope =
@@ -190,6 +225,23 @@ export default function SiteSearchDialog({
               <X className="size-4" aria-hidden />
             </Button>
           </div>
+          {crossWikiSearch && mode === 'search' ? (
+            <fieldset className="flex items-center gap-1 border-b px-3 py-2">
+              <legend className="sr-only">{t('searchScope')}</legend>
+              {(['wiki', 'all'] as const).map((value) => (
+                <Button
+                  key={value}
+                  aria-pressed={scope === value}
+                  onClick={() => setScope(value)}
+                  size="xs"
+                  type="button"
+                  variant={scope === value ? 'secondary' : 'ghost'}
+                >
+                  {value === 'wiki' ? t('searchThisWiki') : t('searchAllWikis')}
+                </Button>
+              ))}
+            </fieldset>
+          ) : null}
           {mode === 'search' ? (
             <section
               id={`${modeId}-search-panel`}
@@ -197,46 +249,36 @@ export default function SiteSearchDialog({
               aria-labelledby={aiAnswers ? `${modeId}-search-tab` : undefined}
             >
               <CommandList label={t('results')}>
-                {hits.length === 0 ? (
+                {hits.length === 0 && groups.length === 0 ? (
                   <div className="py-6 text-center text-sm" role={query.trim() && !queryPending && hitsQuery.error ? 'alert' : 'status'}>
                     {searchMessage}
                   </div>
-                ) : (
+                ) : scope === 'wiki' ? (
                   <CommandGroup heading={t('results')}>
                     {hits.map((hit, index) => (
-                      <CommandItem
-                        key={hit.id}
-                        value={hit.id}
-                        onSelect={() => {
-                          track({
-                            name: 'search_result_clicked',
-                            path: hit.path,
-                            resultId: hit.id,
-                            resultPosition: index + 1,
-                            language: hit.language,
-                          });
-                          onOpenChange(false);
-                          void router.navigate({
-                            href: siteHref(projectId, hit.path, { lang: siteLanguageParam(hit.language, defaultLanguage) }),
-                          });
-                        }}
-                      >
-                        {hasIcon(hit.icon) ? (
-                          <PageIcon name={hit.icon} className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                        ) : (
-                          <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                        )}
-                        <div className="min-w-0" dir="auto" lang={hit.language}>
-                          <div className="font-medium">
-                            <Highlight text={hit.title} query={debouncedQuery} />
-                          </div>
-                          <div className="truncate text-muted-foreground text-xs">
-                            <Highlight text={hit.snippet} query={debouncedQuery} />
-                          </div>
-                        </div>
-                      </CommandItem>
+                      <SearchHitItem key={hit.id} hit={hit} query={debouncedQuery} onSelect={() => openCurrentWikiHit(hit, index)} />
                     ))}
                   </CommandGroup>
+                ) : (
+                  groups.map((group) => (
+                    <CommandGroup key={group.wiki.id} heading={group.wiki.name}>
+                      {group.hits.map((hit, index) => (
+                        <SearchHitItem
+                          key={`${group.wiki.id}:${hit.id}`}
+                          hit={{ ...hit, id: `${group.wiki.id}:${hit.id}` }}
+                          query={debouncedQuery}
+                          onSelect={() => {
+                            if (group.wiki.current) {
+                              openCurrentWikiHit(hit, index);
+                            } else if (hit.url) {
+                              onOpenChange(false);
+                              window.location.assign(hit.url);
+                            }
+                          }}
+                        />
+                      ))}
+                    </CommandGroup>
+                  ))
                 )}
               </CommandList>
             </section>

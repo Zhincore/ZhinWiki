@@ -1,7 +1,7 @@
 ---
-title: 'Nibleaf API and OpenAPI reference'
-description: 'Find the self-hosted server specification, understand browser-session authentication, and separate Nibleaf APIs from published customer API references.'
-audience: 'developers integrating with or extending Nibleaf'
+title: 'ZhinWiki API and OpenAPI reference'
+description: 'Find the self-hosted server specification, understand browser-session authentication, and separate ZhinWiki APIs from published customer API references.'
+audience: 'developers integrating with or extending ZhinWiki'
 content_type: 'reference'
 last_reviewed: '2026-08-24'
 verified_against: 'apps/server/src/index.ts, apps/server/src/actions/openapi.ts, apps/server/src/modules, and apps/app/src/components/site/openapi-reference-view.tsx'
@@ -10,7 +10,7 @@ dir: 'ltr'
 translation_key: 'reference/api'
 ---
 
-The Nibleaf server exposes an OpenAPI-backed interactive reference at `/docs`
+The ZhinWiki server exposes an OpenAPI-backed interactive reference at `/docs`
 on API port 4311. In the development stack, open
 `http://localhost:4311/docs`. In production, the API normally remains internal
 and the app proxies browser requests under `/api` so session cookies stay first
@@ -66,13 +66,13 @@ See [Connect MCP clients securely](/self-hosting/mcp).
 - For MCP, rotate project-bound keys rather than reusing a browser session or a
   legacy wildcard key.
 
-Nibleaf is pre-1.0, so undocumented internal routes are not a compatibility
+ZhinWiki is pre-1.0, so undocumented internal routes are not a compatibility
 contract. Propose stable integration needs through a public issue without
 including private environment details.
 
 ## Published customer API references
 
-The Nibleaf platform API and a documentation project's own API reference are
+The ZhinWiki platform API and a documentation project's own API reference are
 different products. To publish a project reference, open **Settings → API
 Reference**, choose its navigation label and path, then use one supported source:
 
@@ -81,7 +81,7 @@ Reference**, choose its navigation label and path, then use one supported source
 - read a repository-relative file from a connected public GitHub or GitLab
   repository.
 
-Nibleaf validates OpenAPI 3.x before saving. It resolves and bundles public
+ZhinWiki validates OpenAPI 3.x before saving. It resolves and bundles public
 external `$ref` files into the stored document. Relative references work for URL
 and repository sources; uploaded or pasted documents can reference absolute public
 HTTP(S) URLs. The combined document is limited to 5 MB and 20 external files.
@@ -93,7 +93,7 @@ is frozen into that immutable deployment, so an older deployment or rollback
 retains its own specification revision.
 
 The published reference uses Scalar. Try-it requests go directly from the
-reader's browser to the described API; Nibleaf does not proxy requests, inject
+reader's browser to the described API; ZhinWiki does not proxy requests, inject
 credentials, persist authentication, or log request secrets. The API must allow
 the published documentation origin in its CORS policy. Test one harmless request
 with temporary credentials and clear them before sharing a browser or recording

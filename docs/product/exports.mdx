@@ -10,7 +10,7 @@ dir: 'ltr'
 translation_key: 'product/exports'
 ---
 
-Nibleaf exports the latest successful published version, not the current draft.
+ZhinWiki exports the latest successful published version, not the current draft.
 Each run first copies that `READY` deployment into an immutable export snapshot,
 so Markdown, PDF, and static HTML selected together describe the same content.
 
@@ -24,7 +24,7 @@ Exports → Create export**, select at least one format, and start the run:
 - **PDF** for review, approval, or print distribution. Verify fonts, code,
   diagrams, page breaks, and RTL text.
 - **Static HTML ZIP** for offline or independent static hosting. Verify internal
-  links, local search, navigation, CSS, and copied assets without Nibleaf.
+  links, local search, navigation, CSS, and copied assets without ZhinWiki.
 
 The run moves through `PENDING`, `RUNNING`, and a terminal state. Download links
 appear only for `SUCCEEDED` artifacts and expire after a short, instance-defined
@@ -41,7 +41,7 @@ Open **Schedules**, create a named schedule, and choose:
 - how many completed runs to keep;
 - the maximum retention age.
 
-Use an IANA name such as `Africa/Lagos`, not a fixed UTC offset. Nibleaf computes
+Use an IANA name such as `Africa/Lagos`, not a fixed UTC offset. ZhinWiki computes
 the next run in that timezone so daylight-saving changes retain the intended
 wall-clock time. Use **Run now** to test the exact schedule before depending on
 it, then confirm the artifact in **Run history**.
@@ -61,13 +61,13 @@ The instance controls concurrency, daily runs, page and snapshot size, copied
 asset bytes, manual retention, and download URL lifetime. Review the [environment
 variable reference](/reference/environment-variables) before enabling large or
 scheduled archives. Storage lifecycle rules may delete expired objects as a
-second line of defense, but must not expire them earlier than Nibleaf's configured
+second line of defense, but must not expire them earlier than ZhinWiki's configured
 retention policy.
 
 ## Test recovery before relying on an export
 
 Download a fresh artifact from each required format and test it outside the
-Nibleaf dashboard. For Markdown, inspect and import a sample. For static HTML,
+ZhinWiki dashboard. For Markdown, inspect and import a sample. For static HTML,
 serve the extracted directory locally and follow deep links while offline. For
 PDF, review representative long, multilingual, diagram, and code-heavy pages.
 

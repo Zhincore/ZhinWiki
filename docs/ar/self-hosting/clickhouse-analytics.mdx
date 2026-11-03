@@ -1,7 +1,7 @@
 ---
 title: 'تشغيل تحليلات ClickHouse'
-description: 'ترحيل تحليلات منتج Nibleaf وتأمينها ومطابقتها والاحتفاظ بها ونسخها احتياطيًا والتراجع عنها من دون ربط إتاحة الوثائق بخدمة ClickHouse.'
-audience: 'مشغّلو Nibleaf ذاتي الاستضافة ومسؤولو الخصوصية'
+description: 'ترحيل تحليلات منتج ZhinWiki وتأمينها ومطابقتها والاحتفاظ بها ونسخها احتياطيًا والتراجع عنها من دون ربط إتاحة الوثائق بخدمة ClickHouse.'
+audience: 'مشغّلو ZhinWiki ذاتي الاستضافة ومسؤولو الخصوصية'
 content_type: 'how-to'
 last_reviewed: '2026-08-23'
 verified_against: '@nibleaf/clickhouse وdocker-compose.yml وdocker-compose.coolify.yml وscripts/analytics-migration.ts'
@@ -10,7 +10,7 @@ dir: 'rtl'
 translation_key: 'self-hosting/clickhouse-analytics'
 ---
 
-يحتفظ Nibleaf بالحسابات والعضويات وإعدادات المشاريع وحالة الفوترة ومعاملات
+يحتفظ ZhinWiki بالحسابات والعضويات وإعدادات المشاريع وحالة الفوترة ومعاملات
 النشر في Postgres، بينما يخزّن ClickHouse الحقائق التحليلية كبيرة الحجم
 والتجميعات. يجب أن يظهر تعطل التحليلات كحالة **غير معروفة**، وألا يوقف تقديم
 الوثائق أو البحث أو النشر أو مساعدة الكتابة بالذكاء الاصطناعي.

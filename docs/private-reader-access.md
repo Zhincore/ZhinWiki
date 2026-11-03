@@ -10,10 +10,10 @@ dir: 'ltr'
 translation_key: 'private-reader-access'
 ---
 
-Nibleaf has three explicit published-site access modes:
+ZhinWiki has three explicit published-site access modes:
 
 - `PUBLIC` is the default and preserves existing public sites.
-- `WORKSPACE` requires a Nibleaf workspace member. Existing sites with `config.visibility = private` are migrated to this mode automatically.
+- `WORKSPACE` requires a ZhinWiki workspace member. Existing sites with `config.visibility = private` are migrated to this mode automatically.
 - `READERS` uses dedicated reader identities. Readers cannot open the dashboard, edit content, or consume an author seat.
 
 Administrators configure the mode under **Site settings → Authentication**. The same screen manages audiences, page grants, invitations, JWT handoff, audit events, and emergency revocation.
@@ -22,13 +22,13 @@ Administrators configure the mode under **Site settings → Authentication**. Th
 
 An administrator assigns at least one audience and sends an invitation. The email contains a random, single-use activation token that expires after seven days. Only a SHA-256 hash is stored. Activation creates a host-only, `HttpOnly`, `SameSite=Lax` reader cookie; HTTPS deployments also set `Secure`. Session tokens are hashed and can be revoked independently or all at once.
 
-Use the primary custom domain before inviting readers. Nibleaf creates the activation link on that domain so its host-only cookie belongs to the customer docs origin. Re-inviting invalidates unused invitations. Revoking a reader invalidates invitations and every active session immediately.
+Use the primary custom domain before inviting readers. ZhinWiki creates the activation link on that domain so its host-only cookie belongs to the customer docs origin. Re-inviting invalidates unused invitations. Revoking a reader invalidates invitations and every active session immediately.
 
 Audience grants can cover the entire site or selected pages. Page-scoped readers receive only granted pages plus navigation ancestors, and server-side search uses the same filtered set. Assets are authorized at the owning-site boundary because the current asset model does not associate an upload with one page.
 
 ## Customer portal JWT handoff
 
-Configure an exact issuer URL (`iss`), audience (`aud`), either an HTTPS JWKS URL or an inline **public** JWKS, and a mapping from group claim values to Nibleaf audience IDs. Never paste private keys or symmetric secrets.
+Configure an exact issuer URL (`iss`), audience (`aud`), either an HTTPS JWKS URL or an inline **public** JWKS, and a mapping from group claim values to ZhinWiki audience IDs. Never paste private keys or symmetric secrets.
 
 Send a signed assertion to:
 

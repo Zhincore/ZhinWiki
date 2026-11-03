@@ -1,6 +1,6 @@
 ---
 title: 'Take a self-hosted installation to production'
-description: 'Prove DNS, TLS, service health, storage, email, search, security, monitoring, and recovery before a self-hosted Nibleaf launch.'
+description: 'Prove DNS, TLS, service health, storage, email, search, security, monitoring, and recovery before a self-hosted ZhinWiki launch.'
 audience: 'operators responsible for production readiness'
 content_type: 'how-to'
 last_reviewed: '2026-10-30'
@@ -28,7 +28,7 @@ Test every intended origin independently:
 A wildcard project domain needs wildcard DNS and a certificate covering
 `*.<base-domain>`. Let's Encrypt wildcard certificates require a DNS challenge.
 For custom domains, preserve the validated original `Host` header through the
-ingress because Nibleaf uses it to select the project.
+ingress because ZhinWiki uses it to select the project.
 
 Let the ingress pass request bodies of at least 15 MB to the dashboard origin:
 Ghost imports send up to 15 MB and outside contributors upload images of up to

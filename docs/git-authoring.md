@@ -10,7 +10,7 @@ dir: 'ltr'
 translation_key: 'git-authoring'
 ---
 
-Nibleaf can import a repository as before, or connect a GitHub repository for two-way authoring. In two-way mode, browser edits are committed to a dedicated branch, a draft pull request is created or updated, upstream changes are reconciled, and each pull request receives an immutable, noindex preview.
+ZhinWiki can import a repository as before, or connect a GitHub repository for two-way authoring. In two-way mode, browser edits are committed to a dedicated branch, a draft pull request is created or updated, upstream changes are reconciled, and each pull request receives an immutable, noindex preview.
 
 ## Instance setup
 
@@ -42,13 +42,13 @@ Create a fine-grained personal access token or installation credential restricte
 - Contents: read and write
 - Pull requests: read and write
 
-No Actions, administration, issues, organization, or user scopes are required. Paste the token once in **Site settings → Git**. Nibleaf verifies write access, encrypts the token with AES-256-GCM, stores a non-secret fingerprint for operators, and never returns or logs the token.
+No Actions, administration, issues, organization, or user scopes are required. Paste the token once in **Site settings → Git**. ZhinWiki verifies write access, encrypts the token with AES-256-GCM, stores a non-secret fingerprint for operators, and never returns or logs the token.
 
-Choose a base branch (normally `main`), a distinct dedicated authoring branch (for example `nibleaf/docs`), the repository-relative content path (default `content`), and the Nibleaf branch/language to map. Inside the content path Nibleaf uses the repository layout v2: the default language lives at the content root (`content/guides/authentication.mdx`) and other languages under `content/<code>/` (`content/ar/المصادقة.mdx`). Folders are navigation groups and `index.mdx` is a folder's landing page; page slugs keep Unicode letters, so Arabic paths stay readable. The generated `docs.json` and `.nibleaf/` files are platform-owned and regenerated on every sync. Nibleaf never force-pushes. Branch updates use compare-and-swap semantics and stop if the remote ref changes during a push.
+Choose a base branch (normally `main`), a distinct dedicated authoring branch (for example `nibleaf/docs`), the repository-relative content path (default `content`), and the ZhinWiki branch/language to map. Inside the content path ZhinWiki uses the repository layout v2: the default language lives at the content root (`content/guides/authentication.mdx`) and other languages under `content/<code>/` (`content/ar/المصادقة.mdx`). Folders are navigation groups and `index.mdx` is a folder's landing page; page slugs keep Unicode letters, so Arabic paths stay readable. The generated `docs.json` and `.nibleaf/` files are platform-owned and regenerated on every sync. ZhinWiki never force-pushes. Branch updates use compare-and-swap semantics and stop if the remote ref changes during a push.
 
 ## Webhook setup
 
-In the GitHub repository, add the payload URL shown by Nibleaf:
+In the GitHub repository, add the payload URL shown by ZhinWiki:
 
 ```text
 https://YOUR_NIBLEAF_ORIGIN/api/public/git/webhook/PROJECT_ID
@@ -84,17 +84,17 @@ The public preview renders the immutable pull-request snapshot independently fro
 
 ## Conflict semantics
 
-Each tracked file stores the last common base. Before changing either side, Nibleaf compares:
+Each tracked file stores the last common base. Before changing either side, ZhinWiki compares:
 
 - **base**: the last version accepted by both systems;
-- **ours**: the current Nibleaf page serialization;
+- **ours**: the current ZhinWiki page serialization;
 - **theirs**: the current file from Git.
 
-If only one side changed, that change is preserved automatically. Identical edits converge. File additions and deletions are first-class states, not empty strings. If both sides changed differently, the operation moves to `CONFLICT` and no repository ref or Nibleaf page is overwritten.
+If only one side changed, that change is preserved automatically. Identical edits converge. File additions and deletions are first-class states, not empty strings. If both sides changed differently, the operation moves to `CONFLICT` and no repository ref or ZhinWiki page is overwritten.
 
-For every conflicted file, the UI displays complete base/ours/theirs content. An author must explicitly choose Nibleaf, Git, custom content, or custom deletion. Once all files are resolved, the same durable operation is retried. A second remote ref check still runs immediately before update, so changes that arrive during reconciliation cannot be silently lost.
+For every conflicted file, the UI displays complete base/ours/theirs content. An author must explicitly choose ZhinWiki, Git, custom content, or custom deletion. Once all files are resolved, the same durable operation is retried. A second remote ref check still runs immediately before update, so changes that arrive during reconciliation cannot be silently lost.
 
-![Per-file base, Nibleaf, and Git reconciliation](./images/git-authoring/conflict-reconciliation.png)
+![Per-file base, ZhinWiki, and Git reconciliation](./images/git-authoring/conflict-reconciliation.png)
 
 The following short recording shows an explicit per-file resolution and the operation returning to the durable queue. No side is changed before the author selects a resolution.
 
@@ -104,10 +104,10 @@ The following short recording shows an explicit per-file resolution and the oper
 
 - **QUEUED for too long:** verify Redis, ensure the worker runs the `git` queue, and confirm `GIT_WORKER_SECRET` matches on API and worker. Re-queueing the same operation is safe.
 - **FAILED with 401/403:** rotate the repository credential with the documented least-privilege permissions. Provider error messages are bounded and secret-free.
-- **Remote branch changed:** pull upstream changes, resolve any conflicts, then submit a new idempotent push. Nibleaf never force-pushes around this error.
+- **Remote branch changed:** pull upstream changes, resolve any conflicts, then submit a new idempotent push. ZhinWiki never force-pushes around this error.
 - **Preview failed:** inspect the operation/preview error in the Git panel, fix the content or infrastructure issue, and update the draft PR. The source-SHA uniqueness key prevents duplicate builds.
 - **Webhook retries:** GitHub may redeliver the same ID safely. If Redis was unavailable, redelivery queues the same idempotency key.
-- **Lost webhook secret:** rotate it in Nibleaf, immediately update the GitHub webhook, and use GitHub's redelivery action for missed events.
+- **Lost webhook secret:** rotate it in ZhinWiki, immediately update the GitHub webhook, and use GitHub's redelivery action for missed events.
 - **Lost encryption key:** encrypted credentials are intentionally unrecoverable. Set a new key and reconnect every affected repository; provider tokens should also be revoked and replaced.
 
 Sensitive actions are written to the Git audit table with actor, project, action, timestamp, and bounded secret-free metadata. Disconnect is additionally mirrored to the platform event stream before credential rows are deleted.

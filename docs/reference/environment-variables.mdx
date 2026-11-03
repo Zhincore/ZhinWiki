@@ -1,6 +1,6 @@
 ---
 title: 'Production environment variables'
-description: 'Look up the production image, origin, domain, secret, storage, authentication, email, proxy, worker, and lifecycle settings Nibleaf consumes.'
+description: 'Look up the production image, origin, domain, secret, storage, authentication, email, proxy, worker, and lifecycle settings ZhinWiki consumes.'
 audience: 'self-hosted operators and infrastructure reviewers'
 content_type: 'reference'
 last_reviewed: '2026-08-22'
@@ -46,7 +46,7 @@ actually consumes. Never commit a populated `.env`.
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `BETTER_AUTH_SECRET` | Yes | Signs authentication state. Generate independently with `openssl rand -hex 32`. |
-| `POSTGRES_PASSWORD` | Yes | Password for the bundled Nibleaf database user. |
+| `POSTGRES_PASSWORD` | Yes | Password for the bundled ZhinWiki database user. |
 | `INTERNAL_API_SECRET` | Strongly recommended | Authenticates trusted app-to-API hints used for accurate rate limiting. |
 
 ## Object storage
@@ -63,7 +63,7 @@ actually consumes. Never commit a populated `.env`.
 | `STORAGE_FORCE_PATH_STYLE` | No | `true` | Use path-style bucket URLs; AWS S3 commonly uses `false`. |
 | `STORAGE_PUBLIC_URL` | Recommended | Empty | Public asset base, often a bucket or CDN URL. |
 | `STORAGE_CORS_ALLOWED_ORIGINS` | No | `APP_URL` | Browser origins allowed to upload directly. |
-| `STORAGE_AUTO_CORS` | No | `true` | Let Nibleaf configure supported bucket CORS automatically. |
+| `STORAGE_AUTO_CORS` | No | `true` | Let ZhinWiki configure supported bucket CORS automatically. |
 | `MAXIO_SECURE_COOKIES` | No | `true` | Require HTTPS for bundled maxio console cookies. |
 
 ## Authentication and email
@@ -83,11 +83,11 @@ actually consumes. Never commit a populated `.env`.
 
 Create a **Web application** OAuth client in Google Cloud, then configure:
 
-- Authorized JavaScript origin: the exact `APP_URL`, such as `https://nibleaf.example.com`.
+- Authorized JavaScript origin: the exact `APP_URL`, such as `https://docs.example.com`.
 - Authorized redirect URI: `${APP_URL}/api/auth/callback/google`.
 - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`: the matching client credentials.
 
-Both variables must be present and non-blank after trimming surrounding whitespace. Nibleaf hides the Google button when either value is missing, so a partially configured provider cannot send readers into a broken sign-in flow. Restart the application after changing these server-side values.
+Both variables must be present and non-blank after trimming surrounding whitespace. ZhinWiki hides the Google button when either value is missing, so a partially configured provider cannot send readers into a broken sign-in flow. Restart the application after changing these server-side values.
 
 ## Optional product and traffic controls
 

@@ -10,7 +10,7 @@ dir: 'ltr'
 translation_key: 'reference/integrations-engine'
 ---
 
-Nibleaf's integrations catalog is a discovery and lifecycle layer for external
+ZhinWiki's integrations catalog is a discovery and lifecycle layer for external
 provider connections. It does not replace provider-specific domain models. Git,
 analytics, and instance infrastructure remain authoritative in their existing
 modules; project webhook connections use the common encrypted lifecycle.
@@ -28,7 +28,7 @@ modules; project webhook connections use the common encrypted lifecycle.
 | Asset storage | Maxio, MinIO, Amazon S3, Cloudflare R2, Backblaze B2 | Instance-managed, read-only in project settings | Existing AWS S3 SDK boundary |
 | Custom domains | Cloudflare for SaaS | Existing domain provisioning adapter | Existing Cloudflare provider boundary |
 
-Google OAuth signs users into Nibleaf and is intentionally outside the
+Google OAuth signs users into ZhinWiki and is intentionally outside the
 project-integration catalog. Add-ons own product feature switches, usage owns
 metering, and integrations own external provider connections. No provider in
 this engine processes payments.
@@ -117,7 +117,7 @@ Verification delivery records use a bounded running lease. A stale passive
 Discord check can be reclaimed safely. A stale Slack or Zapier test is finalized
 as the sanitized `integration:provider_unavailable` outcome without resending an
 external message; retrying it requires a new dashboard confirmation and
-idempotency key. Nibleaf does not claim exactly-once external webhook delivery.
+idempotency key. ZhinWiki does not claim exactly-once external webhook delivery.
 
 Audit rows contain stable `projectId` and `providerId` values independent of the
 mutable connection relation. Deleting a connection clears the optional relation

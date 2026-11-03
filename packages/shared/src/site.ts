@@ -457,6 +457,34 @@ export const extractHeadings = (markdown: string): Heading[] => {
   return headings;
 };
 
+/** A published page as a search document; `headings` holds the sidebar label and headings. */
+export interface PageSearchDocument {
+  id: string;
+  languageCode: string;
+  title: string;
+  path: string;
+  description: string;
+  headings: string;
+  content: string;
+  icon?: string;
+}
+
+/** Pages in-product search may return, as search documents: never hidden or
+ *  noindex pages, so search does not surface a page crawlers are told to ignore. */
+export const pageSearchDocuments = (pages: SnapshotPage[]): PageSearchDocument[] =>
+  pages
+    .filter((page) => page.kind === 'PAGE' && !page.hidden && !page.config?.seo?.noindex)
+    .map((page) => ({
+      id: page.id,
+      languageCode: page.languageCode,
+      title: page.title,
+      path: page.path,
+      description: page.description ?? '',
+      headings: [page.config?.sidebarTitle?.trim(), ...extractHeadings(page.content).map((heading) => heading.text)].filter(Boolean).join(' '),
+      content: page.content,
+      icon: page.icon ?? undefined,
+    }));
+
 /** The author-written summary of a page, or null when none was set. This is
  *  the ONLY source for a visible lede: a derived excerpt must never be shown as
  *  one, or a page without a description repeats its own first paragraph. */

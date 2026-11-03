@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   projectFindUnique: vi.fn(),
   projectFindFirst: vi.fn(),
-  projectFindMany: vi.fn(),
+  searchPublicWikiDocuments: vi.fn(),
   trackProjectEvent: vi.fn(),
   deploymentFindFirst: vi.fn(),
   deploymentFindUnique: vi.fn(),
@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@nibleaf/database', () => ({
   prisma: {
-    project: { findUnique: mocks.projectFindUnique, findFirst: mocks.projectFindFirst, findMany: mocks.projectFindMany },
+    project: { findUnique: mocks.projectFindUnique, findFirst: mocks.projectFindFirst },
     deployment: { findFirst: mocks.deploymentFindFirst, findUnique: mocks.deploymentFindUnique },
   },
 }));
@@ -29,12 +29,16 @@ vi.mock('@/lib/ai-search/runtime', () => ({
   runPublishedSearch: mocks.runPublishedSearch,
 }));
 vi.mock('@/lib/search-cache', () => ({ getCachedIndex: mocks.getCachedIndex }));
+vi.mock('@/lib/cross-wiki-search', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/cross-wiki-search')>()),
+  searchPublicWikiDocuments: mocks.searchPublicWikiDocuments,
+}));
 vi.mock('./analytics', () => ({ trackProjectEvent: mocks.trackProjectEvent }));
 vi.mock('./notifications', () => ({ createNotificationsForOrgMembers: vi.fn() }));
 vi.mock('./reader-access', () => ({ resolveViewerAccess: vi.fn(async () => ({ kind: 'public', allowedPageIds: null })) }));
 
 import { env } from '@/env';
-import { CROSS_WIKI_HITS_PER_WIKI, CROSS_WIKI_MAX_WIKIS, CROSS_WIKI_RESULT_LIMIT } from '@/lib/cross-wiki-search';
+import { CROSS_WIKI_HITS_PER_WIKI, CROSS_WIKI_RESULT_LIMIT } from '@/lib/cross-wiki-search';
 import { getSitePage, getSitePageMarkdown, invalidatePublishedSiteConfig, resolveSiteSlug, searchSite } from './sites';
 
 const page = (over: Partial<SnapshotPage> & Pick<SnapshotPage, 'id' | 'path' | 'position'>): SnapshotPage => ({
@@ -344,142 +348,128 @@ describe('resolveSiteSlug', () => {
 });
 
 describe('searchSite across wikis', () => {
-  type Wiki = { id: string; accessMode?: string; takedownAt?: Date | null; published?: boolean; crossWikiSearch?: boolean; slug?: string };
-  let wikis: Map<string, Wiki>;
-
-  const live = (wiki: Wiki) => ({
-    name: `Wiki ${wiki.id}`,
-    slug: wiki.slug ?? wiki.id,
+  const live = (config: Record<string, unknown> = {}) => ({
+    name: 'Home wiki',
+    slug: 'home',
     description: null,
     icon: null,
-    config: wiki.crossWikiSearch === false ? { search: { crossWikiSearch: false } } : {},
-    accessMode: wiki.accessMode ?? 'PUBLIC',
-    takedownAt: wiki.takedownAt ?? null,
+    config,
+    accessMode: 'PUBLIC',
+    takedownAt: null,
     domains: [],
     languages: [{ code: 'en', enabled: true, config: null, projectTranslations: [] }],
     addons: [],
     organization: { usagePlan: null },
   });
 
-  const setup = (list: Wiki[]) => {
-    wikis = new Map(list.map((wiki) => [wiki.id, wiki]));
-    for (const wiki of list) invalidatePublishedSiteConfig(wiki.id);
-    mocks.projectFindUnique.mockImplementation(async ({ where, select }: { where: { id: string }; select: Record<string, unknown> }) => {
-      const wiki = wikis.get(where.id);
-      if (!wiki) return null;
-      return 'name' in select ? live(wiki) : { id: wiki.id };
-    });
-    mocks.projectFindMany.mockImplementation(async () => list.map((wiki) => ({ id: wiki.id, config: live(wiki).config })));
-    mocks.deploymentFindFirst.mockImplementation(async ({ where }: { where: { projectId: string } }) =>
-      wikis.get(where.projectId)?.published === false ? null : { id: `deployment-${where.projectId}-${Math.random()}`, version: 1 },
+  const row = (projectId: string, pageId: string, rank: number, over: Record<string, unknown> = {}) => ({
+    projectId,
+    name: `Wiki ${projectId}`,
+    slug: projectId,
+    primaryDomain: null,
+    defaultLanguage: 'en',
+    pageId,
+    languageCode: 'en',
+    title: pageId,
+    path: pageId,
+    icon: null,
+    snippet: `${pageId} snippet`,
+    rank,
+    ...over,
+  });
+
+  const setup = (config: Record<string, unknown> = {}) => {
+    invalidatePublishedSiteConfig('home');
+    mocks.projectFindUnique.mockImplementation(async ({ select }: { select: Record<string, unknown> }) =>
+      'name' in select ? live(config) : { id: 'home' },
     );
-    mocks.deploymentFindUnique.mockImplementation(async ({ where }: { where: { id: string } }) => {
-      const projectId = where.id.split('-')[1] ?? '';
-      return {
-        snapshot: {
-          ...snapshot,
-          project: { ...snapshot.project, id: projectId, name: `Wiki ${projectId}`, slug: projectId },
-          pages: [page({ id: `${projectId}-page`, path: 'guide', position: 0, title: 'Guide' })],
-        },
-      };
-    });
+    mocks.deploymentFindFirst.mockResolvedValue({ id: `deployment-home-${Math.random()}`, version: 1 });
+    mocks.deploymentFindUnique.mockResolvedValue({ snapshot: { ...snapshot, project: { ...snapshot.project, id: 'home', slug: 'home' } } });
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     Object.assign(env, { TENANCY: 'shared', APP_URL: 'https://wiki.example', SITE_BASE_DOMAIN: undefined });
-    mocks.getCachedIndex.mockImplementation(async (projectId: string) => ({ projectId }));
-    mocks.searchDocs.mockImplementation(async (index: { projectId: string }) => [
-      { id: `${index.projectId}-page`, title: 'Guide', path: 'guide', description: '', snippet: 'guide', score: index.projectId === 'home' ? 1 : 99 },
-      ...['second', 'third', 'fourth'].map((name, rank) => ({
-        id: `${index.projectId}-${name}`,
+    mocks.getCachedIndex.mockResolvedValue({});
+    mocks.searchDocs.mockResolvedValue(
+      ['one', 'two', 'three', 'four'].map((name, rank) => ({
+        id: `home-${name}`,
         title: name,
         path: name,
         description: '',
         snippet: name,
-        score: 0.5 - rank / 10,
+        score: 1 - rank / 10,
       })),
-    ]);
+    );
     mocks.runPublishedSearch.mockImplementation(async (_scope: unknown, _query: string, _limit: number, legacy: () => Promise<unknown[]>) => ({
       hits: await legacy(),
       runtime: 'legacy',
     }));
+    mocks.searchPublicWikiDocuments.mockResolvedValue([]);
   });
 
-  const groupIds = (result: Awaited<ReturnType<typeof searchSite>>) => ('groups' in result ? result.groups?.map((group) => group.wiki.id) : null);
+  const groupsOf = (result: Awaited<ReturnType<typeof searchSite>>) => ('groups' in result ? (result.groups ?? []) : []);
 
-  it('groups opted-in public wikis after the current one and drops every wiki failing a gate', async () => {
-    setup([
-      { id: 'home' },
-      { id: 'open' },
-      { id: 'optedout', crossWikiSearch: false },
-      { id: 'private', accessMode: 'WORKSPACE' },
-      { id: 'takendown', takedownAt: new Date() },
-      { id: 'unpublished', published: false },
+  it('puts the current wiki first and groups full-text hits of other wikis with their public URLs', async () => {
+    setup();
+    mocks.searchPublicWikiDocuments.mockResolvedValue([
+      row('beta', 'install', 0.9),
+      row('alpha', 'guide', 0.5, { languageCode: 'de', primaryDomain: 'Docs.Alpha.Example' }),
+      row('beta', 'setup', 0.4),
     ]);
     const result = await searchSite('home', 'guide', undefined, 10, 'all');
-    expect(groupIds(result)).toEqual(['home', 'open']);
-    expect(mocks.projectFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { accessMode: 'PUBLIC', takedownAt: null, deployments: { some: { status: 'READY' } } },
-      }),
-    );
+    expect(mocks.searchPublicWikiDocuments).toHaveBeenCalledWith('home', 'guide', CROSS_WIKI_HITS_PER_WIKI, CROSS_WIKI_RESULT_LIMIT);
     expect(result).toMatchObject({
       groups: [
-        { wiki: { id: 'home', current: true }, hits: [{ id: 'home-page' }, { id: 'home-second' }, { id: 'home-third' }] },
-        { wiki: { id: 'open', current: false, url: 'https://wiki.example/open' }, hits: [{ url: 'https://wiki.example/open/guide' }, {}, {}] },
+        { wiki: { id: 'home', current: true }, hits: [{ id: 'home-one' }, { id: 'home-two' }, { id: 'home-three' }] },
+        {
+          wiki: { id: 'beta', name: 'Wiki beta', url: 'https://wiki.example/beta', current: false },
+          hits: [{ id: 'install', url: 'https://wiki.example/beta/install', snippet: 'install snippet' }, { id: 'setup' }],
+        },
+        { wiki: { id: 'alpha', url: 'https://docs.alpha.example' }, hits: [{ url: 'https://docs.alpha.example/guide?lang=de', language: 'de' }] },
       ],
       capabilities: { crossWikiSearch: true },
     });
   });
 
   it('records analytics only for the current wiki', async () => {
-    setup([{ id: 'home' }, { id: 'open' }]);
+    setup();
+    mocks.searchPublicWikiDocuments.mockResolvedValue([row('beta', 'install', 0.9)]);
     await searchSite('home', 'guide', undefined, 10, 'all');
     expect(new Set(mocks.trackProjectEvent.mock.calls.map((call) => call[0]))).toEqual(new Set(['home']));
   });
 
-  it('fans out to at most the documented number of other wikis', async () => {
-    setup([{ id: 'home' }, ...Array.from({ length: 15 }, (_, index) => ({ id: `w${String(index).padStart(2, '0')}` }))]);
-    const result = await searchSite('home', 'guide', undefined, 50, 'all');
-    expect(groupIds(result)).toHaveLength(CROSS_WIKI_MAX_WIKIS + 1);
-  });
-
-  it('caps hits per wiki and in total whatever the request limit, the current wiki first', async () => {
-    setup([{ id: 'home' }, ...Array.from({ length: 15 }, (_, index) => ({ id: `w${String(index).padStart(2, '0')}` }))]);
-    const result = await searchSite('home', 'guide', undefined, 4, 'all');
-    const groups = 'groups' in result ? (result.groups ?? []) : [];
-    expect(groups[0]?.hits.map((hit) => hit.id)).toEqual(['home-page', 'home-second', 'home-third']);
-    expect(Math.max(...groups.map((group) => group.hits.length))).toBe(CROSS_WIKI_HITS_PER_WIKI);
+  it('keeps the fused response within the total limit', async () => {
+    setup();
+    mocks.searchPublicWikiDocuments.mockResolvedValue(
+      Array.from({ length: CROSS_WIKI_RESULT_LIMIT }, (_, index) => row(`w${Math.floor(index / 3)}`, `p${index}`, 1 - index / 100)),
+    );
+    const groups = groupsOf(await searchSite('home', 'guide', undefined, 4, 'all'));
+    expect(groups[0]?.hits).toHaveLength(CROSS_WIKI_HITS_PER_WIKI);
     expect(groups.flatMap((group) => group.hits)).toHaveLength(CROSS_WIKI_RESULT_LIMIT);
   });
 
-  it('keeps the request limit for the single-wiki response', async () => {
-    setup([{ id: 'home' }]);
-    const result = await searchSite('home', 'guide', undefined, 4);
-    expect('hits' in result && result.hits).toHaveLength(4);
-  });
-
   it('searches only the current wiki when it opted out', async () => {
-    setup([{ id: 'home', crossWikiSearch: false }, { id: 'open' }]);
+    setup({ search: { crossWikiSearch: false } });
     const result = await searchSite('home', 'guide', undefined, 10, 'all');
-    expect(groupIds(result)).toEqual(['home']);
+    expect(groupsOf(result).map((group) => group.wiki.id)).toEqual(['home']);
     expect(result.capabilities.crossWikiSearch).toBe(false);
-    expect(mocks.projectFindMany).not.toHaveBeenCalled();
+    expect(mocks.searchPublicWikiDocuments).not.toHaveBeenCalled();
   });
 
   it('ignores the all-wikis scope under independent tenancy', async () => {
     Object.assign(env, { TENANCY: 'independent' });
-    setup([{ id: 'home' }, { id: 'open' }]);
+    setup();
     const result = await searchSite('home', 'guide', undefined, 10, 'all');
-    expect(groupIds(result)).toEqual(['home']);
-    expect(mocks.projectFindMany).not.toHaveBeenCalled();
+    expect(groupsOf(result).map((group) => group.wiki.id)).toEqual(['home']);
+    expect(mocks.searchPublicWikiDocuments).not.toHaveBeenCalled();
   });
 
-  it('keeps the single-wiki response by default', async () => {
-    setup([{ id: 'home' }, { id: 'open' }]);
-    const result = await searchSite('home', 'guide');
+  it('keeps the single-wiki response and request limit by default', async () => {
+    setup();
+    const result = await searchSite('home', 'guide', undefined, 2);
     expect(result).not.toHaveProperty('groups');
-    expect(mocks.projectFindMany).not.toHaveBeenCalled();
+    expect('hits' in result && result.hits).toHaveLength(2);
+    expect(mocks.searchPublicWikiDocuments).not.toHaveBeenCalled();
   });
 });

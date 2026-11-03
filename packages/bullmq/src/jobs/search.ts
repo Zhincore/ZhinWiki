@@ -1,4 +1,4 @@
-export type SearchJobName = 'index-deployment' | 'reindex-project' | 'delete-deployment' | 'delete-project';
+export type SearchJobName = 'index-deployment' | 'index-text' | 'reindex-project' | 'delete-deployment' | 'delete-project';
 
 export interface ReindexProjectJobData {
   projectId: string;

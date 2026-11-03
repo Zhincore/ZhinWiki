@@ -1,6 +1,7 @@
 import { createJob, QueueNames } from '@nibleaf/bullmq';
 import type { PublishDeploymentJobData } from '@nibleaf/bullmq/jobs/publish';
 import { Prisma, prisma } from '@nibleaf/database';
+import { createLogger } from '@nibleaf/logger';
 import { projectAddonRowsForDelivery } from '@nibleaf/shared/addons';
 import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { type RedirectValidationIssue, summarizeRedirectIssues, validateSnapshotRedirects } from '@nibleaf/shared/redirects';
@@ -10,6 +11,8 @@ import { diffLines } from 'diff';
 import { badRequest, notFound } from '@/errors';
 import { logPlatformEvent } from './platform-events';
 import { assertProjectInOrg } from './projects';
+
+const log = createLogger({ action: 'deployments' });
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> => Object.prototype.toString.call(value) === '[object Object]';
 
@@ -506,7 +509,7 @@ export const rollbackDeployment = async (organizationId: string, projectId: stri
     throw badRequest('Only a published deployment with a snapshot can be rolled back to.', { id: deploymentId });
   }
   const snapshot = readSnapshot(target.snapshot);
-  return createWithNextVersion(projectId, (version) =>
+  const deployment = await createWithNextVersion(projectId, (version) =>
     prisma.deployment.create({
       data: {
         projectId,
@@ -520,4 +523,10 @@ export const rollbackDeployment = async (organizationId: string, projectId: stri
       },
     }),
   );
+  await createJob(
+    QueueNames.SEARCH,
+    { name: 'index-text', data: { projectId, deploymentId: deployment.id } },
+    { jobId: `text-search-${deployment.id}` },
+  ).catch((error) => log.warn({ projectId, deploymentId: deployment.id, error }, 'could not enqueue full-text search indexing'));
+  return deployment;
 };

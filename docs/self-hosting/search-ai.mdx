@@ -184,17 +184,23 @@ with its name and public URL.
   wikis never appear. The current wiki is always searched; when it opts out,
   its readers get no toggle and `scope=all` searches only it, as under
   `independent` tenancy.
-- Caps: at most 10 other wikis (alphabetical by name) per query, up to 3 hits
-  per wiki (the current one included) and 30 in total; `limit` applies only to
-  single-wiki search.
-- Each wiki is searched on its own (same tenant filter, hybrid or in-memory
-  runtime) and the lists are merged with Reciprocal Rank Fusion (`k = 60`),
-  since scores of different wikis are not comparable. On equal rank the current
-  wiki comes first.
-- Every searched wiki takes a slot in the 50-entry snapshot cache and, per
-  language, in the 50-index in-memory search cache; hybrid search embeds a
-  query once and reuses it across wikis. The opted-in wiki list is cached for
-  15 seconds.
+- Other wikis come from the `page_search_document` Postgres full-text table
+  (`websearch_to_tsquery`, `ts_rank_cd`, `ts_headline`; title, headings and
+  body weighted A/B/C). The worker writes a project's rows in one transaction
+  after each publish or rollback, keeping only the latest READY deployment;
+  takedown, access, opt-out and disabled languages are checked at query time,
+  and rows cascade with the project. Each language uses its Postgres text
+  search configuration (`pt-BR` → `portuguese`), else `simple` (for example
+  Bengali, Urdu, Chinese). At boot the worker indexes live deployments that
+  have no rows yet.
+- The current wiki is searched through its normal path (in-memory or hybrid,
+  with its reader access). Hybrid instances still use full-text search for
+  other wikis.
+- Caps: up to 3 hits per wiki (the current one included) and 30 in total;
+  `limit` applies only to single-wiki search. The current wiki's list and each
+  other wiki's list are merged with Reciprocal Rank Fusion (`k = 60`); on equal
+  rank the current wiki comes first, then the wiki with the better full-text
+  rank.
 - Search analytics are recorded for the current wiki only. Grounded answers
   stay single-wiki.
 

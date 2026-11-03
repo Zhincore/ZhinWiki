@@ -103,3 +103,35 @@ export const clientIpFromForwardedFor = (header: string | null | undefined, trus
   }
   return (candidates[candidates.length - 1] as string) ?? null;
 };
+
+/**
+ * Rate-limit identity of a client address. IPv6 is grouped by its /64 prefix,
+ * the block one subscriber usually gets; IPv4 (including v4-mapped) and
+ * anything unparseable are kept as they are.
+ */
+export const rateLimitIdentity = (ip: string): string => {
+  if (ip.startsWith('::ffff:') && IPV4.test(ip.slice(7))) {
+    return ip.slice(7);
+  }
+  if (!(ip.includes(':') && IPV6.test(ip))) {
+    return ip;
+  }
+  const [head = '', tail, ...rest] = ip.split('::');
+  if (rest.length > 0) {
+    return ip;
+  }
+  const leading = head ? head.split(':') : [];
+  const trailing = tail ? tail.split(':') : [];
+  const missing = 8 - leading.length - trailing.length;
+  if (missing < 0 || (tail === undefined && missing !== 0)) {
+    return ip;
+  }
+  const groups = [...leading, ...new Array<string>(missing).fill('0'), ...trailing];
+  if (groups.some((group) => group.length === 0 || group.length > 4)) {
+    return ip;
+  }
+  return `${groups
+    .slice(0, 4)
+    .map((group) => Number.parseInt(group, 16).toString(16))
+    .join(':')}::/64`;
+};

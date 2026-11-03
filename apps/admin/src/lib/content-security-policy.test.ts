@@ -13,4 +13,11 @@ describe('adminContentSecurityPolicy', () => {
     expect(policy).toContain("connect-src 'self' https://nibleaf.test");
     expect(policy).not.toContain("connect-src 'self' https: http:");
   });
+
+  it('allows Turnstile only when it is the captcha provider', () => {
+    expect(adminContentSecurityPolicy('n', 'https://nibleaf.test')).not.toContain('challenges.cloudflare.com');
+    const policy = adminContentSecurityPolicy('n', 'https://nibleaf.test', true);
+    expect(policy).toContain("script-src 'self' 'nonce-n' https://challenges.cloudflare.com");
+    expect(policy).toContain('frame-src https://challenges.cloudflare.com');
+  });
 });

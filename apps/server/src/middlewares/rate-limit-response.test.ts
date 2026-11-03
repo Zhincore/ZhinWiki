@@ -1,10 +1,15 @@
 import { Hono } from 'hono';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { errorMiddleware } from '@/errors/handler';
 import type { HonoEnv } from '@/lib/hono/context';
 import { byteBudget, rateLimit } from './rate-limit';
 
 describe('rate-limit retry guidance', () => {
+  // Pin the per-process store whatever the shell exports.
+  beforeAll(() => {
+    delete process.env.REDIS_HOST;
+  });
+
   afterEach(() => vi.useRealTimers());
 
   it('reports the remaining window and permits requests after it expires', async () => {
@@ -12,7 +17,7 @@ describe('rate-limit retry guidance', () => {
     vi.setSystemTime(new Date('2026-10-17T12:00:00Z'));
     const app = new Hono<HonoEnv>();
     app.onError(errorMiddleware({ isDevelopment: false }));
-    app.use('*', rateLimit({ windowMs: 60_000, max: 1 }));
+    app.use('*', rateLimit({ name: 'test', windowMs: 60_000, max: 1 }));
     app.get('/', (context) => context.json({ ok: true }));
     expect((await app.request('/')).status).toBe(200);
     vi.setSystemTime(new Date('2026-10-17T12:00:32.200Z'));
@@ -29,7 +34,7 @@ describe('rate-limit retry guidance', () => {
   it('buckets by the key option and exempts requests keyed null', async () => {
     const app = new Hono<HonoEnv>();
     app.onError(errorMiddleware({ isDevelopment: false }));
-    app.use('*', rateLimit({ windowMs: 60_000, max: 1, key: (context) => context.req.header('x-user') ?? null }));
+    app.use('*', rateLimit({ name: 'test-keyed', windowMs: 60_000, max: 1, key: (context) => context.req.header('x-user') ?? null }));
     app.get('/', (context) => context.json({ ok: true }));
     const as = (user?: string) => app.request('/', { headers: user ? { 'x-user': user } : {} });
     expect((await as('a')).status).toBe(200);
@@ -42,11 +47,11 @@ describe('rate-limit retry guidance', () => {
   it('refuses once the byte budget is spent until enough bytes leave the window', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-17T12:00:00Z'));
-    const budget = byteBudget({ windowMs: 60_000, maxBytes: 100, key: () => 'user' });
+    const budget = byteBudget({ name: 'test-bytes', windowMs: 60_000, maxBytes: 100, key: () => 'user' });
     const app = new Hono<HonoEnv>();
     app.onError(errorMiddleware({ isDevelopment: false }));
-    app.post('/', budget.guard, (context) => {
-      budget.record(context, Number(context.req.query('bytes')));
+    app.post('/', budget.guard, async (context) => {
+      await budget.record(context, Number(context.req.query('bytes')));
       return context.json({ ok: true });
     });
     const send = (bytes: number) => app.request(`/?bytes=${bytes}`, { method: 'POST' });

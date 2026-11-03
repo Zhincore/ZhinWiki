@@ -24,7 +24,7 @@ import { prepareAccountDeletion } from './account-deletion';
 import { requireAuthEmailEnqueue, trackRequiredAuthEmail, withRequiredAuthEmailScope } from './auth-email-delivery';
 import { deliverAuthOtpEmail } from './auth-email-expiry';
 import { keys } from './keys.server';
-import { googleOAuthEnabled } from './providers';
+import { isUnverifiedOAuthSignUp, oauthCredentials } from './providers';
 import { onUserCreated, organizationTenancyOptions } from './tenancy';
 import { wikiSlugUnavailable } from './wiki-slugs';
 
@@ -706,26 +706,26 @@ const handleUserCreated = onUserCreated(env.TENANCY, {
   onLogFailure: (error, userId) => log.error({ error, userId }, 'sign-up event logging failed'),
 });
 
+const oauth = oauthCredentials(env);
+
 const authInstance = betterAuth({
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
   // Invitations go through `inviteMember`, which enforces the single-owner and
   // role rules. Better Auth's endpoint would let an owner invite a second owner.
-  disabledPaths: ['/organization/invite-member'],
+  // Password auth is off, so the email-OTP password reset routes would only
+  // send unsolicited codes to any registered address.
+  disabledPaths: ['/organization/invite-member', '/email-otp/request-password-reset', '/forget-password/email-otp', '/email-otp/reset-password'],
   hooks: { after: requireAuthEmailEnqueue },
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
   basePath: '/api/auth',
-  socialProviders: googleOAuthEnabled(env)
-    ? {
-        google: {
-          clientId: env.GOOGLE_CLIENT_ID,
-          clientSecret: env.GOOGLE_CLIENT_SECRET,
-          // Honor DISABLE_SIGNUP for social sign-in too: existing users keep
-          // signing in with Google, but no new accounts are created.
-          disableSignUp: env.DISABLE_SIGNUP,
-        },
-      }
-    : undefined,
+  // Honor DISABLE_SIGNUP for social sign-in too: existing users keep signing
+  // in, but no new accounts are created. Scopes stay at email + identity.
+  socialProviders: {
+    ...(oauth.google ? { google: { ...oauth.google, disableSignUp: env.DISABLE_SIGNUP } } : {}),
+    ...(oauth.github ? { github: { ...oauth.github, disableSignUp: env.DISABLE_SIGNUP, disableDefaultScope: true, scope: ['user:email'] } } : {}),
+    ...(oauth.discord ? { discord: { ...oauth.discord, disableSignUp: env.DISABLE_SIGNUP } } : {}),
+  },
   trustedOrigins: env.TRUSTED_ORIGINS,
   advanced: {
     defaultCookieAttributes: {
@@ -874,6 +874,12 @@ const authInstance = betterAuth({
   databaseHooks: {
     user: {
       create: {
+        before: async (user, context) => {
+          if (isUnverifiedOAuthSignUp(user, context?.path)) {
+            throw new APIError('FORBIDDEN', { code: 'EMAIL_NOT_VERIFIED', message: 'Verify this email address with the provider first.' });
+          }
+          return { data: user };
+        },
         after: (user, context) => handleUserCreated(user, resolveRequestLocale(context?.headers)),
       },
     },

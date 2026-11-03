@@ -1,13 +1,17 @@
 import { Button } from '@nibleaf/design-system/components/ui/button';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@nibleaf/design-system/components/ui/input-otp';
 import { Label } from '@nibleaf/design-system/components/ui/label';
+import { useCaptcha } from '@nibleaf/design-system/hooks/use-captcha';
+import { getLocale } from '@nibleaf/i18n';
 import { useT } from '@nibleaf/i18n/react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { Mail } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { useGetPublicMeta } from '@/hooks/api/public';
 import { AuthLayout } from '@/layouts/auth';
+import { isCaptchaError } from '@/lib/auth-errors';
 import { readPendingInvitation } from '@/lib/invitations';
 import { authClient, useSession } from '@/services/auth-client';
 
@@ -28,13 +32,17 @@ function VerifyEmailPage() {
   const t = useT();
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const { data: session } = useSession();
+  const { data: session, isPending: sessionPending } = useSession();
   const email = search.email || session?.user?.email || '';
+  // The API waives the bot check only for the signed-in owner of the address.
+  const sessionOwnsEmail = Boolean(email) && session?.user.email.toLowerCase() === email.toLowerCase();
   const [otp, setOtp] = useState('');
   const [error, setError] = useState<string | null>(search.delivery === 'failed' ? t('auth.verify.sendError') : null);
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(Boolean(search.token));
   const [verified, setVerified] = useState(false);
+  const { data: publicMeta } = useGetPublicMeta();
+  const captcha = useCaptcha(sessionPending || sessionOwnsEmail ? undefined : publicMeta?.captcha, getLocale());
 
   const continueAfterVerification = useCallback(() => {
     const inviteId = search.invite ?? readPendingInvitation() ?? undefined;
@@ -77,10 +85,16 @@ function VerifyEmailPage() {
     }
     setError(null);
     setSending(true);
-    const result = await authClient.emailOtp.sendVerificationOtp({ email, type: 'email-verification' });
+    const headers = sessionOwnsEmail ? {} : await captcha.headers().catch(() => null);
+    if (!headers) {
+      setSending(false);
+      setError(t('auth.captcha.failed'));
+      return;
+    }
+    const result = await authClient.emailOtp.sendVerificationOtp({ email, type: 'email-verification', fetchOptions: { headers } });
     setSending(false);
     if (result.error) {
-      setError(t('auth.verify.sendError'));
+      setError(isCaptchaError(result.error) ? t('auth.captcha.failed') : t('auth.verify.sendError'));
       return;
     }
     setOtp('');
@@ -175,7 +189,14 @@ function VerifyEmailPage() {
         </p>
       ) : null}
 
-      <Button className="mt-3 w-full" disabled={sending || verifying || !email} onClick={resend} type="button" variant="outline">
+      <div className="mt-3 flex justify-center empty:hidden" ref={captcha.container} />
+      <Button
+        className="mt-3 w-full"
+        disabled={sending || verifying || !email || !(sessionOwnsEmail || captcha.ready)}
+        onClick={resend}
+        type="button"
+        variant="outline"
+      >
         {sending ? t('auth.verify.resending') : t('auth.verify.resend')}
       </Button>
 

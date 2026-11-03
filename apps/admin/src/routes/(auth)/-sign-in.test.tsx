@@ -6,6 +6,7 @@ import { expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ send: vi.fn() }));
 vi.mock('@nibleaf/i18n/react', () => ({ useT: () => (key: string) => (key === 'admin.signIn.sendError' ? 'تعذر إرسال رمز تسجيل الدخول.' : key) }));
+vi.mock('@/hooks/api/queries', () => ({ usePublicMeta: () => ({ data: { captcha: { provider: 'off', siteKey: null } } }) }));
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({ options }),
   useNavigate: () => vi.fn(),

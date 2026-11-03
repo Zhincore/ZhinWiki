@@ -20,10 +20,10 @@ const contributorKey = () => (isContextContributor() ? getContextUserOrThrow().i
 
 /**
  * Contributor upload limits: 30 uploads per 10 minutes and 200 MB stored per
- * 24 hours. In memory and per instance; persistent limits come with sign-up hardening.
+ * 24 hours, shared like other rate limits.
  */
-const uploadRate = rateLimit({ windowMs: 10 * 60 * 1000, max: 30, key: contributorKey });
-const uploadBytes = byteBudget({ windowMs: 24 * 60 * 60 * 1000, maxBytes: 200 * 1024 * 1024, key: contributorKey });
+const uploadRate = rateLimit({ name: 'contributor-upload', windowMs: 10 * 60 * 1000, max: 30, key: contributorKey });
+const uploadBytes = byteBudget({ name: 'contributor-upload-bytes', windowMs: 24 * 60 * 60 * 1000, maxBytes: 200 * 1024 * 1024, key: contributorKey });
 
 const app = new Hono<HonoEnv>()
   .get('/', ...assetsRoutes.list, async (ctx) => {
@@ -56,7 +56,7 @@ const app = new Hono<HonoEnv>()
         contentType: ctx.req.valid('header')['content-type'],
         request: ctx.req.raw,
       });
-      uploadBytes.record(ctx, asset.size);
+      await uploadBytes.record(ctx, asset.size);
       return ctx.json({ data: asset }, 201);
     },
   );

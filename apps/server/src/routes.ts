@@ -1,8 +1,9 @@
 import { auth } from '@nibleaf/auth/server';
 import { prisma } from '@nibleaf/database';
-import { Hono } from 'hono';
+import { type Context, Hono } from 'hono';
 import { env } from './env';
 import type { HonoEnv } from './lib/hono/context';
+import { emailFromJsonBody, emailSendGuards } from './middlewares/email-send';
 import { rateLimit } from './middlewares/rate-limit';
 import modules from './modules';
 import mcp from './modules/mcp';
@@ -26,15 +27,6 @@ const isAdminOriginRequest = (request: Request): boolean => {
   return candidates.includes(adminOrigin.host);
 };
 
-const emailFromJsonBody = async (request: Request): Promise<string | null> => {
-  try {
-    const body = (await request.clone().json()) as { email?: unknown };
-    return typeof body.email === 'string' ? body.email.trim().toLowerCase() : null;
-  } catch {
-    return null;
-  }
-};
-
 const isPlatformAdminEmail = async (email: string | null): Promise<boolean> => {
   if (!email) {
     return false;
@@ -43,9 +35,19 @@ const isPlatformAdminEmail = async (email: string | null): Promise<boolean> => {
   return user?.role === 'admin';
 };
 
+/** A signed-in user mailing their own address needs no captcha. */
+const sessionOwnsEmail = async (ctx: Context<HonoEnv>): Promise<boolean> => {
+  const session = await auth.api.getSession({ headers: ctx.req.raw.headers });
+  return Boolean(session && session.user.email.toLowerCase() === (await emailFromJsonBody(ctx.req.raw)));
+};
+
+const emailSend = emailSendGuards(sessionOwnsEmail);
+
 const apiApp = new Hono<HonoEnv>()
   // Throttle better-auth endpoints to blunt credential-stuffing / brute-force attempts.
-  .use('/auth/*', rateLimit({ windowMs: 60_000, max: 30 }))
+  .use('/auth/*', rateLimit({ name: 'auth', windowMs: 60_000, max: 30 }))
+  .use('/auth/email-otp/send-verification-otp', ...emailSend)
+  .use('/auth/send-verification-email', ...emailSend)
   .use('/auth/email-otp/send-verification-otp', async (ctx, next) => {
     if (ctx.req.method === 'POST' && isAdminOriginRequest(ctx.req.raw)) {
       const email = await emailFromJsonBody(ctx.req.raw);

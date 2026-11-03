@@ -6,6 +6,7 @@ export const serverEnv = createEnv({
     PORT: z.coerce.number().int().positive().default(4315),
     NITRO_PORT: z.coerce.number().int().positive().optional(),
     APP_URL: z.url({ protocol: /^https?$/ }).default('http://localhost:4310'),
+    CAPTCHA_PROVIDER: z.enum(['altcha', 'turnstile', 'off']).default('altcha'),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

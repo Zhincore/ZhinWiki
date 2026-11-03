@@ -26,6 +26,7 @@
     "@fontsource-variable/noto-sans-arabic": "^5.3.0",
     "@nibleaf/shared": "workspace:*",
     "@tanstack/react-router": "1.170.44",
+    "altcha": "3.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

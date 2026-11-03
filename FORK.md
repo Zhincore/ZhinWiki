@@ -19,6 +19,9 @@ Behaviour that exists only in this fork. Naming and branch rules:
   outside contributors, notifications
   ([#79](https://github.com/Zhincore/ZhinWiki/pull/79)); publish on merge,
   history, revert ([#85](https://github.com/Zhincore/ZhinWiki/pull/85)).
+- **Sign-up hardening**: bot check on sign-in code emails, per-address and
+  per-IP code limits, rate limits shared through Dragonfly, GitHub and Discord
+  sign-in ([#87](https://github.com/Zhincore/ZhinWiki/pull/87)).
 - **Runtime branding**: `APP_NAME`, `BRAND_*` from env, ZhinWiki default
   ([#10](https://github.com/Zhincore/ZhinWiki/pull/10),
   [#11](https://github.com/Zhincore/ZhinWiki/pull/11),
@@ -156,8 +159,8 @@ branch stores one change request (CR), reviewed and merged back.
   advisory lock; a refused object is deleted. When their CR is archived,
   merged or its branch deleted, their uploads no page on `main` or an open CR
   (nor the wiki config) references are deleted (`cleanupContributorAssets`).
-  Per user, in memory: 30 uploads / 10 min, 200 MB stored / 24 h (429
-  `http:rate_limited`, Retry-After).
+  Per user, shared like other rate limits: 30 uploads / 10 min, 200 MB
+  stored / 24 h (429 `http:rate_limited`, Retry-After).
 - Public assets send `Cross-Origin-Resource-Policy: same-origin`: no
   hotlinking from other sites.
 - Notifications (`change-request-notifications.ts`): in-app plus email for
@@ -186,6 +189,30 @@ branch stores one change request (CR), reviewed and merged back.
 - Public output (`buildSnapshot`, publish, served snapshots) reads only `main`;
   exports and the MCP `versions` resource still list CR branches.
 
+## Sign-up hardening
+
+- `CAPTCHA_PROVIDER=altcha|turnstile|off` (default `altcha`, self-hosted proof
+  of work; `turnstile` sends visitor signals to Cloudflare). Required on
+  `POST /api/auth/email-otp/send-verification-otp` and
+  `/api/auth/send-verification-email`, except for a signed-in user mailing their
+  own address. Solution in the `x-captcha-response` header; ALTCHA solutions
+  are single-use (Dragonfly `SET NX` until expiry; per process while
+  Dragonfly is down). Turnstile tokens must carry action `email-send` and the
+  `APP_URL` or `ADMIN_URL` hostname.
+- Better Auth's captcha plugin is not used: it has no self-hosted provider.
+- Code emails: `OTP_SEND_LIMIT_PER_IP` (20/h) and `OTP_SEND_LIMIT_PER_EMAIL`
+  (5/h) after the captcha, so unsolved requests cannot lock out an IP or an
+  address. Verify attempts stay on Better Auth (`allowedAttempts: 3`).
+- `rateLimit` and `byteBudget` keep a weighted sliding log per bucket in
+  Dragonfly (one Lua script, HMAC-keyed pseudonymous keys, TTL = window) when
+  `REDIS_HOST` is set; per process otherwise or while Dragonfly is down or slow
+  (a failed command pauses Dragonfly use for 5 s). IP buckets group IPv6 by
+  /64. Each limiter has a unique `name`.
+- Email-OTP password-reset routes are disabled (password auth is off).
+- GitHub (`user:email`) and Discord (`identify email`) sign-in beside Google;
+  Better Auth's default account linking (verified emails only). OAuth sign-up
+  with an address the provider has not verified is refused.
+
 ## Branding
 
 - Default brand ZhinWiki (`packages/shared/src/brand.ts`); `APP_NAME` and
@@ -206,6 +233,10 @@ upgrade does not apply: ZhinWiki v0.1.0 already runs BullMQ 6.
   `apps/server/src/middlewares/guard/can-create-project.ts`,
   `apps/app/src/functions/tenancy.ts`, `apps/app/src/hooks/use-tenancy.ts`,
   `apps/app/src/components/app/empty-wikis.tsx`.
+- Sign-up hardening: `apps/server/src/lib/{captcha,sliding-window,redis}.ts`,
+  `apps/server/src/middlewares/{captcha,email-send}.ts`,
+  `packages/design-system/src/hooks/use-captcha.ts`,
+  `apps/app/src/components/social-sign-in.tsx`.
 - Brand: `packages/shared/src/brand.ts`, `apps/app/src/lib/brand.ts`,
   `apps/app/src/components/welcome-page.tsx`.
 - Change requests:

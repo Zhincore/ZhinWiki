@@ -84,6 +84,9 @@ const HOMEPAGE = parseHomepage(process.env.HOMEPAGE);
 /** Shared tenancy serves published wikis at `/<slug>` on the app origin. */
 const WIKI_SLUG_PATHS = authKeys().TENANCY === 'shared';
 
+/** Turnstile's script and frame are allowed only when it is the captcha provider. */
+const TURNSTILE_CAPTCHA = process.env.CAPTCHA_PROVIDER === 'turnstile';
+
 const REVISION = process.env.NIBLEAF_REVISION ?? 'development';
 const DRAIN_FILE = process.env.NIBLEAF_DRAIN_FILE ?? '/tmp/nibleaf-draining';
 
@@ -633,7 +636,7 @@ function applyBaselineHeaders(res: Response, nonce: string): Response {
     if (res.status === 404 && !res.headers.has('X-Robots-Tag')) {
       res.headers.set('X-Robots-Tag', 'noindex, nofollow');
     }
-    res.headers.set('Content-Security-Policy', contentSecurityPolicy(nonce));
+    res.headers.set('Content-Security-Policy', contentSecurityPolicy(nonce, TURNSTILE_CAPTCHA));
     res.headers.set('cache-control', PRIVATE_NO_STORE);
     return encodePublicRouteManifestResponse(res);
   }

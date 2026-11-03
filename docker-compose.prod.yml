@@ -52,6 +52,16 @@ x-service-env: &service-env
   BETTER_AUTH_URL: ${BETTER_AUTH_URL:-${APP_URL:-}}
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+  GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+  DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+  DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+  # Bot check before sign-in code emails: altcha (self-hosted, default),
+  # turnstile (Cloudflare) or off.
+  CAPTCHA_PROVIDER: ${CAPTCHA_PROVIDER:-altcha}
+  CAPTCHA_HMAC_KEY: ${CAPTCHA_HMAC_KEY:-}
+  TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+  TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
   # Registration is enabled by default. Set DISABLE_SIGNUP=true after the
   # first owner registers to close registration. Email-code sign-in needs
   # POSTMARK_API_KEY or SMTP_URL; Google sign-in requires its own credentials.
@@ -110,6 +120,9 @@ x-service-env: &service-env
   AI_DAILY_LIMIT: ${AI_DAILY_LIMIT:-}
   # Per-IP budget for the public site-serving API (requests/minute).
   RATE_LIMIT_PUBLIC_PER_MIN: ${RATE_LIMIT_PUBLIC_PER_MIN:-}
+  # Sign-in code emails per address and per client IP, per hour.
+  OTP_SEND_LIMIT_PER_EMAIL: ${OTP_SEND_LIMIT_PER_EMAIL:-}
+  OTP_SEND_LIMIT_PER_IP: ${OTP_SEND_LIMIT_PER_IP:-}
   # Public proxy hops your edge appends to X-Forwarded-For (1 behind Cloudflare).
   # Private hops are skipped automatically. See the production checklist:
   # https://docs.nibleaf.com/self-hosting/production

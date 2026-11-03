@@ -1,6 +1,6 @@
 # Arabic search morphology
 
-Nibleaf uses one deterministic Arabic analyzer for document insertion and
+ZhinWiki uses one deterministic Arabic analyzer for document insertion and
 queries. It is based on Apache Lucene's TREC-tested Arabic Light10 stemmer, not
 a root extractor or a general linguistic lemmatizer. The implementation keeps
 Orama as the search engine and changes analysis and ranking around it; no NLP
@@ -26,7 +26,7 @@ can add recall but cannot erase the exact ranking signal.
 
 The implementation is adapted from [Apache Lucene ArabicStemmer](https://github.com/apache/lucene/blob/main/lucene/analysis/common/src/java/org/apache/lucene/analysis/ar/ArabicStemmer.java),
 licensed Apache-2.0. Lucene documents this as removal of attached articles,
-conjunctions, prepositions, and common suffixes. Nibleaf intentionally does not
+conjunctions, prepositions, and common suffixes. ZhinWiki intentionally does not
 use Orama's Arabic Snowball stemmer: corpus evaluation found aggressive outputs
 such as `سيارات -> يارا` and `وثائق -> ثايق`, which are unsuitable for
 documentation search.

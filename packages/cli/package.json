@@ -1,7 +1,7 @@
 {
   "name": "@nibleaf/cli",
   "version": "0.1.0",
-  "description": "Official CLI for inspecting and fetching agent-readable Nibleaf sites.",
+  "description": "Official CLI for inspecting and fetching agent-readable ZhinWiki sites.",
   "repository": {
     "type": "git",
     "url": "https://github.com/lord007tn/nibleaf.git",

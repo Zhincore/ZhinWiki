@@ -1,4 +1,4 @@
-<!-- Thanks for contributing to Nibleaf! -->
+<!-- Thanks for contributing to ZhinWiki! -->
 
 ## What does this PR do?
 

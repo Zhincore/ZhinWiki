@@ -11,7 +11,7 @@ owning account, and set `CLOUDFLARE_ACCOUNT_ID` in the release environment. Neve
 commit credentials or provider snapshots.
 
 ```sh
-pnpm --filter @nibleaf/custom-domain-edge exec cf zones list --name nibleaf.com
+pnpm --filter @nibleaf/custom-domain-edge exec cf zones list --name example.com
 pnpm --filter @nibleaf/custom-domain-edge exec cf workers deployments list --worker nibleaf-custom-domain-edge
 pnpm --filter @nibleaf/custom-domain-edge exec cf workers get nibleaf-custom-domain-edge
 pnpm --filter @nibleaf/custom-domain-edge exec cf workers versions get <active-version> --worker-id nibleaf-custom-domain-edge --include modules

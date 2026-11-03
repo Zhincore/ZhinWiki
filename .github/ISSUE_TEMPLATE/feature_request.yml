@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest an idea or improvement for Nibleaf
+description: Suggest an idea or improvement for ZhinWiki
 labels: [enhancement]
 body:
   - type: textarea
@@ -25,4 +25,4 @@ body:
     attributes:
       label: Does this relate to a Mintlify capability?
       options:
-        - label: This brings Nibleaf closer to parity with a Mintlify feature.
+        - label: This brings ZhinWiki closer to parity with a Mintlify feature.

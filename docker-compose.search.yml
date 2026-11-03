@@ -1,4 +1,4 @@
-# Optional production overlay for Nibleaf v0.2 hybrid search. Use it only with a
+# Optional production overlay for ZhinWiki v0.2 hybrid search. Use it only with a
 # v0.2.0 or later image; v0.1.2 has no hybrid search path.
 x-search-env: &search-env
   QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}

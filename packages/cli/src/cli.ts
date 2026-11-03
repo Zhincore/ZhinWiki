@@ -8,7 +8,7 @@ interface CliIo {
   error: (value: string) => void;
 }
 
-const HELP = `Nibleaf CLI ${CLI_VERSION}
+const HELP = `ZhinWiki CLI ${CLI_VERSION}
 
 Usage:
   nibleaf inspect <site-url> [--json]
@@ -50,7 +50,7 @@ export async function runCli(args: string[], io: CliIo = { out: console.log, err
     if (flags.includes('--json')) {
       io.out(JSON.stringify(inspection, null, 2));
     } else {
-      io.out(`Nibleaf agent-readiness inspection: ${inspection.baseUrl}`);
+      io.out(`ZhinWiki agent-readiness inspection: ${inspection.baseUrl}`);
       for (const check of inspection.checks) {
         const detail = check.error ?? `HTTP ${check.status ?? 'unknown'}${check.contentType ? `, ${check.contentType}` : ''}`;
         io.out(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name.padEnd(9)} ${detail}`);

@@ -19,7 +19,7 @@ require_prod_secret() {
     echo "[nibleaf] FATAL: BETTER_AUTH_SECRET is unset or a known weak default while NODE_ENV=production." >&2
     echo "[nibleaf] Generate a strong secret and set it in your environment:" >&2
     echo "[nibleaf]     openssl rand -hex 32" >&2
-    echo "[nibleaf] See https://docs.nibleaf.com/self-hosting/production for the production checklist." >&2
+    echo "[nibleaf] See https://github.com/Zhincore/ZhinWiki/blob/main/docs/self-hosting/production.mdx for the production checklist." >&2
     exit 1
   fi
 }

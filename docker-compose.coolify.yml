@@ -1,12 +1,12 @@
-# Nibleaf — Coolify production stack.
+# ZhinWiki — Coolify production stack.
 #
-# Use this compose file in Coolify for Nibleaf Cloud production. The public
+# Use this compose file in Coolify for a ZhinWiki production deployment. The public
 # product is served by `app`; the internal admin console is a separate service.
 #
 # Assign Coolify domains to:
-#   app   : https://nibleaf.com:4310 -> dashboard + published docs + wildcard docs host
-#   admin : https://admin.nibleaf.com:4315 -> internal platform admin panel
-#   maxio : https://storage.nibleaf.com:9000 -> bundled public storage/media domain,
+#   app   : https://docs.example.com:4310 -> dashboard + published docs + wildcard docs host
+#   admin : https://admin.example.com:4315 -> internal platform admin panel
+#   maxio : https://storage.example.com:9000 -> bundled public storage/media domain,
 #           unless using R2/S3
 #
 # Include the explicit container port in each Coolify domain. Every service uses
@@ -69,17 +69,17 @@ x-service-env: &service-env
   EXPORT_CONCURRENCY: ${EXPORT_CONCURRENCY:-1}
   STORAGE_PROVIDER: ${STORAGE_PROVIDER:-maxio}
   STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-http://maxio:9000}
-  STORAGE_PUBLIC_ENDPOINT: ${STORAGE_PUBLIC_ENDPOINT:-https://storage.nibleaf.com}
+  STORAGE_PUBLIC_ENDPOINT: ${STORAGE_PUBLIC_ENDPOINT:-https://storage.example.com}
   STORAGE_REGION: ${STORAGE_REGION:-auto}
   STORAGE_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY_ID:-${SERVICE_USER_STORAGE:?set STORAGE_ACCESS_KEY_ID or SERVICE_USER_STORAGE}}
   STORAGE_SECRET_ACCESS_KEY: ${STORAGE_SECRET_ACCESS_KEY:-${SERVICE_PASSWORD_64_STORAGE:?set STORAGE_SECRET_ACCESS_KEY or SERVICE_PASSWORD_64_STORAGE}}
   STORAGE_BUCKET: ${STORAGE_BUCKET:-nibleaf}
   STORAGE_FORCE_PATH_STYLE: ${STORAGE_FORCE_PATH_STYLE:-true}
-  STORAGE_PUBLIC_URL: ${STORAGE_PUBLIC_URL:-https://storage.nibleaf.com/nibleaf}
-  STORAGE_CORS_ALLOWED_ORIGINS: ${STORAGE_CORS_ALLOWED_ORIGINS:-https://nibleaf.com,https://www.nibleaf.com,https://admin.nibleaf.com}
+  STORAGE_PUBLIC_URL: ${STORAGE_PUBLIC_URL:-https://storage.example.com/nibleaf}
+  STORAGE_CORS_ALLOWED_ORIGINS: ${STORAGE_CORS_ALLOWED_ORIGINS:-https://docs.example.com,https://admin.example.com}
   STORAGE_AUTO_CORS: ${STORAGE_AUTO_CORS:-true}
   BETTER_AUTH_SECRET: ${SERVICE_HEX_64_NIBLEAF:?set SERVICE_HEX_64_NIBLEAF}
-  BETTER_AUTH_URL: ${BETTER_AUTH_URL:-https://nibleaf.com}
+  BETTER_AUTH_URL: ${BETTER_AUTH_URL:-https://docs.example.com}
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
   GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
@@ -92,21 +92,21 @@ x-service-env: &service-env
   TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
   # Public-instance default: require a verified email before sign-in. Needs
   # POSTMARK_API_KEY (or SMTP_URL) configured so the mail can be delivered.
-  TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-https://nibleaf.com,https://www.nibleaf.com,https://admin.nibleaf.com}
-  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://nibleaf.com,https://www.nibleaf.com,https://admin.nibleaf.com}
+  TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-https://docs.example.com,https://admin.example.com}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://docs.example.com,https://admin.example.com}
   MCP_ENABLED: ${MCP_ENABLED:-false}
   MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-}
   MCP_RATE_LIMIT_PER_MIN: ${MCP_RATE_LIMIT_PER_MIN:-120}
   API_PORT: "4311"
   SERVER_SHUTDOWN_TIMEOUT_MS: ${SERVER_SHUTDOWN_TIMEOUT_MS:-25000}
   API_URL: http://server:4311
-  APP_URL: ${APP_URL:-https://nibleaf.com}
-  ADMIN_URL: ${ADMIN_URL:-https://admin.nibleaf.com}
-  SITE_BASE_DOMAIN: ${SITE_BASE_DOMAIN:-nibleaf.com}
+  APP_URL: ${APP_URL:-https://docs.example.com}
+  ADMIN_URL: ${ADMIN_URL:-https://admin.example.com}
+  SITE_BASE_DOMAIN: ${SITE_BASE_DOMAIN:-docs.example.com}
   # Dedicated DNS-only ingress target. Do not use the Cloudflare-proxied apex:
   # third-party hostnames can otherwise be claimed by a former SaaS provider at
   # the shared edge even after their DNS CNAME is changed.
-  CUSTOM_DOMAIN_CNAME_TARGET: ${CUSTOM_DOMAIN_CNAME_TARGET:-cname.nibleaf.com}
+  CUSTOM_DOMAIN_CNAME_TARGET: ${CUSTOM_DOMAIN_CNAME_TARGET:-cname.docs.example.com}
   # Cloudflare for SaaS provisions customer hostnames and certificates. Coolify
   # only owns the three fixed DNS-only origins; it never receives per-customer
   # domain configuration.
@@ -121,8 +121,8 @@ x-service-env: &service-env
   INTEGRATION_CONFIRMATION_RETENTION_HOURS: ${INTEGRATION_CONFIRMATION_RETENTION_HOURS:-24}
   INTEGRATION_IDEMPOTENCY_TTL_HOURS: ${INTEGRATION_IDEMPOTENCY_TTL_HOURS:-24}
   WORKER_PORT: "4312"
-  # nibleaf.com is domain-verified in Postmark, so any sender at the domain works.
-  EMAIL_FROM: ${EMAIL_FROM:-Nibleaf <no-reply@nibleaf.com>}
+  # The sender domain must be verified with your email provider (e.g. Postmark).
+  EMAIL_FROM: ${EMAIL_FROM:-ZhinWiki <no-reply@example.com>}
   POSTMARK_API_KEY: ${POSTMARK_API_KEY:-}
   POSTMARK_MESSAGE_STREAM: ${POSTMARK_MESSAGE_STREAM:-}
   EMAIL_DELIVERY_REQUIRED: ${EMAIL_DELIVERY_REQUIRED:-true}
@@ -135,7 +135,7 @@ x-service-env: &service-env
   # Keep this at 0 unless the public ingress sanitizes X-Forwarded-For and you
   # have captured the real header chain. Cloudflare -> Traefik commonly needs 1
   # because Traefik appends Cloudflare's source address. See:
-  # https://docs.nibleaf.com/self-hosting/production
+  # https://github.com/Zhincore/ZhinWiki/blob/main/docs/self-hosting/production.mdx
   TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-0}
   DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
   TENANCY: ${TENANCY:-shared}
@@ -319,7 +319,7 @@ services:
       server:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS -A nibleaf-healthcheck -H \"Host: ${NIBLEAF_HEALTHCHECK_HOST:-nibleaf.com}\" http://127.0.0.1:4310/health >/dev/null"]
+      test: ["CMD-SHELL", "curl -fsS -A nibleaf-healthcheck -H \"Host: ${NIBLEAF_HEALTHCHECK_HOST:-docs.example.com}\" http://127.0.0.1:4310/health >/dev/null"]
       interval: 10s
       timeout: 5s
       retries: 5

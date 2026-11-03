@@ -1,7 +1,7 @@
 # Changelog
 
-This file records source changes. A merged entry does not prove that Nibleaf
-Cloud or a published self-host image contains it. The committed self-host
+This file records source changes. A merged entry does not prove that a
+published self-host image contains it. The committed self-host
 manifest remains the authority for the latest published artifact.
 
 ## Unreleased

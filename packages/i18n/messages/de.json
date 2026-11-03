@@ -671,7 +671,7 @@
   "settings_theme_importhint": "Es werden keine CSS, JavaScript oder ausführbaren Inhalte akzeptiert. Importe sind begrenzt und schemavalidiert.",
   "settings_theme_choosefile": "Wählen Sie die Datei JSON",
   "settings_theme_importjson": "Theme-Vorlage JSON",
-  "settings_theme_importplaceholder": "Fügen Sie eine Nibleaf-Theme-Vorlage JSON ein, um sie zu überprüfen.",
+  "settings_theme_importplaceholder": "Fügen Sie eine nibleaf-theme-JSON-Vorlage ein, um sie zu überprüfen…",
   "settings_theme_merge": "Zusammenführen",
   "settings_theme_replace": "Thema ersetzen",
   "settings_theme_previewimport": "Vorschau des Imports",

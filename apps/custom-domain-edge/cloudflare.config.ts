@@ -11,7 +11,7 @@ export default defineConfig({
     // Preserve variables and secrets managed outside this repository on uploads.
     unsafe: { metadata: { keep_bindings: ['plain_text', 'json', 'secret_text'] } },
     env: {
-      APP_ORIGIN: bindings.text('https://nibleaf.com'),
+      APP_ORIGIN: bindings.text('https://docs.example.com'),
       EDGE_SECRET: bindings.secret(),
     },
     // Routes are managed externally. Upload and deploy scripts only change versions.

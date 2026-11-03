@@ -8,6 +8,16 @@ type Membership = {
   organization: { id: string; name: string; projects: { id: string; name: string }[] };
 };
 
+/** Closes a deleted user's open change requests and removes their contributor data. */
+type ContributionErasure = (user: { id: string; name: string }) => Promise<void>;
+
+let eraseContributions: ContributionErasure | null = null;
+
+/** Registers the contribution erasure step; account deletion is refused until one is set. */
+export const setContributionErasure = (erase: ContributionErasure): void => {
+  eraseContributions = erase;
+};
+
 const toBlockingWorkspace = ({ organization }: Membership): BlockingWorkspace => {
   const [project] = organization.projects;
   return { organizationId: organization.id, projectId: project?.id ?? null, name: project?.name ?? organization.name };
@@ -17,10 +27,12 @@ const toBlockingWorkspace = ({ organization }: Membership): BlockingWorkspace =>
  * Better Auth `beforeDelete` hook. Refuses deletion while the user owns a
  * workspace with other members; in shared tenancy also while the user is the
  * only member of a wiki. Otherwise erases sole-member workspaces through the
- * shared tenant erasure workflow, then removes the user's product events and
- * notifications. Memberships, sessions, and accounts cascade with the user row.
+ * shared tenant erasure workflow, runs the registered contribution erasure,
+ * then removes the user's product events and notifications. Memberships,
+ * sessions, and accounts cascade with the user row.
  */
-export const prepareAccountDeletion = async (userId: string, tenancy: Tenancy): Promise<void> => {
+export const prepareAccountDeletion = async (user: { id: string; name: string }, tenancy: Tenancy): Promise<void> => {
+  const userId = user.id;
   const memberships = await prisma.member.findMany({
     where: { userId },
     select: {
@@ -71,6 +83,9 @@ export const prepareAccountDeletion = async (userId: string, tenancy: Tenancy): 
       throw error;
     }
   }
+
+  if (!eraseContributions) throw new Error('Contribution erasure is not configured.');
+  await eraseContributions(user);
 
   await prisma.$transaction([prisma.platformEvent.deleteMany({ where: { userId } }), prisma.notification.deleteMany({ where: { userId } })]);
 };

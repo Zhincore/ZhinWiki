@@ -3,7 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppError } from '@/errors';
 import type { HonoEnv } from '@/lib/hono/context';
 
-const mocks = vi.hoisted(() => ({ getSiteOpenApi: vi.fn(), getSiteChangelogRss: vi.fn(), getSitePageMarkdown: vi.fn(), answerSite: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  getSiteOpenApi: vi.fn(),
+  getSiteChangelogRss: vi.fn(),
+  getSitePageMarkdown: vi.fn(),
+  answerSite: vi.fn(),
+  listWikiDirectory: vi.fn(),
+}));
 
 vi.mock('@/actions/sites', () => ({
   getSite: vi.fn(),
@@ -20,6 +26,8 @@ vi.mock('@/actions/sites', () => ({
   getSiteLlmsTxt: vi.fn(),
   getSiteLlmsFullTxt: vi.fn(),
 }));
+
+vi.mock('@/actions/wiki-directory', () => ({ listWikiDirectory: mocks.listWikiDirectory }));
 
 import handlers from './handlers';
 
@@ -110,5 +118,23 @@ describe('grounded answer endpoint', () => {
       (await app.request('/sites/project/answer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"q":""}' })).status,
     ).toBe(422);
     expect(mocks.answerSite).not.toHaveBeenCalled();
+  });
+});
+
+describe('wiki directory endpoint', () => {
+  it('serves the directory shared-cacheable', async () => {
+    const wikis = [{ id: 'p1', name: 'Handbook', description: null, icon: null, logo: null, url: 'https://wiki.example/handbook' }];
+    mocks.listWikiDirectory.mockResolvedValueOnce(wikis);
+    const response = await app.request('/sites/directory');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ data: wikis });
+    expect(response.headers.get('cache-control')).toBe('public, s-maxage=60, stale-while-revalidate=300');
+  });
+
+  it('is not found when the instance has no directory', async () => {
+    mocks.listWikiDirectory.mockResolvedValueOnce(null);
+    const response = await app.request('/sites/directory');
+    expect(response.status).toBe(404);
+    expect(response.headers.get('cache-control')).toBeNull();
   });
 });

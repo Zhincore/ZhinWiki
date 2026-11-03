@@ -4,11 +4,12 @@ import { isRtl } from '@nibleaf/i18n/locales';
 import { useLocale } from '@nibleaf/i18n/react';
 import { Link } from '@tanstack/react-router';
 import { ForkFooter } from '@/components/fork-footer';
+import { WikiDirectory, type WikiDirectoryEntry } from '@/components/wiki-directory';
 import { useTenancy } from '@/hooks/use-tenancy';
 import { useBrand } from '@/lib/brand';
 
-/** The default `/` of a fresh instance: confirms it runs and points the operator at sign-in. */
-export function WelcomePage({ signedIn }: { signedIn: boolean }) {
+/** The default `/` of an instance: confirms it runs, points at sign-in and, under shared tenancy, lists public wikis. */
+export function WelcomePage({ signedIn, wikis = null }: { signedIn: boolean; wikis?: WikiDirectoryEntry[] | null }) {
   const { locale, t } = useLocale();
   const brand = useBrand();
   const shared = useTenancy() === 'shared';
@@ -34,6 +35,7 @@ export function WelcomePage({ signedIn }: { signedIn: boolean }) {
             {t('welcome.signUp')}
           </Button>
         </div>
+        {wikis ? <WikiDirectory wikis={wikis} /> : null}
         <p className="mt-12 max-w-md text-muted-foreground/80 text-xs">{t('welcome.operatorHint')}</p>
       </main>
       <ForkFooter className="mt-10" />

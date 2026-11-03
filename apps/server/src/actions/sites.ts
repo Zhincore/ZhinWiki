@@ -936,18 +936,20 @@ export const getSiteLlmsFullTxt = async (identifier: string): Promise<SiteTextDo
   return { body, isPrivate };
 };
 
+/** Projects with a READY deployment that are not taken down. */
+export const publishedProjectWhere = { takedownAt: null, deployments: { some: { status: 'READY' } } } as const;
+
 /** Resolve a `/<slug>` path (shared tenancy) to its published wiki by current or
  *  previous slug, with the current slug so the app edge can redirect a previous one. */
 export const resolveSiteSlug = async (slug: string): Promise<{ projectId: string; slug: string } | null> => {
   if (env.TENANCY !== 'shared') {
     return null;
   }
-  const published = { takedownAt: null, deployments: { some: { status: 'READY' } } } as const;
-  const current = await prisma.project.findFirst({ where: { slug, ...published }, select: { id: true, slug: true } });
+  const current = await prisma.project.findFirst({ where: { slug, ...publishedProjectWhere }, select: { id: true, slug: true } });
   const project =
     current ??
     (await prisma.project.findFirst({
-      where: { ...rememberingSlug(slug), ...published },
+      where: { ...rememberingSlug(slug), ...publishedProjectWhere },
       select: { id: true, slug: true },
       orderBy: { createdAt: 'asc' },
     }));

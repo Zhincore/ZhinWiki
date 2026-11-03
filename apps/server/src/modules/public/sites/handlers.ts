@@ -19,6 +19,7 @@ import {
   type SiteTextDocument,
   searchSite,
 } from '@/actions/sites';
+import { listWikiDirectory } from '@/actions/wiki-directory';
 import { deliveryCacheHeaders } from '@/lib/delivery-cache';
 import type { HonoEnv } from '@/lib/hono/context';
 import { validator } from '@/lib/hono/validate';
@@ -53,6 +54,12 @@ const app = new Hono<HonoEnv>()
   .get('/resolve', ...sitesRoutes.resolve, validator('query', z.object({ slug: z.string().min(1).max(63) })), async (ctx) => {
     const site = await resolveSiteSlug(ctx.req.valid('query').slug);
     return site ? ctx.json({ data: site }, 200) : ctx.json({ data: null }, 404);
+  })
+  .get('/directory', ...sitesRoutes.directory, async (ctx) => {
+    const wikis = await listWikiDirectory();
+    if (!wikis) return ctx.json({ data: null }, 404);
+    ctx.header('Cache-Control', PUBLIC_CACHE);
+    return ctx.json({ data: wikis }, 200);
   })
   .get('/:id', ...sitesRoutes.site, validator('query', siteQuery), async (ctx) => {
     const { lang, version } = ctx.req.valid('query');

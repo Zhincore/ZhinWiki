@@ -120,6 +120,24 @@ describe('planRevert', () => {
     expect(result.warnings).toEqual([]);
   });
 
+  it('does not attach a page under a path the revert moves away from', () => {
+    const before = page('g', { slug: 'intro', path: 'intro' });
+    const after = page('g', { slug: 'guide', path: 'guide' });
+    const removed = page('x', { parentId: 'gone', path: 'guide/x' });
+    const result = plan([entry('modified', before, after), entry('removed', removed, null)], [after]);
+    expect(result.creates).toMatchObject([{ id: 'new-1', parentId: null, path: 'x' }]);
+    expect(result.warnings).toMatchObject([{ pageId: 'x', reason: 'PARENT_UNAVAILABLE' }]);
+  });
+
+  it('finds a former parent at the path the revert moves it back to', () => {
+    const before = page('g', { slug: 'guide', path: 'guide' });
+    const after = page('g', { slug: 'intro', path: 'intro' });
+    const removed = page('x', { parentId: 'gone', path: 'guide/x' });
+    const result = plan([entry('modified', before, after), entry('removed', removed, null)], [after]);
+    expect(result.creates).toMatchObject([{ id: 'new-1', parentId: 'b-g', path: 'guide/x' }]);
+    expect(result.warnings).toEqual([]);
+  });
+
   it('breaks a loop with a move made on main since', () => {
     const groupA = page('ga');
     const before = page('gb', { parentId: 'ga', path: 'ga/gb' });

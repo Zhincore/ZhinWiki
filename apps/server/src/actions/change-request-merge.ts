@@ -184,6 +184,29 @@ const deletedInBranch = ({ main, branch, forkBase }: MergeInput) => {
   return main.filter((page) => forkBase?.[page.id] !== undefined && !linked.has(page.id));
 };
 
+/** Branch page states, pages deleted in the branch, and the pages both sides
+ *  changed or one side deleted while the other edited. */
+const analyze = (input: MergeInput) => {
+  const states = branchStates(input);
+  const removed = deletedInBranch(input);
+  const conflicts: MergeConflict[] = [];
+  const conflict = (page: MergePage, reason: MergeConflictReason) =>
+    conflicts.push({ pageId: page.id, title: page.title, path: page.path, languageId: page.languageId, reason });
+  for (const { page, source, contentChanged } of states) {
+    if (!page.forkFingerprint || !contentChanged) continue;
+    if (!source) {
+      conflict(page, 'DELETED_ON_MAIN');
+      continue;
+    }
+    const mainContent = contentHash(source);
+    if (mainContent !== page.forkFingerprint.split('.')[0] && mainContent !== contentHash(page)) conflict(source, 'BOTH_CHANGED');
+  }
+  for (const page of removed) {
+    if (contentHash(page) !== input.forkBase?.[page.id]?.hash) conflict(page, 'DELETED_IN_BRANCH');
+  }
+  return { states, removed, conflicts };
+};
+
 export type PageChange = {
   change: PageChangeKind;
   mainPageId: string | null;
@@ -205,15 +228,17 @@ const pageChange = (change: PageChangeKind, main: MergePage | undefined, copy: M
   };
 };
 
-/** Pages a change request adds, removes, edits or moves relative to its fork point. */
-export const summarizeChanges = (input: MergeInput): PageChange[] => {
-  if (input.forkBase === null) return legacyPairs(input).map(({ change, main, copy }) => pageChange(change, main, copy));
-  const changes = branchStates(input).flatMap(({ page, source, contentChanged, parentChanged, positionChanged }) => {
+/** Pages a change request adds, removes, edits or moves relative to its fork
+ *  point, and its merge conflicts (none for untracked branches). */
+export const reviewMerge = (input: MergeInput): { changes: PageChange[]; conflicts: MergeConflict[] } => {
+  if (input.forkBase === null) return { changes: legacyPairs(input).map(({ change, main, copy }) => pageChange(change, main, copy)), conflicts: [] };
+  const { states, removed, conflicts } = analyze(input);
+  const changes = states.flatMap(({ page, source, contentChanged, parentChanged, positionChanged }) => {
     if (!page.forkFingerprint) return [pageChange('added', undefined, page)];
     if (contentChanged) return [pageChange('modified', source, page)];
     return (parentChanged || positionChanged) && source ? [pageChange('moved', source, page)] : [];
   });
-  return [...changes, ...deletedInBranch(input).map((page) => pageChange('removed', page, undefined))];
+  return { changes: [...changes, ...removed.map((page) => pageChange('removed', page, undefined))], conflicts };
 };
 
 /**
@@ -236,46 +261,30 @@ export const planMerge = (input: MergeInput & { force: ReadonlySet<string> }): M
     );
     return { legacy: true, record };
   }
-  const { main, branch, forkBase, force } = input;
+  const { main, branch, force } = input;
+  const { states, removed, conflicts } = analyze(input);
+  if (conflicts.some((item) => !force.has(item.pageId))) {
+    return { legacy: false, conflicts, blocked: true, inserts: [], updates: [], deletes: [], record: [] };
+  }
+
+  // Every conflict is forced from here on, so the branch wins on each.
   const mainById = new Map(main.map((page) => [page.id, page]));
   const branchById = new Map(branch.map((page) => [page.id, page]));
-  const conflicts: MergeConflict[] = [];
-  const conflict = (page: MergePage, reason: MergeConflictReason) => {
-    conflicts.push({ pageId: page.id, title: page.title, path: page.path, languageId: page.languageId, reason });
-    return force.has(page.id);
-  };
   const inserted = new Set<string>();
   const updates = new Map<string, Partial<MergedFields>>();
-  const deletes = new Set<string>();
+  const deletes = new Set(removed.map((page) => page.id));
   const record: MergeRecordEntry[] = [];
-
-  for (const { page, source, contentChanged, parentChanged, positionChanged } of branchStates(input)) {
-    if (!page.forkFingerprint) {
+  for (const { page, source, contentChanged, parentChanged, positionChanged } of states) {
+    if (!page.forkFingerprint || (!source && contentChanged)) {
       inserted.add(page.id);
       continue;
     }
-    if (!source) {
-      if (contentChanged && conflict(page, 'DELETED_ON_MAIN')) inserted.add(page.id);
-      continue;
-    }
-    if (!contentChanged && !parentChanged && !positionChanged) continue;
-    const forkContent = page.forkFingerprint.split('.')[0];
-    const mainContent = contentHash(source);
-    if (contentChanged && mainContent !== forkContent && mainContent !== contentHash(page) && !conflict(source, 'BOTH_CHANGED')) continue;
+    if (!source || (!contentChanged && !parentChanged && !positionChanged)) continue;
     updates.set(source.id, {
       ...(contentChanged ? pick(mergedFields(page), CONTENT_FIELDS) : {}),
       ...(parentChanged ? { parentId: page.parentId } : {}),
       ...(positionChanged ? { position: page.position } : {}),
     });
-  }
-
-  for (const page of deletedInBranch(input)) {
-    if (contentHash(page) !== forkBase[page.id]?.hash && !conflict(page, 'DELETED_IN_BRANCH')) continue;
-    deletes.add(page.id);
-  }
-
-  if (conflicts.some((item) => !force.has(item.pageId))) {
-    return { legacy: false, conflicts, blocked: true, inserts: [], updates: [], deletes: [], record: [] };
   }
 
   /** Default-branch id a change-request parent resolves to after the merge:

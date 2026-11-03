@@ -71,7 +71,7 @@ export function MergeDialog({
       onError: (failure) => {
         const next = conflictsFromError(failure);
         if (next) setRefused(next);
-        else setError(failure.message || t('changeRequest.mergeError'));
+        else setError(failure.message);
       },
     });
   };

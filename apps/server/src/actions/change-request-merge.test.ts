@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contentHash, type MergePage, pageFingerprint, planMerge, summarizeChanges } from './change-request-merge';
+import { contentHash, type MergePage, pageFingerprint, planMerge, reviewMerge } from './change-request-merge';
 
 const page = (id: string, overrides: Partial<MergePage> = {}): MergePage => ({
   id,
@@ -89,7 +89,7 @@ describe('planMerge', () => {
     const mergedEarlier = page('x1', { position: 1 });
     const input = { main: [forked, mergedEarlier], branch: [fork(forked, 'b1')], forkBase: baseOf([fork(forked, 'b1')], forked) };
     expect(merged(planMerge({ ...input, force: none }))).toMatchObject({ conflicts: [], deletes: [], updates: [] });
-    expect(summarizeChanges(input)).toEqual([]);
+    expect(reviewMerge(input)).toEqual({ changes: [], conflicts: [] });
   });
 
   it('leaves an untouched child where main moved it before deleting its parent', () => {
@@ -102,7 +102,7 @@ describe('planMerge', () => {
       forkBase: baseOf([groupCopy, childCopy], group, child),
     };
     expect(merged(planMerge({ ...input, force: none }))).toMatchObject({ conflicts: [], inserts: [], updates: [], deletes: [], record: [] });
-    expect(summarizeChanges(input)).toEqual([]);
+    expect(reviewMerge(input)).toEqual({ changes: [], conflicts: [] });
   });
 
   it('inserts pages created in the branch under the main parent, keeping their ids', () => {
@@ -248,18 +248,47 @@ describe('planMerge', () => {
   });
 });
 
-describe('summarizeChanges', () => {
+describe('reviewMerge', () => {
   it('classifies added, removed, modified and moved pages by id', () => {
     const edited = page('m1');
     const moved = page('m2', { position: 1 });
     const removed = page('m3', { position: 2 });
     const branch = [{ ...fork(edited, 'b1'), title: 'Edited' }, { ...fork(moved, 'b2'), position: 7 }, page('b4')];
-    const changes = summarizeChanges({ main: [edited, moved, removed], branch, forkBase: baseOf(branch, edited, moved, removed) });
+    const { changes } = reviewMerge({ main: [edited, moved, removed], branch, forkBase: baseOf(branch, edited, moved, removed) });
     expect(changes.map(({ change, mainPageId, branchPageId }) => [change, mainPageId, branchPageId])).toEqual([
       ['modified', 'm1', 'b1'],
       ['moved', 'm2', 'b2'],
       ['added', null, 'b4'],
       ['removed', 'm3', null],
     ]);
+  });
+
+  it('reports the conflicts a merge would refuse', () => {
+    const both = page('m1');
+    const deletedOnMain = page('m2', { position: 1 });
+    const deletedInBranch = page('m3', { position: 2 });
+    const branch = [
+      { ...fork(both, 'b1'), content: '# branch' },
+      { ...fork(deletedOnMain, 'b2'), content: '# kept' },
+    ];
+    const input = {
+      main: [
+        { ...both, content: '# main' },
+        { ...deletedInBranch, content: '# edited on main' },
+      ],
+      branch,
+      forkBase: baseOf(branch, both, deletedOnMain, deletedInBranch),
+    };
+    const reasons = (conflicts: { pageId: string; reason: string }[]) => conflicts.map(({ pageId, reason }) => [pageId, reason]);
+    expect(reasons(reviewMerge(input).conflicts)).toEqual([
+      ['m1', 'BOTH_CHANGED'],
+      ['b2', 'DELETED_ON_MAIN'],
+      ['m3', 'DELETED_IN_BRANCH'],
+    ]);
+    expect(reasons(merged(planMerge({ ...input, force: none })).conflicts)).toEqual(reasons(reviewMerge(input).conflicts));
+  });
+
+  it('reports no conflicts for an untracked branch', () => {
+    expect(reviewMerge({ main: [page('m1')], branch: [page('b1', { content: '# new' })], forkBase: null }).conflicts).toEqual([]);
   });
 });

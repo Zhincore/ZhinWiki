@@ -82,13 +82,16 @@ export const assertBranchReadable = async (projectId: string, branchId: string) 
 };
 
 const UNIQUE_VIOLATION = 'P2002';
+/** Sibling order of a branch's pages; ties fall back to creation, then id. */
+export const PAGE_ORDER = [{ position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }] satisfies Prisma.PageOrderByWithRelationInput[];
 /** Forking (and preparing) a large wiki outlasts the default 5 s. */
 const CREATE_BRANCH_OPTIONS = { timeout: 60_000 } as const;
 const MAX_NUMBER_ATTEMPTS = 5;
 
 /** Copy every default-branch page onto `branchId` with fresh ids and remapped
- *  parents. Change-request copies also record their source page and its fork
- *  fingerprint so a merge can tell who changed what. Returns the fork base. */
+ *  parents, keeping creation times so siblings order as on main. Change-request
+ *  copies also record their source page and its fork fingerprint so a merge
+ *  can tell who changed what. Returns the fork base. */
 const forkDefaultBranch = async (
   tx: Prisma.TransactionClient,
   projectId: string,
@@ -96,7 +99,7 @@ const forkDefaultBranch = async (
   link: boolean,
 ): Promise<NonNullable<ForkBase>> => {
   const main = await tx.branch.findFirstOrThrow({ where: { projectId, isDefault: true }, select: { id: true } });
-  const sourcePages = await tx.page.findMany({ where: { projectId, branchId: main.id }, orderBy: { position: 'asc' } });
+  const sourcePages = await tx.page.findMany({ where: { projectId, branchId: main.id }, orderBy: PAGE_ORDER });
   if (sourcePages.length === 0) return {};
   const copies = sourcePages.map((p) => ({ p, id: newId() }));
   const idMap = new Map(copies.map(({ p, id }) => [p.id, id]));
@@ -118,6 +121,7 @@ const forkDefaultBranch = async (
       translationKey: p.translationKey,
       position: p.position,
       hidden: p.hidden,
+      createdAt: p.createdAt,
       ...(link ? { sourcePageId: p.id, forkFingerprint: pageFingerprint(p, p.parentId) } : {}),
     })),
   });
@@ -218,7 +222,18 @@ export type CreateBranchInput = {
   prepare?: (tx: Prisma.TransactionClient, branchId: string) => Promise<void>;
 };
 
-const isUniqueViolation = (error: unknown) => error instanceof Prisma.PrismaClientKnownRequestError && error.code === UNIQUE_VIOLATION;
+/** A concurrent create took the branch name or change request number. */
+class NumberTaken extends Error {}
+
+/** Run a numbering write, turning its unique violation into `NumberTaken`. */
+const claim = async <T>(write: Promise<T>): Promise<T> => {
+  try {
+    return await write;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === UNIQUE_VIOLATION) throw new NumberTaken();
+    throw error;
+  }
+};
 
 /** Create a non-default branch with its change request, numbered after the
  *  project's highest one. A concurrent create taking the same number or name
@@ -241,24 +256,26 @@ export const createBranch = async (projectId: string, input: CreateBranchInput):
           ((await tx.branch.findFirst({ where: { projectId, name: fallbackName }, select: { id: true } }))
             ? `${fallbackName}-${newId()}`
             : fallbackName);
-        const branch = await tx.branch.create({ data: { projectId, name: branchName, isDefault: false } });
+        const branch = await claim(tx.branch.create({ data: { projectId, name: branchName, isDefault: false } }));
         const forkBase = input.fork === false ? null : await forkDefaultBranch(tx, projectId, branch.id, true);
-        await tx.changeRequest.create({
-          data: {
-            projectId,
-            number,
-            title: input.title,
-            description: input.description ?? null,
-            authorId: input.authorId,
-            branchId: branch.id,
-            forkBase: forkBase ?? Prisma.DbNull,
-          },
-        });
+        await claim(
+          tx.changeRequest.create({
+            data: {
+              projectId,
+              number,
+              title: input.title,
+              description: input.description ?? null,
+              authorId: input.authorId,
+              branchId: branch.id,
+              forkBase: forkBase ?? Prisma.DbNull,
+            },
+          }),
+        );
         await input.prepare?.(tx, branch.id);
         return branch;
       }, CREATE_BRANCH_OPTIONS);
     } catch (error) {
-      if (!isUniqueViolation(error)) throw error;
+      if (!(error instanceof NumberTaken)) throw error;
       if (attempt >= MAX_NUMBER_ATTEMPTS) throw conflict('Another change request was created at the same time. Try again.');
     }
   }

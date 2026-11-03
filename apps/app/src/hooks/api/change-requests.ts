@@ -1,6 +1,6 @@
 import { useT } from '@nibleaf/i18n/react';
 import type { CreateChangeRequestBody, SubmitChangeRequestReviewBody, UpdateChangeRequestBody } from '@nibleaf/validators';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { api } from '@/services/api';
@@ -36,12 +36,17 @@ export const useChangeRequest = (projectId: string, number: number | undefined) 
       getData<ChangeRequestDetail>(await changeRequests[':number'].$get({ param: { projectId, number: String(number) } }), 'change request'),
   });
 
-/** One page of merged change requests, newest merge first; `cursor` is the previous page's `nextCursor`. */
-export const useChangeRequestHistory = (projectId: string, cursor: string | undefined) =>
-  useQuery({
-    queryKey: queryKeys.changeRequests.history(projectId, cursor),
-    queryFn: async () =>
-      getData<ChangeRequestHistoryPage>(await changeRequests.history.$get({ param: { projectId }, query: cursor ? { cursor } : {} }), 'history'),
+/** Merged change requests, newest merge first, a page at a time; a refetch reloads the loaded pages in order from the first. */
+export const useChangeRequestHistory = (projectId: string) =>
+  useInfiniteQuery({
+    queryKey: queryKeys.changeRequests.history(projectId),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last: ChangeRequestHistoryPage) => last.nextCursor ?? undefined,
+    queryFn: async ({ pageParam }) =>
+      getData<ChangeRequestHistoryPage>(
+        await changeRequests.history.$get({ param: { projectId }, query: pageParam ? { cursor: pageParam } : {} }),
+        'history',
+      ),
   });
 
 export const useChangeRequestPageDiff = (projectId: string, number: number, pageId: string | undefined) =>
@@ -57,10 +62,11 @@ export const useChangeRequestPageDiff = (projectId: string, number: number, page
   });
 
 const useCreateChangeRequest = (projectId: string) => {
+  const t = useT();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: CreateChangeRequestBody) =>
-      mutateData<ChangeRequest>(await changeRequests.$post({ param: { projectId }, json: body }), 'Could not open a change request.'),
+      mutateData<ChangeRequest>(await changeRequests.$post({ param: { projectId }, json: body }), t('changeRequest.createError')),
     onSuccess: (created) => {
       qc.setQueryData<ChangeRequest[]>(queryKeys.changeRequests.all(projectId), (list) => (list ? [created, ...list] : list));
       qc.invalidateQueries({ queryKey: queryKeys.changeRequests.all(projectId) });
@@ -71,7 +77,6 @@ const useCreateChangeRequest = (projectId: string) => {
 
 /** Open a change request and continue in the editor on it; a failure toasts. */
 export const useStartChangeRequest = (projectId: string) => {
-  const t = useT();
   const navigate = useNavigate();
   const create = useCreateChangeRequest(projectId);
   const start = () =>
@@ -79,19 +84,20 @@ export const useStartChangeRequest = (projectId: string) => {
       {},
       {
         onSuccess: (created) => void navigate({ to: '/app/projects/$projectId/editor', params: { projectId }, search: { cr: created.number } }),
-        onError: (error) => toast.error(error.message || t('changeRequest.createError')),
+        onError: (error) => toast.error(error.message),
       },
     );
   return { start, isPending: create.isPending };
 };
 
 export const useUpdateChangeRequest = (projectId: string, number: number) => {
+  const t = useT();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: UpdateChangeRequestBody) =>
       mutateData<ChangeRequest>(
         await changeRequests[':number'].$patch({ param: { projectId, number: String(number) }, json: body }),
-        'Could not update the change request.',
+        t('changeRequest.updateError'),
       ),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.changeRequests.all(projectId) }),
   });
@@ -99,12 +105,13 @@ export const useUpdateChangeRequest = (projectId: string, number: number) => {
 
 /** Merge into main. A 409 carries `details.conflicts`; `force` names the conflicting pages the change request wins on. */
 export const useMergeChangeRequest = (projectId: string, number: number) => {
+  const t = useT();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (force: string[]) =>
       mutateData<MergedChangeRequest>(
         await changeRequests[':number'].merge.$post({ param: { projectId, number: String(number) }, json: { force } }),
-        'Could not merge the change request.',
+        t('changeRequest.mergeError'),
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.changeRequests.all(projectId) });
@@ -124,7 +131,7 @@ export const useRevertChangeRequest = (projectId: string, number: number) => {
     mutationFn: async () =>
       mutateData<{ changeRequest: ChangeRequest; warnings: RevertWarning[] }>(
         await changeRequests[':number'].revert.$post({ param: { projectId, number: String(number) } }),
-        'Could not revert the change request.',
+        t('changeRequest.revertError'),
       ),
     onSuccess: ({ changeRequest, warnings }) => {
       qc.invalidateQueries({ queryKey: queryKeys.changeRequests.all(projectId) });
@@ -136,7 +143,7 @@ export const useRevertChangeRequest = (projectId: string, number: number) => {
       }
       void navigate({ to: '/app/projects/$projectId/changes/$number', params: { projectId, number: String(changeRequest.number) } });
     },
-    onError: (error) => toast.error(error.message || t('changeRequest.revertError')),
+    onError: (error) => toast.error(error.message),
   });
   return { revert: () => revert.mutate(), isPending: revert.isPending };
 };
@@ -151,6 +158,7 @@ export const useReviewerCandidates = (projectId: string, enabled: boolean) =>
 
 /** Add a reviewer, ask them again (`request`) or remove them. */
 export const useChangeRequestReviewer = (projectId: string, number: number) => {
+  const t = useT();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ userId, remove }: { userId: string; remove?: boolean }) => {
@@ -159,7 +167,7 @@ export const useChangeRequestReviewer = (projectId: string, number: number) => {
         remove
           ? await changeRequests[':number'].reviewers[':userId'].$delete({ param: { ...param, userId } })
           : await changeRequests[':number'].reviewers.$post({ param, json: { userId } }),
-        'Could not update the reviewers.',
+        t('changeRequest.reviewers.error'),
       );
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.changeRequests.all(projectId) }),
@@ -167,12 +175,13 @@ export const useChangeRequestReviewer = (projectId: string, number: number) => {
 };
 
 export const useSubmitChangeRequestReview = (projectId: string, number: number) => {
+  const t = useT();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: SubmitChangeRequestReviewBody) =>
       mutateData<{ state: string }>(
         await changeRequests[':number'].reviews.$post({ param: { projectId, number: String(number) }, json: body }),
-        'Could not submit the review.',
+        t('changeRequest.review.error'),
       ),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.changeRequests.all(projectId) }),
   });

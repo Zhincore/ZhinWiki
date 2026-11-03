@@ -3,7 +3,7 @@ import { Skeleton } from '@nibleaf/design-system/components/ui/skeleton';
 import { useT } from '@nibleaf/i18n/react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { GitMerge, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useUserName } from '@/components/change-requests/user-name';
 import { QueryErrorState } from '@/components/query-error-state';
 import { useChangeRequestHistory } from '@/hooks/api';
 import { useFormatters } from '@/lib/format';
@@ -16,7 +16,6 @@ export const Route = createFileRoute('/app/projects/$projectId/history')({
 function HistoryPage() {
   const t = useT();
   const { projectId } = Route.useParams();
-  const [cursors, setCursors] = useState<(string | undefined)[]>([undefined]);
 
   return (
     <div className="w-full px-6 py-8 xl:px-10">
@@ -24,63 +23,43 @@ function HistoryPage() {
       <p className="mt-1 text-muted-foreground text-sm">{t('changeRequest.history.subtitle')}</p>
       <div className="mt-6 overflow-hidden rounded-xl border border-border bg-card">
         <ul className="divide-y divide-border">
-          {cursors.map((cursor, index) => (
-            <HistoryChunk
-              key={cursor ?? ''}
-              projectId={projectId}
-              cursor={cursor}
-              first={index === 0}
-              onMore={index === cursors.length - 1 ? (next) => setCursors((current) => [...current, next]) : undefined}
-            />
-          ))}
+          <HistoryList projectId={projectId} />
         </ul>
       </div>
     </div>
   );
 }
 
-/** One fetched page of the history; the last one offers the next. */
-function HistoryChunk({
-  projectId,
-  cursor,
-  first,
-  onMore,
-}: {
-  projectId: string;
-  cursor: string | undefined;
-  first: boolean;
-  onMore?: (cursor: string) => void;
-}) {
+/** The loaded history pages, with the next one on demand. */
+function HistoryList({ projectId }: { projectId: string }) {
   const t = useT();
   const { relativeTime } = useFormatters();
-  const { data, isPending, isError, refetch, isRefetching } = useChangeRequestHistory(projectId, cursor);
+  const userName = useUserName();
+  const { data, isPending, isError, refetch, isRefetching, hasNextPage, fetchNextPage, isFetchingNextPage, isFetchNextPageError } =
+    useChangeRequestHistory(projectId);
 
   if (isPending) {
-    return first ? (
+    return (
       <li className="space-y-3 p-4">
         <Skeleton className="h-5 w-2/3" />
         <Skeleton className="h-5 w-1/2" />
       </li>
-    ) : (
-      <li className="flex justify-center p-3">
-        <Loader2 className="size-4 animate-spin text-muted-foreground" />
-      </li>
     );
   }
-  if (isError) {
+  if (isError && !isFetchNextPageError) {
     return (
       <li>
         <QueryErrorState onRetry={() => void refetch()} retrying={isRefetching} />
       </li>
     );
   }
-  if (first && data.items.length === 0) {
+  const items = data.pages.flatMap((page) => page.items);
+  if (items.length === 0) {
     return <li className="px-4 py-10 text-center text-muted-foreground text-sm">{t('changeRequest.history.empty')}</li>;
   }
-  const next = data.nextCursor;
   return (
     <>
-      {data.items.map((entry) => (
+      {items.map((entry) => (
         <li key={entry.id}>
           <Link
             to="/app/projects/$projectId/changes/$number"
@@ -95,13 +74,13 @@ function HistoryChunk({
               <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-muted-foreground text-xs">
                 <span dir="ltr">#{entry.number}</span>
                 <span aria-hidden>·</span>
-                <span dir="auto">{entry.author?.name ?? t('changeRequest.unknownAuthor')}</span>
+                <span dir="auto">{userName(entry.author)}</span>
                 {entry.mergedAt ? (
                   <>
                     <span aria-hidden>·</span>
                     <span>
                       {t('changeRequest.mergedBy', {
-                        name: entry.mergedBy?.name ?? t('changeRequest.unknownAuthor'),
+                        name: userName(entry.mergedBy),
                         time: relativeTime(entry.mergedAt),
                       })}
                     </span>
@@ -113,10 +92,14 @@ function HistoryChunk({
           </Link>
         </li>
       ))}
-      {next && onMore ? (
+      {isFetchNextPageError ? (
+        <li>
+          <QueryErrorState onRetry={() => void fetchNextPage()} retrying={isFetchingNextPage} />
+        </li>
+      ) : hasNextPage ? (
         <li className="flex justify-center p-2">
-          <Button size="sm" variant="ghost" onClick={() => onMore(next)}>
-            {t('changeRequest.history.loadMore')}
+          <Button size="sm" variant="ghost" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()}>
+            {isFetchingNextPage ? <Loader2 className="size-4 animate-spin" /> : t('changeRequest.history.loadMore')}
           </Button>
         </li>
       ) : null}

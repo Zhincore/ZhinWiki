@@ -24,7 +24,7 @@ export const queryKeys = {
   changeRequests: {
     all: (projectId: string) => ['change-requests', projectId] as const,
     detail: (projectId: string, number: number) => ['change-requests', projectId, number] as const,
-    history: (projectId: string, cursor: string | undefined) => ['change-requests', projectId, 'history', cursor ?? ''] as const,
+    history: (projectId: string) => ['change-requests', projectId, 'history'] as const,
     pageDiff: (projectId: string, number: number, pageId: string) => ['change-requests', projectId, number, 'diff', pageId] as const,
     reviewerCandidates: (projectId: string) => ['change-request-reviewer-candidates', projectId] as const,
   },

@@ -26,6 +26,7 @@ import { ChangeRequestHeader, useChangeRequestAccess } from '@/components/change
 import { ChangedPages, ChangeMarker, changeKey, useChangesByLanguage } from '@/components/change-requests/changed-pages';
 import { MergeDialog } from '@/components/change-requests/merge-dialog';
 import { ApprovalStatus, ParticipantsPanel, ReviewersPanel, ReviewHistory, SubmitReviewMenu } from '@/components/change-requests/reviews';
+import { useUserName } from '@/components/change-requests/user-name';
 import { QueryErrorState } from '@/components/query-error-state';
 import {
   type ChangeRequestDetail,
@@ -106,7 +107,7 @@ function StatusActions({ projectId, changeRequest }: { projectId: string; change
   const { status, branchId } = changeRequest;
   const open = status === 'DRAFT' || status === 'IN_REVIEW';
   const setStatus = (next: Exclude<ChangeRequestStatus, 'MERGED'>) =>
-    update.mutate({ status: next }, { onError: (error) => toast.error(error.message || t('changeRequest.updateError')) });
+    update.mutate({ status: next }, { onError: (error) => toast.error(error.message) });
   const archive = async () => {
     const ok = await confirm({
       title: t('changeRequest.archive'),
@@ -198,12 +199,12 @@ function OverviewTab({
   const [description, setDescription] = useState(changeRequest.description ?? '');
   useEffect(() => setTitle(changeRequest.title), [changeRequest.title]);
   useEffect(() => setDescription(changeRequest.description ?? ''), [changeRequest.description]);
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const { groups, orphaned } = useChangesByLanguage(changeRequest.changes, languages);
   const ordered = useMemo(() => [...groups.flatMap((group) => group.changes), ...orphaned], [groups, orphaned]);
-  const save = (body: { title?: string; description?: string | null }) =>
-    update.mutate(body, { onError: (error) => toast.error(error.message || t('changeRequest.updateError')) });
-  const author = changeRequest.author?.name ?? t('changeRequest.unknownAuthor');
+  const save = (body: { title?: string; description?: string | null }) => update.mutate(body, { onError: (error) => toast.error(error.message) });
+  const userName = useUserName();
+  const author = userName(changeRequest.author);
   const { contributor, canEdit } = useChangeRequestAccess(projectId, changeRequest);
 
   return (
@@ -236,7 +237,7 @@ function OverviewTab({
           {changeRequest.status === 'MERGED' && changeRequest.mergedAt ? (
             <span>
               {t('changeRequest.mergedBy', {
-                name: changeRequest.mergedBy?.name ?? t('changeRequest.unknownAuthor'),
+                name: userName(changeRequest.mergedBy),
                 time: relativeTime(changeRequest.mergedAt),
               })}
             </span>
@@ -280,20 +281,24 @@ function OverviewTab({
               <ChangedPages
                 changes={changeRequest.changes}
                 languages={languages}
-                onSelect={(change) => document.getElementById(`change-${changeKey(change)}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                onSelect={(change) => {
+                  const key = changeKey(change);
+                  setExpanded((current) => new Set(current).add(key));
+                  document.getElementById(`change-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
               />
             </aside>
             <div className="min-w-0 space-y-3">
               {ordered.map((change) => {
                 const key = changeKey(change);
-                const isCollapsed = collapsed.has(key);
+                const isExpanded = expanded.has(key);
                 return (
                   <section key={key} id={`change-${key}`} className="scroll-mt-4 overflow-hidden rounded-xl border border-border bg-card">
                     <button
                       type="button"
-                      aria-expanded={!isCollapsed}
+                      aria-expanded={isExpanded}
                       onClick={() =>
-                        setCollapsed((current) => {
+                        setExpanded((current) => {
                           const next = new Set(current);
                           if (next.has(key)) next.delete(key);
                           else next.add(key);
@@ -302,11 +307,11 @@ function OverviewTab({
                       }
                       className={cn(
                         'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-start hover:bg-muted/50',
-                        !isCollapsed && 'border-border border-b',
+                        isExpanded && 'border-border border-b',
                       )}
                     >
                       <ChevronDown
-                        className={cn('size-4 shrink-0 text-muted-foreground transition-transform', isCollapsed && '-rotate-90 rtl:rotate-90')}
+                        className={cn('size-4 shrink-0 text-muted-foreground transition-transform', !isExpanded && '-rotate-90 rtl:rotate-90')}
                       />
                       <span className="min-w-0 truncate font-medium text-sm" dir="auto">
                         {change.title || change.path}
@@ -318,11 +323,11 @@ function OverviewTab({
                         <ChangeMarker change={change.change} />
                       </span>
                     </button>
-                    {isCollapsed ? null : (
+                    {isExpanded ? (
                       <Suspense fallback={diffSkeleton}>
                         <PageDiff projectId={projectId} number={changeRequest.number} pageId={key} dir={languageDir(languages, change)} />
                       </Suspense>
-                    )}
+                    ) : null}
                   </section>
                 );
               })}

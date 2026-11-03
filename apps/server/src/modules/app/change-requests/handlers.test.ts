@@ -247,15 +247,22 @@ describe('publish on merge', () => {
 
   it('keeps the merge and reports a publish that cannot start', async () => {
     state.config = { changeRequests: { publishOnMerge: true } };
-    mocks.createDeployment.mockRejectedValueOnce(new Error('redirect loop'));
+    mocks.createDeployment.mockRejectedValueOnce(new AppError({ code: 'http:bad_request', message: 'redirect loop' }));
     expect(await merge()).toEqual({ status: 200, publish: 'failed' });
     expect(mocks.recordRefusedDeployment).toHaveBeenCalledWith('project', 'user', 'Merge #1: Fix', 'redirect loop');
     expect(mocks.notifyChangeRequest).toHaveBeenCalledWith(expect.objectContaining({ event: 'merged' }));
   });
 
+  it('records no refused publish when it failed after its deployment was created', async () => {
+    state.config = { changeRequests: { publishOnMerge: true } };
+    mocks.createDeployment.mockRejectedValueOnce(new Error('queue down'));
+    expect(await merge()).toEqual({ status: 200, publish: 'failed' });
+    expect(mocks.recordRefusedDeployment).not.toHaveBeenCalled();
+  });
+
   it('keeps the merge when the refused publish cannot be recorded either', async () => {
     state.config = { changeRequests: { publishOnMerge: true } };
-    mocks.createDeployment.mockRejectedValueOnce(new Error('taken down'));
+    mocks.createDeployment.mockRejectedValueOnce(new AppError({ code: 'http:bad_request', message: 'taken down' }));
     mocks.recordRefusedDeployment.mockRejectedValueOnce(new Error('database down'));
     expect(await merge()).toEqual({ status: 200, publish: 'failed' });
   });

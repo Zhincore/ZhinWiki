@@ -374,8 +374,10 @@ export const revertChangeRequest = async (projectId: string, number: number, aut
         tx.language.findMany({ where: { projectId }, select: { id: true } }),
       ]);
       const plan = planRevert({ record, branch: pages, languageIds: new Set(languages.map((language) => language.id)), newId });
-      for (const { id, languageId, ...data } of plan.creates) {
-        await tx.page.create({ data: { ...pageData(data), id, languageId, projectId, branchId } });
+      if (plan.creates.length > 0) {
+        await tx.page.createMany({
+          data: plan.creates.map(({ id, languageId, ...data }) => ({ ...pageData(data), id, languageId, projectId, branchId })),
+        });
       }
       for (const update of plan.updates) await tx.page.update({ where: { id: update.id }, data: pageData(update.data) });
       if (plan.deletes.length > 0) await tx.page.deleteMany({ where: { id: { in: plan.deletes }, branchId } });

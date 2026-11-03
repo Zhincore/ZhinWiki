@@ -8,6 +8,79 @@ manifest remains the authority for the latest published artifact.
 
 ## v0.2.0
 
+ZhinWiki release; changes since ZhinWiki v0.1.0.
+
+### Highlights
+
+ZhinWiki v0.2.0 runs one shared community by default, where platform admins create wikis and anyone signed in can suggest changes through reviewed change requests. Sign-up gets a self-hosted bot check, shared rate limits and GitHub or Discord sign-in, and readers can search across all public wikis.
+
+### Upgrade actions
+
+Back up first: the migrations below are forward-only. The full list is in
+[backups and upgrades](docs/self-hosting/backups-upgrades.mdx#from-v010).
+
+- **Replace the Compose file and env template** with this release's copies and
+  keep `.env`. New variables: `TENANCY` (now `shared` in the templates; set
+  `independent` to keep v0.1.0 behaviour), `CAPTCHA_PROVIDER` (default
+  `altcha`), `CAPTCHA_HMAC_KEY`, `TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY`,
+  `GITHUB_CLIENT_*`, `DISCORD_CLIENT_*`, `OTP_SEND_LIMIT_PER_EMAIL` (5/h),
+  `OTP_SEND_LIMIT_PER_IP` (20/h).
+- **Check `TRUSTED_PROXY_HOPS`.** Code-email limits are per client IP. Behind a
+  public edge such as Cloudflare, a wrong value puts every visitor into one
+  20-per-hour bucket.
+- **Migrations run on start:** `change_requests` (every non-default branch
+  becomes a draft change request; `main` becomes read-only in the editor),
+  `invitation_created_at`, `import_run_error_code`, `change_request_reviews`,
+  `drop_search_version_filter` (strips the old search setting) and
+  `page_search_document` (cross-wiki full-text table). The worker fills
+  `page_search_document` for live deployments at boot; no reindex needed.
+- **Duplicate linked accounts.** Better Auth 1.7.14 refuses sign-in when two
+  `account` rows share a provider and account ID; run the check in the upgrade
+  guide before upgrading.
+- **`OPENROUTER_API_KEY`** replaces `OPENAI_API_KEY`. If you set
+  `WORKER_QUEUES`, add `erasure`.
+- **Docs versions are gone.** Only `main` is published; version-prefixed site
+  URLs (`/<site>/<version>/…`) now return 404. Static and Markdown export ZIPs
+  use `<lang>/<path>` instead of `<version>/<lang>/<path>`. The MCP
+  `versions:read` scope and `list_versions` tool are removed.
+- The upstream two-step BullMQ upgrade does not apply: v0.1.0 already runs
+  BullMQ 6.
+
+### Added
+
+- Tenancy modes: `TENANCY=shared|independent`, platform `editor` role and
+  outside contributors ([#63](https://github.com/Zhincore/ZhinWiki/pull/63), [#64](https://github.com/Zhincore/ZhinWiki/pull/64), [#65](https://github.com/Zhincore/ZhinWiki/pull/65), [#67](https://github.com/Zhincore/ZhinWiki/pull/67), [#78](https://github.com/Zhincore/ZhinWiki/pull/78)).
+- Published wikis at `/<slug>` in shared mode ([#69](https://github.com/Zhincore/ZhinWiki/pull/69)).
+- Change requests: per-page merge, read-only `main`, reviews and merge gate,
+  contributor image uploads, publish on merge, history and revert
+  ([#70](https://github.com/Zhincore/ZhinWiki/pull/70), [#71](https://github.com/Zhincore/ZhinWiki/pull/71), [#79](https://github.com/Zhincore/ZhinWiki/pull/79), [#80](https://github.com/Zhincore/ZhinWiki/pull/80), [#85](https://github.com/Zhincore/ZhinWiki/pull/85), [#86](https://github.com/Zhincore/ZhinWiki/pull/86), [#88](https://github.com/Zhincore/ZhinWiki/pull/88), [#92](https://github.com/Zhincore/ZhinWiki/pull/92)).
+- MCP `list_pages` can list a change request's pages ([#94](https://github.com/Zhincore/ZhinWiki/pull/94)).
+- Sign-up hardening: ALTCHA or Turnstile bot check on code emails, per-address
+  and per-IP limits shared through Dragonfly, GitHub and Discord sign-in
+  ([#87](https://github.com/Zhincore/ZhinWiki/pull/87)).
+- Public wikis open to contributors in the dashboard sites list ([#91](https://github.com/Zhincore/ZhinWiki/pull/91)).
+- Cross-wiki search (`scope=all`) backed by a Postgres full-text table
+  ([#98](https://github.com/Zhincore/ZhinWiki/pull/98), [#99](https://github.com/Zhincore/ZhinWiki/pull/99)).
+- Account deletion archives the user's open change requests ([#97](https://github.com/Zhincore/ZhinWiki/pull/97)).
+
+### Changed
+
+- Docs versions removed ([#93](https://github.com/Zhincore/ZhinWiki/pull/93)).
+- Plan tab and Cloud wording removed ([#59](https://github.com/Zhincore/ZhinWiki/pull/59), [#60](https://github.com/Zhincore/ZhinWiki/pull/60)); fork docs and rebrand
+  ([#66](https://github.com/Zhincore/ZhinWiki/pull/66), [#76](https://github.com/Zhincore/ZhinWiki/pull/76), [#95](https://github.com/Zhincore/ZhinWiki/pull/95), [#96](https://github.com/Zhincore/ZhinWiki/pull/96)).
+- Upstream Nibleaf v0.2.0 and later fixes merged ([#74](https://github.com/Zhincore/ZhinWiki/pull/74), [#84](https://github.com/Zhincore/ZhinWiki/pull/84), [#90](https://github.com/Zhincore/ZhinWiki/pull/90));
+  see the Nibleaf section below.
+
+### Fixed
+
+- Background import failures are translated and GitBook starts are capped
+  atomically ([#77](https://github.com/Zhincore/ZhinWiki/pull/77)).
+
+## Nibleaf v0.2.0 (upstream)
+
+Upstream release notes, merged with the upstream sync. Its upgrade actions
+target Nibleaf v0.1.2; ZhinWiki users follow the section above.
+
 ### Highlights
 
 v0.2.0 adds optional hybrid search with grounded AI answers, a GitBook importer, project add-ons, portable documentation themes, usage metering, project integrations, and a read-only MCP endpoint, and published sites now move between pages without a full reload. Upgrading from v0.1.2 takes two steps because of the move to BullMQ 6, so follow the [upgrade guide](https://docs.nibleaf.com/self-hosting/upgrade-v0-2) instead of only changing the image tag. Dependency scanning still reports three Medium advisories, in `glob`, `minimatch`, and `deepmerge`, which the image includes through its email packages.

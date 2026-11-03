@@ -208,7 +208,7 @@ docker compose up -d --build
   at [`docker-compose.coolify.yml`](docker-compose.coolify.yml), assign domains
   to the `app` / `admin` / `maxio` services (Coolify auto-generates the
   `SERVICE_*` secrets), set `SITE_BASE_DOMAIN` + `CUSTOM_DOMAIN_CNAME_TARGET`,
-  and deploy. Pin a build with `NIBLEAF_IMAGE=ghcr.io/zhincore/zhinwiki:v0.1.0`.
+  and deploy. Pin a build with `NIBLEAF_IMAGE=ghcr.io/zhincore/zhinwiki:v0.2.0`.
 
 ## 🏗️ Architecture
 

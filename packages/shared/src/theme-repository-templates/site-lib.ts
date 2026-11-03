@@ -122,7 +122,7 @@ const parseScalar = (raw: string): string | boolean => {
   return value;
 };
 
-/** Minimal YAML frontmatter reader for the keys Nibleaf writes (title,
+/** Minimal YAML frontmatter reader for the keys written on sync (title,
  * description, icon, hidden). Unknown keys are kept as plain strings. */
 export const parseFrontmatter = (source: string): { meta: Record<string, string | boolean>; body: string } => {
   const normalized = source.replace(/\r\n?/g, '\n');
@@ -230,7 +230,7 @@ const itemsFromEntries = (entries: DocsNavEntry[], seen: Set<string>): NavItem[]
 type NavGroup = Extract<NavItem, { kind: 'group' }>;
 
 /** A file that docs.json does not list yet lands in the group derived from its
- * folder, so the site keeps working while Nibleaf catches up. */
+ * folder, so the site keeps working until the next sync lists it. */
 const appendUnlisted = (items: NavItem[], page: SitePage): void => {
   const folders = scopeFor(page.file).relative.split('/');
   folders.pop();

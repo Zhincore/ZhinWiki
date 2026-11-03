@@ -1,11 +1,13 @@
 import { useT } from '@nibleaf/i18n/react';
 import { LegalPage, type LegalSection, Mail } from '@/components/legal-page';
+import { useTenancy } from '@/hooks/use-tenancy';
 import { useBrand } from '@/lib/brand';
 
 /** The built-in privacy notice: what the software behind this instance stores and processes, filled with the brand and its contacts. */
 export function PrivacyPage() {
   const t = useT();
   const { name, supportEmail } = useBrand();
+  const shared = useTenancy() === 'shared';
   const sections: LegalSection[] = [
     {
       heading: 'Who is responsible',
@@ -160,16 +162,27 @@ export function PrivacyPage() {
             default change request titles that contain your name are renamed, while titles, descriptions and review text you wrote stay as written.
             Your page comments are deleted.
           </p>
+          <p>Notifications already delivered to other users, in the app or by email, may still contain your name.</p>
         </>
       ),
     },
     {
       heading: 'Deletion',
       body: (
-        <p>
-          Deleting a project removes its content from the database, its analytics and its search index. Uploaded files may remain in storage until the
-          operator removes them. To delete your account, contact the operator at <Mail address={supportEmail} />.
-        </p>
+        <>
+          <p>
+            You can delete your account yourself in Settings → Account → Delete account. If you last signed in more than a day ago, you are asked to
+            sign in again first. Deletion is refused while you own a workspace that has other members, until you transfer ownership or remove them.{' '}
+            {shared
+              ? 'It is also refused while you are the only member of a site, until you invite another member and transfer ownership to them, or delete the site.'
+              : 'Workspaces where you are the only member are deleted with all their content.'}{' '}
+            Your sessions and memberships are deleted with your account. The operator can also help at <Mail address={supportEmail} />.
+          </p>
+          <p>
+            Deleting a project removes its content from the database, its analytics and its search index. Uploaded files may remain in storage until
+            the operator removes them.
+          </p>
+        </>
       ),
     },
     {

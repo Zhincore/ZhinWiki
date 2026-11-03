@@ -30,7 +30,7 @@ export const stylesTemplate = ({ theme, displayName }: ThemeRepositoryTemplateOp
 
 /*
  * Theme tokens generated from docs.json → x-nibleaf.theme (${displayName} preset).
- * Nibleaf regenerates docs.json on every sync; this stylesheet is yours to edit.
+ * docs.json is regenerated on every sync; this stylesheet is yours to edit.
  */
 :root {
 ${tokenLines(theme.colors.light)}
@@ -281,7 +281,7 @@ ${tokenLines(theme.colors.dark)}
     border-block-start: 1px solid var(--color-border);
   }
 
-  /* Nibleaf MDX components (src/components/mdx). */
+  /* MDX authoring components (src/components/mdx). */
   .mdx-callout,
   .mdx-banner,
   .mdx-card,

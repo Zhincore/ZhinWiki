@@ -2,6 +2,7 @@
 import { BrandProvider } from '@nibleaf/design-system/brand';
 import { setMessageBrand } from '@nibleaf/i18n/brand';
 import { DEFAULT_BRAND } from '@nibleaf/shared/brand';
+import type { Tenancy } from '@nibleaf/shared/rbac';
 import type { ComponentType, ReactNode } from 'react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -13,6 +14,9 @@ vi.mock('@tanstack/react-router', () => ({
     </a>
   ),
 }));
+
+let tenancy: Tenancy = 'independent';
+vi.mock('@/hooks/use-tenancy', () => ({ useTenancy: () => tenancy }));
 
 import { PrivacyPage } from './privacy-page';
 import { TermsPage } from './terms-page';
@@ -38,7 +42,10 @@ const render = (Page: ComponentType, pageBrand = brand) => {
 
 const hrefs = (container: HTMLElement) => [...container.querySelectorAll('a')].map((link) => link.getAttribute('href'));
 
-afterEach(() => setMessageBrand(DEFAULT_BRAND));
+afterEach(() => {
+  setMessageBrand(DEFAULT_BRAND);
+  tenancy = 'independent';
+});
 
 describe('TermsPage', () => {
   it('names the operator, both contacts and the AGPL source', () => {
@@ -66,5 +73,13 @@ describe('PrivacyPage', () => {
     const page = render(PrivacyPage, { ...brand, termsUrl: 'https://acme.test/tos', privacyUrl: 'https://acme.test/privacy' });
 
     expect(hrefs(page)).toEqual(expect.arrayContaining(['https://acme.test/tos', 'https://acme.test/privacy']));
+  });
+
+  it('describes the account deletion rules of the instance tenancy', () => {
+    expect(render(PrivacyPage).textContent).toContain('Workspaces where you are the only member are deleted');
+    tenancy = 'shared';
+    const shared = render(PrivacyPage).textContent;
+    expect(shared).toContain('only member of a site');
+    expect(shared).not.toContain('Workspaces where you are the only member are deleted');
   });
 });

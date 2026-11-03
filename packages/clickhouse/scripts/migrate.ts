@@ -28,7 +28,7 @@ try {
     rollupRetentionDays: config.CLICKHOUSE_ROLLUP_RETENTION_DAYS,
     sensitiveRetentionDays: config.CLICKHOUSE_SENSITIVE_RETENTION_DAYS,
   });
-  process.stdout.write(`[nibleaf] ClickHouse analytics migrations complete (${applied.length ? applied.join(', ') : 'already current'}).\n`);
+  process.stdout.write(`[ZhinWiki] ClickHouse analytics migrations complete (${applied.length ? applied.join(', ') : 'already current'}).\n`);
 } finally {
   await client.close();
 }

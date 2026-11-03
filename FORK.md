@@ -37,7 +37,8 @@ Behaviour that exists only in this fork. Naming and branch rules:
   ([#91](https://github.com/Zhincore/ZhinWiki/pull/91)).
 - **Cross-wiki search**: in shared mode readers can search all public,
   opted-in wikis from a wiki's search (`scope=all`, Reciprocal Rank Fusion,
-  per-wiki opt-out; see `docs/self-hosting/search-ai.mdx`).
+  per-wiki opt-out; see `docs/self-hosting/search-ai.mdx`)
+  ([#98](https://github.com/Zhincore/ZhinWiki/pull/98)).
 - **No marketing or Cloud**: welcome, terms and privacy pages replace the
   marketing site; Cloud wording and the Plan tab are gone
   ([#19](https://github.com/Zhincore/ZhinWiki/pull/19),

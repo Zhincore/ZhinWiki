@@ -138,6 +138,13 @@ export const listMergedChangeRequests = async (projectId: string, cursor?: strin
 
 /** A change request with the pages it changes: compared against the default
  *  branch while open, read from the merge record once merged. */
+/** Branch of a change request in the project; 404 when the request or its branch is gone. */
+export const changeRequestBranchId = async (projectId: string, number: number): Promise<string> => {
+  const changeRequest = await prisma.changeRequest.findUnique({ where: { projectId_number: { projectId, number } }, select: { branchId: true } });
+  if (!changeRequest?.branchId) throw notFound('change request', { number });
+  return changeRequest.branchId;
+};
+
 export const getChangeRequest = async (projectId: string, number: number) => {
   const changeRequest = await prisma.changeRequest.findUnique({
     where: { projectId_number: { projectId, number } },

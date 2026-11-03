@@ -26,6 +26,7 @@ import {
 } from '@/actions/change-requests';
 import { createDeployment, recordRefusedDeployment } from '@/actions/deployments';
 import { assertProjectInOrg } from '@/actions/projects';
+import { AppError } from '@/errors';
 import { getContextLocale, getContextOrganizationIdOrThrow, getContextUserOrThrow, type HonoEnv, isContextContributor } from '@/lib/hono/context';
 import { validator } from '@/lib/hono/validate';
 import changeRequestsRoutes from './routes';
@@ -38,8 +39,8 @@ const projectScope = async (ctx: ScopeContext) => (await scopedProject(ctx)).id;
 
 /** Publish after a merge on wikis that publish on merge, like the Publish
  *  button. A failure never undoes the merge: `'failed'` is reported, a refused
- *  publish is recorded as a failed deployment like later build failures. Null
- *  when the wiki does not. */
+ *  publish (an `AppError` thrown before any deployment exists) is recorded as a
+ *  failed deployment like later build failures. Null when the wiki does not. */
 const publishMerged = async (
   project: { id: string; organizationId: string; config: unknown },
   changeRequest: { number: number; title: string },
@@ -52,9 +53,11 @@ const publishMerged = async (
     return 'queued';
   } catch (error) {
     logger.warn({ error, projectId: project.id, number: changeRequest.number }, 'publish on merge failed; the change request stays merged');
-    await recordRefusedDeployment(project.id, userId, message, error instanceof Error ? error.message : String(error)).catch((recordError) =>
-      logger.error({ error: recordError, projectId: project.id }, 'could not record the refused publish on merge'),
-    );
+    if (error instanceof AppError) {
+      await recordRefusedDeployment(project.id, userId, message, error.message).catch((recordError) =>
+        logger.error({ error: recordError, projectId: project.id }, 'could not record the refused publish on merge'),
+      );
+    }
     return 'failed';
   }
 };

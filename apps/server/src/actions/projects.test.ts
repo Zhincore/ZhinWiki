@@ -46,7 +46,15 @@ vi.mock('@nibleaf/database', () => ({
   },
 }));
 
-import { assertProjectAccess, createProject, getContributorProject, getProject, listProjects, updateProject } from './projects';
+import {
+  assertProjectAccess,
+  createProject,
+  getContributorProject,
+  getProject,
+  listContributorProjects,
+  listProjects,
+  updateProject,
+} from './projects';
 
 /** The one definition of "pages" shared by the workspace overview, the sites
  *  list and the MCP project DTO: content pages on the default branch across
@@ -239,5 +247,85 @@ describe('getContributorProject', () => {
       select: { id: true, name: true, slug: true, icon: true, config: true },
     });
     expect(project).toEqual({ id: 'p1', name: 'Docs', slug: 'docs', icon: null, config: { typography: { body: 'serif' } } });
+  });
+});
+
+describe('listContributorProjects', () => {
+  type Row = { id: string; organizationId: string; accessMode: string; takedownAt: Date | null; ready: boolean; config: unknown };
+  const row = (over: Partial<Row> & Pick<Row, 'id'>): Row => ({
+    organizationId: `org-${over.id}`,
+    accessMode: 'PUBLIC',
+    takedownAt: null,
+    ready: true,
+    config: null,
+    ...over,
+  });
+  type Where = { accessMode?: string; takedownAt?: null; deployments?: { some: { status: string } }; organizationId?: { notIn: string[] } };
+
+  /** Applies the where-clause the action sends, as Postgres would. */
+  const database = (rows: Row[]) =>
+    mocks.projectFindMany.mockImplementation(async ({ where }: { where: Where }) =>
+      rows
+        .filter((r) => r.accessMode === where.accessMode)
+        .filter((r) => where.takedownAt !== null || r.takedownAt === null)
+        .filter((r) => where.deployments?.some.status !== 'READY' || r.ready)
+        .filter((r) => !where.organizationId?.notIn.includes(r.organizationId))
+        .map((r) => ({ ...r, name: r.id, slug: r.id, icon: null, description: null })),
+    );
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.env.TENANCY = 'shared';
+    mocks.userFindUnique.mockResolvedValue({ role: 'user', members: [{ organizationId: 'org-mine', role: 'member' }] });
+  });
+
+  it('lists exactly the wikis a non-member may open as a contributor', async () => {
+    database([
+      row({ id: 'open' }),
+      row({ id: 'mine', organizationId: 'org-mine' }),
+      row({ id: 'members', accessMode: 'WORKSPACE' }),
+      row({ id: 'readers', accessMode: 'READERS' }),
+      row({ id: 'draft', ready: false }),
+      row({ id: 'removed', takedownAt: new Date() }),
+      row({ id: 'closed', config: { changeRequests: { outsideContributions: false } } }),
+      row({ id: 'noindex', config: { seo: { allowIndex: false } } }),
+    ]);
+    const projects = await listContributorProjects('user');
+    expect(projects.map((project) => project.id)).toEqual(['open', 'noindex']);
+  });
+
+  it('exposes only what a contributor sees', async () => {
+    database([row({ id: 'open', config: { analytics: { id: 'secret' } } })]);
+    expect(await listContributorProjects('user')).toEqual([
+      { id: 'open', name: 'open', slug: 'open', icon: null, description: null, viewerRole: 'contributor' },
+    ]);
+  });
+
+  it('lists nothing outside shared tenancy', async () => {
+    mocks.env.TENANCY = 'independent';
+    await expect(listContributorProjects('user')).resolves.toEqual([]);
+    expect(mocks.projectFindMany).not.toHaveBeenCalled();
+  });
+
+  it.each(['editor', 'admin'])('lists nothing for a platform %s, who already reaches every wiki', async (role) => {
+    mocks.userFindUnique.mockResolvedValue({ role, members: [] });
+    await expect(listContributorProjects('user')).resolves.toEqual([]);
+    expect(mocks.projectFindMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('listProjects viewer roles', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.env.TENANCY = 'shared';
+  });
+
+  it('marks each wiki with the effective role', async () => {
+    mocks.userFindUnique.mockResolvedValue({ role: 'editor', members: [{ organizationId: 'org-a', role: 'owner' }] });
+    mocks.projectFindMany.mockResolvedValue([
+      { id: 'a', organizationId: 'org-a' },
+      { id: 'b', organizationId: 'org-b' },
+    ]);
+    expect((await listProjects('user')).map((project) => project.viewerRole)).toEqual(['owner', 'member']);
   });
 });

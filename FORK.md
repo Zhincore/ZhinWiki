@@ -32,8 +32,8 @@ Behaviour that exists only in this fork. Naming and branch rules:
   [#58](https://github.com/Zhincore/ZhinWiki/pull/58)).
 - **Homepage**: `HOMEPAGE` picks welcome page, app, or one wiki
   ([#13](https://github.com/Zhincore/ZhinWiki/pull/13)).
-- **Wiki directory**: in shared mode the welcome page lists every public,
-  published wiki, no opt-out
+- **Public wikis in the dashboard**: in shared mode the sites list also shows
+  wikis open to outside contributors
   ([#91](https://github.com/Zhincore/ZhinWiki/pull/91)).
 - **No marketing or Cloud**: welcome, terms and privacy pages replace the
   marketing site; Cloud wording and the Plan tab are gone
@@ -74,6 +74,9 @@ owns one organization, as upstream.
   wikis, join by invitation. There is no contributor member role: any
   membership exposes drafts, change requests and private sites. They may open
   change requests on wikis that accept outside contributions (see below).
+  The dashboard sites list shows those wikis under "Public wikis"
+  (`listContributorProjects`, the `resolveProjectViewer` rule); the site
+  switcher, command palette and analytics stay member-only.
 
 ## Platform roles
 

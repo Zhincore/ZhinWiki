@@ -32,6 +32,14 @@ export const useProjects = () =>
     queryFn: async () => getData<Project[]>(await api.app.projects.$get(), 'documentation sites'),
   });
 
+/** Public wikis the user can open as an outside contributor (shared tenancy). */
+export const usePublicProjects = (options?: { enabled?: boolean }) =>
+  useQuery({
+    queryKey: queryKeys.projects.public(),
+    enabled: options?.enabled ?? true,
+    queryFn: async () => getData(await api.app.projects.public.$get(), 'public wikis'),
+  });
+
 export const useProject = (projectId: string | undefined) =>
   useQuery({
     queryKey: queryKeys.projects.detail(projectId ?? ''),

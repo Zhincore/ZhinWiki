@@ -13,8 +13,9 @@ import { EmptyWikis } from '@/components/app/empty-wikis';
 import { NewProjectDialog } from '@/components/app/new-project-dialog';
 import { QueryErrorState } from '@/components/query-error-state';
 import type { AnalyticsRange } from '@/hooks/api';
-import { useProjects, useWorkspaceAnalytics } from '@/hooks/api';
+import { useProjects, usePublicProjects, useWorkspaceAnalytics } from '@/hooks/api';
 import { useCanCreateWiki } from '@/hooks/use-can-create-wiki';
+import { useTenancy } from '@/hooks/use-tenancy';
 import { useFormatters, viewsTrend } from '@/lib/format';
 
 export const Route = createFileRoute('/app/(dashboard)/')({
@@ -30,6 +31,8 @@ function ProjectsPage() {
   const canCreate = useCanCreateWiki();
   // A user who can neither create nor see a wiki gets only the empty state.
   const noWikis = !canCreate && !projectsError && projects?.length === 0;
+  const shared = useTenancy() === 'shared';
+  const { data: publicProjects } = usePublicProjects({ enabled: noWikis && shared });
   const [range, setRange] = useState<AnalyticsRange>('30d');
   const {
     data: analytics,
@@ -52,7 +55,17 @@ function ProjectsPage() {
       <div className="grid min-h-96 place-items-center text-center">
         <div className="grid place-items-center">
           <BookText className="size-7 text-muted-foreground" />
-          <EmptyWikis canCreate={false} />
+          {publicProjects?.length ? (
+            <>
+              <p className="mt-3 font-medium">{t('dashboard.empty.public.title')}</p>
+              <p className="mt-1 max-w-sm text-muted-foreground text-sm">{t('dashboard.empty.public.body')}</p>
+              <Button className="mt-4" nativeButton={false} render={<Link to="/app/sites" />}>
+                {t('dashboard.empty.public.cta')}
+              </Button>
+            </>
+          ) : (
+            <EmptyWikis canCreate={false} />
+          )}
         </div>
       </div>
     );

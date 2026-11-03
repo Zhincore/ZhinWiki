@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   projects: vi.fn(),
+  publicProjects: vi.fn(),
   analytics: vi.fn(),
   refetch: vi.fn(),
   search: {} as { newSite?: boolean },
@@ -16,14 +17,15 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@nibleaf/i18n/react', () => ({ useT: () => (key: string) => key }));
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({ options, useSearch: () => mocks.search }),
-  Link: ({ to, params, children, className }: { to: string; params: { projectId: string }; children: ReactNode; className?: string }) => (
-    <a className={className} href={to.replace('$projectId', params.projectId)}>
+  Link: ({ to, params, children, className }: { to: string; params?: { projectId: string }; children?: ReactNode; className?: string }) => (
+    <a className={className} href={params ? to.replace('$projectId', params.projectId) : to}>
       {children}
     </a>
   ),
 }));
 vi.mock('@/hooks/api', () => ({
   useProjects: mocks.projects,
+  usePublicProjects: mocks.publicProjects,
   useWorkspaceAnalytics: mocks.analytics,
   useCreateProject: () => ({ mutate: vi.fn() }),
 }));
@@ -46,6 +48,7 @@ describe('dashboard request recovery', () => {
     mocks.tenancy = 'independent';
     mocks.canCreate = true;
     mocks.dialog.mockReturnValue(null);
+    mocks.publicProjects.mockReturnValue({ data: undefined });
     mocks.projects.mockReturnValue({
       isPending: false,
       data: [{ id: 'project-1', name: 'Docs', slug: 'docs', _count: { pages: 3, deployments: 1 } }],
@@ -111,6 +114,7 @@ describe('dashboard wiki creation gate', () => {
     mocks.tenancy = 'shared';
     mocks.canCreate = false;
     mocks.dialog.mockReturnValue(null);
+    mocks.publicProjects.mockReturnValue({ data: undefined });
     mocks.projects.mockReturnValue({ isPending: false, data: [], refetch: mocks.refetch });
     mocks.analytics.mockReturnValue({ isPending: true, refetch: mocks.refetch });
     container = document.createElement('div');
@@ -133,6 +137,29 @@ describe('dashboard wiki creation gate', () => {
     expect(mocks.analytics).toHaveBeenCalledWith('30d', { enabled: false });
     expect(buttons()).toEqual([]);
     expect(mocks.dialog).not.toHaveBeenCalled();
+  });
+
+  it('points a contributor with no wikis to the public wikis when there are some', async () => {
+    mocks.publicProjects.mockReturnValue({
+      data: [{ id: 'open', name: 'Open', slug: 'open', icon: null, description: null, viewerRole: 'contributor' }],
+    });
+    await act(async () => root.render(<DashboardPage />));
+
+    expect(mocks.publicProjects).toHaveBeenCalledWith({ enabled: true });
+    expect(container.textContent).toContain('dashboard.empty.public.title');
+    expect(container.textContent).not.toContain('dashboard.empty.contributor.title');
+    expect(container.querySelector('a[href="/app/sites"]')?.textContent).toBe('dashboard.empty.public.cta');
+  });
+
+  it('loads public wikis only for a shared-mode user without wikis', async () => {
+    mocks.projects.mockReturnValue({ isPending: false, data: [{ id: 'project-1', name: 'Docs', slug: 'docs', _count: { pages: 1 } }] });
+    await act(async () => root.render(<DashboardPage />));
+    expect(mocks.publicProjects).toHaveBeenLastCalledWith({ enabled: false });
+
+    mocks.projects.mockReturnValue({ isPending: false, data: [], refetch: mocks.refetch });
+    mocks.tenancy = 'independent';
+    await act(async () => root.render(<DashboardPage />));
+    expect(mocks.publicProjects).toHaveBeenLastCalledWith({ enabled: false });
   });
 
   it('holds back workspace analytics for a contributor until their wikis load', async () => {

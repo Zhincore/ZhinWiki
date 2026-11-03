@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   createProject: vi.fn(async () => ({ id: 'new-project' })),
   exportProjectThemeRepository: vi.fn(async () => ({ fileName: 'theme.zip', data: new Uint8Array([80, 75]) })),
   getProjectThemeCatalog: vi.fn(async () => ({ schemaVersion: 1, authoring: [] })),
+  listContributorProjects: vi.fn(async () => [{ id: 'open', name: 'Open', slug: 'open', icon: null, description: null, viewerRole: 'contributor' }]),
 }));
 
 vi.mock('@nibleaf/database', () => ({
@@ -37,6 +38,7 @@ vi.mock('@/actions/projects', () => ({
   createProject: mocks.createProject,
   deleteProject: vi.fn(),
   getProject: vi.fn(),
+  listContributorProjects: mocks.listContributorProjects,
   listProjects: vi.fn(),
   updateProject: vi.fn(),
 }));
@@ -142,5 +144,20 @@ describe('wiki creation by tenancy', () => {
     mocks.platformRole = 'admin';
     expect((await create()).status).toBe(201);
     expect(mocks.createProject).toHaveBeenCalledOnce();
+  });
+});
+
+describe('public wiki listing', () => {
+  it('lists contributor wikis for the signed-in user, not as a project id', async () => {
+    const response = await appFor(true).request('/projects/public');
+    expect(response.status).toBe(200);
+    expect(((await response.json()) as { data: unknown }).data).toEqual([
+      { id: 'open', name: 'Open', slug: 'open', icon: null, description: null, viewerRole: 'contributor' },
+    ]);
+    expect(mocks.listContributorProjects).toHaveBeenCalledWith('user');
+  });
+
+  it('requires a session', async () => {
+    expect((await appFor(false).request('/projects/public')).status).toBe(401);
   });
 });

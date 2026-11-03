@@ -10,6 +10,7 @@ const i18n = vi.hoisted(() => ({ locale: 'en' as string }));
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   useProjects: vi.fn(),
+  usePublicProjects: vi.fn(),
   refetch: vi.fn(),
   search: {} as { newSite?: boolean },
   tenancy: 'independent' as 'shared' | 'independent',
@@ -32,7 +33,7 @@ vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({ options, useSearch: () => mocks.search }),
   useNavigate: () => mocks.navigate,
 }));
-vi.mock('@/hooks/api', () => ({ useProjects: mocks.useProjects }));
+vi.mock('@/hooks/api', () => ({ useProjects: mocks.useProjects, usePublicProjects: mocks.usePublicProjects }));
 vi.mock('@/components/app/new-project-dialog', () => ({ NewProjectDialog: mocks.dialog }));
 vi.mock('@/hooks/use-tenancy', () => ({ useTenancy: () => mocks.tenancy }));
 vi.mock('@/hooks/use-can-create-wiki', () => ({ useCanCreateWiki: () => mocks.canCreate }));
@@ -57,6 +58,7 @@ describe('SitesPage', () => {
     mocks.tenancy = 'independent';
     mocks.canCreate = true;
     mocks.dialog.mockReturnValue(null);
+    mocks.usePublicProjects.mockReturnValue({ data: undefined });
     mocks.useProjects.mockReturnValue({
       isPending: false,
       isError: false,
@@ -147,5 +149,56 @@ describe('SitesPage', () => {
 
     expect(container.querySelectorAll('button')).toHaveLength(0);
     expect(mocks.dialog).not.toHaveBeenCalled();
+  });
+
+  describe('public wikis (shared tenancy)', () => {
+    const open = { id: 'open-1', name: 'Handbook', slug: 'handbook', icon: null, description: 'Team docs', viewerRole: 'contributor' };
+    const headings = () => [...container.querySelectorAll('h2')].map((heading) => heading.textContent);
+    const type = async (value: string) => {
+      const search = container.querySelector<HTMLInputElement>('input[type="search"]');
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(search, value);
+        search?.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    };
+
+    beforeEach(() => {
+      mocks.tenancy = 'shared';
+      mocks.canCreate = false;
+      mocks.usePublicProjects.mockReturnValue({ data: [open] });
+    });
+
+    it('groups member wikis before public ones and opens a public wiki where contributors land', async () => {
+      await render();
+      expect(headings()).toEqual(['Your wikis', 'Public wikis']);
+      expect(mocks.usePublicProjects).toHaveBeenCalledWith({ enabled: true });
+      const card = [...container.querySelectorAll('button')].find((button) => button.textContent?.includes('Handbook'));
+      await act(async () => card?.click());
+      expect(mocks.navigate).toHaveBeenCalledWith({ to: '/app/projects/$projectId/changes', params: { projectId: 'open-1' } });
+    });
+
+    it('shows only public wikis to a contributor without memberships', async () => {
+      mocks.useProjects.mockReturnValue({ isPending: false, isError: false, data: [], refetch: mocks.refetch });
+      await render();
+      expect(headings()).toEqual(['Public wikis']);
+      expect(container.textContent).not.toContain('No sites yet');
+    });
+
+    it('filters both groups with the one search box', async () => {
+      await render();
+      await type('hand');
+      expect(headings()).toEqual(['Public wikis']);
+      await type('docs');
+      expect(headings()).toEqual(['Your wikis']);
+      await type('nothing-matches');
+      expect(container.textContent).toContain('No sites match your search.');
+    });
+
+    it('does not load public wikis on an independent instance', async () => {
+      mocks.tenancy = 'independent';
+      await render();
+      expect(mocks.usePublicProjects).toHaveBeenCalledWith({ enabled: false });
+      expect(headings()).toEqual([]);
+    });
   });
 });

@@ -14,6 +14,12 @@ const projectsRoutes = {
     description: 'List every documentation site the user can access.',
     responses: { 200: { description: 'ok' }, ...errorResponses },
   }),
+  listPublic: createRouteConfig({
+    guard: isAuthenticated,
+    tags: ['projects'],
+    description: 'List the public wikis the user can open as an outside contributor (shared tenancy; empty otherwise).',
+    responses: { 200: { description: 'ok' }, ...errorResponses },
+  }),
   create: createRouteConfig({
     // Signed-in users create sites and become their owner; shared-tenancy
     // instances restrict this to platform admins.

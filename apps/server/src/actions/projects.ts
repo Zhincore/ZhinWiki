@@ -120,23 +120,57 @@ const uniqueProjectSlug = async (desired: string) => {
   return `${base.slice(0, MAX_PROJECT_SLUG_LENGTH - suffix.length).replace(/-+$/g, '') || 'docs'}${suffix}`;
 };
 
-/** Projects the user reaches with an effective role: every wiki when their
- *  platform role grants wiki rights, otherwise the wikis they are a member of. */
-export const accessibleProjectsWhere = async (userId: string): Promise<Prisma.ProjectWhereInput> => {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, members: { select: { organizationId: true } } } });
-  if (platformWikiGrant(env.TENANCY, user?.role)) {
-    return {};
-  }
-  return { organizationId: { in: user?.members.map((m) => m.organizationId) ?? [] } };
+/** The user's platform role and wiki memberships (organization id → member role). */
+const wikiAccess = async (userId: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, members: { select: { organizationId: true, role: true } } },
+  });
+  return { platformRole: user?.role ?? null, memberships: new Map(user?.members.map((m) => [m.organizationId, m.role]) ?? []) };
 };
 
-/** List every site the user can reach. */
-export const listProjects = async (userId: string) =>
-  prisma.project.findMany({
-    where: await accessibleProjectsWhere(userId),
+const reachableWhere = ({ platformRole, memberships }: Awaited<ReturnType<typeof wikiAccess>>): Prisma.ProjectWhereInput =>
+  platformWikiGrant(env.TENANCY, platformRole) ? {} : { organizationId: { in: [...memberships.keys()] } };
+
+/** Projects the user reaches with an effective role: every wiki when their
+ *  platform role grants wiki rights, otherwise the wikis they are a member of. */
+export const accessibleProjectsWhere = async (userId: string): Promise<Prisma.ProjectWhereInput> => reachableWhere(await wikiAccess(userId));
+
+/** List every site the user can reach with a role, marked with that role. */
+export const listProjects = async (userId: string) => {
+  const access = await wikiAccess(userId);
+  const projects = await prisma.project.findMany({
+    where: reachableWhere(access),
     orderBy: { updatedAt: 'desc' },
     include: { _count: { select: { pages: { where: contentPagesWhere }, deployments: true } } },
   });
+  return projects.map((project) => ({
+    ...project,
+    viewerRole: effectiveWikiRole(env.TENANCY, access.memberships.get(project.organizationId), access.platformRole),
+  }));
+};
+
+/** Wikis the user reaches only as an outside contributor: the `resolveProjectViewer` rule
+ *  (shared tenancy, public, published, not taken down, outside contributions on) on wikis
+ *  they hold no role in. Only what a contributor sees of a project. */
+export const listContributorProjects = async (userId: string) => {
+  if (env.TENANCY !== 'shared') return [];
+  const access = await wikiAccess(userId);
+  if (platformWikiGrant(env.TENANCY, access.platformRole)) return [];
+  const projects = await prisma.project.findMany({
+    where: {
+      accessMode: 'PUBLIC',
+      takedownAt: null,
+      deployments: { some: { status: 'READY' } },
+      organizationId: { notIn: [...access.memberships.keys()] },
+    },
+    orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    select: { id: true, name: true, slug: true, icon: true, description: true, config: true, accessMode: true, takedownAt: true },
+  });
+  return projects
+    .filter((project) => acceptsOutsideContributions(env.TENANCY, { ...project, published: true }))
+    .map(({ id, name, slug, icon, description }) => ({ id, name, slug, icon, description, viewerRole: 'contributor' as const }));
+};
 
 export const createProject = async (userId: string, body: CreateProjectBody) => {
   const slug = await uniqueProjectSlug(body.name);

@@ -1,6 +1,7 @@
 export const queryKeys = {
   projects: {
     all: () => ['projects'] as const,
+    public: () => ['projects', 'public'] as const,
     detail: (projectId: string) => ['projects', projectId] as const,
   },
   addons: {

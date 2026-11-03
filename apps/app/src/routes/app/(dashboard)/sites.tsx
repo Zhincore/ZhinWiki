@@ -9,8 +9,9 @@ import { useMemo, useState, useSyncExternalStore } from 'react';
 import { EmptyWikis } from '@/components/app/empty-wikis';
 import { NewProjectDialog } from '@/components/app/new-project-dialog';
 import { QueryErrorState } from '@/components/query-error-state';
-import { useProjects } from '@/hooks/api';
+import { useProjects, usePublicProjects } from '@/hooks/api';
 import { useCanCreateWiki } from '@/hooks/use-can-create-wiki';
+import { useTenancy } from '@/hooks/use-tenancy';
 import { useFormatters } from '@/lib/format';
 
 export const Route = createFileRoute('/app/(dashboard)/sites')({
@@ -37,10 +38,14 @@ function SitesPage() {
   const navigate = useNavigate();
   const t = useT();
   const { number } = useFormatters();
-  const filtered = useMemo(() => {
+  const shared = useTenancy() === 'shared';
+  const { data: publicProjects } = usePublicProjects({ enabled: shared });
+  const [filtered, filteredPublic] = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return normalized ? (projects ?? []).filter((project) => `${project.name} ${project.slug}`.toLowerCase().includes(normalized)) : (projects ?? []);
-  }, [projects, query]);
+    const matches = (project: { name: string; slug: string }) => !normalized || `${project.name} ${project.slug}`.toLowerCase().includes(normalized);
+    return [(projects ?? []).filter(matches), (shared ? (publicProjects ?? []) : []).filter(matches)];
+  }, [projects, publicProjects, query, shared]);
+  const grouped = shared && (publicProjects?.length ?? 0) > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -74,31 +79,34 @@ function SitesPage() {
           ))}
         </div>
       ) : isError && !projects ? null : filtered.length ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((project) => (
-            <button
-              type="button"
-              key={project.id}
-              onClick={() => navigate({ to: '/app/projects/$projectId', params: { projectId: project.id } })}
-              className="group cursor-pointer rounded-xl border border-border bg-card p-5 text-start transition hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md"
-            >
-              <div className="flex items-start gap-3">
-                <span className="grid size-11 place-items-center rounded-xl border border-border bg-muted/50">
-                  <BrandMark className="size-7" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold">{project.name}</span>
-                  <span className="block truncate font-mono text-muted-foreground text-xs">/{project.slug}</span>
-                </span>
-                <ArrowUpRight className="size-4.5 text-muted-foreground transition group-hover:text-primary rtl:-scale-x-100" />
-              </div>
-              <div className="mt-8 flex items-center gap-2 text-muted-foreground text-sm">
-                <FileText className="size-4" /> {t('dashboard.pages', { count: number(project._count?.pages ?? 0) })}
-              </div>
-            </button>
-          ))}
-        </div>
-      ) : (
+        <section className="flex flex-col gap-3">
+          {grouped ? <h2 className="font-semibold text-lg">{t('dashboard.group.yours')}</h2> : null}
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filtered.map((project) => (
+              <button
+                type="button"
+                key={project.id}
+                onClick={() => navigate({ to: '/app/projects/$projectId', params: { projectId: project.id } })}
+                className="group cursor-pointer rounded-xl border border-border bg-card p-5 text-start transition hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="grid size-11 place-items-center rounded-xl border border-border bg-muted/50">
+                    <BrandMark className="size-7" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">{project.name}</span>
+                    <span className="block truncate font-mono text-muted-foreground text-xs">/{project.slug}</span>
+                  </span>
+                  <ArrowUpRight className="size-4.5 text-muted-foreground transition group-hover:text-primary rtl:-scale-x-100" />
+                </div>
+                <div className="mt-8 flex items-center gap-2 text-muted-foreground text-sm">
+                  <FileText className="size-4" /> {t('dashboard.pages', { count: number(project._count?.pages ?? 0) })}
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : filteredPublic.length > 0 ? null : (
         <div className="grid min-h-64 place-items-center rounded-xl border border-dashed border-border text-center">
           <div>
             <BrandMark className="mx-auto size-9" />
@@ -115,6 +123,42 @@ function SitesPage() {
           </div>
         </div>
       )}
+      {hydrated && filteredPublic.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <div>
+            <h2 className="font-semibold text-lg">{t('dashboard.group.public')}</h2>
+            <p className="mt-1 text-muted-foreground text-sm">{t('dashboard.group.publicHint')}</p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filteredPublic.map((project) => (
+              <button
+                type="button"
+                key={project.id}
+                onClick={() => navigate({ to: '/app/projects/$projectId/changes', params: { projectId: project.id } })}
+                className="group cursor-pointer rounded-xl border border-border bg-card p-5 text-start transition hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="grid size-11 place-items-center rounded-xl border border-border bg-muted/50">
+                    <BrandMark className="size-7" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold" dir="auto">
+                      {project.name}
+                    </span>
+                    <span className="block truncate font-mono text-muted-foreground text-xs">/{project.slug}</span>
+                  </span>
+                  <ArrowUpRight className="size-4.5 text-muted-foreground transition group-hover:text-primary rtl:-scale-x-100" />
+                </div>
+                {project.description ? (
+                  <p className="mt-4 line-clamp-2 text-muted-foreground text-sm" dir="auto">
+                    {project.description}
+                  </p>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
       {canCreate ? <NewProjectDialog open={createOpen} onOpenChange={setCreateOpen} /> : null}
     </div>
   );

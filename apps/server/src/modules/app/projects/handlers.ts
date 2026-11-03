@@ -2,7 +2,15 @@ import { createProjectBody, themeImportBodySchema, updateProjectBody } from '@ni
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { exportProjectMarkdown, exportProjectThemeRepository } from '@/actions/export';
-import { createProject, deleteProject, getContributorProject, getProject, listProjects, updateProject } from '@/actions/projects';
+import {
+  createProject,
+  deleteProject,
+  getContributorProject,
+  getProject,
+  listContributorProjects,
+  listProjects,
+  updateProject,
+} from '@/actions/projects';
 import { exportProjectTheme, getProjectThemeCatalog, importProjectTheme } from '@/actions/themes';
 import { badRequest } from '@/errors';
 import { getContextMembership, getContextOrganizationIdOrThrow, getContextUserOrThrow, type HonoEnv, isContextContributor } from '@/lib/hono/context';
@@ -13,6 +21,10 @@ const app = new Hono<HonoEnv>()
   .get('/', ...projectsRoutes.list, async (ctx) => {
     const user = getContextUserOrThrow();
     return ctx.json({ data: await listProjects(user.id) }, 200);
+  })
+  .get('/public', ...projectsRoutes.listPublic, async (ctx) => {
+    const user = getContextUserOrThrow();
+    return ctx.json({ data: await listContributorProjects(user.id) }, 200);
   })
   .post('/', ...projectsRoutes.create, validator('json', createProjectBody), async (ctx) => {
     const user = getContextUserOrThrow();

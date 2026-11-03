@@ -4,7 +4,7 @@ Status: accepted for repository contract v1 with independently runnable Harbor, 
 
 ## Decision
 
-Nibleaf exports a normal Vite application, not a JSON theme blob and not a checkout that depends on the Nibleaf monorepo. Repository contract v1 selects the project's Harbor, Manuscript, or Signal preset and exports a self-contained implementation with:
+ZhinWiki exports a normal Vite application, not a JSON theme blob and not a checkout that depends on the ZhinWiki monorepo. Repository contract v1 selects the project's Harbor, Manuscript, or Signal preset and exports a self-contained implementation with:
 
 - editable React components, layout CSS, assets, a content adapter, and tests;
 - Vite 8, React Compiler, TypeScript 7, ParaglideJS, Lucide, and typed `t3-env` validation;
@@ -19,7 +19,7 @@ The vendored runtime is intentional for contract v1. Publishing `@nibleaf/theme-
 
 ### JoodCMS patterns worth retaining
 
-| Concern | Source evidence | What Nibleaf retains |
+| Concern | Source evidence | What ZhinWiki retains |
 | --- | --- | --- |
 | Runnable themes | `apps/theme-default-agency-b2c/package.json` and the three sibling apps expose normal `dev`, `build`, `preview`, and deploy commands. | Each export is an ordinary application with source, scripts, and environment documentation. |
 | Runtime CMS boundary | `apps/theme-default-agency-b2c/server/middleware/01.website.ts` resolves request-time tenant data; `server/query/website.ts` owns the CMS API/cache boundary; `app/composables/useWebsite.ts` exposes the resolved model. | A typed `ContentAdapter` separates rendered components from snapshot or future API loading. |
@@ -27,9 +27,9 @@ The vendored runtime is intentional for contract v1. Publishing `@nibleaf/theme-
 | Cloudflare deployment | Theme apps have their own `wrangler.jsonc`, Worker entry, compatibility date, and assets directory; backend-created custom hostnames keep routing outside theme code. | Deployment adapters remain outside the customer theme contract. Exported code is host-portable; a later official Cloudflare adapter can be additive. |
 | Local configuration | Theme `nuxt.config.ts` supplies local API defaults and runtime configuration. | Fixture/snapshot is the zero-secret default; optional remote configuration is typed. |
 
-The coupling not retained is visible in each JoodCMS theme app's `package.json`: theme apps consume several private `workspace:*` packages such as the Nuxt layer, design system, shared helpers, analytics, and observability. That works inside a monorepo but fails the customer clone/install requirement. Nibleaf therefore vendors the small runtime seam and uses public ecosystem packages only.
+The coupling not retained is visible in each JoodCMS theme app's `package.json`: theme apps consume several private `workspace:*` packages such as the Nuxt layer, design system, shared helpers, analytics, and observability. That works inside a monorepo but fails the customer clone/install requirement. ZhinWiki therefore vendors the small runtime seam and uses public ecosystem packages only.
 
-### Existing Nibleaf foundations
+### Existing ZhinWiki foundations
 
 | Concern | Source evidence | Consequence |
 | --- | --- | --- |
@@ -53,7 +53,7 @@ No design-system shadcn source component is part of this change. All exported te
 │   ├── snapshot.json           # PLATFORM: generated public project data
 │   ├── content-map.json        # PLATFORM: page IDs to editable MDX paths
 │   └── README.md               # PLATFORM
-├── content/**/*.mdx            # SHARED: three-way Nibleaf/Git authoring
+├── content/**/*.mdx            # SHARED: three-way ZhinWiki/Git authoring
 ├── src/
 │   ├── nibleaf/runtime.ts      # CUSTOMER after scaffold; vendored contract entry
 │   ├── adapters/content.ts     # CUSTOMER: replaceable data boundary
@@ -75,9 +75,9 @@ Template identity is independently versioned as `template.id = harbor | manuscri
 
 | Owner | Paths | Push behavior | Pull/import behavior |
 | --- | --- | --- | --- |
-| PLATFORM | `.nibleaf/**`, `nibleaf.theme.json` | Regenerate from the current Nibleaf snapshot. | Validate manifest/version/hash. A Git edit becomes a conflict; it is never interpreted as customer code or silently written into project data. |
+| PLATFORM | `.nibleaf/**`, `nibleaf.theme.json` | Regenerate from the current ZhinWiki snapshot. | Validate manifest/version/hash. A Git edit becomes a conflict; it is never interpreted as customer code or silently written into project data. |
 | SHARED | configured content root `/**/*.mdx` | Three-way reconcile from the recorded common base. | Import conflict-free Git-only changes. Competing edits persist base/ours/theirs and require an explicit resolution. |
-| CUSTOMER | `src/**`, adapters, assets, translations, and ordinary app configuration | Seed only when the path has no recorded base and is absent in Git. Never upgrade in place. | Git is authoritative, including deletion. Nibleaf may validate syntax/contract compatibility but never overwrites the file. |
+| CUSTOMER | `src/**`, adapters, assets, translations, and ordinary app configuration | Seed only when the path has no recorded base and is absent in Git. Never upgrade in place. | Git is authoritative, including deletion. ZhinWiki may validate syntax/contract compatibility but never overwrites the file. |
 | UNMANAGED | everything outside the manifest sync surface | Ignore. | Ignore. |
 
 `GitFileState.ownership` records this decision next to `baseContent`, `baseExists`, page linkage, and remote blob metadata. Existing rows migrate to `SHARED`, preserving current MDX semantics.
@@ -85,28 +85,28 @@ Template identity is independently versioned as `template.id = harbor | manuscri
 ## Reconciliation and conflicts
 
 1. Fetch only bounded files in the declared theme/content surface.
-2. Compose Nibleaf's current shared MDX and generated platform files.
-3. For customer files with a recorded state, use the recorded base as “ours”; this prevents a newer Nibleaf scaffold from masquerading as a customer edit.
+2. Compose ZhinWiki's current shared MDX and generated platform files.
+3. For customer files with a recorded state, use the recorded base as “ours”; this prevents a newer ZhinWiki scaffold from masquerading as a customer edit.
 4. Reconcile each path:
    - `SHARED`: existing base/ours/theirs rules;
    - `CUSTOMER`: seed once, then choose Git (including deletion);
-   - `PLATFORM`: choose a new Nibleaf generation only when Git still equals the base; otherwise create a conflict.
+   - `PLATFORM`: choose a new ZhinWiki generation only when Git still equals the base; otherwise create a conflict.
 5. Apply only `SHARED` results to page records. Platform/customer files never pass through the MDX importer.
 6. Persist a new common base only after the whole operation is conflict-free. Existing stale-resolution detection still invalidates a choice when any input changed.
 7. Push with the existing GitHub compare-and-swap ref update. If the branch moved, refetch and reconcile.
 
-Conflict resolution for a generated file should normally choose Nibleaf (“ours”). Choosing custom content is intentionally unavailable for platform-owned paths in the planned UI hardening phase; the v1 engine already prevents automatic import.
+Conflict resolution for a generated file should normally choose ZhinWiki (“ours”). Choosing custom content is intentionally unavailable for platform-owned paths in the planned UI hardening phase; the v1 engine already prevents automatic import.
 
 ## Migration policy
 
 Contract migrations are explicit and non-destructive:
 
 - A parser supports known manifest/runtime versions and rejects unknown future versions.
-- Nibleaf can regenerate `PLATFORM` files for a compatible contract.
+- ZhinWiki can regenerate `PLATFORM` files for a compatible contract.
 - Customer-owned files are never rewritten by a migration. A codemod is delivered as a Git branch/PR that the customer reviews.
 - A template major change is a new template version or a newly exported repository, not an implicit overwrite.
 - The `GitFileState` base is advanced only after a migration commit succeeds, so retries remain idempotent.
-- Rollback is a Git revert plus selection of the prior supported manifest/runtime version; Nibleaf project data remains outside customer code.
+- Rollback is a Git revert plus selection of the prior supported manifest/runtime version; ZhinWiki project data remains outside customer code.
 
 ## Local development and security
 
@@ -174,7 +174,7 @@ The only shared customer-side theme utility filters renderable pages, maps suppo
 
 - Archive contains no `workspace:*` dependency and no secret material.
 - Harbor, Manuscript, and Signal repos each install with supported pnpm, run localized tests, typecheck, and build.
-- Vite serves every fixture repository without Nibleaf services or production secrets.
+- Vite serves every fixture repository without ZhinWiki services or production secrets.
 - Screenshots show all three structurally distinct runtimes plus Arabic/RTL mobile chrome.
 - A change to each template-owned component survives a rebuild and ownership reconciliation.
 - A customer MDX edit appears in rebuilt browser output while generated manifest, snapshot, and content-map hashes remain unchanged.

@@ -222,7 +222,7 @@ export const parseThemeTemplate = (input: unknown): ThemeTemplateParseResult => 
       version: THEME_SCHEMA_VERSION,
       metadata: {
         name: legacy.data.name,
-        description: legacy.data.description ?? 'Imported from a Nibleaf theme template v0.',
+        description: legacy.data.description ?? 'Imported from a theme template v0.',
         ...(legacy.data.author ? { author: legacy.data.author } : {}),
       },
       config: {
@@ -231,7 +231,7 @@ export const parseThemeTemplate = (input: unknown): ThemeTemplateParseResult => 
           preset: legacy.data.preset ?? 'harbor',
           metadata: {
             name: legacy.data.name,
-            description: legacy.data.description ?? 'Imported from a Nibleaf theme template v0.',
+            description: legacy.data.description ?? 'Imported from a theme template v0.',
             ...(legacy.data.author ? { author: legacy.data.author } : {}),
           },
         },
@@ -251,7 +251,7 @@ export const parseThemeTemplate = (input: unknown): ThemeTemplateParseResult => 
   if (record.version !== THEME_SCHEMA_VERSION) {
     return {
       success: false,
-      message: `Theme template version ${String(record.version)} is not supported. This Nibleaf build supports versions 0 and ${THEME_SCHEMA_VERSION}.`,
+      message: `Theme template version ${String(record.version)} is not supported. This build supports versions 0 and ${THEME_SCHEMA_VERSION}.`,
     };
   }
   const checked = themeTemplateV1Schema.safeParse(input);

@@ -1,4 +1,4 @@
-# Nibleaf themes visual evidence
+# ZhinWiki themes visual evidence
 
 This evidence was captured from the local production-shaped publish pipeline against a bilingual representative documentation project. Each image is a full-page browser capture after a READY local deployment. The capture asserted the expected `data-theme-id`, `data-theme-shell`, appearance class, language direction, viewport, and zero document-level horizontal overflow before writing the file.
 

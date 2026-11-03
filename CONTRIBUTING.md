@@ -1,16 +1,16 @@
-# Contributing to Nibleaf
+# Contributing to ZhinWiki
 
-Thanks for your interest in improving Nibleaf — the open-source, self-hostable
+Thanks for your interest in improving ZhinWiki — the open-source, self-hostable
 documentation platform. This guide covers how to get a local environment running
 and the conventions we follow.
 
 ## Licensing of contributions
 
-Nibleaf is licensed under the **GNU Affero General Public License v3.0 only**
+ZhinWiki is licensed under the **GNU Affero General Public License v3.0 only**
 (`AGPL-3.0-only`; see [LICENSE](LICENSE)). By submitting a contribution (a pull
 request, patch, or any other change), you agree that it is licensed under the
 same `AGPL-3.0-only` terms as the project and certify that you have the right to
-submit it. Nibleaf does not require a separate contributor license agreement or
+submit it. ZhinWiki does not require a separate contributor license agreement or
 Developer Certificate of Origin sign-off.
 
 ## Development setup
@@ -46,7 +46,7 @@ http://localhost:4312/jobs and read the code in the latest email job's data.
 The seed creates the workspace and published starter idempotently.
 
 For a production-style installation, use the pinned-image path in the
-[self-hosted quickstart](https://docs.nibleaf.com/getting-started/self-hosted)
+[self-hosted quickstart](docs/getting-started/self-hosted.mdx)
 instead of the development stack above.
 
 ## Before you open a PR
@@ -93,7 +93,7 @@ Use the GitHub issue templates. For support and community questions, see
 ## GitHub release notes
 
 Release notes use pinned `changelogithub@14.0.0` through `pnpm release:notes:engine`.
-`pnpm release:notes` composes the reviewed highlights and publishes **Nibleaf vX.Y.Z**
+`pnpm release:notes` composes the reviewed highlights and publishes **ZhinWiki vX.Y.Z**
 for the current tag. It never edits an already published release's title or notes;
 retries still upload the verified self-host assets. An existing draft is completed.
 This is separate from the manual Docker image build and deployment process.

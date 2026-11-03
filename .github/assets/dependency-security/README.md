@@ -17,12 +17,12 @@ the three obsolete Ghost advisory exceptions were removed.
 
 The image-size patch preserves both module entrypoints and keeps file sizing opt-in.
 Its optional local-file path now has a 16 MiB regular-file allocation/read limit.
-Nibleaf's Ghost importer does not enable that option. Both default Ghost output
+ZhinWiki's Ghost importer does not enable that option. Both default Ghost output
 parity and optional sizing compatibility are covered by the added tests.
 
 `http-cache-semantics` 4.3.0 falls outside the advisory's affected version range.
 The upstream max-stale/cache advisory is disputed; the version update is not
-claimed to change that cache policy. Nibleaf's Got callers keep shared caching
+claimed to change that cache policy. ZhinWiki's Got callers keep shared caching
 disabled, confirmed by a loopback two-caller test.
 
 Node 24 local tests, Node 22 CI, published images, running production revisions,

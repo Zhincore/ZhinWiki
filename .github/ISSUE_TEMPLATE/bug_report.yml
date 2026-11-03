@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a problem with Nibleaf
+description: Report a problem with ZhinWiki
 labels: [bug]
 body:
   - type: markdown
@@ -27,7 +27,7 @@ body:
     id: version
     attributes:
       label: Version / commit
-      description: The Nibleaf version or git commit you are running.
+      description: The ZhinWiki version or git commit you are running.
     validations:
       required: true
   - type: dropdown

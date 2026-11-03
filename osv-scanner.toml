@@ -1,2 +1,7 @@
 # All dependency findings are enforced. Temporary exceptions require a tracked
 # removal issue, an expiry date, and a documented exposure analysis.
+
+[[IgnoredVulns]]
+id = "GHSA-gcqx-w48m-w2h4"
+ignoreUntil = 2027-01-31
+reason = "deepmerge 4.3.1 has no fix. Only html-to-text compile() merges its default options with static options from @react-email/render; email HTML never reaches deepmerge. ultracite is dev-only. Tracked in #100."

@@ -33,7 +33,8 @@ Behaviour that exists only in this fork. Naming and branch rules:
 - **Homepage**: `HOMEPAGE` picks welcome page, app, or one wiki
   ([#13](https://github.com/Zhincore/ZhinWiki/pull/13)).
 - **Wiki directory**: in shared mode the welcome page lists every public,
-  published wiki, no opt-out (`apps/server/src/actions/wiki-directory.ts`).
+  published wiki, no opt-out
+  ([#91](https://github.com/Zhincore/ZhinWiki/pull/91)).
 - **No marketing or Cloud**: welcome, terms and privacy pages replace the
   marketing site; Cloud wording and the Plan tab are gone
   ([#19](https://github.com/Zhincore/ZhinWiki/pull/19),

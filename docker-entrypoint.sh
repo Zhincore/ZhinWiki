@@ -16,10 +16,10 @@ require_prod_secret() {
   fi
   secret="${BETTER_AUTH_SECRET:-}"
   if [ -z "$secret" ] || [ "$secret" = "$WEAK_SECRET_COMPOSE" ] || [ "$secret" = "$WEAK_SECRET_DEV" ]; then
-    echo "[nibleaf] FATAL: BETTER_AUTH_SECRET is unset or a known weak default while NODE_ENV=production." >&2
-    echo "[nibleaf] Generate a strong secret and set it in your environment:" >&2
-    echo "[nibleaf]     openssl rand -hex 32" >&2
-    echo "[nibleaf] See https://github.com/Zhincore/ZhinWiki/blob/main/docs/self-hosting/production.mdx for the production checklist." >&2
+    echo "[ZhinWiki] FATAL: BETTER_AUTH_SECRET is unset or a known weak default while NODE_ENV=production." >&2
+    echo "[ZhinWiki] Generate a strong secret and set it in your environment:" >&2
+    echo "[ZhinWiki]     openssl rand -hex 32" >&2
+    echo "[ZhinWiki] See https://github.com/Zhincore/ZhinWiki/blob/main/docs/self-hosting/production.mdx for the production checklist." >&2
     exit 1
   fi
 }
@@ -38,43 +38,43 @@ should_seed() {
 case "$cmd" in
   migrate)
     require_prod_secret
-    echo "[nibleaf] applying database migrations…"
+    echo "[ZhinWiki] applying database migrations…"
     pnpm --filter @nibleaf/database exec prisma migrate deploy
     if should_seed; then
-      echo "[nibleaf] seeding demo data…"
+      echo "[ZhinWiki] seeding demo data…"
       # NIBLEAF_RUN_SEED is an explicit operator opt-in, so pass ALLOW_SEED=1 to
       # clear the seed script's own production guard (it otherwise refuses to
       # seed when NODE_ENV=production). Seeding is idempotent and never runs
       # unless opted in.
-      ALLOW_SEED=1 pnpm --filter @nibleaf/server exec tsx src/database/seed/index.ts || echo "[nibleaf] seed skipped (continuing)"
+      ALLOW_SEED=1 pnpm --filter @nibleaf/server exec tsx src/database/seed/index.ts || echo "[ZhinWiki] seed skipped (continuing)"
     else
-      echo "[nibleaf] skipping seed (set NIBLEAF_RUN_SEED=true to enable)"
+      echo "[ZhinWiki] skipping seed (set NIBLEAF_RUN_SEED=true to enable)"
     fi
-    echo "[nibleaf] migrate complete"
+    echo "[ZhinWiki] migrate complete"
     ;;
   clickhouse-migrate)
-    echo "[nibleaf] applying ClickHouse analytics migrations…"
+    echo "[ZhinWiki] applying ClickHouse analytics migrations…"
     pnpm --filter @nibleaf/clickhouse migrate
     ;;
   server)
     require_prod_secret
-    echo "[nibleaf] starting API server on :${API_PORT:-4311}"
+    echo "[ZhinWiki] starting API server on :${API_PORT:-4311}"
     # Keep the service itself under Docker's init so SIGTERM reaches its handler.
     cd apps/server
     exec node --import tsx src/index.ts
     ;;
   worker)
     require_prod_secret
-    echo "[nibleaf] starting worker on :${WORKER_PORT:-4312}"
+    echo "[ZhinWiki] starting worker on :${WORKER_PORT:-4312}"
     cd apps/worker
     exec node --import tsx src/index.ts
     ;;
   app)
-    echo "[nibleaf] starting dashboard on :${PORT:-4310}"
+    echo "[ZhinWiki] starting dashboard on :${PORT:-4310}"
     exec node scripts/graceful-web-service.mjs apps/app/.output/server/index.mjs
     ;;
   admin)
-    echo "[nibleaf] starting admin panel on :${PORT:-4315}"
+    echo "[ZhinWiki] starting admin panel on :${PORT:-4315}"
     exec node scripts/graceful-web-service.mjs apps/admin/.output/server/index.mjs
     ;;
   *)

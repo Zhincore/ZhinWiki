@@ -29,7 +29,7 @@ let stopping = false;
 async function main() {
   await initializeClickHouseFn({ roles: ['reader', 'writer'] });
   server = serve({ port: env.WORKER_PORT, fetch: systemApp.fetch }, (info) => {
-    logger.info(`Nibleaf worker ops server on http://localhost:${info.port}`);
+    logger.info(`ZhinWiki worker ops server on http://localhost:${info.port}`);
     logger.info(`  health → http://localhost:${info.port}/health`);
     logger.info(`  jobs   → http://localhost:${info.port}/jobs`);
   });

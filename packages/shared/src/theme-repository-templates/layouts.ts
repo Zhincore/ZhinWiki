@@ -315,6 +315,6 @@ export type { LayoutProps } from './shared';
 const SHELLS = { reference: HarborLayout, editorial: ManuscriptLayout, console: SignalLayout } as const;
 
 /** docs.json → x-nibleaf.theme.layout.shell selects the shell. Change the map to
- * use another layout (or your own) regardless of what Nibleaf regenerates. */
+ * use another layout (or your own) regardless of what docs.json selects. */
 export const Layout = SHELLS[site.theme.layout.shell] ?? HarborLayout;
 `;

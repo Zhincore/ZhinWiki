@@ -11,7 +11,7 @@ const searchSiteInput = z.object({
   limit: z.number().int().min(1).max(50).optional(),
 });
 
-const searchWikisInput = searchSiteInput.omit({ language: true });
+const searchWikisInput = searchSiteInput.omit({ language: true, limit: true });
 
 const answerSiteInput = searchSiteInput.omit({ limit: true }).extend({ query: z.string().trim().min(2).max(300) });
 
@@ -43,7 +43,7 @@ export const searchWikisFn = createServerFn({ method: 'GET' })
     const result = await getData<{ groups: SiteSearchGroup[] }>(
       await api.public.sites[':id'].search.$get({
         param: { id: data.projectId },
-        query: { q: data.query, scope: 'all', ...(data.limit ? { limit: String(data.limit) } : {}) },
+        query: { q: data.query, scope: 'all' },
       }),
       'search',
     );

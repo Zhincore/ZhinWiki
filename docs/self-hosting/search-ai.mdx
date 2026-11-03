@@ -184,8 +184,9 @@ with its name and public URL.
   wikis never appear. The current wiki is always searched; when it opts out,
   its readers get no toggle and `scope=all` searches only it, as under
   `independent` tenancy.
-- Caps: at most 10 other wikis (alphabetical by name) per query, each searched
-  for the request's result limit; the fused response keeps that limit in total.
+- Caps: at most 10 other wikis (alphabetical by name) per query, up to 3 hits
+  per wiki (the current one included) and 30 in total; `limit` applies only to
+  single-wiki search.
 - Each wiki is searched on its own (same tenant filter, hybrid or in-memory
   runtime) and the lists are merged with Reciprocal Rank Fusion (`k = 60`),
   since scores of different wikis are not comparable. On equal rank the current

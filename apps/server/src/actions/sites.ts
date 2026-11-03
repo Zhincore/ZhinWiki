@@ -36,7 +36,7 @@ import { AppError, notFound } from '@/errors';
 import { consumeAnswerQuota } from '@/lib/ai-search/quota';
 import { answerPublishedSearch, answerSearchAvailable, runPublishedSearch, type SearchRuntimeResult } from '@/lib/ai-search/runtime';
 import { buildChangelogRss } from '@/lib/changelog-rss';
-import { CROSS_WIKI_MAX_WIKIS, fuseRankedLists, type RankedList } from '@/lib/cross-wiki-search';
+import { CROSS_WIKI_HITS_PER_WIKI, CROSS_WIKI_MAX_WIKIS, CROSS_WIKI_RESULT_LIMIT, fuseRankedLists, type RankedList } from '@/lib/cross-wiki-search';
 import type { HonoEnv } from '@/lib/hono/context';
 import { buildLlmsFullTxt, buildLlmsTxt } from '@/lib/llms-txt';
 import { LruCache, TtlCache } from '@/lib/lru';
@@ -643,7 +643,8 @@ const searchOtherWikis = async (currentProjectId: string, query: string, limit: 
  *  The reader UI searches every published language. An explicit `lang` remains
  *  supported for API clients that intentionally want a single-language scope.
  *  `scope: 'all'` (shared tenancy, wiki opted in) adds other public wikis,
- *  fused with Reciprocal Rank Fusion and grouped by wiki; otherwise it is ignored. */
+ *  up to 3 hits per wiki and 30 in total, fused with Reciprocal Rank Fusion and
+ *  grouped by wiki; otherwise it returns only the current wiki's group. */
 export const searchSite = async (identifier: string, query: string, lang?: string, limit?: number, scope: SiteSearchScope = 'wiki') => {
   const analyticsStartedAt = performance.now();
   const published = await getPublished(identifier);
@@ -651,9 +652,10 @@ export const searchSite = async (identifier: string, query: string, lang?: strin
   const request = resolvePublishedSearchContext(snapshot, { language: lang, limit });
   const resultLimit = request.limit;
   const crossWiki = crossWikiSearchEnabled(snapshot.project.config);
+  const fanOut = scope === 'all' && crossWiki;
   const [own, others] = await Promise.all([
-    searchPublishedSite(published, query, resolvePublishedSearchLanguages(snapshot, lang), resultLimit),
-    scope === 'all' && crossWiki && query.trim() ? searchOtherWikis(snapshot.project.id, query, resultLimit) : null,
+    searchPublishedSite(published, query, resolvePublishedSearchLanguages(snapshot, lang), fanOut ? CROSS_WIKI_HITS_PER_WIKI : resultLimit),
+    fanOut && query.trim() ? searchOtherWikis(snapshot.project.id, query, CROSS_WIKI_HITS_PER_WIKI) : null,
   ]);
   const { hits } = own;
   const runtime = combinedRuntime([own.runtime, ...(others ?? []).map((other) => other.runtime)]);
@@ -694,7 +696,7 @@ export const searchSite = async (identifier: string, query: string, lang?: strin
     { wikiId: project.id, hits },
     ...(others ?? []).map((other) => ({ wikiId: other.wiki.id, hits: other.hits })),
   ];
-  const groups = fuseRankedLists(lists, (hit) => hit.id, resultLimit).flatMap((group) => {
+  const groups = fuseRankedLists(lists, (hit) => hit.id, fanOut ? CROSS_WIKI_RESULT_LIMIT : resultLimit).flatMap((group) => {
     const wiki = wikis.get(group.wikiId);
     return wiki ? [{ wiki, hits: group.hits }] : [];
   });

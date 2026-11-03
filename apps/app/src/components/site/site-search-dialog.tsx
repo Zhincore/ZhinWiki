@@ -121,7 +121,7 @@ export default function SiteSearchDialog({
   // asks the public endpoint to search every enabled language in the published
   // snapshot; each hit carries its own language for correct localized routing.
   const wikiQuery = useSiteSearch(projectId, debouncedQuery.trim(), undefined, maxResults, open && mode === 'search' && scope === 'wiki');
-  const wikisQuery = useSearchWikis(projectId, debouncedQuery.trim(), maxResults, open && mode === 'search' && scope === 'all');
+  const wikisQuery = useSearchWikis(projectId, debouncedQuery.trim(), open && mode === 'search' && scope === 'all');
   const hitsQuery = scope === 'all' ? wikisQuery : wikiQuery;
   const answerMutation = useAnswerSite();
   const queryPending = query.trim() !== debouncedQuery.trim() || hitsQuery.isFetching;

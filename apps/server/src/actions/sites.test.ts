@@ -34,7 +34,7 @@ vi.mock('./notifications', () => ({ createNotificationsForOrgMembers: vi.fn() })
 vi.mock('./reader-access', () => ({ resolveViewerAccess: vi.fn(async () => ({ kind: 'public', allowedPageIds: null })) }));
 
 import { env } from '@/env';
-import { CROSS_WIKI_MAX_WIKIS } from '@/lib/cross-wiki-search';
+import { CROSS_WIKI_HITS_PER_WIKI, CROSS_WIKI_MAX_WIKIS, CROSS_WIKI_RESULT_LIMIT } from '@/lib/cross-wiki-search';
 import { getSitePage, getSitePageMarkdown, invalidatePublishedSiteConfig, resolveSiteSlug, searchSite } from './sites';
 
 const page = (over: Partial<SnapshotPage> & Pick<SnapshotPage, 'id' | 'path' | 'position'>): SnapshotPage => ({
@@ -391,7 +391,14 @@ describe('searchSite across wikis', () => {
     mocks.getCachedIndex.mockImplementation(async (projectId: string) => ({ projectId }));
     mocks.searchDocs.mockImplementation(async (index: { projectId: string }) => [
       { id: `${index.projectId}-page`, title: 'Guide', path: 'guide', description: '', snippet: 'guide', score: index.projectId === 'home' ? 1 : 99 },
-      { id: `${index.projectId}-second`, title: 'Second', path: 'second', description: '', snippet: 'second', score: 0.5 },
+      ...['second', 'third', 'fourth'].map((name, rank) => ({
+        id: `${index.projectId}-${name}`,
+        title: name,
+        path: name,
+        description: '',
+        snippet: name,
+        score: 0.5 - rank / 10,
+      })),
     ]);
     mocks.runPublishedSearch.mockImplementation(async (_scope: unknown, _query: string, _limit: number, legacy: () => Promise<unknown[]>) => ({
       hits: await legacy(),
@@ -419,8 +426,8 @@ describe('searchSite across wikis', () => {
     );
     expect(result).toMatchObject({
       groups: [
-        { wiki: { id: 'home', current: true }, hits: [{ id: 'home-page' }, { id: 'home-second' }] },
-        { wiki: { id: 'open', current: false, url: 'https://wiki.example/open' }, hits: [{ url: 'https://wiki.example/open/guide' }, {}] },
+        { wiki: { id: 'home', current: true }, hits: [{ id: 'home-page' }, { id: 'home-second' }, { id: 'home-third' }] },
+        { wiki: { id: 'open', current: false, url: 'https://wiki.example/open' }, hits: [{ url: 'https://wiki.example/open/guide' }, {}, {}] },
       ],
       capabilities: { crossWikiSearch: true },
     });
@@ -438,14 +445,19 @@ describe('searchSite across wikis', () => {
     expect(groupIds(result)).toHaveLength(CROSS_WIKI_MAX_WIKIS + 1);
   });
 
-  it('keeps the fused result count within the limit, the current wiki first', async () => {
-    setup([{ id: 'home' }, { id: 'aa' }, { id: 'bb' }]);
+  it('caps hits per wiki and in total whatever the request limit, the current wiki first', async () => {
+    setup([{ id: 'home' }, ...Array.from({ length: 15 }, (_, index) => ({ id: `w${String(index).padStart(2, '0')}` }))]);
     const result = await searchSite('home', 'guide', undefined, 4, 'all');
-    expect('groups' in result && result.groups?.map((group) => group.hits.map((hit) => hit.id))).toEqual([
-      ['home-page', 'home-second'],
-      ['aa-page'],
-      ['bb-page'],
-    ]);
+    const groups = 'groups' in result ? (result.groups ?? []) : [];
+    expect(groups[0]?.hits.map((hit) => hit.id)).toEqual(['home-page', 'home-second', 'home-third']);
+    expect(Math.max(...groups.map((group) => group.hits.length))).toBe(CROSS_WIKI_HITS_PER_WIKI);
+    expect(groups.flatMap((group) => group.hits)).toHaveLength(CROSS_WIKI_RESULT_LIMIT);
+  });
+
+  it('keeps the request limit for the single-wiki response', async () => {
+    setup([{ id: 'home' }]);
+    const result = await searchSite('home', 'guide', undefined, 4);
+    expect('hits' in result && result.hits).toHaveLength(4);
   });
 
   it('searches only the current wiki when it opted out', async () => {

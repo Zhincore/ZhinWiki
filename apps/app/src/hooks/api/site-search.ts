@@ -22,11 +22,11 @@ export const useSiteSearch = (siteId: string | undefined, query: string, languag
       }),
   });
 
-export const useSearchWikis = (siteId: string | undefined, query: string, limit?: number, enabled = true) =>
+export const useSearchWikis = (siteId: string | undefined, query: string, enabled = true) =>
   useQuery({
-    queryKey: queryKeys.site.searchWikis(siteId ?? '', query, limit),
+    queryKey: queryKeys.site.searchWikis(siteId ?? '', query),
     enabled: Boolean(enabled && siteId && query.trim()),
-    queryFn: () => searchWikisFn({ data: { projectId: requireSiteId(siteId), query, ...(limit ? { limit } : {}) } }),
+    queryFn: () => searchWikisFn({ data: { projectId: requireSiteId(siteId), query } }),
   });
 
 export const useAnswerSite = () =>

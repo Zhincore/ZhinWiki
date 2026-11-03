@@ -280,7 +280,7 @@ describe('cross-wiki reader search', () => {
   it('hides the scope toggle unless the wiki allows cross-wiki search', async () => {
     await render({ crossWikiSearch: false });
     expect(document.querySelector('fieldset')).toBeNull();
-    expect(mocks.searchWikis).toHaveBeenLastCalledWith('docs', '', undefined, false);
+    expect(mocks.searchWikis).toHaveBeenLastCalledWith('docs', '', false);
   });
 
   it('groups all-wiki results by wiki and opens another wiki by its public URL', async () => {
@@ -302,7 +302,7 @@ describe('cross-wiki reader search', () => {
     expect(scopeButton('searchThisWiki')?.getAttribute('aria-pressed')).toBe('true');
     await act(async () => scopeButton('searchAllWikis')?.click());
     await typeQuery('setup');
-    expect(mocks.searchWikis).toHaveBeenLastCalledWith('docs', 'setup', undefined, true);
+    expect(mocks.searchWikis).toHaveBeenLastCalledWith('docs', 'setup', true);
     expect([...document.querySelectorAll('[cmdk-group-heading]')].map((heading) => heading.textContent)).toEqual(['Docs', 'Other wiki']);
     const items = document.querySelectorAll<HTMLElement>('[cmdk-item]');
     expect(items).toHaveLength(2);

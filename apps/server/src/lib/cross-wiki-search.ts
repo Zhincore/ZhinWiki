@@ -1,6 +1,12 @@
 /** Most other wikis one "All wikis" search fans out to (the current wiki is extra). */
 export const CROSS_WIKI_MAX_WIKIS = 10;
 
+/** Most hits each wiki contributes to an "All wikis" search. */
+export const CROSS_WIKI_HITS_PER_WIKI = 3;
+
+/** Most hits in one "All wikis" response. */
+export const CROSS_WIKI_RESULT_LIMIT = 30;
+
 /** Reciprocal Rank Fusion constant (Cormack et al.). */
 export const RRF_K = 60;
 

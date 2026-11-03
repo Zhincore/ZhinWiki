@@ -25,6 +25,7 @@ import {
   useSubmitChangeRequestReview,
 } from '@/hooks/api';
 import { useFormatters } from '@/lib/format';
+import { useUserName } from './user-name';
 
 const STATE: Record<ChangeRequestReviewState, { label: MessageKey; className: string }> = {
   APPROVED: { label: 'changeRequest.review.state.approved', className: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' },
@@ -42,10 +43,11 @@ function ReviewStateBadge({ state }: { state: ChangeRequestReviewState }) {
 }
 
 function UserAvatar({ user }: { user: ChangeRequestUser }) {
+  const userName = useUserName();
   return (
     <Avatar size="sm">
       {user.image ? <AvatarImage alt="" src={user.image} /> : null}
-      <AvatarFallback className="text-[10px]">{user.name.slice(0, 1).toUpperCase()}</AvatarFallback>
+      <AvatarFallback className="text-[10px]">{userName(user).slice(0, 1).toUpperCase()}</AvatarFallback>
     </Avatar>
   );
 }
@@ -88,7 +90,7 @@ export function SubmitReviewMenu({ projectId, number }: { projectId: string; num
           setBody('');
           setOpen(false);
         },
-        onError: (error) => toast.error(error.message || t('changeRequest.review.error')),
+        onError: (error) => toast.error(error.message),
       },
     );
   return (
@@ -129,13 +131,13 @@ export function SubmitReviewMenu({ projectId, number }: { projectId: string; num
 /** Reviewers with their verdicts; members add, re-request and remove them. */
 export function ReviewersPanel({ projectId, changeRequest, manage }: { projectId: string; changeRequest: ChangeRequestDetail; manage: boolean }) {
   const t = useT();
+  const userName = useUserName();
   const open = changeRequest.status === 'DRAFT' || changeRequest.status === 'IN_REVIEW';
   const canManage = manage && open;
   const [pickerOpen, setPickerOpen] = useState(false);
   const candidates = useReviewerCandidates(projectId, canManage && pickerOpen);
   const reviewer = useChangeRequestReviewer(projectId, changeRequest.number);
-  const change = (userId: string, remove?: boolean) =>
-    reviewer.mutate({ userId, remove }, { onError: (error) => toast.error(error.message || t('changeRequest.reviewers.error')) });
+  const change = (userId: string, remove?: boolean) => reviewer.mutate({ userId, remove }, { onError: (error) => toast.error(error.message) });
   const assigned = new Set(changeRequest.reviewers.map((item) => item.user.id));
   const available = (candidates.data ?? []).filter((user) => !assigned.has(user.id));
 
@@ -163,7 +165,7 @@ export function ReviewersPanel({ projectId, changeRequest, manage }: { projectId
                   <DropdownMenuItem key={user.id} onClick={() => change(user.id)}>
                     <UserAvatar user={user} />
                     <span className="truncate" dir="auto">
-                      {user.name}
+                      {userName(user)}
                     </span>
                   </DropdownMenuItem>
                 ))
@@ -180,7 +182,7 @@ export function ReviewersPanel({ projectId, changeRequest, manage }: { projectId
             <li key={item.user.id} className="group flex items-center gap-2 text-sm">
               <UserAvatar user={item.user} />
               <span className="min-w-0 flex-1 truncate" dir="auto">
-                {item.user.name}
+                {userName(item.user)}
               </span>
               {item.state ? (
                 <ReviewStateBadge state={item.state} />
@@ -196,8 +198,8 @@ export function ReviewersPanel({ projectId, changeRequest, manage }: { projectId
                     variant="ghost"
                     disabled={reviewer.isPending}
                     onClick={() => change(item.user.id)}
-                    aria-label={t('changeRequest.reviewers.rerequest', { name: item.user.name })}
-                    title={t('changeRequest.reviewers.rerequest', { name: item.user.name })}
+                    aria-label={t('changeRequest.reviewers.rerequest', { name: userName(item.user) })}
+                    title={t('changeRequest.reviewers.rerequest', { name: userName(item.user) })}
                   >
                     <RotateCcw className="size-3" />
                   </Button>
@@ -206,8 +208,8 @@ export function ReviewersPanel({ projectId, changeRequest, manage }: { projectId
                     variant="ghost"
                     disabled={reviewer.isPending}
                     onClick={() => change(item.user.id, true)}
-                    aria-label={t('changeRequest.reviewers.remove', { name: item.user.name })}
-                    title={t('changeRequest.reviewers.remove', { name: item.user.name })}
+                    aria-label={t('changeRequest.reviewers.remove', { name: userName(item.user) })}
+                    title={t('changeRequest.reviewers.remove', { name: userName(item.user) })}
                   >
                     <X className="size-3" />
                   </Button>
@@ -223,14 +225,15 @@ export function ReviewersPanel({ projectId, changeRequest, manage }: { projectId
 
 export function ParticipantsPanel({ participants }: { participants: ChangeRequestUser[] }) {
   const t = useT();
+  const userName = useUserName();
   return (
     <section>
       <h2 className="mb-2 font-semibold text-sm">{t('changeRequest.participants')}</h2>
       <ul className="flex flex-wrap gap-1.5">
         {participants.map((user) => (
-          <li key={user.id} title={user.name}>
+          <li key={user.id} title={userName(user)}>
             <UserAvatar user={user} />
-            <span className="sr-only">{user.name}</span>
+            <span className="sr-only">{userName(user)}</span>
           </li>
         ))}
       </ul>
@@ -241,6 +244,7 @@ export function ParticipantsPanel({ participants }: { participants: ChangeReques
 /** Every review submission, oldest first. */
 export function ReviewHistory({ reviews }: { reviews: ChangeRequestDetail['reviews'] }) {
   const t = useT();
+  const userName = useUserName();
   const { relativeTime } = useFormatters();
   if (reviews.length === 0) return null;
   return (
@@ -252,7 +256,7 @@ export function ReviewHistory({ reviews }: { reviews: ChangeRequestDetail['revie
             <div className="flex flex-wrap items-center gap-2 text-sm">
               {review.author ? <UserAvatar user={review.author} /> : null}
               <span className="font-medium" dir="auto">
-                {review.author?.name ?? t('changeRequest.unknownAuthor')}
+                {userName(review.author)}
               </span>
               <ReviewStateBadge state={review.state} />
               <time className="ms-auto text-muted-foreground text-xs" dateTime={review.createdAt}>

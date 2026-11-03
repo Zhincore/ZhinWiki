@@ -8,6 +8,7 @@ import { GitPullRequest, Loader2, Plus, User, UserCheck } from 'lucide-react';
 import { useMemo } from 'react';
 import { z } from 'zod';
 import { ChangeRequestStatusBadge } from '@/components/change-requests/change-request-header';
+import { useUserName } from '@/components/change-requests/user-name';
 import { QueryErrorState } from '@/components/query-error-state';
 import { type ChangeRequestStatus, useChangeRequests, useProject, useStartChangeRequest } from '@/hooks/api';
 import { useFormatters } from '@/lib/format';
@@ -33,6 +34,7 @@ export const Route = createFileRoute('/app/projects/$projectId/changes/')({
 
 function ChangeRequestsPage() {
   const t = useT();
+  const userName = useUserName();
   const { projectId } = Route.useParams();
   const { status = 'open', mine, awaiting } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
@@ -127,7 +129,7 @@ function ChangeRequestsPage() {
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-muted-foreground text-xs">
                       <span dir="ltr">#{changeRequest.number}</span>
                       <span aria-hidden>·</span>
-                      <span dir="auto">{changeRequest.author?.name ?? t('changeRequest.unknownAuthor')}</span>
+                      <span dir="auto">{userName(changeRequest.author)}</span>
                       <span aria-hidden>·</span>
                       <time dateTime={changeRequest.createdAt}>{relativeTime(changeRequest.createdAt)}</time>
                     </div>

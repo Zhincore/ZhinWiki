@@ -83,12 +83,21 @@ export const planRevert = (input: {
     return id;
   };
 
-  const branchIdAt = new Map(input.branch.map((page) => [`${page.languageId}\u0000${page.path}`, page.id]));
-  /** The kept page at the former parent's path, for parents whose id is gone (e.g. replaced by a whole-wiki merge). */
+  /** Page at each path once the revert applies: pages it leaves in place keep
+   *  theirs, restored pages take their former one where it is free. */
+  const pathKey = (languageId: string, path: string) => `${languageId}\u0000${path}`;
+  const restoredIds = new Set(restored.map(({ id }) => id));
+  const revertedAt = new Map(
+    input.branch.filter((page) => !restoredIds.has(page.id) && !deletes.has(page.id)).map((page) => [pathKey(page.languageId, page.path), page.id]),
+  );
+  for (const { id, entry } of restored) {
+    const key = entry.before && pathKey(entry.languageId, entry.before.path);
+    if (key && !revertedAt.has(key)) revertedAt.set(key, id);
+  }
+  /** The page at the former parent's path after the revert, for parents whose id is gone (e.g. replaced by a whole-wiki merge). */
   const pageAtParentPath = (languageId: string, path: string) => {
     const cut = path.lastIndexOf('/');
-    const id = cut > 0 ? branchIdAt.get(`${languageId}\u0000${path.slice(0, cut)}`) : undefined;
-    return id && !deletes.has(id) ? id : undefined;
+    return cut > 0 ? revertedAt.get(pathKey(languageId, path.slice(0, cut))) : undefined;
   };
 
   const placed = new Set<string>();

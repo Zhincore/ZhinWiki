@@ -7,8 +7,8 @@ import type { CreateChangeRequestBody, UpdateChangeRequestBody } from '@nibleaf/
 import { AppError, conflict, forbidden, notFound } from '@/errors';
 import { OPEN_CHANGE_REQUEST_STATUSES } from '@/lib/change-request-status';
 import { cleanupContributorAssets } from './assets';
-import { assertNoTrackedChangeRequests, createBranch, getDefaultBranch } from './branches';
-import { type ForkBase, type MergedFields, type MergePage, type MergeRecordEntry, planMerge, summarizeChanges } from './change-request-merge';
+import { assertNoTrackedChangeRequests, createBranch, getDefaultBranch, PAGE_ORDER } from './branches';
+import { type ForkBase, type MergedFields, type MergePage, type MergeRecordEntry, planMerge, reviewMerge } from './change-request-merge';
 import { planRevert, type RevertWarning } from './change-request-revert';
 import { capableReviewSummary, mergeReviewSummary, reviewCapableUserIds, reviewSummary } from './change-request-reviews';
 
@@ -105,7 +105,7 @@ export const createChangeRequest = async (
 };
 
 const loadPages = (projectId: string, branchId: string, client: Prisma.TransactionClient = prisma): Promise<MergePage[]> =>
-  client.page.findMany({ where: { projectId, branchId }, select: mergePageSelect, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] });
+  client.page.findMany({ where: { projectId, branchId }, select: mergePageSelect, orderBy: PAGE_ORDER });
 
 const recordEntries = (mergeRecord: Prisma.JsonValue | null) => (mergeRecord as { pages?: MergeRecordEntry[] } | null)?.pages ?? [];
 
@@ -189,9 +189,7 @@ export const getChangeRequest = async (projectId: string, number: number) => {
   }
   const main = await getDefaultBranch(projectId);
   const [mainPages, branchPages] = await Promise.all([loadPages(projectId, main.id), loadPages(projectId, branch.id)]);
-  const input = { main: mainPages, branch: branchPages, forkBase: forkBase as ForkBase };
-  const plan = planMerge({ ...input, force: new Set() });
-  return { ...rest, changes: summarizeChanges(input), conflicts: plan.legacy ? [] : plan.conflicts };
+  return { ...rest, ...reviewMerge({ main: mainPages, branch: branchPages, forkBase: forkBase as ForkBase }) };
 };
 
 /** Update a change request; a contributor (`contributorId`) only their own. */
@@ -235,6 +233,9 @@ const pageData = <T extends Partial<MergedFields>>(data: T) => {
  * Merge a change request into the default branch page by page, then delete its
  * branch. Conflicting pages are refused with a 409 listing them unless every
  * one of them is named in `force`, which lets the branch win on those pages.
+ * An untracked change request (no fork base) replaces every page of the
+ * default branch instead, and is refused with a 409 while any tracked one
+ * still has a branch.
  */
 export const mergeChangeRequest = async (projectId: string, number: number, userId: string, force: readonly string[]) => {
   const { id } = await findChangeRequest(projectId, number);

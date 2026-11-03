@@ -226,6 +226,23 @@ describe('createBranch', () => {
     expect(tx.branch.create).toHaveBeenLastCalledWith({ data: { projectId: 'p', name: 'cr-6', isDefault: false } });
   });
 
+  it('does not retry a unique violation raised while preparing the branch', async () => {
+    tx.changeRequest.aggregate.mockResolvedValue({ _max: { number: 4 } });
+    tx.changeRequest.create.mockResolvedValue({});
+    const prepare = vi.fn().mockRejectedValue(new mocks.PrismaClientKnownRequestError('unique', 'P2002'));
+    await expect(createBranch('p', { title: 'Revert', authorId: 'user-1', prepare })).rejects.toMatchObject({ code: 'P2002' });
+    expect(prepare).toHaveBeenCalledTimes(1);
+  });
+
+  it('forks pages in sibling order, keeping their creation time', async () => {
+    tx.changeRequest.aggregate.mockResolvedValue({ _max: { number: null } });
+    const createdAt = new Date('2026-01-01T00:00:00Z');
+    tx.page.findMany.mockResolvedValue([{ ...page('m1'), createdAt }]);
+    await createBranch('p', { title: 'Ada’s changes', authorId: 'user-1' });
+    expect(tx.page.findMany).toHaveBeenCalledWith(expect.objectContaining({ orderBy: [{ position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }] }));
+    expect(tx.page.createMany.mock.calls[0]?.[0].data[0]).toMatchObject({ createdAt });
+  });
+
   it('links forked pages to their source', async () => {
     tx.changeRequest.aggregate.mockResolvedValue({ _max: { number: null } });
     const main = page('m1');

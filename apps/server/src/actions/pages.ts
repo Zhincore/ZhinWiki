@@ -4,7 +4,7 @@ import { editor_newgroup, editor_untitled } from '@nibleaf/i18n/messages';
 import { joinPath, slugifyUnicode } from '@nibleaf/shared/utils';
 import type { CreatePageBody, ReorderPagesBody, UpdatePageBody } from '@nibleaf/validators';
 import { badRequest, notFound } from '@/errors';
-import { assertBranchInProject, getDefaultBranch } from './branches';
+import { assertBranchInProject, getDefaultBranch, PAGE_ORDER } from './branches';
 import { assertLanguageInProject, getDefaultLanguage } from './languages';
 import { logFirstContentEdit } from './platform-events';
 
@@ -18,7 +18,7 @@ export const listPages = async (projectId: string, languageId?: string, branchId
   }
   return prisma.page.findMany({
     where: { projectId, branchId: resolvedBranchId, ...(languageId ? { languageId } : {}) },
-    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    orderBy: PAGE_ORDER,
     select: {
       id: true,
       parentId: true,

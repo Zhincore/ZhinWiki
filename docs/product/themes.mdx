@@ -1,6 +1,6 @@
 ---
 title: 'Choose, customize, and share a documentation theme'
-description: 'Use Nibleaf themes safely across previews and published documentation, then export or import a validated, versioned theme template.'
+description: 'Use ZhinWiki themes safely across previews and published documentation, then export or import a validated, versioned theme template.'
 audience: 'documentation owners, designers, and self-hosted operators'
 content_type: 'how-to'
 last_reviewed: '2026-09-02'
@@ -10,15 +10,15 @@ dir: 'ltr'
 translation_key: 'product/themes'
 ---
 
-Nibleaf includes three original themes with different page structures.
+ZhinWiki includes three original themes with different page structures.
 **Harbor** is a classic reference shell: persistent library navigation, a reading
 column, and a right-hand page outline. **Manuscript** is an editorial shell that
 moves the library into a horizontal chapter deck above a focused reading column.
 **Signal** is a compact technical workspace with a narrow library rail, wide
 article canvas, and an inline command index above the page. Their names, tokens, layouts, and assets
-are Nibleaf-owned implementations. Public documentation products informed the
+are ZhinWiki-owned implementations. Public documentation products informed the
 general product patterns—preset galleries, semantic customization, and preview
-before publish—but Nibleaf does not copy their proprietary code, assets, names,
+before publish—but ZhinWiki does not copy their proprietary code, assets, names,
 or trade dress.
 
 Projects created before theme schema v1 retain their existing palette and layout
@@ -55,7 +55,7 @@ inventories for [Fumadocs](https://www.fumadocs.dev/docs/ui/layouts/docs),
 Those
 sources informed general expectations such as presets, semantic settings,
 collapsible navigation, page outlines, layout choices, and a preview-first
-workflow. Harbor, Manuscript, and Signal use original Nibleaf
+workflow. Harbor, Manuscript, and Signal use original ZhinWiki
 names, token values, component treatments, code, and assets. Product names in
 this paragraph belong to their respective owners and do not imply affiliation.
 
@@ -172,13 +172,13 @@ secret, or network request is required.
 
 - `docs.json` is a Mintlify-compatible manifest (`name`, `colors`,
   `navigation.languages[].pages`) plus an `x-nibleaf` block with the resolved
-  theme tokens, languages with their direction, and the content path. Nibleaf
+  theme tokens, languages with their direction, and the content path. ZhinWiki
   regenerates it on every sync; do not hand-edit it.
 - `content/` holds the MDX pages with the same frontmatter Git sync writes
   (`title`, `description`, `icon`, optional `hidden`). The default language sits
   at the content root, other languages under `content/<code>/`. Folders are navigation groups; a
   file that `docs.json` does not list yet is appended to its group so the site
-  keeps working while Nibleaf catches up.
+  keeps working while ZhinWiki catches up.
 - `src/components/layout/` contains the Harbor, Manuscript, and Signal shells
   built with Tailwind utilities and the `docs.json` tokens (light and dark,
   logical properties for RTL). `src/styles.css` maps the tokens to utilities,
@@ -192,4 +192,4 @@ secret, or network request is required.
 
 Schema v1 repositories (`nibleaf.theme.json` + `.nibleaf/snapshot.json`) fail
 closed with an explicit message. Remove those generated files and push again
-from Nibleaf to regenerate the v2 layout; customer-owned files are not touched.
+from ZhinWiki to regenerate the v2 layout; customer-owned files are not touched.

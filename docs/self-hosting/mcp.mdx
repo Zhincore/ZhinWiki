@@ -1,7 +1,7 @@
 ---
 title: 'Connect MCP clients securely'
-description: 'Enable the project-bound Nibleaf MCP endpoint, issue least-privilege keys, configure a client, rotate access, and operate the audit and rate-limit boundaries.'
-audience: 'self-hosted Nibleaf operators and project administrators'
+description: 'Enable the project-bound ZhinWiki MCP endpoint, issue least-privilege keys, configure a client, rotate access, and operate the audit and rate-limit boundaries.'
+audience: 'self-hosted ZhinWiki operators and project administrators'
 content_type: 'how-to'
 last_reviewed: '2026-08-24'
 verified_against: 'apps/server/src/mcp and the official Model Context Protocol server SDK 2.0.0'
@@ -10,7 +10,7 @@ dir: 'ltr'
 translation_key: 'self-hosting/mcp'
 ---
 
-Nibleaf exposes an authenticated HTTP MCP endpoint at `/api/mcp`. It is off by
+ZhinWiki exposes an authenticated HTTP MCP endpoint at `/api/mcp`. It is off by
 default. Every key is bound to one project, carries explicit scopes, expires,
 and can be revoked or atomically rotated by a project administrator. The server
 derives the project and organization from the key; tools never accept either as

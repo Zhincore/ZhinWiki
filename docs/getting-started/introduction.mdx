@@ -1,5 +1,5 @@
 ---
-title: 'Get started with Nibleaf'
+title: 'Get started with ZhinWiki'
 description: 'Understand what you operate, how publishing works, and how to reach a useful first result without guessing.'
 audience: 'evaluators and new workspace owners'
 content_type: 'explanation'
@@ -10,18 +10,18 @@ dir: 'ltr'
 translation_key: 'getting-started/introduction'
 ---
 
-Nibleaf is a documentation platform for teams that want a browser editor
+ZhinWiki is a documentation platform for teams that want a browser editor
 without giving up portable Markdown. You write and review a draft, then publish
 an immutable snapshot that readers can search and navigate.
 
 ## Run it on your infrastructure
 
-Nibleaf is self-hosted: the application and data stay on infrastructure you
+ZhinWiki is self-hosted: the application and data stay on infrastructure you
 control. Start with the [self-hosted tutorial](/getting-started/self-hosted).
 
 - **You operate:** DNS, TLS, Postgres, Dragonfly, object storage, email, backups,
   monitoring, and upgrades.
-- **Nibleaf provides:** the application source, container images, Compose
+- **ZhinWiki provides:** the application source, container images, Compose
   templates, and installation tooling.
 
 Self-hosting gives you operational control, not fewer operational
@@ -30,7 +30,7 @@ before running a critical workload.
 
 ## Understand drafts and published versions
 
-Nibleaf stores the active page tree and Markdown drafts in Postgres. Selecting
+ZhinWiki stores the active page tree and Markdown drafts in Postgres. Selecting
 **Publish** creates a deployment job. The worker freezes the current content
 and configuration into a versioned snapshot and marks it ready only after the
 job succeeds. Readers keep receiving the previous ready version while a new

@@ -1,6 +1,6 @@
 ---
 title: 'Known limitations and product boundaries'
-description: 'Evaluate Nibleaf honestly against operations, identity, Git workflows, API portals, exports, private readers, and search requirements.'
+description: 'Evaluate ZhinWiki honestly against operations, identity, Git workflows, API portals, exports, private readers, and search requirements.'
 audience: 'technical evaluators, operators, and documentation leads'
 content_type: 'reference'
 last_reviewed: '2026-08-24'
@@ -10,13 +10,13 @@ dir: 'ltr'
 translation_key: 'reference/known-limitations'
 ---
 
-Nibleaf is pre-1.0. Capability depends on the release you deploy, and `main` can
+ZhinWiki is pre-1.0. Capability depends on the release you deploy, and `main` can
 contain features that are not in the latest GHCR release. Verify a required
 workflow against the exact tag before committing a production migration.
 
 ## Identity and service commitments
 
-Nibleaf is self-hosted software without an uptime or support-response
+ZhinWiki is self-hosted software without an uptime or support-response
 commitment. Export critical content, keep backups, and keep an operational
 fallback.
 
@@ -27,7 +27,7 @@ compliance claim from the presence of OAuth or private-site controls.
 
 ## Content and Git authority
 
-Nibleaf stores active page Markdown and navigation in Postgres. Markdown is the
+ZhinWiki stores active page Markdown and navigation in Postgres. Markdown is the
 portable serialization format, but a database-backed project is not automatically
 a Git directory. Bidirectional authoring currently targets GitHub and uses a
 dedicated branch, draft pull request, and explicit conflict reconciliation.
@@ -55,7 +55,7 @@ references require a URL or repository source; uploads can use absolute public
 HTTP(S) references. A server-side try-it proxy is not provided. Test one
 representative specification, large schemas, code samples, mobile navigation,
 keyboard use, CORS, authentication, and the browser try-it path before choosing
-Nibleaf for an API-first portal.
+ZhinWiki for an API-first portal.
 
 Never publish live credentials inside an OpenAPI example. A reader-side try-it
 request also depends on the documented API accepting the documentation origin.
@@ -76,7 +76,7 @@ Chromium-compatible browser in the worker image.
 
 ## Search and multilingual behavior
 
-Nibleaf retains the legacy full-text/fuzzy runtime as an immediate rollback, and
+ZhinWiki retains the legacy full-text/fuzzy runtime as an immediate rollback, and
 the current source also includes tenant-safe hybrid retrieval plus optional
 grounded answers. Hybrid search requires Qdrant and an embedding provider; the
 legacy runtime does not. Keep `SEARCH_RUNTIME=shadow` until project-, version-,
@@ -89,7 +89,7 @@ synonymous, dialectal, or ambiguous term resolves to the intended page. A
 grounded answer is withheld when evidence is insufficient. Build acceptance
 queries from real reader vocabulary and retain the tested legacy rollback.
 
-Each language has an independent page tree. Nibleaf does not translate source
+Each language has an independent page tree. ZhinWiki does not translate source
 content automatically or guarantee parity between languages. The Languages
 settings report default-branch coverage using explicit translation keys and the
 same-path fallback used by published `hreflang`; operators still own translation

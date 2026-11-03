@@ -1,6 +1,6 @@
 ---
 title: 'Operate usage metering'
-description: 'Configure, reconcile, retain, export, delete, and roll back provider-neutral Nibleaf usage without enabling payments.'
+description: 'Configure, reconcile, retain, export, delete, and roll back provider-neutral ZhinWiki usage without enabling payments.'
 audience: 'self-hosted operators, privacy owners, and future billing integrators'
 content_type: 'how-to'
 last_reviewed: '2026-08-24'
@@ -13,7 +13,7 @@ dir: 'ltr'
 translation_key: 'self-hosting/usage-metering'
 ---
 
-Nibleaf separates product usage from payments. Postgres stores plans, meter
+ZhinWiki separates product usage from payments. Postgres stores plans, meter
 configuration, entitlements, export checkpoints, and an organization-level
 marker proving that usage facts may have been written. It also holds a bounded,
 content-free ingestion outbox until queued facts are confirmed in ClickHouse. ClickHouse stores
@@ -22,14 +22,14 @@ coverage, durable pending work, and deletion tombstones.
 `@nibleaf/usage` owns provider-neutral event and period semantics. No part of
 this path creates a customer, subscription, checkout, invoice, or charge.
 
-## What Nibleaf measures
+## What ZhinWiki measures
 
 Current snapshot quantities come from authoritative product rows: editor seats,
 published pages, custom domains, and uploaded asset bytes. UTC-period facts are
 public page views, search queries, completed AI answers, known AI input/output
 tokens, newly embedded chunks, indexed input bytes, and builds.
 
-Nibleaf does not infer a missing quantity as zero. An unavailable sink produces
+ZhinWiki does not infer a missing quantity as zero. An unavailable sink produces
 an `unavailable` reading. If an answer exists without token usage, the related
 token readings are `partial` with a null quantity.
 
@@ -46,7 +46,7 @@ hashes, raw user agents, user/session ids, provider/model names, or raw errors.
 - Billing periods are half-open UTC ranges: `[start, endExclusive)`.
 - A retry reuses its deterministic event id. ClickHouse `FINAL` reads remove
   duplicates before aggregation.
-- Before Redis enqueue, Nibleaf persists the validated content-free `UsageEvent
+- Before Redis enqueue, ZhinWiki persists the validated content-free `UsageEvent
   v1` batch and its tenant/project-scoped deterministic job id. A definite
   enqueue failure or timeout with an unknown outcome is therefore recoverable:
   the five-minute analytics worker adds a missing job or retries a failed one.
@@ -150,7 +150,7 @@ preventing rollup narrowing when multiple maximum-sized facts share an hour.
 
 The documented Polar mapping is intentionally mechanical:
 
-| Nibleaf meter | Suggested Polar event name | Aggregation |
+| ZhinWiki meter | Suggested Polar event name | Aggregation |
 | --- | --- | --- |
 | `public_page_view` | `nibleaf_public_page_view` | sum |
 | `search_query` | `nibleaf_search_query` | sum |
@@ -266,7 +266,7 @@ the down procedure. Do not run either rollback while usage consumers are live.
 The design was checked against Mintlify's public pages on 2026-08-23. Mintlify
 currently separates editor-seat/feature entitlements from monthly AI credits,
 shows traffic/search/assistant analytics with a short delay, and supports
-time-range exports. Nibleaf uses those presentation concepts, not Mintlify's
+time-range exports. ZhinWiki uses those presentation concepts, not Mintlify's
 commercial limits or its raw conversation/search export model. See the current
 [Mintlify pricing page](https://www.mintlify.com/pricing),
 [analytics documentation](https://www.mintlify.com/docs/optimize/analytics), and

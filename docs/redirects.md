@@ -14,7 +14,7 @@ Redirects are configured per site in **Editor → Site configuration → Redirec
 
 ## Accepted sources and destinations
 
-- A source is a site-relative path such as `/old-guide`. Do not include the Nibleaf app prefix (`/sites/<project-id>`), a custom domain, a query string, or a fragment.
+- A source is a site-relative path such as `/old-guide`. Do not include the ZhinWiki app prefix (`/sites/<project-id>`), a custom domain, a query string, or a fragment.
 - Leading and trailing slashes are normalized. Percent-encoded Unicode is treated as its decoded equivalent. Dot segments, backslashes, control characters, invalid percent escapes, and encoded path separators are rejected.
 - An internal destination is a site-relative path and may include a query string and fragment, for example `/guide?lang=ar#install`.
 - An external destination must be an absolute `http://` or `https://` URL with a hostname. Protocol-relative URLs, credentials in URLs, and other schemes are rejected.
@@ -34,7 +34,7 @@ The editor reports syntax and graph errors before saving. The publish dialog per
 
 ## Editor and publish feedback
 
-[Watch the 20-second redirect validation interaction](https://raw.githubusercontent.com/lord007tn/nibleaf/37a2068d9736abb0219809f3ab841ecf8f927f1b/docs/assets/redirects/redirect-validation-flow.webm) to see row-level feedback update while a cycle is entered.
+[Watch the 20-second redirect validation interaction](https://raw.githubusercontent.com/Zhincore/ZhinWiki/37a2068d9736abb0219809f3ab841ecf8f927f1b/docs/assets/redirects/redirect-validation-flow.webm) to see row-level feedback update while a cycle is entered.
 
 A valid internal chain is accepted in the editor. It is flattened to direct redirects in the immutable snapshot during publish.
 

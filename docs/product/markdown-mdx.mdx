@@ -1,6 +1,6 @@
 ---
 title: 'Markdown and MDX component reference'
-description: 'Use the Markdown, GitHub-style extensions, math, diagrams, and documentation components that Nibleaf renders and round-trips safely.'
+description: 'Use the Markdown, GitHub-style extensions, math, diagrams, and documentation components that ZhinWiki renders and round-trips safely.'
 audience: 'documentation authors working in source mode'
 content_type: 'reference'
 last_reviewed: '2026-08-23'
@@ -10,7 +10,7 @@ dir: 'ltr'
 translation_key: 'product/markdown-mdx'
 ---
 
-Nibleaf stores page bodies as Markdown strings and renders GitHub-flavored
+ZhinWiki stores page bodies as Markdown strings and renders GitHub-flavored
 Markdown plus a documented component set. Preview source changes before
 publishing; syntactically valid MDX can still produce an unintended layout.
 
@@ -23,7 +23,7 @@ GitHub-flavored tables, task lists, autolinks, and strikethrough are enabled.
 Add a language to every fenced code block that contains code:
 
 ````md
-```bash title="Start Nibleaf"
+```bash title="Start ZhinWiki"
 docker compose -f docker-compose.prod.yml up -d
 ```
 ````
@@ -73,7 +73,7 @@ Put block tags on their own lines and leave a blank line around Markdown childre
 </Steps>
 ```
 
-File trees are illustrations, not repository browsers. Nibleaf displays only
+File trees are illustrations, not repository browsers. ZhinWiki displays only
 the names written in the page body. It does not traverse the exported
 repository, read manifests or snapshots, fetch a path, or make a network
 request. API examples and related cards have the same authored-data-only
@@ -103,7 +103,7 @@ reader can obtain required information.
 
 Raw scripts, event handlers, and unknown attributes are removed by the sanitizer.
 Custom JSX components and expressions may be preserved as source or read-only
-blocks, but Nibleaf cannot promise a custom runtime for them. Keep the page in
+blocks, but ZhinWiki cannot promise a custom runtime for them. Keep the page in
 Markdown mode, verify the published result, and prefer the supported component
 set for portable documentation.
 
@@ -115,4 +115,4 @@ and Git-native theme repositories. Schema version 1 is additive: existing pages
 need no migration. `Banner` supports `type`; `dismissible` is intentionally not
 part of the portable contract. Standalone theme repositories sanitize raw MDX
 with an explicit allowlist and keep customer-owned theme/component source
-separate from Nibleaf-owned manifests and snapshots.
+separate from ZhinWiki-owned manifests and snapshots.

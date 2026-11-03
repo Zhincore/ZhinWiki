@@ -1,8 +1,8 @@
-# Nibleaf documentation source
+# ZhinWiki documentation source
 
-This directory is the reviewable source bundle for Nibleaf's product and
+This directory is the reviewable source bundle for ZhinWiki's product and
 self-hosting documentation. `docs.json` defines the reader-facing hierarchy;
-the Markdown and MDX pages are portable content that Nibleaf can import from
+the Markdown and MDX pages are portable content that ZhinWiki can import from
 this public repository.
 
 English pages keep their existing paths and Arabic counterparts mirror them
@@ -12,8 +12,8 @@ Use [`ARABIC_GLOSSARY.md`](ARABIC_GLOSSARY.md) as the internal terminology
 authority when reviewing Arabic changes. It deliberately stays out of public
 navigation.
 
-The hosted site at [docs.nibleaf.com](https://docs.nibleaf.com) is published
-from Nibleaf's database. Treat a change as complete only after the source is
+A hosted copy of these docs is published from the documentation project in a
+ZhinWiki instance's database. Treat a change as complete only after the source is
 reviewed, imported or synchronized into the documentation project, published,
 and checked on the canonical domain. Keeping the source here makes the content
 recoverable and gives product changes a reviewable documentation diff.
@@ -52,5 +52,5 @@ The structure follows the task, concept, reference, and tutorial separation
 described by the [Diátaxis framework](https://diataxis.fr/) and the audience,
 navigation, style, media, SEO, and maintenance practices in the
 [Mintlify documentation guide](https://www.mintlify.com/guides/introduction).
-These sources inform the method only; Nibleaf's wording and product claims are
+These sources inform the method only; ZhinWiki's wording and product claims are
 verified against this repository.

@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "name": "Nibleaf documentation",
+  "name": "ZhinWiki documentation",
   "description": "Run and use the self-hosted documentation platform.",
   "theme": "mint",
   "colors": {
@@ -27,7 +27,7 @@
             ]
           },
           {
-            "group": "Use Nibleaf",
+            "group": "Use ZhinWiki",
             "x-nibleaf": { "slug": "use-nibleaf" },
             "pages": [
               "product/authoring",
@@ -89,12 +89,12 @@
         "x-nibleaf": {
           "label": "العربية",
           "translation": {
-            "name": "توثيق Nibleaf",
+            "name": "توثيق ZhinWiki",
             "description": "دليل تشغيل منصة التوثيق بالاستضافة الذاتية واستخدامها."
           },
           "config": {
             "seo": {
-              "metaTitle": "توثيق Nibleaf",
+              "metaTitle": "توثيق ZhinWiki",
               "metaDescription": "دليل عربي لتشغيل منصة التوثيق بالاستضافة الذاتية واستخدامها.",
               "allowIndex": true
             },
@@ -111,7 +111,7 @@
             ]
           },
           {
-            "group": "استخدام Nibleaf",
+            "group": "استخدام ZhinWiki",
             "x-nibleaf": { "slug": "use-nibleaf" },
             "pages": [
               "ar/product/authoring",

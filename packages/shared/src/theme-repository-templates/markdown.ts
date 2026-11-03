@@ -144,7 +144,7 @@ import { describe, expect, it } from 'vitest';
 import { Markdown, normalizeMarkdown } from './markdown';
 
 describe('Markdown renderer', () => {
-  it('renders Nibleaf components through the sanitize allow-list', () => {
+  it('renders MDX components through the sanitize allow-list', () => {
     const html = renderToStaticMarkup(
       <Markdown
         body={

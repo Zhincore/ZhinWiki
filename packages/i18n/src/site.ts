@@ -59,6 +59,7 @@ import { site_results } from './paraglide/messages/site_results.js';
 import { site_screenshot } from './paraglide/messages/site_screenshot.js';
 import { site_screenshots } from './paraglide/messages/site_screenshots.js';
 import { site_search } from './paraglide/messages/site_search.js';
+import { site_searchallwikis } from './paraglide/messages/site_searchallwikis.js';
 import { site_searchdescription } from './paraglide/messages/site_searchdescription.js';
 import { site_searchdocumentation } from './paraglide/messages/site_searchdocumentation.js';
 import { site_searchempty } from './paraglide/messages/site_searchempty.js';
@@ -68,6 +69,8 @@ import { site_searching } from './paraglide/messages/site_searching.js';
 import { site_searchmode } from './paraglide/messages/site_searchmode.js';
 import { site_searchplaceholder } from './paraglide/messages/site_searchplaceholder.js';
 import { site_searchprompt } from './paraglide/messages/site_searchprompt.js';
+import { site_searchscope } from './paraglide/messages/site_searchscope.js';
+import { site_searchthiswiki } from './paraglide/messages/site_searchthiswiki.js';
 import { site_showproperties } from './paraglide/messages/site_showproperties.js';
 import { site_sources } from './paraglide/messages/site_sources.js';
 import { site_suggestchanges } from './paraglide/messages/site_suggestchanges.js';
@@ -90,6 +93,9 @@ const siteMessages = {
   searchDescription: site_searchdescription,
   searchEmpty: site_searchempty,
   searchPrompt: site_searchprompt,
+  searchScope: site_searchscope,
+  searchThisWiki: site_searchthiswiki,
+  searchAllWikis: site_searchallwikis,
   results: site_results,
   loading: site_loading,
   previous: site_previous,

@@ -602,6 +602,7 @@ function SiteChrome() {
                   hotkey={searchHotkey}
                   maxResults={config?.search?.maxResults}
                   aiAnswers={site?.capabilities?.answer === true}
+                  crossWikiSearch={site?.capabilities?.crossWikiSearch === true}
                 />
               ) : null}
               <SiteAnalyticsConsent projectId={projectId} config={config} lang={activeLanguage?.code} />

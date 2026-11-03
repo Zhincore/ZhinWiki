@@ -93,6 +93,7 @@ export const queryKeys = {
     shell: (id: string, lang?: string) => ['site', id, lang ?? null] as const,
     page: (id: string, path: string, lang?: string) => ['site', id, 'page', path, lang ?? null] as const,
     search: (id: string, q: string, lang?: string, limit?: number) => ['site', id, 'search', q, lang ?? null, limit ?? null] as const,
+    searchWikis: (id: string, q: string) => ['site', id, 'search-wikis', q] as const,
     changelog: (id: string) => ['site', id, 'changelog'] as const,
   },
 } as const;

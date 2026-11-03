@@ -5,6 +5,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 const mocks = vi.hoisted(() => ({
   search: vi.fn(),
+  searchWikis: vi.fn(),
   navigate: vi.fn(),
   answer: vi.fn(),
   mutate: vi.fn(),
@@ -12,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   realLabels: false,
 }));
 vi.mock('@tanstack/react-router', () => ({ useRouter: () => ({ navigate: mocks.navigate }) }));
-vi.mock('@/hooks/api/site-search', () => ({ useSiteSearch: mocks.search, useAnswerSite: mocks.answer }));
+vi.mock('@/hooks/api/site-search', () => ({ useSiteSearch: mocks.search, useSearchWikis: mocks.searchWikis, useAnswerSite: mocks.answer }));
 vi.mock('@/providers/site-analytics-provider', () => ({ useSiteAnalytics: () => ({ track: vi.fn() }) }));
 vi.mock('@tanstack/react-pacer', () => ({ useDebouncedValue: (value: string) => [mocks.debounced ?? value] }));
 vi.mock('@nibleaf/i18n/site', async (importOriginal) => {
@@ -45,6 +46,7 @@ beforeEach(() => {
   mocks.debounced = undefined;
   mocks.realLabels = false;
   mocks.search.mockReturnValue({ data: [], isFetching: false, error: null });
+  mocks.searchWikis.mockReturnValue({ data: [], isFetching: false, error: null });
   mocks.answer.mockReturnValue({ mutate: mocks.mutate, variables: undefined, isPending: false, data: null, error: null });
 });
 
@@ -269,4 +271,44 @@ it('keeps default-language search navigation on the clean URL', async () => {
   await act(async () => result.click());
   expect(mocks.navigate).toHaveBeenCalledExactlyOnceWith({ href: '/sites/docs/setup' });
   window.history.replaceState(null, '', '/');
+});
+
+describe('cross-wiki reader search', () => {
+  const scopeButton = (label: string) =>
+    [...document.querySelectorAll<HTMLButtonElement>('fieldset button')].find((button) => button.textContent === label);
+
+  it('hides the scope toggle unless the wiki allows cross-wiki search', async () => {
+    await render({ crossWikiSearch: false });
+    expect(document.querySelector('fieldset')).toBeNull();
+    expect(mocks.searchWikis).toHaveBeenLastCalledWith('docs', '', false);
+  });
+
+  it('groups all-wiki results by wiki and opens another wiki by its public URL', async () => {
+    const assign = vi.fn();
+    const location = window.location;
+    vi.stubGlobal('location', { ...location, assign });
+    mocks.searchWikis.mockReturnValue({
+      data: [
+        { wiki: { id: 'docs', name: 'Docs', url: 'https://wiki.example/docs', current: true }, hits: [hit] },
+        {
+          wiki: { id: 'other', name: 'Other wiki', url: 'https://wiki.example/other', current: false },
+          hits: [{ ...hit, url: 'https://wiki.example/other/setup' }],
+        },
+      ],
+      isFetching: false,
+      error: null,
+    });
+    await render({ crossWikiSearch: true });
+    expect(scopeButton('searchThisWiki')?.getAttribute('aria-pressed')).toBe('true');
+    await act(async () => scopeButton('searchAllWikis')?.click());
+    await typeQuery('setup');
+    expect(mocks.searchWikis).toHaveBeenLastCalledWith('docs', 'setup', true);
+    expect([...document.querySelectorAll('[cmdk-group-heading]')].map((heading) => heading.textContent)).toEqual(['Docs', 'Other wiki']);
+    const items = document.querySelectorAll<HTMLElement>('[cmdk-item]');
+    expect(items).toHaveLength(2);
+    await act(async () => items[1]?.click());
+    expect(assign).toHaveBeenCalledWith('https://wiki.example/other/setup');
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    vi.stubGlobal('location', location);
+  });
 });

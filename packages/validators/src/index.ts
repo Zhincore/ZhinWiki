@@ -110,6 +110,8 @@ export const searchConfigurationSchema = z
     maxResults: z.number().int().min(SEARCH_MAX_RESULTS.min).max(SEARCH_MAX_RESULTS.max).default(SEARCH_MAX_RESULTS.default),
     filtersEnabled: z.boolean().default(true),
     aiAnswers: z.boolean().default(false),
+    /** Shared tenancy: list this wiki in other wikis' "All wikis" search. */
+    crossWikiSearch: z.boolean().default(true),
     hotkey: z.enum(['cmdk', 'slash']).default('cmdk'),
     placeholder: z.string().trim().max(80).optional(),
   })
@@ -312,6 +314,7 @@ export const projectConfigSchema = z
         maxResults: z.number().int().min(SEARCH_MAX_RESULTS.min).max(SEARCH_MAX_RESULTS.max).optional(),
         filtersEnabled: z.boolean().optional(),
         aiAnswers: z.boolean().optional(),
+        crossWikiSearch: z.boolean().optional(),
       })
       .strict()
       .optional(),
@@ -797,6 +800,10 @@ export const searchQuery = z.object({
   q: z.string().max(200).default(''),
   limit: z.coerce.number().int().min(1).max(50).optional(),
 });
+
+/** Published-site search scope: the current wiki, or every listed public wiki (shared tenancy). */
+export const siteSearchScope = z.enum(['wiki', 'all']);
+export type SiteSearchScope = z.infer<typeof siteSearchScope>;
 export type SearchQuery = z.infer<typeof searchQuery>;
 
 export const searchAnswerBody = z

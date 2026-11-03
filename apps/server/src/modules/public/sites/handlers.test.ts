@@ -3,14 +3,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppError } from '@/errors';
 import type { HonoEnv } from '@/lib/hono/context';
 
-const mocks = vi.hoisted(() => ({ getSiteOpenApi: vi.fn(), getSiteChangelogRss: vi.fn(), getSitePageMarkdown: vi.fn(), answerSite: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  getSiteOpenApi: vi.fn(),
+  getSiteChangelogRss: vi.fn(),
+  getSitePageMarkdown: vi.fn(),
+  answerSite: vi.fn(),
+  searchSite: vi.fn(),
+}));
 
 vi.mock('@/actions/sites', () => ({
   getSite: vi.fn(),
   getSitePage: vi.fn(),
   getSitePageMarkdown: mocks.getSitePageMarkdown,
   getSiteOpenApi: mocks.getSiteOpenApi,
-  searchSite: vi.fn(),
+  searchSite: mocks.searchSite,
   answerSite: mocks.answerSite,
   recordSiteEvent: vi.fn(),
   getSiteChangelog: vi.fn(),
@@ -110,5 +116,23 @@ describe('grounded answer endpoint', () => {
       (await app.request('/sites/project/answer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"q":""}' })).status,
     ).toBe(422);
     expect(mocks.answerSite).not.toHaveBeenCalled();
+  });
+});
+
+describe('published search endpoint', () => {
+  beforeEach(() => {
+    mocks.searchSite.mockReset().mockResolvedValue({ hits: [] });
+  });
+
+  it('searches the current wiki by default and all wikis only on an explicit scope', async () => {
+    await app.request('/sites/project/search?q=token');
+    await app.request('/sites/project/search?q=token&scope=all');
+    expect(mocks.searchSite.mock.calls.map((call) => call[4])).toEqual(['wiki', 'all']);
+  });
+
+  it('rejects an unknown scope without searching', async () => {
+    const response = await app.request('/sites/project/search?q=token&scope=everything');
+    expect(response.status).toBe(422);
+    expect(mocks.searchSite).not.toHaveBeenCalled();
   });
 });

@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import type { Language, Project } from '@/hooks/api';
 import { useGetPublicMeta, useLanguages, useProjectSearchConfiguration, useUpdateLanguage, useUpdateProjectSearchConfiguration } from '@/hooks/api';
+import { useTenancy } from '@/hooks/use-tenancy';
 import { SearchIndexDiagnostics } from './search-index-diagnostics';
 import {
   DirtyStateReporter,
@@ -109,6 +110,7 @@ function ProjectSearchConfigurationForm({
     maxResults: number;
     filtersEnabled: boolean;
     aiAnswers: boolean;
+    crossWikiSearch: boolean;
     hotkey: Hotkey;
     placeholder: string | null;
   };
@@ -119,9 +121,14 @@ function ProjectSearchConfigurationForm({
   const update = useUpdateProjectSearchConfiguration(projectId);
   const [hotkey, setHotkey] = useState<Hotkey>(configuration.hotkey);
   const [aiAnswers, setAiAnswers] = useState(configuration.aiAnswers ? 'enabled' : 'disabled');
+  const [crossWiki, setCrossWiki] = useState(configuration.crossWikiSearch ? 'included' : 'excluded');
   const { data: publicMeta } = useGetPublicMeta();
-  // The hotkey control lives outside the form, so its dirtiness is tracked by value.
-  const controlsDirty = hotkey !== configuration.hotkey || (aiAnswers === 'enabled') !== configuration.aiAnswers;
+  const tenancy = useTenancy();
+  // The segmented controls live outside the form, so their dirtiness is tracked by value.
+  const controlsDirty =
+    hotkey !== configuration.hotkey ||
+    (aiAnswers === 'enabled') !== configuration.aiAnswers ||
+    (crossWiki === 'included') !== configuration.crossWikiSearch;
 
   const defaultValues = { placeholder: configuration.placeholder ?? '', maxResults: String(configuration.maxResults) };
   const form = useForm({
@@ -136,6 +143,7 @@ function ProjectSearchConfigurationForm({
             ? Math.min(maxResultsConstraint.max, Math.max(maxResultsConstraint.min, parsedMaxResults))
             : maxResultsConstraint.default,
           aiAnswers: aiAnswers === 'enabled',
+          crossWikiSearch: crossWiki === 'included',
         });
         toast.success(t('common.saved'));
       } catch {
@@ -201,6 +209,20 @@ function ProjectSearchConfigurationForm({
               { value: 'disabled', label: t('settings.search.aiAnswers.disabled') },
             ]}
             value={aiAnswers}
+          />
+        </Field>
+      ) : null}
+
+      {tenancy === 'shared' ? (
+        <Field hint={t('settings.search.crossWiki.hint')} label={t('settings.search.crossWiki.label')}>
+          <Segmented
+            className="max-w-[240px]"
+            onChange={setCrossWiki}
+            options={[
+              { value: 'included', label: t('settings.search.crossWiki.included') },
+              { value: 'excluded', label: t('settings.search.crossWiki.excluded') },
+            ]}
+            value={crossWiki}
           />
         </Field>
       ) : null}

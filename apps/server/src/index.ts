@@ -32,6 +32,8 @@ let ready = false;
 app.get(
   '/openapi.json',
   openAPIRouteHandler(app, {
+    // Validation is mapped to Nibleaf's documented 422 AppError envelope.
+    defaultValidationErrorResponse: false,
     documentation: {
       info: { title: `${instanceBrand().name} API`, version: '0.1.1', description: 'Open-source documentation platform.' },
       servers: [{ url: env.API_URL, description: `${instanceBrand().name} API` }],

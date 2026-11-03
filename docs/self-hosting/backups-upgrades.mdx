@@ -126,6 +126,14 @@ one publish, one search, and one public page.
   `OPENAI_API_KEY`.
 - **Worker queues.** If you set `WORKER_QUEUES`, add `erasure`, or the stored
   files of deleted projects stay in place.
+- **Sign-up hardening.** Code emails need a solved bot check (`CAPTCHA_PROVIDER`,
+  default `altcha`) and are limited per address (`OTP_SEND_LIMIT_PER_EMAIL`, 5/h)
+  and per client IP (`OTP_SEND_LIMIT_PER_IP`, 20/h). Check `TRUSTED_PROXY_HOPS`
+  behind a public edge, or every visitor shares one IP budget.
+- **Docs versions.** Removed. Version-prefixed site URLs answer 404, and export
+  ZIPs use `<lang>/<path>` instead of `<version>/<lang>/<path>`.
+- **Cross-wiki search.** The `20261103150000_page_search_document` migration adds
+  a full-text table; the worker fills it for live deployments at boot.
 
 ## Roll back safely
 

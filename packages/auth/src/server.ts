@@ -621,6 +621,9 @@ const logPlatformEvent = (type: string, data: { userId?: string; projectId?: str
  *  connected socket could still hang, so cap the wait explicitly. */
 const ENQUEUE_TIMEOUT_MS = 3000;
 
+/** Request header carrying the client IP the API gateway resolved for Better Auth. */
+export const AUTH_CLIENT_IP_HEADER = 'x-nibleaf-auth-client-ip';
+
 const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
   new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`enqueue timed out after ${ms}ms`)), ms);
@@ -727,6 +730,9 @@ const authInstance = betterAuth({
   },
   trustedOrigins: env.TRUSTED_ORIGINS,
   advanced: {
+    // Rate limits and session IPs read only the address the API resolved
+    // (TRUSTED_PROXY_HOPS-aware); the gateway overwrites this header.
+    ipAddress: { ipAddressHeaders: [AUTH_CLIENT_IP_HEADER] },
     defaultCookieAttributes: {
       httpOnly: true,
       sameSite: 'lax',

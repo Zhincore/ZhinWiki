@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   listPages: vi.fn(),
   getPage: vi.fn(),
   listLanguages: vi.fn(),
-  listBranches: vi.fn(),
+  changeRequestBranchId: vi.fn(),
   getAnalyticsOverview: vi.fn(),
   getProjectSearchConfiguration: vi.fn(),
   getProjectSearchIndexDiagnostics: vi.fn(),
@@ -40,7 +40,7 @@ vi.mock('./audit', () => ({ recordMcpAudit: mocks.audit }));
 vi.mock('@/actions/projects', () => ({ getProject: mocks.getProject }));
 vi.mock('@/actions/pages', () => ({ listPages: mocks.listPages, getPage: mocks.getPage }));
 vi.mock('@/actions/languages', () => ({ listLanguages: mocks.listLanguages }));
-vi.mock('@/actions/branches', () => ({ listBranches: mocks.listBranches }));
+vi.mock('@/actions/change-requests', () => ({ changeRequestBranchId: mocks.changeRequestBranchId }));
 vi.mock('@/actions/analytics', () => ({ getAnalyticsOverview: mocks.getAnalyticsOverview }));
 vi.mock('@/actions/search', () => ({
   getProjectSearchConfiguration: mocks.getProjectSearchConfiguration,
@@ -170,7 +170,7 @@ beforeEach(() => {
     updatedAt: new Date('2026-08-02T01:02:03.000Z'),
   });
   mocks.listLanguages.mockResolvedValue([]);
-  mocks.listBranches.mockResolvedValue([]);
+  mocks.changeRequestBranchId.mockResolvedValue('branch-cr-7');
   mocks.listExports.mockResolvedValue([]);
   mocks.listDeployments.mockResolvedValue([]);
   mocks.getPendingChanges.mockResolvedValue({ hasBaseline: false, lastVersion: null, lastPublishedAt: null, changes: [], redirectIssues: [] });
@@ -408,6 +408,32 @@ describe('Nibleaf MCP protocol surface', () => {
     expect(response.error).toBeUndefined();
     expect(mocks.getPage).toHaveBeenCalledWith('project-1', 'page-1');
     expect(response.result?.contents[0]?.text).toContain('"id":"page-1"');
+    await clientTransport.close();
+    await server.close();
+  });
+
+  it('lists published pages by default and a change request branch on request', async () => {
+    const { server, clientTransport, request } = await createProtocolClient();
+    const published = await request<{ isError?: boolean }>('tools/call', { name: 'list_pages', arguments: {} });
+    expect(published.result?.isError).not.toBe(true);
+    expect(mocks.listPages).toHaveBeenLastCalledWith('project-1', undefined, undefined);
+    expect(mocks.changeRequestBranchId).not.toHaveBeenCalled();
+    const draft = await request<{ isError?: boolean }>('tools/call', { name: 'list_pages', arguments: { changeRequestNumber: 7 } });
+    expect(draft.result?.isError).not.toBe(true);
+    expect(mocks.changeRequestBranchId).toHaveBeenCalledWith('project-1', 7);
+    expect(mocks.listPages).toHaveBeenLastCalledWith('project-1', undefined, 'branch-cr-7');
+    await clientTransport.close();
+    await server.close();
+  });
+
+  it('refuses an unknown or invalid change request number without listing pages', async () => {
+    mocks.changeRequestBranchId.mockRejectedValueOnce(new AppError({ code: 'database:not_found', message: 'Change request not found.' }));
+    const { server, clientTransport, request } = await createProtocolClient();
+    const missing = await request<{ isError?: boolean }>('tools/call', { name: 'list_pages', arguments: { changeRequestNumber: 99 } });
+    expect(missing.result?.isError).toBe(true);
+    const invalid = await request<{ isError?: boolean }>('tools/call', { name: 'list_pages', arguments: { changeRequestNumber: 0 } });
+    expect(invalid.result?.isError ?? invalid.error).toBeTruthy();
+    expect(mocks.listPages).not.toHaveBeenCalled();
     await clientTransport.close();
     await server.close();
   });

@@ -1,3 +1,4 @@
+import { changeRequestBranchId } from '@/actions/change-requests';
 import { getDeployment, getPendingChanges, listDeployments } from '@/actions/deployments';
 import { getExport, listExports } from '@/actions/exports';
 import { listLanguages } from '@/actions/languages';
@@ -29,8 +30,15 @@ export const getProjectDto = async (organizationId: string, projectId: string) =
   };
 };
 
-export const listPageDtos = async (projectId: string, languageId?: string) =>
-  (await listPages(projectId, languageId)).map((page) => ({
+/** Pages of `main`, or of change request `changeRequestNumber` in the bound project. */
+export const listPageDtos = async (projectId: string, languageId?: string, changeRequestNumber?: number) =>
+  (
+    await listPages(
+      projectId,
+      languageId,
+      changeRequestNumber === undefined ? undefined : await changeRequestBranchId(projectId, changeRequestNumber),
+    )
+  ).map((page) => ({
     id: page.id,
     parentId: page.parentId,
     languageId: page.languageId,

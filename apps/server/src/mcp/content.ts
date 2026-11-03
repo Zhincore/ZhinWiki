@@ -33,11 +33,15 @@ export const registerContentSurface = (server: McpServer, ctx: Context<HonoEnv>,
       'list_pages',
       {
         title: 'List pages',
-        description: 'List published-branch page metadata in the bound project. An optional language ID is revalidated by the shared page action.',
-        inputSchema: z.object({ languageId: z.string().trim().min(1).optional() }).strict(),
+        description:
+          'List page metadata in the bound project: the published branch, or the branch of change request `changeRequestNumber`. An optional language ID is revalidated by the shared page action.',
+        inputSchema: z
+          .object({ languageId: z.string().trim().min(1).optional(), changeRequestNumber: z.number().int().positive().optional() })
+          .strict(),
         annotations: readOnly,
       },
-      ({ languageId }) => runMcpReadTool(ctx, principal, 'list_pages', 'pages:read', () => listPageDtos(principal.project.id, languageId)),
+      ({ languageId, changeRequestNumber }) =>
+        runMcpReadTool(ctx, principal, 'list_pages', 'pages:read', () => listPageDtos(principal.project.id, languageId, changeRequestNumber)),
     );
     server.registerTool(
       'get_page',

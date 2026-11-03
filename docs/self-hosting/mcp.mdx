@@ -96,6 +96,12 @@ metadata and non-writing import preview; redacted export and deployment
 summaries; pending publish-change metadata; and truth-based integration catalog,
 connection, and Git status reads.
 
+`list_pages` lists the published branch (`main`) by default. Pass
+`changeRequestNumber` to list the pages of that change request's branch. Keys
+are bound to one project and issued by its members, so a key reads every change
+request in that project, like a member in the app. A request whose branch was
+deleted, or from another project, answers not found.
+
 The currently issuable domain scopes are `search:read`, `usage:read`,
 `entitlements:read`, `addons:read`, `themes:read`, and `integrations:read`, in
 addition to the project/page/language/analytics/export/deployment reads.

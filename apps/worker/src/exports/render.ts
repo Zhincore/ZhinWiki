@@ -102,10 +102,8 @@ const marked = new Marked({
   },
 });
 
-const versionFor = (snapshot: SiteSnapshot, page: SnapshotPage) => snapshot.project.versions.find((version) => version.id === page.versionId);
-const outputPath = (snapshot: SiteSnapshot, page: SnapshotPage): string =>
-  `${safeSegment(versionFor(snapshot, page)?.slug ?? 'main')}/${safeSegment(page.languageCode)}/${safePath(page.path)}/index.html`;
-const outputMarkdownPath = (snapshot: SiteSnapshot, page: SnapshotPage): string => outputPath(snapshot, page).replace(/index\.html$/u, 'index.md');
+const outputPath = (page: SnapshotPage): string => `${safeSegment(page.languageCode)}/${safePath(page.path)}/index.html`;
+const outputMarkdownPath = (page: SnapshotPage): string => outputPath(page).replace(/index\.html$/u, 'index.md');
 
 const splitSuffix = (href: string): [string, string] => {
   const index = href.search(/[?#]/);
@@ -122,11 +120,7 @@ const resolvePageTarget = (snapshot: SiteSnapshot, page: SnapshotPage, href: str
     .replace(/\/(?:index\.html?)?$/i, '')
     .replace(/\.(?:mdx?|html?)$/i, '');
   return snapshot.pages.find(
-    (candidate) =>
-      candidate.kind === 'PAGE' &&
-      candidate.versionId === page.versionId &&
-      candidate.languageCode === languageCode &&
-      candidate.path.replace(/^\/+|\/+$/g, '') === normalized,
+    (candidate) => candidate.kind === 'PAGE' && candidate.languageCode === languageCode && candidate.path.replace(/^\/+|\/+$/g, '') === normalized,
   );
 };
 
@@ -149,11 +143,11 @@ const rewriteUrl = (
   const target = resolvePageTarget(snapshot, page, url);
   if (!target) return url;
   const [, suffix] = splitSuffix(url);
-  return `${path.posix.relative(path.posix.dirname(currentOutput), outputPath(snapshot, target)) || './'}${suffix}`;
+  return `${path.posix.relative(path.posix.dirname(currentOutput), outputPath(target)) || './'}${suffix}`;
 };
 
 export const renderPageMarkdown = (snapshot: SiteSnapshot, page: SnapshotPage, assets: ExportAsset[]): string => {
-  const current = outputPath(snapshot, page);
+  const current = outputPath(page);
   const html = String(marked.parse(portablePublicMdxMarkdown(page.content)));
   return html
     .replace(
@@ -296,17 +290,14 @@ const exportConfigOf = (snapshot: SiteSnapshot) => {
 
 const visibleVariantPages = (snapshot: SiteSnapshot, page: SnapshotPage): SnapshotPage[] =>
   snapshot.pages
-    .filter(
-      (candidate) =>
-        candidate.kind === 'PAGE' && !candidate.hidden && candidate.versionId === page.versionId && candidate.languageCode === page.languageCode,
-    )
+    .filter((candidate) => candidate.kind === 'PAGE' && !candidate.hidden && candidate.languageCode === page.languageCode)
     .sort((a, b) => a.position - b.position);
 
 const navHtml = (snapshot: SiteSnapshot, page: SnapshotPage): string => {
-  const current = outputPath(snapshot, page);
+  const current = outputPath(page);
   return visibleVariantPages(snapshot, page)
     .map((candidate) => {
-      const href = path.posix.relative(path.posix.dirname(current), outputPath(snapshot, candidate)) || './';
+      const href = path.posix.relative(path.posix.dirname(current), outputPath(candidate)) || './';
       return `<a${candidate.id === page.id ? ' class="active" aria-current="page"' : ''} href="${escapeHtml(href)}">${escapeHtml(candidate.title)}</a>`;
     })
     .join('');
@@ -343,10 +334,10 @@ const tocHtml = (page: SnapshotPage): string => {
 const pagerHtml = (snapshot: SiteSnapshot, page: SnapshotPage): string => {
   const pages = visibleVariantPages(snapshot, page);
   const index = pages.findIndex((candidate) => candidate.id === page.id);
-  const current = outputPath(snapshot, page);
+  const current = outputPath(page);
   const link = (candidate: SnapshotPage | undefined, rel: 'prev' | 'next') => {
     if (!candidate) return '<span></span>';
-    const href = path.posix.relative(path.posix.dirname(current), outputPath(snapshot, candidate)) || './';
+    const href = path.posix.relative(path.posix.dirname(current), outputPath(candidate)) || './';
     return `<a rel="${rel}" href="${escapeHtml(href)}">${escapeHtml(candidate.title)}</a>`;
   };
   return `<nav class="pager" aria-label="${escapeHtml(page.title)}">${link(pages[index - 1], 'prev')}${link(pages[index + 1], 'next')}</nav>`;
@@ -356,12 +347,12 @@ const pagerHtml = (snapshot: SiteSnapshot, page: SnapshotPage): string => {
  * resolve to the eventual host without baking a Nibleaf/custom-domain origin
  * into a portable export. Hosts that require absolute sitemap loc values can
  * rebase the leading slash while preserving the generated route inventory. */
-const pageArchiveHref = (snapshot: SiteSnapshot, page: SnapshotPage): string => `/${outputPath(snapshot, page)}`;
-const pageArchiveMarkdownHref = (snapshot: SiteSnapshot, page: SnapshotPage): string => `/${outputMarkdownPath(snapshot, page)}`;
+const pageArchiveHref = (page: SnapshotPage): string => `/${outputPath(page)}`;
+const pageArchiveMarkdownHref = (page: SnapshotPage): string => `/${outputMarkdownPath(page)}`;
 
 const variantHomeHref = (snapshot: SiteSnapshot, page: SnapshotPage): string => {
   const first = visibleVariantPages(snapshot, page)[0] ?? page;
-  return path.posix.relative(path.posix.dirname(outputPath(snapshot, page)), outputPath(snapshot, first)) || './';
+  return path.posix.relative(path.posix.dirname(outputPath(page)), outputPath(first)) || './';
 };
 
 const pageIndexable = (snapshot: SiteSnapshot, page: SnapshotPage): boolean => {
@@ -391,7 +382,7 @@ const seoHead = (snapshot: SiteSnapshot, page: SnapshotPage): string => {
     snapshot.project.description?.trim() ||
     '';
   const externalCanonical = page.config?.seo?.canonicalUrl?.trim();
-  const canonical = externalCanonical || pageArchiveHref(snapshot, page);
+  const canonical = externalCanonical || pageArchiveHref(page);
   const image = page.config?.seo?.ogImage?.trim() || language.config?.seo?.socialImage?.trim() || config.seo?.socialImage?.trim();
   const robots = pageIndexable(snapshot, page) ? 'index,follow' : 'noindex,nofollow';
   const translated = publicLanguages(snapshot.project.languages)
@@ -399,7 +390,6 @@ const seoHead = (snapshot: SiteSnapshot, page: SnapshotPage): string => {
       const alternate = snapshot.pages.find(
         (candidate) =>
           candidate.kind === 'PAGE' &&
-          candidate.versionId === page.versionId &&
           candidate.languageCode === candidateLanguage.code &&
           !candidate.hidden &&
           isPageTranslation(page, candidate) &&
@@ -415,12 +405,12 @@ const seoHead = (snapshot: SiteSnapshot, page: SnapshotPage): string => {
       ? translated
           .map(
             ({ language: candidateLanguage, page: candidate }) =>
-              `<link rel="alternate" hreflang="${escapeHtml(candidateLanguage.code)}" href="${escapeHtml(pageArchiveHref(snapshot, candidate))}">`,
+              `<link rel="alternate" hreflang="${escapeHtml(candidateLanguage.code)}" href="${escapeHtml(pageArchiveHref(candidate))}">`,
           )
           .concat(
             translated
               .filter(({ language: candidateLanguage }) => candidateLanguage.code === defaultCode)
-              .map(({ page: candidate }) => `<link rel="alternate" hreflang="x-default" href="${escapeHtml(pageArchiveHref(snapshot, candidate))}">`),
+              .map(({ page: candidate }) => `<link rel="alternate" hreflang="x-default" href="${escapeHtml(pageArchiveHref(candidate))}">`),
           )
           .join('')
       : '';
@@ -447,10 +437,10 @@ const seoHead = (snapshot: SiteSnapshot, page: SnapshotPage): string => {
     ],
   };
   const jsonLd = JSON.stringify(structuredData).replaceAll('<', '\\u003c').replaceAll('\u2028', '\\u2028').replaceAll('\u2029', '\\u2029');
-  const variantDirectory = `${safeSegment(versionFor(snapshot, page)?.slug ?? 'main')}/${safeSegment(page.languageCode)}`;
+  const variantDirectory = safeSegment(page.languageCode);
   const markdownDiscovery =
     pageIndexable(snapshot, page) && !externalCanonical
-      ? `<link rel="alternate" type="text/markdown" href="${escapeHtml(pageArchiveMarkdownHref(snapshot, page))}"><link rel="describedby" href="/${variantDirectory}/llms.txt">`
+      ? `<link rel="alternate" type="text/markdown" href="${escapeHtml(pageArchiveMarkdownHref(page))}"><link rel="describedby" href="/${variantDirectory}/llms.txt">`
       : '';
   return `<meta name="description" content="${escapeHtml(description)}"><meta name="robots" content="${robots}"><meta property="og:type" content="article"><meta property="og:title" content="${escapeHtml(title)}"><meta property="og:description" content="${escapeHtml(description)}"><meta property="og:site_name" content="${escapeHtml(siteName)}"><meta property="og:url" content="${escapeHtml(canonical)}"><meta property="og:locale" content="${escapeHtml(page.languageCode.replace('-', '_'))}"><meta name="twitter:title" content="${escapeHtml(title)}"><meta name="twitter:description" content="${escapeHtml(description)}">${image ? `<meta property="og:image" content="${escapeHtml(image)}"><meta name="twitter:image" content="${escapeHtml(image)}">` : ''}<meta name="twitter:card" content="${image ? 'summary_large_image' : 'summary'}"><link rel="canonical" href="${escapeHtml(canonical)}"><link rel="sitemap" type="application/xml" href="/sitemap.xml"><link rel="alternate" type="text/plain" href="/${variantDirectory}/llms.txt" title="llms.txt"><link rel="alternate" type="text/plain" href="/${variantDirectory}/llms-full.txt" title="llms-full.txt">${markdownDiscovery}${alternateLinks}<script type="application/ld+json">${jsonLd}</script><title>${escapeHtml(title)}</title>`;
 };
@@ -459,17 +449,17 @@ const articleHtml = (snapshot: SiteSnapshot, page: SnapshotPage, assets: ExportA
   `<header class="article-header"><div class="meta"><time datetime="${escapeHtml(page.updatedAt)}">${escapeHtml(page.updatedAt.slice(0, 10))}</time></div><h1>${escapeHtml(page.title)}</h1>${page.description ? `<p class="article-description">${escapeHtml(page.description)}</p>` : ''}</header><div class="prose">${proseHtml(snapshot, page, assets)}</div>${pagerHtml(snapshot, page)}`;
 
 const harborDocumentBody = (snapshot: SiteSnapshot, page: SnapshotPage, assets: ExportAsset[]): string =>
-  `<header class="harbor-topbar"><a class="brand" href="${escapeHtml(variantHomeHref(snapshot, page))}">${escapeHtml(snapshot.project.name)}</a>${searchHtml(snapshot, page)}<span class="harbor-edition meta">${escapeHtml(versionFor(snapshot, page)?.name ?? '')} · ${escapeHtml(languageFor(snapshot, page).label)}</span></header><div class="harbor-shell"><aside class="harbor-library"><nav class="nav" aria-label="${escapeHtml(languageFor(snapshot, page).label)}" data-static-nav>${navHtml(snapshot, page)}</nav></aside><main class="article harbor-article" id="content"><article>${articleHtml(snapshot, page, assets)}</article></main><aside class="harbor-toc">${tocHtml(page)}</aside></div>`;
+  `<header class="harbor-topbar"><a class="brand" href="${escapeHtml(variantHomeHref(snapshot, page))}">${escapeHtml(snapshot.project.name)}</a>${searchHtml(snapshot, page)}<span class="harbor-edition meta">${escapeHtml(languageFor(snapshot, page).label)}</span></header><div class="harbor-shell"><aside class="harbor-library"><nav class="nav" aria-label="${escapeHtml(languageFor(snapshot, page).label)}" data-static-nav>${navHtml(snapshot, page)}</nav></aside><main class="article harbor-article" id="content"><article>${articleHtml(snapshot, page, assets)}</article></main><aside class="harbor-toc">${tocHtml(page)}</aside></div>`;
 
 const manuscriptDocumentBody = (snapshot: SiteSnapshot, page: SnapshotPage, assets: ExportAsset[]): string =>
-  `<header class="manuscript-masthead"><div class="manuscript-masthead-row"><a class="brand manuscript-brand" href="${escapeHtml(variantHomeHref(snapshot, page))}">${escapeHtml(snapshot.project.name)}</a><div class="manuscript-search">${searchHtml(snapshot, page)}</div></div></header><nav class="nav manuscript-chapters" aria-label="${escapeHtml(languageFor(snapshot, page).label)}" data-static-nav>${navHtml(snapshot, page)}</nav><div class="manuscript-page"><aside class="manuscript-margin"><div class="meta">${escapeHtml(versionFor(snapshot, page)?.name ?? '')} · ${escapeHtml(languageFor(snapshot, page).label)}</div>${tocHtml(page)}</aside><main class="article manuscript-paper" id="content"><article>${articleHtml(snapshot, page, assets)}</article></main></div>`;
+  `<header class="manuscript-masthead"><div class="manuscript-masthead-row"><a class="brand manuscript-brand" href="${escapeHtml(variantHomeHref(snapshot, page))}">${escapeHtml(snapshot.project.name)}</a><div class="manuscript-search">${searchHtml(snapshot, page)}</div></div></header><nav class="nav manuscript-chapters" aria-label="${escapeHtml(languageFor(snapshot, page).label)}" data-static-nav>${navHtml(snapshot, page)}</nav><div class="manuscript-page"><aside class="manuscript-margin"><div class="meta">${escapeHtml(languageFor(snapshot, page).label)}</div>${tocHtml(page)}</aside><main class="article manuscript-paper" id="content"><article>${articleHtml(snapshot, page, assets)}</article></main></div>`;
 
 const signalDocumentBody = (snapshot: SiteSnapshot, page: SnapshotPage, assets: ExportAsset[]): string =>
-  `<header class="signal-commandbar"><a class="brand" href="${escapeHtml(variantHomeHref(snapshot, page))}">${escapeHtml(snapshot.project.name)}</a>${searchHtml(snapshot, page)}<span class="signal-state">${escapeHtml(versionFor(snapshot, page)?.slug ?? '')}/${escapeHtml(page.languageCode)}</span></header><div class="signal-workspace"><aside class="signal-rail"><nav class="nav" aria-label="${escapeHtml(languageFor(snapshot, page).label)}" data-static-nav>${navHtml(snapshot, page)}</nav></aside><main class="article signal-content" id="content"><article>${articleHtml(snapshot, page, assets)}</article></main><aside class="signal-index">${tocHtml(page)}</aside></div>`;
+  `<header class="signal-commandbar"><a class="brand" href="${escapeHtml(variantHomeHref(snapshot, page))}">${escapeHtml(snapshot.project.name)}</a>${searchHtml(snapshot, page)}<span class="signal-state">${escapeHtml(page.languageCode)}</span></header><div class="signal-workspace"><aside class="signal-rail"><nav class="nav" aria-label="${escapeHtml(languageFor(snapshot, page).label)}" data-static-nav>${navHtml(snapshot, page)}</nav></aside><main class="article signal-content" id="content"><article>${articleHtml(snapshot, page, assets)}</article></main><aside class="signal-index">${tocHtml(page)}</aside></div>`;
 
 const pageDocument = (snapshot: SiteSnapshot, page: SnapshotPage, assets: ExportAsset[]): string => {
   const direction = languageFor(snapshot, page).direction;
-  const current = outputPath(snapshot, page);
+  const current = outputPath(page);
   const themeCss = path.posix.relative(path.posix.dirname(current), 'theme/theme.css');
   const themeJs = path.posix.relative(path.posix.dirname(current), 'theme/theme.js');
   const theme = resolveTheme(themeConfigOf(snapshot));
@@ -479,11 +469,11 @@ const pageDocument = (snapshot: SiteSnapshot, page: SnapshotPage, assets: Export
       : theme.id === 'signal'
         ? signalDocumentBody(snapshot, page, assets)
         : harborDocumentBody(snapshot, page, assets);
-  return `<!doctype html><html lang="${escapeHtml(page.languageCode)}" dir="${direction.toLowerCase()}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="generator" content="${escapeHtml(SOFTWARE.name)} static export">${seoHead(snapshot, page)}<link rel="stylesheet" href="${escapeHtml(themeCss)}"></head><body data-theme-id="${escapeHtml(theme.id)}" data-theme-shell="${escapeHtml(theme.layout.shell)}" data-theme-sidebar="${escapeHtml(theme.layout.sidebar)}" data-theme-navigation="${escapeHtml(theme.layout.navigation)}" data-theme-code="${escapeHtml(theme.components.codeBlocks)}" data-theme-callouts="${escapeHtml(theme.components.callouts)}" data-version-id="${escapeHtml(page.versionId)}" data-language-code="${escapeHtml(page.languageCode)}">${body}<script src="${escapeHtml(themeJs)}"></script></body></html>`;
+  return `<!doctype html><html lang="${escapeHtml(page.languageCode)}" dir="${direction.toLowerCase()}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="generator" content="${escapeHtml(SOFTWARE.name)} static export">${seoHead(snapshot, page)}<link rel="stylesheet" href="${escapeHtml(themeCss)}"></head><body data-theme-id="${escapeHtml(theme.id)}" data-theme-shell="${escapeHtml(theme.layout.shell)}" data-theme-sidebar="${escapeHtml(theme.layout.sidebar)}" data-theme-navigation="${escapeHtml(theme.layout.navigation)}" data-theme-code="${escapeHtml(theme.components.codeBlocks)}" data-theme-callouts="${escapeHtml(theme.components.callouts)}" data-language-code="${escapeHtml(page.languageCode)}">${body}<script src="${escapeHtml(themeJs)}"></script></body></html>`;
 };
 
-const themeJs = (searchEntries: Array<{ title: string; path: string; text: string; versionId: string; languageCode: string }>): string =>
-  `(()=>{const entries=${JSON.stringify(searchEntries).replaceAll('<', '\\u003c')};const input=document.querySelector('[data-static-search]');const nav=document.querySelector('[data-static-nav]');const status=document.querySelector('[data-static-search-status]');const script=document.currentScript;if(!input||!nav||!script)return;const root=new URL('../',script.src);const original=Array.from(nav.childNodes).map(node=>node.cloneNode(true));const restore=()=>nav.replaceChildren(...original.map(node=>node.cloneNode(true)));input.addEventListener('input',()=>{const q=input.value.trim().toLocaleLowerCase();if(!q){restore();if(status)status.textContent='';return}const matches=entries.filter(x=>x.versionId===document.body.dataset.versionId&&x.languageCode===document.body.dataset.languageCode&&(x.title+' '+x.text).toLocaleLowerCase().includes(q)).slice(0,30);nav.replaceChildren(...matches.map(x=>{const link=document.createElement('a');link.href=new URL(x.path,root).href;link.textContent=x.title;return link}));if(status)status.textContent=String(matches.length)})})();`;
+const themeJs = (searchEntries: Array<{ title: string; path: string; text: string; languageCode: string }>): string =>
+  `(()=>{const entries=${JSON.stringify(searchEntries).replaceAll('<', '\\u003c')};const input=document.querySelector('[data-static-search]');const nav=document.querySelector('[data-static-nav]');const status=document.querySelector('[data-static-search-status]');const script=document.currentScript;if(!input||!nav||!script)return;const root=new URL('../',script.src);const original=Array.from(nav.childNodes).map(node=>node.cloneNode(true));const restore=()=>nav.replaceChildren(...original.map(node=>node.cloneNode(true)));input.addEventListener('input',()=>{const q=input.value.trim().toLocaleLowerCase();if(!q){restore();if(status)status.textContent='';return}const matches=entries.filter(x=>x.languageCode===document.body.dataset.languageCode&&(x.title+' '+x.text).toLocaleLowerCase().includes(q)).slice(0,30);nav.replaceChildren(...matches.map(x=>{const link=document.createElement('a');link.href=new URL(x.path,root).href;link.textContent=x.title;return link}));if(status)status.textContent=String(matches.length)})})();`;
 
 const plainText = (markdown: string): string =>
   markdown
@@ -516,17 +506,12 @@ const llmsHeader = (snapshot: SiteSnapshot): string[] => {
 
 const llmsTxt = (snapshot: SiteSnapshot, pages: SnapshotPage[], fromDirectory = ''): string => {
   const lines = llmsHeader(snapshot);
-  const variants = snapshot.project.versions.flatMap((version) =>
-    publicLanguages(snapshot.project.languages).map((language) => ({ version, language })),
-  );
-  for (const { version, language } of variants) {
-    const matching = pages
-      .filter((page) => page.versionId === version.id && page.languageCode === language.code)
-      .sort((a, b) => a.position - b.position);
+  for (const language of publicLanguages(snapshot.project.languages)) {
+    const matching = pages.filter((page) => page.languageCode === language.code).sort((a, b) => a.position - b.position);
     if (matching.length === 0) continue;
-    lines.push('', `## ${oneLine(version.name)} · ${oneLine(language.label)}`, '');
+    lines.push('', `## ${oneLine(language.label)}`, '');
     for (const page of matching) {
-      const href = path.posix.relative(fromDirectory || '.', outputMarkdownPath(snapshot, page)) || './';
+      const href = path.posix.relative(fromDirectory || '.', outputMarkdownPath(page)) || './';
       const description = machinePageDescription(page);
       lines.push(`- [${oneLine(page.title)}](${href})${description ? `: ${description}` : ''}`);
     }
@@ -536,7 +521,7 @@ const llmsTxt = (snapshot: SiteSnapshot, pages: SnapshotPage[], fromDirectory = 
 
 const llmsFullTxt = (snapshot: SiteSnapshot, pages: SnapshotPage[], fromDirectory = ''): string => {
   const sections = pages.map((page) => {
-    const href = path.posix.relative(fromDirectory || '.', outputMarkdownPath(snapshot, page)) || './';
+    const href = path.posix.relative(fromDirectory || '.', outputMarkdownPath(page)) || './';
     const header = [`# ${oneLine(page.title)}`, '', `Source: ${href}`];
     if (page.description?.trim()) header.push('', `> ${oneLine(page.description)}`);
     return `${header.join('\n')}\n\n${normalizePublicMarkdownContent(page.content)}\n`;
@@ -555,13 +540,13 @@ const validTimestamp = (value: string, fallback: string): string => {
 const sitemapXml = (snapshot: SiteSnapshot, pages: SnapshotPage[]): string => {
   const urls = pages.map((page) => {
     const alternates = pages
-      .filter((candidate) => candidate.versionId === page.versionId && candidate.id !== page.id && isPageTranslation(page, candidate))
+      .filter((candidate) => candidate.id !== page.id && isPageTranslation(page, candidate))
       .map(
         (candidate) =>
-          `<xhtml:link rel="alternate" hreflang="${escapeXml(candidate.languageCode)}" href="${escapeXml(pageArchiveHref(snapshot, candidate))}"/>`,
+          `<xhtml:link rel="alternate" hreflang="${escapeXml(candidate.languageCode)}" href="${escapeXml(pageArchiveHref(candidate))}"/>`,
       )
       .join('');
-    return `  <url><loc>${escapeXml(pageArchiveHref(snapshot, page))}</loc><lastmod>${escapeXml(validTimestamp(page.updatedAt, snapshot.generatedAt))}</lastmod>${alternates}</url>`;
+    return `  <url><loc>${escapeXml(pageArchiveHref(page))}</loc><lastmod>${escapeXml(validTimestamp(page.updatedAt, snapshot.generatedAt))}</lastmod>${alternates}</url>`;
   });
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${urls.join('\n')}\n</urlset>\n`;
 };
@@ -582,19 +567,18 @@ export const renderStaticHtml = (snapshot: SiteSnapshot, assets: ExportAsset[]):
   // that intentionally preserves hidden source with `hidden: true` frontmatter.
   const servedLanguages = new Set(publicLanguages(snapshot.project.languages).map((language) => language.code));
   const pages = snapshot.pages.filter((page) => page.kind === 'PAGE' && !page.hidden && servedLanguages.has(page.languageCode));
-  for (const page of pages) files[outputPath(snapshot, page)] = strToU8(pageDocument(snapshot, page, assets));
+  for (const page of pages) files[outputPath(page)] = strToU8(pageDocument(snapshot, page, assets));
   for (const asset of assets) files[assetName(asset)] = asset.bytes;
   const first = pages.find((page) => !page.hidden) ?? pages[0];
   files['index.html'] = strToU8(
     first
-      ? `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${escapeHtml(outputPath(snapshot, first))}"><a href="${escapeHtml(outputPath(snapshot, first))}">${escapeHtml(snapshot.project.name)}</a>`
+      ? `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${escapeHtml(outputPath(first))}"><a href="${escapeHtml(outputPath(first))}">${escapeHtml(snapshot.project.name)}</a>`
       : `<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>${escapeHtml(snapshot.project.name)}</title>`,
   );
   const searchEntries = pages.map((page) => ({
     title: page.title,
-    path: outputPath(snapshot, page),
+    path: outputPath(page),
     text: plainText(normalizePublicMarkdownContent(page.content)),
-    versionId: page.versionId,
     languageCode: page.languageCode,
   }));
   files['theme/theme.js'] = strToU8(themeJs(searchEntries));
@@ -602,20 +586,18 @@ export const renderStaticHtml = (snapshot: SiteSnapshot, assets: ExportAsset[]):
   for (const page of indexablePages) {
     const description = page.description?.trim();
     const parts = [`# ${oneLine(page.title)}`, ...(description ? [`> ${oneLine(description)}`] : []), normalizePublicMarkdownContent(page.content)];
-    files[outputMarkdownPath(snapshot, page)] = strToU8(`${parts.filter(Boolean).join('\n\n')}\n`);
+    files[outputMarkdownPath(page)] = strToU8(`${parts.filter(Boolean).join('\n\n')}\n`);
   }
   const machineFilesEnabled = exportConfigOf(snapshot).visibility !== 'private' && exportConfigOf(snapshot).seo?.allowIndex !== false;
   files['robots.txt'] = strToU8(robotsTxt(snapshot));
   files['sitemap.xml'] = strToU8(sitemapXml(snapshot, indexablePages));
   files['llms.txt'] = strToU8(machineFilesEnabled ? llmsTxt(snapshot, indexablePages) : '');
   files['llms-full.txt'] = strToU8(machineFilesEnabled ? llmsFullTxt(snapshot, indexablePages) : '');
-  for (const version of snapshot.project.versions) {
-    for (const language of publicLanguages(snapshot.project.languages)) {
-      const directory = `${safeSegment(version.slug)}/${safeSegment(language.code)}`;
-      const variantPages = indexablePages.filter((page) => page.versionId === version.id && page.languageCode === language.code);
-      files[`${directory}/llms.txt`] = strToU8(machineFilesEnabled ? llmsTxt(snapshot, variantPages, directory) : '');
-      files[`${directory}/llms-full.txt`] = strToU8(machineFilesEnabled ? llmsFullTxt(snapshot, variantPages, directory) : '');
-    }
+  for (const language of publicLanguages(snapshot.project.languages)) {
+    const directory = safeSegment(language.code);
+    const languagePages = indexablePages.filter((page) => page.languageCode === language.code);
+    files[`${directory}/llms.txt`] = strToU8(machineFilesEnabled ? llmsTxt(snapshot, languagePages, directory) : '');
+    files[`${directory}/llms-full.txt`] = strToU8(machineFilesEnabled ? llmsFullTxt(snapshot, languagePages, directory) : '');
   }
   const theme = resolveTheme(themeConfigOf(snapshot));
   files['export.json'] = strToU8(
@@ -638,15 +620,14 @@ export const renderMarkdownZip = (snapshot: SiteSnapshot, assets: ExportAsset[])
   const used = new Set<string>();
   for (const page of snapshot.pages) {
     if (page.kind !== 'PAGE') continue;
-    const version = safeSegment(versionFor(snapshot, page)?.slug ?? 'main');
-    let name = `${version}/${safeSegment(page.languageCode)}/${safePath(page.path)}.md`;
+    let name = `${safeSegment(page.languageCode)}/${safePath(page.path)}.md`;
     if (used.has(name)) name = name.replace(/\.md$/, `-${safeSegment(page.id)}.md`);
     used.add(name);
     files[name] = strToU8(`${frontMatter(page)}\n${page.content}`);
   }
   for (const asset of assets) files[assetName(asset)] = asset.bytes;
   files['project.json'] = encoder.encode(
-    `${JSON.stringify({ name: snapshot.project.name, slug: snapshot.project.slug, description: snapshot.project.description, languages: snapshot.project.languages, versions: snapshot.project.versions, themeTemplate: themeTemplateFromConfig(themeConfigOf(snapshot) as Record<string, unknown>), pagesCount: snapshot.pages.filter((page) => page.kind === 'PAGE').length, publishedAt: snapshot.generatedAt, generator: 'nibleaf' }, null, 2)}\n`,
+    `${JSON.stringify({ name: snapshot.project.name, slug: snapshot.project.slug, description: snapshot.project.description, languages: snapshot.project.languages, themeTemplate: themeTemplateFromConfig(themeConfigOf(snapshot) as Record<string, unknown>), pagesCount: snapshot.pages.filter((page) => page.kind === 'PAGE').length, publishedAt: snapshot.generatedAt, generator: 'nibleaf' }, null, 2)}\n`,
   );
   return { bytes: zipSync(files, { level: 6 }), contentType: 'application/zip', extension: 'zip' };
 };

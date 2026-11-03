@@ -453,7 +453,7 @@ export interface SnapshotRedirectValidation extends RedirectGraphResult {
   snapshot: SiteSnapshot;
 }
 
-/** Build the effective locale/version/base-path route manifest and validate the
+/** Build the effective locale/base-path route manifest and validate the
  * redirects stored in a publish snapshot. Successful snapshots contain only
  * normalized direct redirects; failures return the original snapshot untouched. */
 export function validateSnapshotRedirects(snapshot: SiteSnapshot): SnapshotRedirectValidation {
@@ -461,59 +461,43 @@ export function validateSnapshotRedirects(snapshot: SiteSnapshot): SnapshotRedir
   const defaultLanguage = languages.find((language) => language.isDefault)?.code;
   const routes: RedirectRoute[] = [];
   const routeCollisions = new Set<string>();
-  const routeOwners = new Map<string, string>();
   const reserved = ['changelog', 'sitemap.xml', 'robots.txt', 'llms.txt', 'llms-full.txt'];
   const reservedSet = new Set(reserved);
 
-  for (const version of snapshot.project.versions) {
-    const versionPages = snapshot.pages.filter((page) => page.versionId === version.id);
-    const versionPrefix = version.isDefault ? '' : version.slug;
-    for (const language of languages) {
-      const ordered = flattenPages(buildNavTree(versionPages, language.code));
-      const exact = new Map<string, string>();
-      // Exact page lookup in getSitePage is independent of navigation-tree
-      // reachability, so a visible page below a hidden parent is still a real
-      // route even though it is absent from the sidebar.
-      const renderablePages = versionPages.filter((page) => page.languageCode === language.code && page.kind === 'PAGE' && !page.hidden);
-      for (const page of renderablePages) {
-        const pagePath = normalizeRedirectPath(page.path);
-        const routePath = [versionPrefix, pagePath].filter(Boolean).join('/');
-        if (exact.has(routePath)) {
-          routeCollisions.add(routePath);
-        } else {
-          exact.set(routePath, routePath);
+  for (const language of languages) {
+    const ordered = flattenPages(buildNavTree(snapshot.pages, language.code));
+    const exact = new Map<string, string>();
+    // Exact page lookup in getSitePage is independent of navigation-tree
+    // reachability, so a visible page below a hidden parent is still a real
+    // route even though it is absent from the sidebar.
+    const renderablePages = snapshot.pages.filter((page) => page.languageCode === language.code && page.kind === 'PAGE' && !page.hidden);
+    for (const page of renderablePages) {
+      const pagePath = normalizeRedirectPath(page.path);
+      if (exact.has(pagePath)) {
+        routeCollisions.add(pagePath);
+      } else {
+        exact.set(pagePath, pagePath);
+      }
+    }
+    const first = ordered[0];
+    if (first) {
+      exact.set('', normalizeRedirectPath(first.path));
+    }
+    // Group/prefix URLs are real published routes (the reader sends a 302 to
+    // the first child). Record their final page so redirect destinations can
+    // be emitted directly without retaining that extra hop.
+    for (const page of ordered) {
+      for (const prefix of prefixesOf(normalizeRedirectPath(page.path))) {
+        if (!exact.has(prefix)) {
+          exact.set(prefix, normalizeRedirectPath(page.path));
         }
       }
-      const first = ordered[0];
-      if (first) {
-        const firstPath = [versionPrefix, normalizeRedirectPath(first.path)].filter(Boolean).join('/');
-        exact.set(versionPrefix, firstPath);
+    }
+    for (const [path, canonicalPath] of exact) {
+      if (reservedSet.has(path)) {
+        routeCollisions.add(path);
       }
-      // Group/prefix URLs are real published routes (the reader sends a 302 to
-      // the first child). Record their final page so redirect destinations can
-      // be emitted directly without retaining that extra hop.
-      for (const page of ordered) {
-        for (const prefix of prefixesOf(normalizeRedirectPath(page.path))) {
-          const routePath = [versionPrefix, prefix].filter(Boolean).join('/');
-          const canonical = [versionPrefix, normalizeRedirectPath(page.path)].filter(Boolean).join('/');
-          if (!exact.has(routePath)) {
-            exact.set(routePath, canonical);
-          }
-        }
-      }
-      for (const [path, canonicalPath] of exact) {
-        const routeKey = `${language.code}:${path}`;
-        const owner = routeOwners.get(routeKey);
-        if (owner && owner !== version.id) {
-          routeCollisions.add(path);
-        } else {
-          routeOwners.set(routeKey, version.id);
-        }
-        if (reservedSet.has(path)) {
-          routeCollisions.add(path);
-        }
-        routes.push({ path, canonicalPath, languageCode: language.code });
-      }
+      routes.push({ path, canonicalPath, languageCode: language.code });
     }
   }
 

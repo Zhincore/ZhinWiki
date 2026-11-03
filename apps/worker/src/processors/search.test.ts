@@ -70,7 +70,6 @@ const mocks = vi.hoisted(() => ({
       pages: [
         {
           id: 'page-ar',
-          versionId: 'version-main',
           kind: 'PAGE',
           hidden: false,
           config: null,
@@ -83,7 +82,6 @@ const mocks = vi.hoisted(() => ({
         },
         {
           id: 'page-hidden',
-          versionId: 'version-main',
           kind: 'PAGE',
           hidden: true,
           config: null,
@@ -260,7 +258,6 @@ describe('hybrid search differential indexing jobs', () => {
       payload: {
         project_id: 'tenant-a',
         deployment_id: 'deployment-a',
-        version_slug: 'main',
         language: 'ar',
         visibility: 'private',
         visible: true,

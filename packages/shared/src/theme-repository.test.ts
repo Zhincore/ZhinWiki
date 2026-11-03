@@ -24,7 +24,6 @@ const accentOf = (templateId: ThemePresetId, mode: 'light' | 'dark' = 'light') =
 
 const page = (overrides: Partial<SnapshotPage> & Pick<SnapshotPage, 'id' | 'title' | 'path'>): SnapshotPage => ({
   parentId: null,
-  versionId: 'version_main',
   languageCode: 'en',
   kind: 'PAGE',
   slug: overrides.path.split('/').filter(Boolean).at(-1) ?? 'index',
@@ -51,10 +50,6 @@ const snapshot: SiteSnapshot = {
       { code: 'en', label: 'English', direction: 'LTR', isDefault: true, enabled: true, config: null },
       { code: 'ar', label: 'العربية', direction: 'RTL', isDefault: false, enabled: true, config: null },
     ],
-    versions: [
-      { id: 'version_main', name: 'Main', slug: 'main', isDefault: true },
-      { id: 'version_next', name: 'Next', slug: 'next', isDefault: false },
-    ],
   },
   pages: [
     page({
@@ -70,8 +65,6 @@ const snapshot: SiteSnapshot = {
     page({ id: 'page_hidden', title: 'Internal notes', path: '/internal', position: 2, hidden: true }),
     page({ id: 'page_welcome_ar', languageCode: 'ar', title: 'مرحبًا', path: '/مرحبا', translationKey: 'welcome' }),
     page({ id: 'page_auth_ar', languageCode: 'ar', title: 'المصادقة', path: '/المصادقة', position: 1 }),
-    page({ id: 'page_next', versionId: 'version_next', title: 'Next release', path: '/next-release' }),
-    page({ id: 'page_next_ar', versionId: 'version_next', languageCode: 'ar', title: 'الإصدار التالي', path: '/الإصدار-التالي' }),
   ],
   generatedAt: '2026-08-23T00:00:00.000Z',
 };
@@ -146,17 +139,13 @@ describe('Git-native repository contract v2', () => {
     expect(docs.$schema).toBe('https://mintlify.com/docs.json');
     expect(docs.name).toBe('Acme Docs');
     expect(docs.colors).toEqual({ primary: accentOf('harbor'), light: accentOf('harbor', 'dark'), dark: accentOf('harbor') });
-    expect(docs.navigation.versions).toHaveLength(2);
-    const main = docs.navigation.versions[0];
-    expect(main.version).toBe('Main');
-    expect(main['x-nibleaf']).toEqual({ slug: 'main', default: true });
-    expect(main.languages[0]).toEqual({
+    expect(docs.navigation.versions).toBeUndefined();
+    expect(docs.navigation.languages[0]).toEqual({
       language: 'en',
       'x-nibleaf': { label: 'English', direction: 'LTR', default: true },
       pages: ['welcome', { group: 'Guides', pages: ['guides/authentication'] }],
     });
-    expect(main.languages[1].pages).toEqual(['ar/مرحبا', 'ar/المصادقة']);
-    expect(docs.navigation.versions[1].languages[0].pages).toEqual(['versions/next/next-release']);
+    expect(docs.navigation.languages[1].pages).toEqual(['ar/مرحبا', 'ar/المصادقة']);
     expect(docs['x-nibleaf'].template).toEqual({ id: 'harbor', version: 2 });
     expect(docs['x-nibleaf'].theme.id).toBe('harbor');
     expect(docs['x-nibleaf'].theme.layout.density).toBe('compact');
@@ -165,7 +154,7 @@ describe('Git-native repository contract v2', () => {
       { code: 'en', label: 'English', direction: 'LTR', isDefault: true, enabled: true, directory: '' },
       { code: 'ar', label: 'العربية', direction: 'RTL', isDefault: false, enabled: true, directory: 'ar' },
     ]);
-    expect(docs['x-nibleaf'].versions[1]).toEqual({ id: 'version_next', name: 'Next', slug: 'next', isDefault: false, directory: 'versions/next' });
+    expect(docs['x-nibleaf'].versions).toEqual([{ id: 'main', name: 'main', slug: 'main', isDefault: true, directory: '' }]);
     expect(docs['x-nibleaf'].contentPath).toBe('content');
     expect(JSON.stringify(docs)).not.toContain('Internal notes');
   });
@@ -176,14 +165,12 @@ describe('Git-native repository contract v2', () => {
     expect(second).toEqual(first);
   });
 
-  it('places pages in the content tree by language and version and keeps Arabic slugs readable', () => {
+  it('places pages in the content tree by language and keeps Arabic slugs readable', () => {
     const byId = new Map(snapshot.pages.map((item) => [item.id, item]));
     const pathOf = (id: string) => themeContentPath(byId.get(id) as SnapshotPage, snapshot);
     expect(pathOf('page_welcome')).toBe('content/welcome.mdx');
     expect(pathOf('page_auth')).toBe('content/guides/authentication.mdx');
     expect(pathOf('page_auth_ar')).toBe('content/ar/المصادقة.mdx');
-    expect(pathOf('page_next')).toBe('content/versions/next/next-release.mdx');
-    expect(pathOf('page_next_ar')).toBe('content/versions/next/ar/الإصدار-التالي.mdx');
     expect(themeContentPath({ ...(byId.get('page_welcome') as SnapshotPage), path: '../../unsafe:name' }, snapshot)).toBe(
       'content/unsafe~3a~name.mdx',
     );
@@ -196,39 +183,27 @@ describe('Git-native repository contract v2', () => {
       page_hidden: 'content/internal.mdx',
       page_welcome_ar: 'content/ar/مرحبا.mdx',
       page_auth_ar: 'content/ar/المصادقة.mdx',
-      page_next: 'content/versions/next/next-release.mdx',
-      page_next_ar: 'content/versions/next/ar/الإصدار-التالي.mdx',
     });
   });
 
-  it('reads a repository path back to its version and language', () => {
-    expect(themeContentLocation('content/welcome.mdx', snapshot)).toEqual({ versionId: 'version_main', languageCode: 'en', relative: 'welcome' });
+  it('reads a repository path back to its language', () => {
+    expect(themeContentLocation('content/welcome.mdx', snapshot)).toEqual({ languageCode: 'en', relative: 'welcome' });
     expect(themeContentLocation('content/ar/المصادقة.mdx', snapshot)).toEqual({
-      versionId: 'version_main',
       languageCode: 'ar',
       relative: 'المصادقة',
     });
-    expect(themeContentLocation('content/versions/next/ar/x.mdx', snapshot)).toEqual({
-      versionId: 'version_next',
-      languageCode: 'ar',
-      relative: 'x',
-    });
     expect(themeContentLocation('content/guides/index.mdx', snapshot)).toEqual({
-      versionId: 'version_main',
       languageCode: 'en',
       relative: 'guides/index',
     });
     expect(themeContentLocation('docs/welcome.mdx', snapshot)).toBeNull();
     expect(themeContentLocation('README.md', snapshot)).toBeNull();
-    expect(themeContentLocation('welcome.mdx', snapshot, '')).toEqual({ versionId: 'version_main', languageCode: 'en', relative: 'welcome' });
+    expect(themeContentLocation('welcome.mdx', snapshot, '')).toEqual({ languageCode: 'en', relative: 'welcome' });
   });
 
-  it('rejects page paths that would read back as another language or version', () => {
+  it('rejects page paths that would read back as another language', () => {
     const welcome = snapshot.pages[0] as SnapshotPage;
-    expect(() => buildThemeRepository({ ...snapshot, pages: [{ ...welcome, path: '/ar/welcome' }] })).toThrow(/different language or version/);
-    expect(() => buildThemeRepository({ ...snapshot, pages: [{ ...welcome, path: '/versions/next/welcome' }] })).toThrow(
-      /different language or version/,
-    );
+    expect(() => buildThemeRepository({ ...snapshot, pages: [{ ...welcome, path: '/ar/welcome' }] })).toThrow(/different language/);
   });
 
   it('preserves distinct unsafe path segments and rejects case-insensitive output collisions', () => {

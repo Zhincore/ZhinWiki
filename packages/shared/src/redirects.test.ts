@@ -104,10 +104,9 @@ describe('validateRedirectGraph', () => {
   });
 });
 
-const page = (input: Partial<SnapshotPage> & Pick<SnapshotPage, 'id' | 'path' | 'versionId' | 'languageCode'>): SnapshotPage => ({
+const page = (input: Partial<SnapshotPage> & Pick<SnapshotPage, 'id' | 'path' | 'languageCode'>): SnapshotPage => ({
   id: input.id,
   parentId: input.parentId ?? null,
-  versionId: input.versionId,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   languageCode: input.languageCode,
@@ -137,42 +136,38 @@ const snapshot = (redirects: Array<{ from: string; to: string }>): SiteSnapshot 
       { code: 'ar', label: 'Arabic', direction: 'RTL', isDefault: false, enabled: true, config: null },
       { code: 'fr', label: 'French', direction: 'LTR', isDefault: false, enabled: false, config: null },
     ],
-    versions: [
-      { id: 'main', name: 'main', slug: 'main', isDefault: true },
-      { id: 'v2', name: 'v2', slug: 'v2', isDefault: false },
-    ],
   },
   pages: [
-    page({ id: 'group', path: 'getting-started', versionId: 'main', languageCode: 'en', kind: 'GROUP', position: 0 }),
-    page({ id: 'intro', path: 'getting-started/intro', versionId: 'main', languageCode: 'en', parentId: 'group', position: 0 }),
-    page({ id: 'secret', path: 'secret', versionId: 'main', languageCode: 'en', hidden: true }),
-    page({ id: 'ar-intro', path: 'البدء/مقدمة', versionId: 'main', languageCode: 'ar' }),
-    page({ id: 'fr-page', path: 'bonjour', versionId: 'main', languageCode: 'fr' }),
-    page({ id: 'v2-guide', path: 'guide', versionId: 'v2', languageCode: 'en' }),
+    page({ id: 'group', path: 'getting-started', languageCode: 'en', kind: 'GROUP', position: 0 }),
+    page({ id: 'intro', path: 'getting-started/intro', languageCode: 'en', parentId: 'group', position: 0 }),
+    page({ id: 'secret', path: 'secret', languageCode: 'en', hidden: true }),
+    page({ id: 'ar-intro', path: 'البدء/مقدمة', languageCode: 'ar' }),
+    page({ id: 'fr-page', path: 'bonjour', languageCode: 'fr' }),
+    page({ id: 'guide', path: 'guide', languageCode: 'en' }),
   ],
   generatedAt: '2026-01-01T00:00:00.000Z',
 });
 
 describe('validateSnapshotRedirects', () => {
-  it('canonicalizes group aliases and version routes into direct snapshot redirects', () => {
+  it('canonicalizes group aliases into direct snapshot redirects', () => {
     const result = validateSnapshotRedirects(
       snapshot([
         { from: '/legacy', to: '/getting-started' },
-        { from: '/old-v2', to: '/v2/guide#usage' },
+        { from: '/old-guide', to: '/guide#usage' },
         { from: '/قديم', to: '/البدء/مقدمة?lang=ar' },
       ]),
     );
     expect(result.issues).toEqual([]);
     expect((result.snapshot.project.config as { redirects: unknown }).redirects).toEqual([
       { from: '/legacy', to: '/getting-started/intro' },
-      { from: '/old-v2', to: '/v2/guide#usage' },
+      { from: '/old-guide', to: '/guide#usage' },
       { from: '/قديم', to: '/البدء/مقدمة?lang=ar' },
     ]);
   });
 
   it('blocks hidden/deleted and disabled-locale destinations plus published route collisions', () => {
     const input = snapshot([
-      { from: '/getting-started/intro', to: '/v2/guide' },
+      { from: '/getting-started/intro', to: '/guide' },
       { from: '/hidden', to: '/secret' },
       { from: '/disabled', to: '/bonjour?lang=fr' },
       { from: '/deleted', to: '/no-longer-published' },
@@ -182,15 +177,15 @@ describe('validateSnapshotRedirects', () => {
     expect(result.snapshot).toBe(input);
   });
 
-  it('detects reserved and version-prefix route collisions even without redirect sources', () => {
+  it('detects reserved route collisions even without redirect sources', () => {
     const input = snapshot([]);
     input.pages.push(
-      page({ id: 'reserved-page', path: 'changelog', versionId: 'main', languageCode: 'en' }),
-      page({ id: 'default-v2-path', path: 'v2/guide', versionId: 'main', languageCode: 'en' }),
+      page({ id: 'reserved-page', path: 'changelog', languageCode: 'en' }),
+      page({ id: 'duplicate-guide', path: 'guide', languageCode: 'en' }),
     );
     const result = validateSnapshotRedirects(input);
     expect(result.issues.filter((entry) => entry.code === 'route-collision').map((entry) => entry.sequence[0])).toEqual(
-      expect.arrayContaining(['/changelog', '/v2/guide']),
+      expect.arrayContaining(['/changelog', '/guide']),
     );
   });
 });

@@ -3,7 +3,6 @@ export const MCP_SCOPES = [
   'projects:read',
   'pages:read',
   'languages:read',
-  'versions:read',
   'analytics:read',
   'search:read',
   'usage:read',

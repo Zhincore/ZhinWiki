@@ -146,8 +146,6 @@ describe('published Markdown edge routing', () => {
             config: { visibility: 'public' },
           },
           activeLanguage: 'en',
-          activeVersion: 'main',
-          versions: [{ id: 'main', name: 'main', slug: 'main', isDefault: true }],
           page: {
             id: 'page-1',
             title: 'Guide',

@@ -38,7 +38,6 @@ const retrievalFilter = (): QdrantFilter => ({
   must: [
     { key: 'project_id', match: { value: 'tenant-a' } },
     { key: 'deployment_id', match: { value: 'dep-1' } },
-    { key: 'version_slug', match: { value: 'main' } },
     { key: 'language', match: { value: 'ar' } },
     { key: 'visibility', match: { value: 'private' } },
     { key: 'visible', match: { value: true } },
@@ -65,7 +64,7 @@ describe('QdrantClient official SDK boundary', () => {
         vectors: { dense: { distance: 'Cosine', size: 1 } },
       }),
     );
-    expect(sdk.createPayloadIndex).toHaveBeenCalledTimes(8);
+    expect(sdk.createPayloadIndex).toHaveBeenCalledTimes(7);
     expect(sdk.updateCollectionAliases).toHaveBeenCalledWith({
       actions: [{ create_alias: { collection_name: 'nibleaf_search_active_v1_1', alias_name: 'nibleaf_search_active' } }],
     });
@@ -132,7 +131,6 @@ describe('QdrantClient official SDK boundary', () => {
         payload: {
           project_id: 'tenant-a',
           deployment_id: 'deployment-a',
-          version_slug: 'main',
           language: 'en',
           visibility: 'private',
           visible: true,
@@ -190,7 +188,7 @@ describe('QdrantClient official SDK boundary', () => {
     sdk.count.mockResolvedValueOnce({ count: 42 });
     sdk.facet.mockResolvedValueOnce({ hits: [{ value: 'ar', count: 20 }] });
     sdk.scroll.mockResolvedValueOnce({
-      points: [{ id: 'point-a', payload: { page_id: 'page-a', ordinal: 0, language: 'ar', version_slug: 'main', content: 'private' } }],
+      points: [{ id: 'point-a', payload: { page_id: 'page-a', ordinal: 0, language: 'ar', content: 'private' } }],
       next_page_offset: 17,
     });
 
@@ -198,7 +196,7 @@ describe('QdrantClient official SDK boundary', () => {
     await expect(client.facetCounts(filter, 'language', 101)).resolves.toEqual([{ value: 'ar', count: 20 }]);
     const metadata = await client.listIndexedMetadataPage(filter, { limit: 10 });
     expect(metadata).toEqual({
-      points: [{ id: 'point-a', payload: { page_id: 'page-a', ordinal: 0, language: 'ar', version_slug: 'main' } }],
+      points: [{ id: 'point-a', payload: { page_id: 'page-a', ordinal: 0, language: 'ar' } }],
       nextOffset: 17,
     });
 
@@ -208,7 +206,7 @@ describe('QdrantClient official SDK boundary', () => {
     expect(sdk.scroll).toHaveBeenCalledWith('nibleaf_search_active', {
       filter,
       limit: 10,
-      with_payload: { include: ['page_id', 'ordinal', 'language', 'version_slug'] },
+      with_payload: { include: ['page_id', 'ordinal', 'language'] },
       with_vector: false,
     });
     expect(JSON.stringify(metadata)).not.toContain('private');

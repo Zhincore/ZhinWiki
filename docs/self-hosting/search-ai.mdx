@@ -21,7 +21,7 @@ instance and site opt-in.
 fusion result shaping, citation validation, prompt hardening, and the versioned
 analytics event contract. `@nibleaf/qdrant` owns only the versioned collection,
 payload indexes, alias, and tenant-checked operations through Qdrant's official
-JavaScript SDK. The server derives every project, deployment, version, language,
+JavaScript SDK. The server derives every project, deployment, language,
 visibility, and reader page-grant filter; the worker indexes immutable published
 snapshots. Clients cannot submit scope. The published reader calls TanStack Start
 server functions through TanStack Query hooks; only the server function reaches
@@ -29,7 +29,7 @@ the Hono RPC endpoint, preserving its request context and authorization checks.
 
 The collection name is
 `<QDRANT_COLLECTION_ALIAS>_<QDRANT_COLLECTION_VERSION>_<dimensions>`. The alias
-is stable. Chunk IDs are deterministic from tenant, deployment, version, page,
+is stable. Chunk IDs are deterministic from tenant, deployment, page,
 ordinal, and content hash, so retries are idempotent. Qdrant's sparse `bm25`
 vector uses an IDF corpus restricted by the same tenant and authorization filter
 as the query.
@@ -114,7 +114,7 @@ rather than creating a second search analytics store.
 1. Keep the current alias active and bump `QDRANT_COLLECTION_VERSION` for a
    schema, chunker, model, or vector-dimension migration.
 2. Populate the new physical collection and verify exact counts per project,
-   deployment, version, language, visibility, and authorized page set.
+   deployment, language, visibility, and authorized page set.
 3. Exercise public, workspace, and restricted-reader negative cases in both
    languages. Confirm private chunks, facets, counts, citations, caches, and
    analytics context never cross scope.
@@ -140,7 +140,7 @@ removes answer capability without affecting results mode.
 ## Project settings and privacy-safe diagnostics
 
 Project administrators can set **1–50 results** per query (default **12**) and
-independently show or hide reader language/version filters (both default on).
+show or hide the reader language filter (default on).
 Grounded answers default off and the shortcut defaults to `⌘K`. An empty
 authored placeholder falls back to the active language's Paraglide site copy;
 language overrides first fall back to the project value, then that localized
@@ -155,7 +155,7 @@ Authorized members can inspect only the current READY revision. Diagnostics use
 exact tenant/deployment-scoped Qdrant counts/facets plus one bounded metadata
 page, never a full corpus scan. Results include logical schema/model/revision
 identifiers, aggregate counts, distributions, stable run/error codes, and
-bounded page ID/ordinal/language/version/status metadata. They omit content,
+bounded page ID/ordinal/language/status metadata. They omit content,
 titles, paths, hashes, vectors, credentials, physical collection/alias names,
 and provider payloads. Provider absence means unavailable with unknown counts,
 never zero. Pagination cursors are versioned, HMAC-signed, and tenant/revision

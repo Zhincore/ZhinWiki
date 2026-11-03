@@ -39,7 +39,7 @@ beforeEach(() => {
 
 describe('published reader route input', () => {
   it('retains the real server function validator before reaching the API', async () => {
-    await expect(getSiteFn({ data: { projectId: 'qa-site', version: '' } })).rejects.toBeInstanceOf(ZodError);
+    await expect(getSiteFn({ data: { projectId: 'qa-site', language: '' } })).rejects.toBeInstanceOf(ZodError);
     expect(mocks.getSite).not.toHaveBeenCalled();
   });
 
@@ -60,24 +60,16 @@ describe('published reader route input', () => {
   });
 
   it.each([
-    ['$projectId', '/sites/%24projectId/v2/guide', 'v2', 'en'],
-    ['[', '/sites/%5B/v2/guide', 'v2', 'ar'],
-    ['+', '/sites/%2B/المقدمة', 'المقدمة', 'ar'],
-    ['qa-site', '/sites/qa-site', undefined, 'en'],
-    ['qa-site', '/sites/qa-site/', undefined, 'ar'],
-    ['qa-site', '/sites/qa-site/v2', 'v2', 'en'],
-    ['qa-site', '/sites/qa-site/v2/guide/', 'v2', 'ar'],
-    ['qa-site', '/sites/qa-site/changelog', undefined, 'ar'],
-    ['qa-site', '/sites/qa-site/%D8%A7%D9%84%D9%85%D9%82%D8%AF%D9%85%D8%A9', 'المقدمة', 'ar'],
-  ])('preserves the requested version and language for %s at %s', async (projectId, pathname, version, lang) => {
-    const site = { project: { id: projectId }, nav: [], languages: [], versions: [] };
+    ['$projectId', '/sites/%24projectId/v2/guide', 'en'],
+    ['+', '/sites/%2B/المقدمة', 'ar'],
+    ['qa-site', '/sites/qa-site', 'en'],
+    ['qa-site', '/sites/qa-site/changelog', 'ar'],
+  ])('requests only the language for %s at %s', async (projectId, pathname, lang) => {
+    const site = { project: { id: projectId }, nav: [], languages: [] };
     mocks.getSite.mockResolvedValueOnce(Response.json({ data: site }));
 
     await expect(load(projectId, pathname, lang)).resolves.toEqual({ site, siteOrigin: null });
-    expect(mocks.getSite).toHaveBeenCalledExactlyOnceWith({
-      param: { id: projectId },
-      query: { lang, ...(version ? { version } : {}) },
-    });
+    expect(mocks.getSite).toHaveBeenCalledExactlyOnceWith({ param: { id: projectId }, query: { lang } });
   });
 });
 

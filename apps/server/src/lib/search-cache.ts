@@ -11,9 +11,9 @@ interface Entry {
  *  serving many sites/languages must evict cold ones instead of growing forever. */
 const MAX_CACHED_INDEXES = 50;
 
-// One in-memory Orama index per (project, language, docs-version, authorization
-// scope), keyed by the published deployment id so it rebuilds automatically
-// when a new version is published. The authorization scope is mandatory: a
+// One in-memory Orama index per (project, language, authorization scope),
+// keyed by the published deployment id so it rebuilds automatically on
+// re-publish. The authorization scope is mandatory: a
 // workspace member may index every page while a dedicated reader may see only a
 // grant subset, and those indexes must never share one cache slot.
 const cache = new LruCache<string, Entry>(MAX_CACHED_INDEXES);
@@ -28,8 +28,8 @@ const authorizationScopeKey = (allowedPageIds: ReadonlySet<string> | null): stri
     .join('')}`;
 };
 
-const cacheKey = (projectId: string, lang: string, version: string, allowedPageIds: ReadonlySet<string> | null): string =>
-  `${projectId}:${lang}:${version}:${authorizationScopeKey(allowedPageIds)}`;
+const cacheKey = (projectId: string, lang: string, allowedPageIds: ReadonlySet<string> | null): string =>
+  `${projectId}:${lang}:${authorizationScopeKey(allowedPageIds)}`;
 
 const docsFromPages = (pages: SnapshotPage[]): SearchDoc[] =>
   pages
@@ -52,21 +52,18 @@ const docsFromPages = (pages: SnapshotPage[]): SearchDoc[] =>
  *  scoped to a single language. */
 export const getCachedIndex = async (
   projectId: string,
-  key: string,
+  deploymentId: string,
   lang: string,
   pages: SnapshotPage[],
   allowedPageIds: ReadonlySet<string> | null,
 ): Promise<DocIndex> => {
-  // `key` is `${deploymentId}:${versionSlug}` — the slug (no colons) scopes the
-  // cache slot per version; the full key still triggers a rebuild on re-publish.
-  const version = key.slice(key.indexOf(':') + 1) || 'main';
-  const mapKey = cacheKey(projectId, lang, version, allowedPageIds);
+  const mapKey = cacheKey(projectId, lang, allowedPageIds);
   const existing = cache.get(mapKey);
-  if (existing && existing.key === key) {
+  if (existing && existing.key === deploymentId) {
     return existing.index;
   }
   const scoped = pages.filter((page) => page.languageCode === lang);
   const index = await createDocIndex(docsFromPages(scoped), oramaLanguageForCode(lang));
-  cache.set(mapKey, { key, index });
+  cache.set(mapKey, { key: deploymentId, index });
   return index;
 };

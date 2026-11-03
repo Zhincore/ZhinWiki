@@ -230,7 +230,7 @@ function ProjectPreview() {
                     <h1 className="mt-2 font-semibold text-3xl tracking-tight">{page.title}</h1>
                     {page.description ? <p className="mt-2 text-muted-foreground">{page.description}</p> : null}
                   </div>
-                  <Markdown content={page.content} site={{ projectId, lang: activeLanguage?.code, version: activeBranchId }} />
+                  <Markdown content={page.content} site={{ projectId, lang: activeLanguage?.code }} />
                 </>
               ) : (
                 <div className="text-muted-foreground text-sm">{t('preview.empty')}</div>

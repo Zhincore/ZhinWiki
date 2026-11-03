@@ -83,7 +83,7 @@ describe('published page Markdown endpoint', () => {
     expect(response.headers.get('content-type')).toContain('text/markdown');
     expect(response.headers.get('cache-control')).toContain('public');
     expect(await response.text()).toContain('# Introduction');
-    expect(mocks.getSitePageMarkdown).toHaveBeenCalledWith('project', 'getting-started/introduction', 'en', undefined);
+    expect(mocks.getSitePageMarkdown).toHaveBeenCalledWith('project', 'getting-started/introduction', 'en');
   });
 });
 
@@ -97,12 +97,12 @@ describe('grounded answer endpoint', () => {
     const response = await app.request('/sites/project/answer', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ q: 'What is the SLA?', lang: 'en', version: 'main' }),
+      body: JSON.stringify({ q: 'What is the SLA?', lang: 'en' }),
     });
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('private, no-store');
     expect(response.headers.get('vary')).toContain('Cookie');
-    expect(mocks.answerSite).toHaveBeenCalledWith('project', 'What is the SLA?', 'en', 'main');
+    expect(mocks.answerSite).toHaveBeenCalledWith('project', 'What is the SLA?', 'en');
   });
 
   it('rejects empty and oversized answer requests before orchestration', async () => {

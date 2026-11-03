@@ -105,8 +105,7 @@ export const exportProjectMarkdown = async (projectId: string): Promise<ProjectE
 
 /** Build the project's standalone docs repository (contract v2): a runnable
  * TanStack Start app whose navigation/theme live in `docs.json`, pages under
- * `content/` (default language at the root, `<lang>/` and `versions/<slug>/`
- * for the rest), and reconciliation metadata only under `.nibleaf/`. */
+ * `content/` (default language at the root, other languages under `<lang>/`), and reconciliation metadata only under `.nibleaf/`. */
 export const exportProjectThemeRepository = async (projectId: string): Promise<ProjectExportResult> => {
   const snapshot = await getCurrentSnapshot(projectId);
   const templateId = themeRepositoryTemplateId(snapshot);

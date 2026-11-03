@@ -261,10 +261,6 @@ export function pageHead(data: SitePage | null | undefined, projectId: string, _
   const activeLang = data.activeLanguage;
   // Append ?lang only for a known non-default language.
   const canonicalLang = activeLang && defaultCode && activeLang !== defaultCode ? activeLang : undefined;
-  const activeVersion = data.activeVersion;
-  const activeVersionMeta = data.versions.find((version) => version.slug === activeVersion);
-  const versionPrefix = activeVersionMeta && !activeVersionMeta.isDefault ? activeVersionMeta.slug : undefined;
-  const versionedPath = (path: string) => [versionPrefix, path].filter(Boolean).join('/');
 
   // Site name for the "<page> — <site>" title pattern: the language's SEO title,
   // then the project's SEO title, then the language's localized site name, then
@@ -286,7 +282,7 @@ export function pageHead(data: SitePage | null | undefined, projectId: string, _
     langCfg?.description ||
     data.project.description ||
     '';
-  const url = sitePageUrl(projectId, versionedPath(data.page.path), canonicalLang, urlOptions);
+  const url = sitePageUrl(projectId, data.page.path, canonicalLang, urlOptions);
 
   const meta: Tag[] = [{ title }];
   if (description) {
@@ -346,7 +342,7 @@ export function pageHead(data: SitePage | null | undefined, projectId: string, _
       links.push({
         rel: 'alternate',
         hrefLang: language.code,
-        href: sitePageUrl(projectId, versionedPath(language.path as string), altLang, urlOptions),
+        href: sitePageUrl(projectId, language.path as string, altLang, urlOptions),
       });
     }
     const fallback = realAlternates.find((language) => language.isDefault) ?? realAlternates[0];
@@ -354,7 +350,7 @@ export function pageHead(data: SitePage | null | undefined, projectId: string, _
       links.push({
         rel: 'alternate',
         hrefLang: 'x-default',
-        href: sitePageUrl(projectId, versionedPath(fallback.path as string), undefined, urlOptions),
+        href: sitePageUrl(projectId, fallback.path as string, undefined, urlOptions),
       });
     }
   }
@@ -392,7 +388,7 @@ export function pageHead(data: SitePage | null | undefined, projectId: string, _
           '@type': 'ListItem',
           position: index + 1,
           name: crumb.title,
-          item: sitePageUrl(projectId, versionedPath(crumb.path), canonicalLang, urlOptions),
+          item: sitePageUrl(projectId, crumb.path, canonicalLang, urlOptions),
         })),
       }),
     });

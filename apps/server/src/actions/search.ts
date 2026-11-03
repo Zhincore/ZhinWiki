@@ -31,18 +31,14 @@ const metadataSchema = z.object({
   page_id: z.string(),
   ordinal: z.number().int().nonnegative(),
   language: z.string(),
-  version_slug: z.string(),
 });
-const issueSchema = z
-  .object({
-    pageId: z.string(),
-    ordinal: z.number().int().nonnegative(),
-    language: z.string(),
-    versionSlug: z.string(),
-    status: z.enum(['stale', 'failed']),
-    errorCode: z.string().max(80).optional(),
-  })
-  .strict();
+const issueSchema = z.object({
+  pageId: z.string(),
+  ordinal: z.number().int().nonnegative(),
+  language: z.string(),
+  status: z.enum(['stale', 'failed']),
+  errorCode: z.string().max(80).optional(),
+});
 const issueSampleSchema = z.array(issueSchema).max(25);
 const projectConfigRecordSchema = z.record(z.string(), z.unknown()).catch({});
 const searchRunProjectionSchema = z.object({
@@ -200,8 +196,7 @@ const unavailableDiagnostics = (reason: 'not_configured' | 'not_published' | 'pr
       chunks: null,
       pages: null,
       languages: [],
-      versions: [],
-      distributionTruncated: { languages: false, versions: false },
+      distributionTruncated: { languages: false },
     },
     latestRun: searchRunResultSchema.parse(resolvedLatestRun),
     samples: { items: [], nextCursor: null, hasMore: false },
@@ -226,11 +221,10 @@ export const getProjectSearchIndexDiagnostics = async (ctx: Context<HonoEnv>, pr
   const offset = readSearchDiagnosticsCursor(env.BETTER_AUTH_SECRET, resolvedQuery.cursor, projectId, deployment.id);
   try {
     const FACET_LIMIT = 101;
-    const [requestedPage, chunks, languageFacets, versionFacets] = await Promise.all([
+    const [requestedPage, chunks, languageFacets] = await Promise.all([
       qdrant.listIndexedMetadataPage(filter, { limit: resolvedQuery.limit, offset }),
       qdrant.count(filter),
       qdrant.facetCounts(filter, 'language', FACET_LIMIT),
-      qdrant.facetCounts(filter, 'version_slug', FACET_LIMIT),
     ]);
 
     const items = requestedPage.points.flatMap((point) => {
@@ -242,7 +236,6 @@ export const getProjectSearchIndexDiagnostics = async (ctx: Context<HonoEnv>, pr
               pageId: metadata.data.page_id,
               ordinal: metadata.data.ordinal,
               language: metadata.data.language,
-              versionSlug: metadata.data.version_slug,
               status: 'indexed' as const,
             },
           ]
@@ -277,13 +270,7 @@ export const getProjectSearchIndexDiagnostics = async (ctx: Context<HonoEnv>, pr
         languages: safeStringFacets(languageFacets.slice(0, FACET_LIMIT - 1))
           .map(({ value, count }) => ({ code: value, count }))
           .sort((a, b) => a.code.localeCompare(b.code)),
-        versions: safeStringFacets(versionFacets.slice(0, FACET_LIMIT - 1))
-          .map(({ value, count }) => ({ slug: value, count }))
-          .sort((a, b) => a.slug.localeCompare(b.slug)),
-        distributionTruncated: {
-          languages: languageFacets.length === FACET_LIMIT,
-          versions: versionFacets.length === FACET_LIMIT,
-        },
+        distributionTruncated: { languages: languageFacets.length === FACET_LIMIT },
       },
       latestRun: searchRunResultSchema.parse(latestRun),
       samples: {

@@ -10,9 +10,9 @@ import { acceptsOutsideContributions } from '@nibleaf/shared/rbac';
 import {
   buildNavTree,
   defaultLanguage,
-  defaultVersionOnly,
   explicitPageDescription,
   extractHeadings,
+  hasLegacyVersions,
   isPageTranslation,
   mergeLanguageChrome,
   type NavNode,
@@ -20,12 +20,12 @@ import {
   projectSlugFromSubdomainHost,
   publicLanguages,
   publicSiteSnapshot,
+  readSnapshot,
   resolvePageCategory,
   type SiteSnapshot,
   type SnapshotLanguageConfig,
   type SnapshotPage,
   type SnapshotProject,
-  type SnapshotVersion,
   withOpenApiNav,
 } from '@nibleaf/shared/site';
 import { RESERVED_WIKI_SLUGS, withoutSlugHistory } from '@nibleaf/shared/wiki-paths';
@@ -62,6 +62,14 @@ interface PublishedSite {
   version: number;
   deploymentId: string;
   viewer: ViewerAccess;
+  /** Pages hybrid search may return; null means every indexed page. */
+  searchPageIds: ReadonlySet<string> | null;
+}
+
+interface CachedSnapshot {
+  snapshot: SiteSnapshot;
+  /** Published with docs versions, so its search index may hold other versions' pages. */
+  legacyVersions: boolean;
 }
 
 /** The live, non-versioned site chrome fields read off the Project row. */
@@ -101,7 +109,7 @@ type PublicSnapshotProject = SnapshotProject & {
  *  (potentially large) JSONB once per instance instead of once per page view is
  *  safe. Bounded LRU: cold sites fall out; a re-publish gets a new deployment
  *  id and therefore a fresh slot automatically. */
-const snapshotCache = new LruCache<string, SiteSnapshot>(50);
+const snapshotCache = new LruCache<string, CachedSnapshot>(50);
 
 /** Built llms.txt / llms-full.txt bodies are a pure function of the frozen
  *  snapshot's pages, so memoize them per deployment id — llms-full re-serializes
@@ -186,8 +194,8 @@ const getLiveChrome = async (projectId: string): Promise<LiveChromeRow | null> =
 /** Overlay live, non-versioned site chrome from the Project row onto a snapshot
  *  project. Branding and config (styling, navbar/footer, SEO, visibility,
  *  analytics, variables) reflect the current settings so appearance edits are
- *  live without a re-publish. Redirects, content, pages, languages and versions
- *  are left as captured — those are routing/versioned data a publish freezes.
+ *  live without a re-publish. Redirects, content, pages and languages are left
+ *  as captured — those are routing data a publish freezes.
  *  Returns a new object so the cached snapshot is never mutated per-request. */
 const overlayLiveChrome = (project: SnapshotProject, live: LiveChromeRow | null): SnapshotProject => {
   if (!live) {
@@ -256,20 +264,21 @@ const getPublished = async (identifier: string): Promise<PublishedSite> => {
   if (!deployment) {
     throw notFound('site', { identifier, reason: 'not_published' });
   }
-  let frozen = snapshotCache.get(deployment.id);
-  if (!frozen) {
+  let cached = snapshotCache.get(deployment.id);
+  if (!cached) {
     const row = await prisma.deployment.findUnique({ where: { id: deployment.id }, select: { snapshot: true } });
     if (!row?.snapshot) {
       throw notFound('site', { identifier, reason: 'not_published' });
     }
-    frozen = defaultVersionOnly(row.snapshot as unknown as SiteSnapshot);
-    snapshotCache.set(deployment.id, frozen);
+    cached = { snapshot: readSnapshot(row.snapshot), legacyVersions: hasLegacyVersions(row.snapshot) };
+    snapshotCache.set(deployment.id, cached);
   }
+  const frozen = cached.snapshot;
   // Overlay the LIVE site chrome (branding, styling, navbar/footer, SEO,
   // visibility, analytics) over the frozen snapshot so config/appearance edits
   // apply to the live site within seconds — without a re-publish. Page CONTENT
-  // and navigation STRUCTURE stay frozen in the snapshot (those are the
-  // versioned docs that a publish captures); redirects are also kept frozen so
+  // and navigation STRUCTURE stay frozen in the snapshot (that is what a
+  // publish captures); redirects are also kept frozen so
   // they switch atomically with the READY snapshot. The copy keeps the shared
   // cached snapshot immutable.
   // `primaryDomain` rides along so the app edge can consolidate canonicals and
@@ -293,7 +302,8 @@ const getPublished = async (identifier: string): Promise<PublishedSite> => {
   }
   const pages = filterPagesForReader(frozen.pages, viewer.allowedPageIds);
   const snapshot: SiteSnapshot = { ...frozen, project, pages };
-  return { snapshot, version: deployment.version, deploymentId: deployment.id, viewer };
+  const searchPageIds = cached.legacyVersions ? new Set(pages.map((page) => page.id)) : viewer.allowedPageIds;
+  return { snapshot, version: deployment.version, deploymentId: deployment.id, viewer, searchPageIds };
 };
 
 /** Resolve the active language code: the requested `lang` if it exists in the
@@ -310,44 +320,10 @@ const activeLanguageCode = (snapshot: SiteSnapshot, lang?: string): string => {
 /** Only the pages belonging to a given language. */
 const pagesForLanguage = (pages: SnapshotPage[], lang: string): SnapshotPage[] => pages.filter((p) => p.languageCode === lang);
 
-const defaultVersion = (snapshot: SiteSnapshot): SnapshotVersion => {
-  const defaults = snapshot.project.versions.filter((version) => version.isDefault);
-  if (defaults.length !== 1 || !defaults[0]) {
-    throw new Error(`Snapshot project ${snapshot.project.id} must have exactly one default version.`);
-  }
-  return defaults[0];
-};
-
-const activeVersion = (snapshot: SiteSnapshot, version?: string): SnapshotVersion => {
-  const requested = version?.trim();
-  if (requested) {
-    const match = snapshot.project.versions.find((candidate) => candidate.slug === requested);
-    if (match) {
-      return match;
-    }
-  }
-  return defaultVersion(snapshot);
-};
-
-const matchingVersion = (snapshot: SiteSnapshot, version?: string): SnapshotVersion | undefined => {
-  const requested = version?.trim();
-  if (!requested) {
-    return undefined;
-  }
-  return snapshot.project.versions.find((candidate) => candidate.slug === requested);
-};
-
-const pageBelongsToVersion = (page: SnapshotPage, version: SnapshotVersion): boolean => page.versionId === version.id;
-
-const pagesForVersion = (snapshot: SiteSnapshot, version: SnapshotVersion): SnapshotPage[] =>
-  snapshot.pages.filter((page) => pageBelongsToVersion(page, version));
-
 /** The published site shell: project branding + navigation tree (per language). */
-export const getSite = async (identifier: string, lang?: string, version?: string) => {
+export const getSite = async (identifier: string, lang?: string) => {
   const { snapshot, version: deploymentVersion } = await getPublished(identifier);
-  const docsVersion = activeVersion(snapshot, version);
   const activeLanguage = activeLanguageCode(snapshot, lang);
-  const versionPages = pagesForVersion(snapshot, docsVersion);
   // Only enabled languages are exposed publicly (switcher, hreflang, payload).
   const servedLanguages = publicLanguages(snapshot.project.languages);
   // The ACTIVE language's config (localized site name/description + per-language
@@ -368,11 +344,9 @@ export const getSite = async (identifier: string, lang?: string, version?: strin
   return {
     project,
     languages: servedLanguages,
-    versions: snapshot.project.versions,
     activeLanguage,
-    activeVersion: docsVersion.slug,
     languageConfig: shellLanguage?.config ?? null,
-    nav: withOpenApiNav(buildNavTree(versionPages, activeLanguage), snapshot.openapi),
+    nav: withOpenApiNav(buildNavTree(snapshot.pages, activeLanguage), snapshot.openapi),
     openapi: snapshot.openapi
       ? {
           title: snapshot.openapi.title,
@@ -412,19 +386,13 @@ const flattenNav = (nav: NavNode[]): NavNode[] =>
 
 /** A single published page with TOC, breadcrumbs, and prev/next neighbours.
  *  Scoped to the active language, falling back to the default language. */
-export const getSitePage = async (identifier: string, path: string, lang?: string, version?: string) => {
+export const getSitePage = async (identifier: string, path: string, lang?: string) => {
   const { snapshot } = await getPublished(identifier);
-  const explicitVersion = matchingVersion(snapshot, version);
-  let normalized = path.replace(/^\/+|\/+$/g, '');
-  if (explicitVersion && (normalized === explicitVersion.slug || normalized.startsWith(`${explicitVersion.slug}/`))) {
-    normalized = normalized.slice(explicitVersion.slug.length).replace(/^\/+/, '');
-  }
+  const normalized = path.replace(/^\/+|\/+$/g, '');
   const activeLanguage = activeLanguageCode(snapshot, lang);
-  const docsVersion = explicitVersion ?? activeVersion(snapshot, version);
-  const versionPages = pagesForVersion(snapshot, docsVersion);
 
   const findIn = (langCode: string) => {
-    const langPages = pagesForLanguage(versionPages, langCode);
+    const langPages = pagesForLanguage(snapshot.pages, langCode);
     const found =
       langPages.find((p) => p.path === normalized && p.kind === 'PAGE' && !p.hidden) ??
       (normalized === '' ? firstPage(langPages, langCode) : undefined) ??
@@ -467,7 +435,7 @@ export const getSitePage = async (identifier: string, path: string, lang?: strin
   // point a crawler at a missing or wrong-language URL. Disabled languages are
   // excluded entirely — their pages aren't served, so they must not be linked.
   const alternates = servedLanguages.map((l) => {
-    const sibling = versionPages.find(
+    const sibling = snapshot.pages.find(
       (p) => p.languageCode === l.code && p.kind === 'PAGE' && !p.hidden && p.config?.seo?.noindex !== true && isPageTranslation(page, p),
     );
     const languageIndexable = l.config?.seo?.allowIndex !== false;
@@ -485,8 +453,6 @@ export const getSitePage = async (identifier: string, path: string, lang?: strin
     // The language the page actually resolved in (may differ from the requested
     // ?lang when it fell back) — canonical/og/hreflang are built from this.
     activeLanguage: navLanguage,
-    activeVersion: docsVersion.slug,
-    versions: snapshot.project.versions,
     page: {
       id: page.id,
       // Snapshots published before this field was introduced still get a
@@ -523,8 +489,8 @@ export const getSitePage = async (identifier: string, path: string, lang?: strin
  * workspace member or invited reader may render HTML, but cannot turn private
  * or audience-restricted content into a crawlable Markdown response.
  */
-export const getSitePageMarkdown = async (identifier: string, path: string, lang?: string, version?: string): Promise<SiteTextDocument> => {
-  const data = await getSitePage(identifier, path, lang, version);
+export const getSitePageMarkdown = async (identifier: string, path: string, lang?: string): Promise<SiteTextDocument> => {
+  const data = await getSitePage(identifier, path, lang);
   const requestedLanguage = lang?.trim();
   if (requestedLanguage && data.activeLanguage !== requestedLanguage) {
     throw notFound('page', { path, language: requestedLanguage, reason: 'language_fallback' });
@@ -567,12 +533,10 @@ type LocalizedSearchHit = SearchHit & { language: string };
 /** Full-text + fuzzy search over a published site; records a search analytics event.
  *  The reader UI searches every published language. An explicit `lang` remains
  *  supported for API clients that intentionally want a single-language scope. */
-export const searchSite = async (identifier: string, query: string, lang?: string, limit?: number, version?: string) => {
+export const searchSite = async (identifier: string, query: string, lang?: string, limit?: number) => {
   const analyticsStartedAt = performance.now();
-  const { snapshot, deploymentId, viewer } = await getPublished(identifier);
-  const request = resolvePublishedSearchContext(snapshot, { language: lang, version, limit });
-  const docsVersion = request.version;
-  const versionPages = pagesForVersion(snapshot, docsVersion);
+  const { snapshot, deploymentId, viewer, searchPageIds } = await getPublished(identifier);
+  const request = resolvePublishedSearchContext(snapshot, { language: lang, limit });
   const resultLimit = request.limit;
   const requestedLanguages = resolvePublishedSearchLanguages(snapshot, lang);
   const perLanguage = await Promise.all(
@@ -580,23 +544,16 @@ export const searchSite = async (identifier: string, query: string, lang?: strin
       const scope: SearchScope = {
         projectId: snapshot.project.id,
         deploymentId,
-        versionSlug: docsVersion.slug,
         language,
         visibility: (snapshot.project as PublicSnapshotProject).accessMode === 'PUBLIC' ? 'public' : 'private',
-        allowedPageIds: viewer.allowedPageIds,
+        allowedPageIds: searchPageIds,
       };
       const result = await runPublishedSearch(
         scope,
         query,
         resultLimit,
         async () => {
-          const index = await getCachedIndex(
-            snapshot.project.id,
-            `${deploymentId}:${docsVersion.slug}`,
-            language,
-            versionPages,
-            viewer.allowedPageIds,
-          );
+          const index = await getCachedIndex(snapshot.project.id, deploymentId, language, snapshot.pages, viewer.allowedPageIds);
           return searchDocs(index, query, { limit: resultLimit });
         },
         getContext<HonoEnv>().req.raw.signal,
@@ -644,14 +601,13 @@ export const searchSite = async (identifier: string, query: string, lang?: strin
 
 /** Grounded answer mode uses the exact same server-derived publication and
  * reader scope as results mode. The client cannot submit any tenant/page filter. */
-export const answerSite = async (identifier: string, query: string, lang?: string, version?: string) => {
-  const { snapshot, deploymentId, viewer } = await getPublished(identifier);
-  const request = resolvePublishedSearchContext(snapshot, { language: lang, version });
+export const answerSite = async (identifier: string, query: string, lang?: string) => {
+  const { snapshot, deploymentId, searchPageIds } = await getPublished(identifier);
+  const request = resolvePublishedSearchContext(snapshot, { language: lang });
   if (!request.configuration.aiAnswers || !answerSearchAvailable()) {
     throw new AppError({ code: 'search:unavailable', message: `AI answers are not configured for this ${instanceBrand().name} instance.` });
   }
   const activeLanguage = request.language;
-  const docsVersion = request.version;
   const quota = await consumeAnswerQuota(snapshot.project.id).catch((cause) => {
     throw new AppError({ code: 'search:unavailable', message: 'AI answer quota service is unavailable.', cause });
   });
@@ -661,10 +617,9 @@ export const answerSite = async (identifier: string, query: string, lang?: strin
   const scope: SearchScope = {
     projectId: snapshot.project.id,
     deploymentId,
-    versionSlug: docsVersion.slug,
     language: activeLanguage,
     visibility: (snapshot.project as PublicSnapshotProject).accessMode === 'PUBLIC' ? 'public' : 'private',
-    allowedPageIds: viewer.allowedPageIds,
+    allowedPageIds: searchPageIds,
   };
   const answer = await answerPublishedSearch(scope, query, getContext<HonoEnv>().req.raw.signal).catch((cause) => {
     if (cause instanceof AppError) throw cause;
@@ -844,14 +799,9 @@ export const getSiteSitemap = async (identifier: string): Promise<SiteTextDocume
     )
     .map((page) => {
       // Default-language pages use the clean URL (no ?lang) — their canonical.
-      const pageVersion = snapshot.project.versions.find((version) => pageBelongsToVersion(page, version));
-      if (!pageVersion) {
-        throw new Error(`Snapshot page ${page.id} references an unknown version.`);
-      }
-      const versionPath = !pageVersion.isDefault ? `/${encodeURIComponent(pageVersion.slug)}` : '';
       const pagePath = page.path ? `/${page.path}` : '';
       const langQuery = page.languageCode !== defaultCode ? `?lang=${encodeURIComponent(page.languageCode)}` : '';
-      const loc = `${base}${versionPath}${pagePath}${langQuery}`;
+      const loc = `${base}${pagePath}${langQuery}`;
       const lastmod = isoTimestamp(page.updatedAt, 'page updatedAt');
       return `  <url><loc>${escapeXml(loc)}</loc><lastmod>${escapeXml(lastmod)}</lastmod></url>`;
     });

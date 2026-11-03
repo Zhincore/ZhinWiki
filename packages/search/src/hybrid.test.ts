@@ -15,7 +15,6 @@ import {
 const scope = (projectId: string, pages: string[] | null = null): SearchScope => ({
   projectId,
   deploymentId: 'deployment-1',
-  versionSlug: 'main',
   language: 'ar',
   visibility: 'private',
   allowedPageIds: pages === null ? null : new Set(pages),

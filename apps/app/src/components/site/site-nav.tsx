@@ -23,15 +23,11 @@ export function firstLeafPath(nodes: NavNode[]): string | undefined {
 const containsPath = (node: NavNode, path: string): boolean =>
   (node.kind === 'PAGE' && node.path === path) || node.children.some((child) => containsPath(child, path));
 
-/** API references are deployment resources, not branch-backed pages, so their
- *  link must stay stable while browsing a non-default docs version. */
-export const isVersionIndependentNavNode = (node: Pick<NavNode, 'id'>): boolean => node.id.startsWith('openapi:');
-
 /** Pages with subpages collapse like virtual categories: only the branch
  *  holding the current page starts expanded. The link keeps navigating; the
  *  adjacent chevron toggles the subtree. Collapsed subpages stay in the DOM,
  *  hidden, so server HTML keeps every link for crawlers. */
-function NavLink({ node, projectId, currentPath, lang, version, depth, toggleLabel, rail }: NavItemProps & { node: NavNode; rail?: boolean }) {
+function NavLink({ node, projectId, currentPath, lang, depth, toggleLabel, rail }: NavItemProps & { node: NavNode; rail?: boolean }) {
   const active = currentPath === node.path;
   const hasChildren = node.children.length > 0;
   const [open, setOpen] = useState(() => containsPath(node, currentPath));
@@ -49,7 +45,7 @@ function NavLink({ node, projectId, currentPath, lang, version, depth, toggleLab
       <div className="flex items-center gap-0.5">
         <a
           id={linkId}
-          href={siteHref(projectId, node.path, { lang, version: isVersionIndependentNavNode(node) ? undefined : version })}
+          href={siteHref(projectId, node.path, { lang })}
           aria-current={active ? 'page' : undefined}
           className={cn(
             'relative flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors',
@@ -90,7 +86,6 @@ function NavLink({ node, projectId, currentPath, lang, version, depth, toggleLab
           currentPath={currentPath}
           depth={depth + 1}
           lang={lang}
-          version={version}
           toggleLabel={toggleLabel}
           rail
         />
@@ -102,7 +97,7 @@ function NavLink({ node, projectId, currentPath, lang, version, depth, toggleLab
 /** Top-level groups render as Mintlify-style section headers (sentence case,
  *  semibold, generous spacing). They stay collapsible — the chevron only shows
  *  on hover so the resting state reads as a plain heading. */
-function NavSection({ node, projectId, currentPath, lang, version, depth, toggleLabel }: NavItemProps & { node: NavNode }) {
+function NavSection({ node, projectId, currentPath, lang, depth, toggleLabel }: NavItemProps & { node: NavNode }) {
   const [open, setOpen] = useState(true);
   return (
     <li className="mt-7 first:mt-1">
@@ -124,15 +119,7 @@ function NavSection({ node, projectId, currentPath, lang, version, depth, toggle
       </button>
       {open && node.children.length > 0 ? (
         <div className="mt-1">
-          <NavItems
-            nodes={node.children}
-            projectId={projectId}
-            currentPath={currentPath}
-            depth={depth + 1}
-            lang={lang}
-            version={version}
-            toggleLabel={toggleLabel}
-          />
+          <NavItems nodes={node.children} projectId={projectId} currentPath={currentPath} depth={depth + 1} lang={lang} toggleLabel={toggleLabel} />
         </div>
       ) : null}
     </li>
@@ -140,7 +127,7 @@ function NavSection({ node, projectId, currentPath, lang, version, depth, toggle
 }
 
 /** Nested groups render as collapsible rows styled like items. */
-function NavSubGroup({ node, projectId, currentPath, lang, version, depth, toggleLabel }: NavItemProps & { node: NavNode }) {
+function NavSubGroup({ node, projectId, currentPath, lang, depth, toggleLabel }: NavItemProps & { node: NavNode }) {
   // Imported taxonomies can contain hundreds of pages. Keep only the active
   // virtual category expanded so the sidebar is scannable on first load; hand-
   // authored nested groups preserve their existing expanded behaviour.
@@ -169,7 +156,6 @@ function NavSubGroup({ node, projectId, currentPath, lang, version, depth, toggl
           currentPath={currentPath}
           depth={depth + 1}
           lang={lang}
-          version={version}
           toggleLabel={toggleLabel}
           rail
         />
@@ -183,8 +169,6 @@ interface NavItemProps {
   currentPath: string;
   depth: number;
   lang?: string;
-  /** Non-default version path prefix, e.g. "next". Default/latest is undefined. */
-  version?: string;
   /** Accessible label prefix for a page's subpage toggle. */
   toggleLabel: string;
 }
@@ -213,14 +197,12 @@ export function SiteNav({
   projectId,
   currentPath,
   lang,
-  version,
   toggleLabel,
 }: {
   nodes: NavNode[];
   projectId: string;
   currentPath: string;
   lang?: string;
-  version?: string;
   toggleLabel: string;
 }) {
   return (
@@ -228,7 +210,7 @@ export function SiteNav({
       <noscript>
         <style>{SHOW_SUBPAGES_WITHOUT_SCRIPT}</style>
       </noscript>
-      <NavItems nodes={nodes} projectId={projectId} currentPath={currentPath} depth={0} lang={lang} version={version} toggleLabel={toggleLabel} />
+      <NavItems nodes={nodes} projectId={projectId} currentPath={currentPath} depth={0} lang={lang} toggleLabel={toggleLabel} />
     </nav>
   );
 }

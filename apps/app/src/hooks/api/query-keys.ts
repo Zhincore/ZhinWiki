@@ -90,10 +90,9 @@ export const queryKeys = {
     all: (projectId: string) => ['integrations', projectId] as const,
   },
   site: {
-    shell: (id: string, lang?: string, version?: string) => ['site', id, lang ?? null, version ?? null] as const,
-    page: (id: string, path: string, lang?: string, version?: string) => ['site', id, 'page', path, lang ?? null, version ?? null] as const,
-    search: (id: string, q: string, lang?: string, version?: string, limit?: number) =>
-      ['site', id, 'search', q, lang ?? null, version ?? null, limit ?? null] as const,
+    shell: (id: string, lang?: string) => ['site', id, lang ?? null] as const,
+    page: (id: string, path: string, lang?: string) => ['site', id, 'page', path, lang ?? null] as const,
+    search: (id: string, q: string, lang?: string, limit?: number) => ['site', id, 'search', q, lang ?? null, limit ?? null] as const,
     changelog: (id: string) => ['site', id, 'changelog'] as const,
   },
 } as const;

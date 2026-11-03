@@ -24,9 +24,9 @@ import type { HonoEnv } from '@/lib/hono/context';
 import { validator } from '@/lib/hono/validate';
 import sitesRoutes from './routes';
 
-const siteQuery = z.object({ lang: z.string().optional(), version: z.string().optional() });
-const pageQuery = z.object({ path: z.string().default(''), lang: z.string().optional(), version: z.string().optional() });
-const siteSearchQuery = searchQuery.extend({ lang: z.string().optional(), version: z.string().optional() });
+const siteQuery = z.object({ lang: z.string().optional() });
+const pageQuery = z.object({ path: z.string().default(''), lang: z.string().optional() });
+const siteSearchQuery = searchQuery.extend({ lang: z.string().optional() });
 
 /** Shared-cache policy for published-site data: CDNs/proxies may keep it for a
  *  minute and serve stale for five while revalidating. Content only changes on
@@ -55,20 +55,20 @@ const app = new Hono<HonoEnv>()
     return site ? ctx.json({ data: site }, 200) : ctx.json({ data: null }, 404);
   })
   .get('/:id', ...sitesRoutes.site, validator('query', siteQuery), async (ctx) => {
-    const { lang, version } = ctx.req.valid('query');
-    const data = await getSite(ctx.req.param('id'), lang, version);
+    const { lang } = ctx.req.valid('query');
+    const data = await getSite(ctx.req.param('id'), lang);
     setSiteCache(ctx, data.project);
     return ctx.json({ data }, 200);
   })
   .get('/:id/page', ...sitesRoutes.page, validator('query', pageQuery), async (ctx) => {
-    const { path, lang, version } = ctx.req.valid('query');
-    const data = await getSitePage(ctx.req.param('id'), path, lang, version);
+    const { path, lang } = ctx.req.valid('query');
+    const data = await getSitePage(ctx.req.param('id'), path, lang);
     setSiteCache(ctx, data.project);
     return ctx.json({ data }, 200);
   })
   .get('/:id/markdown', ...sitesRoutes.markdown, validator('query', pageQuery), async (ctx) => {
-    const { path, lang, version } = ctx.req.valid('query');
-    return textDocument(ctx, await getSitePageMarkdown(ctx.req.param('id'), path, lang, version), 'text/markdown; charset=utf-8');
+    const { path, lang } = ctx.req.valid('query');
+    return textDocument(ctx, await getSitePageMarkdown(ctx.req.param('id'), path, lang), 'text/markdown; charset=utf-8');
   })
   .get('/:id/openapi.json', ...sitesRoutes.openapi, async (ctx) => {
     const data = await getSiteOpenApi(ctx.req.param('id'));
@@ -82,16 +82,16 @@ const app = new Hono<HonoEnv>()
     return ctx.json(data.document, 200);
   })
   .get('/:id/search', ...sitesRoutes.search, validator('query', siteSearchQuery), async (ctx) => {
-    const { q, limit, lang, version } = ctx.req.valid('query');
+    const { q, limit, lang } = ctx.req.valid('query');
     ctx.header('Cache-Control', 'private, no-store');
     ctx.header('Vary', 'Cookie, Authorization');
-    return ctx.json({ data: await searchSite(ctx.req.param('id'), q, lang, limit, version) }, 200);
+    return ctx.json({ data: await searchSite(ctx.req.param('id'), q, lang, limit) }, 200);
   })
   .post('/:id/answer', ...sitesRoutes.answer, validator('json', searchAnswerBody), async (ctx) => {
-    const { q, lang, version } = ctx.req.valid('json');
+    const { q, lang } = ctx.req.valid('json');
     ctx.header('Cache-Control', 'private, no-store');
     ctx.header('Vary', 'Cookie, Authorization');
-    return ctx.json({ data: await answerSite(ctx.req.param('id'), q, lang, version) }, 200);
+    return ctx.json({ data: await answerSite(ctx.req.param('id'), q, lang) }, 200);
   })
   .post('/:id/events', ...sitesRoutes.track, validator('json', publicAnalyticsEventSchema), async (ctx) => {
     ctx.header('Cache-Control', 'private, no-store');

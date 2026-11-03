@@ -1,12 +1,11 @@
 import { Button } from '@nibleaf/design-system/components/ui/button';
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '@nibleaf/design-system/components/ui/command';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@nibleaf/design-system/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@nibleaf/design-system/components/ui/select';
 import { siteT } from '@nibleaf/i18n/site';
 import { useDebouncedValue } from '@tanstack/react-pacer';
 import { useRouter } from '@tanstack/react-router';
 import { AlertCircle, FileText, Loader2, Search, Sparkles, X } from 'lucide-react';
-import { lazy, Suspense, useEffect, useId, useState } from 'react';
+import { lazy, Suspense, useId, useState } from 'react';
 import { hasIcon, PageIcon } from '@/components/site/page-icon';
 import { useAnswerSite, useSiteSearch } from '@/hooks/api/site-search';
 import { LANGUAGE_CATALOG } from '@/lib/languages';
@@ -59,11 +58,8 @@ export default function SiteSearchDialog({
   lang,
   defaultLanguage,
   direction,
-  version,
   placeholder,
   maxResults,
-  versions = [],
-  versionFilterEnabled = true,
   aiAnswers,
 }: {
   projectId: string;
@@ -74,15 +70,11 @@ export default function SiteSearchDialog({
   /** Use the published language's configured direction, independently of the
    * chrome translation locale (which may fall back to English). */
   direction?: 'ltr' | 'rtl';
-  /** Non-default version path prefix, e.g. "next". Default/latest is undefined. */
-  version?: string;
   /** Configured search prompt (config.search.placeholder); falls back to the localized default. */
   placeholder?: string;
   /** Which key opens search (config.search.hotkey): ⌘K (default) or a bare '/'. */
   hotkey?: 'cmdk' | 'slash';
   maxResults?: number;
-  versions?: Array<{ id: string; name: string; slug: string; isDefault: boolean }>;
-  versionFilterEnabled?: boolean;
   /** Shows the "Ask AI" mode: the site enables AI answers and the instance
    * can serve them. The answer endpoint still enforces both server-side. */
   aiAnswers?: boolean;
@@ -94,28 +86,24 @@ export default function SiteSearchDialog({
   const [requestedMode, setMode] = useState<'search' | 'answer'>('search');
   const mode = aiAnswers ? requestedMode : 'search';
   const modeId = useId();
-  const [selectedVersion, setSelectedVersion] = useState(version);
   const baseLanguage = lang?.toLowerCase().split(/[-_]/)[0];
   const rtl = direction ? direction === 'rtl' : (LANGUAGE_CATALOG.find((language) => language.code === baseLanguage)?.rtl ?? false);
-  const versionOptions = versions.map((item) => ({ value: item.isDefault ? '__default' : item.slug, label: item.name }));
   // Debounce the typed query before it feeds the search request, so we don't fire a
   // request per keystroke.
   const [debouncedQuery] = useDebouncedValue(query, { wait: 250 });
   // Keyword search is intentionally language-independent. Omitting `language`
   // asks the public endpoint to search every enabled language in the published
   // snapshot; each hit carries its own language for correct localized routing.
-  const hitsQuery = useSiteSearch(projectId, debouncedQuery.trim(), undefined, selectedVersion, maxResults, open && mode === 'search');
+  const hitsQuery = useSiteSearch(projectId, debouncedQuery.trim(), undefined, maxResults, open && mode === 'search');
   const answerMutation = useAnswerSite();
   const queryPending = query.trim() !== debouncedQuery.trim() || hitsQuery.isFetching;
   const hits = query.trim() && !queryPending && !hitsQuery.error ? (hitsQuery.data ?? []) : [];
-  // A completed request belongs to the exact question and documentation scope
-  // that produced it. Editing the query or version must never relabel old
-  // evidence or send its citations into a different version.
+  // A completed request belongs to the exact question and language that
+  // produced it. Editing the query must never relabel old evidence.
   const answerMatchesScope =
     answerMutation.variables?.projectId === projectId &&
     answerMutation.variables.query === query.trim() &&
-    answerMutation.variables.language === lang &&
-    answerMutation.variables.version === selectedVersion;
+    answerMutation.variables.language === lang;
   const answer = answerMatchesScope && !answerMutation.isPending ? (answerMutation.data ?? null) : null;
   const answerError = answerMatchesScope && !answerMutation.isPending && answerMutation.error ? t('answerFailed') : null;
   const searchMessage = !query.trim() ? t('searchPrompt') : queryPending ? t('searching') : hitsQuery.error ? t('searchFailed') : t('searchEmpty');
@@ -129,15 +117,8 @@ export default function SiteSearchDialog({
       // Answers stay in the reader's current language even though ordinary
       // results search the whole multilingual corpus.
       ...(lang ? { language: lang } : {}),
-      ...(selectedVersion ? { version: selectedVersion } : {}),
     });
   };
-
-  useEffect(() => {
-    if (open) {
-      setSelectedVersion(version);
-    }
-  }, [open, version]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -209,26 +190,6 @@ export default function SiteSearchDialog({
               <X className="size-4" aria-hidden />
             </Button>
           </div>
-          {mode === 'search' && versionFilterEnabled && versions.length > 1 ? (
-            <div className="flex flex-col gap-2 border-b px-3 py-2.5 sm:flex-row">
-              <Select
-                items={versionOptions}
-                onValueChange={(value) => setSelectedVersion(!value || value === '__default' ? undefined : value)}
-                value={selectedVersion ?? '__default'}
-              >
-                <SelectTrigger aria-label={t('searchFilterVersion')} className="min-w-0 flex-1 sm:max-w-56">
-                  <SelectValue placeholder={t('searchFilterVersion')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {versionOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : null}
           {mode === 'search' ? (
             <section
               id={`${modeId}-search-panel`}
@@ -256,7 +217,7 @@ export default function SiteSearchDialog({
                           });
                           onOpenChange(false);
                           void router.navigate({
-                            href: siteHref(projectId, hit.path, { lang: siteLanguageParam(hit.language, defaultLanguage), version: selectedVersion }),
+                            href: siteHref(projectId, hit.path, { lang: siteLanguageParam(hit.language, defaultLanguage) }),
                           });
                         }}
                       >
@@ -301,7 +262,7 @@ export default function SiteSearchDialog({
               ) : null}
               {answer ? (
                 <Suspense fallback={null}>
-                  <SiteSearchAnswer answer={answer} projectId={projectId} lang={lang} version={selectedVersion} rtl={rtl} />
+                  <SiteSearchAnswer answer={answer} projectId={projectId} lang={lang} rtl={rtl} />
                 </Suspense>
               ) : null}
               <div className="mt-4 flex items-center justify-between gap-3 border-t pt-4">

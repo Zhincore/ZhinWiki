@@ -59,7 +59,6 @@ export interface SiteLinkContext {
   projectId: string;
   lang?: string;
   defaultLanguage?: string;
-  version?: string;
 }
 
 export interface MarkdownProps {
@@ -85,7 +84,7 @@ function resolveDocHref(href: string | undefined, site: SiteLinkContext | undefi
     return href;
   }
   if (href.startsWith('/')) {
-    return siteHref(site.projectId, href, { lang: siteLanguageParam(site.lang, site.defaultLanguage), version: site.version });
+    return siteHref(site.projectId, href, { lang: siteLanguageParam(site.lang, site.defaultLanguage) });
   }
   return href;
 }

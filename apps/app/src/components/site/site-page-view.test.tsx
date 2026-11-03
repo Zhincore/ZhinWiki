@@ -46,8 +46,6 @@ const data = (overrides: Partial<SitePage> = {}): SitePage => ({
     config: { mode: 'center' },
   },
   activeLanguage: 'en',
-  activeVersion: 'main',
-  versions: [{ id: 'version-1', name: 'Main', slug: 'main', isDefault: true }],
   languageConfig: null,
   languages: [
     { code: 'en', isDefault: true, path: 'start' },
@@ -84,17 +82,15 @@ describe('published page presentation', () => {
     30_000,
   );
 
-  it('keeps a non-default language and version on generated reader links', async () => {
+  it('keeps a non-default language on generated reader links', async () => {
     const fixture = data({
       activeLanguage: 'ar',
-      activeVersion: 'v2',
-      versions: [{ id: 'v2', name: 'V2', slug: 'v2', isDefault: false }],
       page: { ...data().page, content: '[Sibling](/sibling#setup)' },
       next: { title: 'Next', path: 'next' },
     });
     const html = await renderCompleteHtml(<SitePageView data={fixture} lang="ar" projectId="project-1" />);
-    expect(html).toContain('href="/sites/project-1/v2/sibling?lang=ar#setup"');
-    expect(html).toContain('href="/sites/project-1/v2/next?lang=ar"');
+    expect(html).toContain('href="/sites/project-1/sibling?lang=ar#setup"');
+    expect(html).toContain('href="/sites/project-1/next?lang=ar"');
   });
   it('excludes literal image examples from article screenshot counts but counts prose images', () => {
     const examples = ['````mdx', '<img src="/literal.png" />', '```', '![Example](/literal.png)', '````', '`<img src="/inline.png" />`'].join('\n');

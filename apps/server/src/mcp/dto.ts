@@ -1,4 +1,3 @@
-import { listBranches } from '@/actions/branches';
 import { getDeployment, getPendingChanges, listDeployments } from '@/actions/deployments';
 import { getExport, listExports } from '@/actions/exports';
 import { listLanguages } from '@/actions/languages';
@@ -30,11 +29,10 @@ export const getProjectDto = async (organizationId: string, projectId: string) =
   };
 };
 
-export const listPageDtos = async (projectId: string, languageId?: string, versionId?: string) =>
-  (await listPages(projectId, languageId, versionId)).map((page) => ({
+export const listPageDtos = async (projectId: string, languageId?: string) =>
+  (await listPages(projectId, languageId)).map((page) => ({
     id: page.id,
     parentId: page.parentId,
-    versionId: page.branchId,
     languageId: page.languageId,
     kind: page.kind,
     title: page.title,
@@ -53,7 +51,6 @@ export const getPageDto = async (projectId: string, pageId: string) => {
   return {
     id: page.id,
     parentId: page.parentId,
-    versionId: page.branchId,
     languageId: page.languageId,
     kind: page.kind,
     title: page.title,
@@ -81,15 +78,6 @@ export const listLanguageDtos = async (projectId: string) =>
     position: language.position,
     createdAt: language.createdAt.toISOString(),
     updatedAt: language.updatedAt.toISOString(),
-  }));
-
-export const listVersionDtos = async (projectId: string) =>
-  (await listBranches(projectId)).map((branch) => ({
-    versionId: branch.id,
-    name: branch.name,
-    isDefault: branch.isDefault,
-    createdAt: branch.createdAt.toISOString(),
-    updatedAt: branch.updatedAt.toISOString(),
   }));
 
 export const listExportDtos = async (projectId: string) =>

@@ -465,8 +465,6 @@ async function proxyPublishedMarkdown(projectId: string, path: string, search: U
     const query = new URLSearchParams({ path });
     const language = search.get('lang');
     if (language) query.set('lang', language);
-    const version = path.replace(/^\/+|\/+$/gu, '').split('/')[0];
-    if (version) query.set('version', version);
     const response = await got(`${SELF}/api/public/sites/${projectId}/markdown?${query}`, {
       headers: publicMachineRequestHeaders(),
       retry: { limit: 0 },

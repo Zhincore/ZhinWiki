@@ -101,7 +101,7 @@ describe('tenant-safe search actions', () => {
     mocks.updateManyRun.mockResolvedValue({ count: 1 });
     mocks.createJob.mockResolvedValue({});
     mocks.listMetadata.mockResolvedValue({
-      points: [{ id: 'point-a', payload: { page_id: 'page-a', ordinal: 0, language: 'ar', version_slug: 'main' } }],
+      points: [{ id: 'point-a', payload: { page_id: 'page-a', ordinal: 0, language: 'ar' } }],
       nextOffset: 9,
     });
     mocks.count.mockResolvedValue(1);
@@ -113,7 +113,7 @@ describe('tenant-safe search actions', () => {
   it('defaults a malformed legacy search section instead of throwing', async () => {
     mocks.access.project.config = { search: { maxResults: 'unbounded', placeholder: { private: true } }, theme: { custom: true } };
     await expect(getProjectSearchConfiguration(context({ user: { id: 'user-a' } }), 'project-a')).resolves.toMatchObject({
-      configuration: { maxResults: 12, filtersEnabled: true, versionFilterEnabled: true, placeholder: null },
+      configuration: { maxResults: 12, filtersEnabled: true, placeholder: null },
       constraints: { maxResults: { default: 12, min: 1, max: 50 } },
     });
   });
@@ -145,7 +145,7 @@ describe('tenant-safe search actions', () => {
     expect(mocks.findRun).toHaveBeenCalledWith(expect.objectContaining({ where: { projectId: 'project-a', deploymentId: 'deployment-a' } }));
     expect(mocks.count).toHaveBeenCalledWith(expectedFilter);
     expect(mocks.listMetadata).toHaveBeenCalledWith(expectedFilter, { limit: 10, offset: undefined });
-    expect(result.samples.items[0]).toMatchObject({ pageId: 'page-a', language: 'ar', versionSlug: 'main' });
+    expect(result.samples.items[0]).toMatchObject({ pageId: 'page-a', language: 'ar' });
     expect(result.samples.nextCursor?.startsWith('v1.')).toBe(true);
     expect(JSON.stringify(result)).not.toMatch(/"(?:content|vector|title|path|collection|alias|providerPayload)":/i);
   });
@@ -232,7 +232,7 @@ describe('tenant-safe search actions', () => {
       staleChunks: 1,
       failedChunks: 1,
       errorCode: 'embedding_failed',
-      issueSample: [{ pageId: 'page-a', ordinal: 2, language: 'ar', versionSlug: 'main', status: 'failed', errorCode: 'embedding_failed' }],
+      issueSample: [{ pageId: 'page-a', ordinal: 2, language: 'ar', status: 'failed', errorCode: 'embedding_failed' }],
       startedAt: new Date('2026-08-23T10:00:00Z'),
       completedAt: new Date('2026-08-23T10:01:00Z'),
     };

@@ -45,7 +45,6 @@ export interface SnapshotLanguageConfig {
 export interface SnapshotPage {
   id: string;
   parentId: string | null;
-  versionId: string;
   /** Optional for snapshots created before publication dates were preserved. */
   createdAt?: string;
   updatedAt: string;
@@ -75,13 +74,6 @@ export interface SnapshotLanguage {
   config: SnapshotLanguageConfig | null;
 }
 
-export interface SnapshotVersion {
-  id: string;
-  name: string;
-  slug: string;
-  isDefault: boolean;
-}
-
 export interface SnapshotProject {
   id: string;
   name: string;
@@ -90,7 +82,6 @@ export interface SnapshotProject {
   icon: string | null;
   config: Record<string, unknown> | null;
   languages: SnapshotLanguage[];
-  versions: SnapshotVersion[];
 }
 
 /** A validated, self-contained OpenAPI document frozen with a deployment. The
@@ -515,45 +506,6 @@ const variablesFromConfig = (config: unknown): Record<string, string> => {
   return map;
 };
 
-const versionSlug = (name: string, fallback: string): string => {
-  let slug = '';
-  let separatorPending = false;
-  for (const char of name.trim().toLowerCase()) {
-    const code = char.charCodeAt(0);
-    const allowed = (code >= 97 && code <= 122) || (code >= 48 && code <= 57) || char === '.' || char === '_' || char === '-';
-    if (allowed) {
-      if (separatorPending && slug) {
-        slug += '-';
-      }
-      slug += char;
-      separatorPending = false;
-    } else if (slug) {
-      separatorPending = true;
-    }
-  }
-  let start = 0;
-  let end = slug.length;
-  while (start < end && slug[start] === '-') start += 1;
-  while (end > start && slug[end - 1] === '-') end -= 1;
-  return slug.slice(start, end) || fallback;
-};
-
-const uniqueVersionSlug = (name: string, fallback: string, used: Set<string>): string => {
-  const base = versionSlug(name, fallback);
-  let candidate = base;
-  if (used.has(candidate)) {
-    const suffix = versionSlug(fallback, fallback).slice(0, 12) || 'version';
-    candidate = `${base}-${suffix}`;
-  }
-  let n = 2;
-  while (used.has(candidate)) {
-    candidate = `${base}-${n}`;
-    n += 1;
-  }
-  used.add(candidate);
-  return candidate;
-};
-
 type LanguageRow = {
   code: string;
   label: string;
@@ -563,7 +515,7 @@ type LanguageRow = {
   config: unknown;
   projectTranslations?: { name: string | null; description: string | null }[];
 };
-type BranchRow = { id: string; name: string; isDefault: boolean };
+type BranchRow = { id: string; isDefault: boolean };
 type ProjectRow = {
   id: string;
   name: string;
@@ -582,19 +534,40 @@ type ProjectRow = {
     document: unknown;
   } | null;
 };
-type PageRow = Omit<SnapshotPage, 'config' | 'versionId'> & {
+type PageRow = Omit<SnapshotPage, 'config'> & {
   config: unknown;
   branchId: string;
 };
 
-/** The snapshot limited to its default version. Snapshots published before
- *  change requests may carry other branches as versions; those are drafts now. */
-export const defaultVersionOnly = (snapshot: SiteSnapshot): SiteSnapshot => {
-  const versions = snapshot.project.versions.filter((version) => version.isDefault);
-  if (versions.length === snapshot.project.versions.length) return snapshot;
-  const kept = new Set(versions.map((version) => version.id));
-  return { ...snapshot, project: { ...snapshot.project, versions }, pages: snapshot.pages.filter((page) => kept.has(page.versionId)) };
+type LegacySnapshot = Omit<SiteSnapshot, 'project' | 'pages'> & {
+  project: SnapshotProject & { versions?: { id: string; isDefault: boolean }[] };
+  pages: (SnapshotPage & { versionId?: string })[];
 };
+
+const withoutLegacySearchConfig = (config: Record<string, unknown> | null): Record<string, unknown> | null => {
+  const search = config?.search;
+  if (!(search && typeof search === 'object' && 'versionFilterEnabled' in search)) return config;
+  const { versionFilterEnabled: _versionFilterEnabled, ...rest } = search as Record<string, unknown>;
+  return { ...config, search: rest };
+};
+
+/** Read a stored snapshot. Snapshots published before change requests carry
+ *  docs versions (`project.versions`, `page.versionId`); only the default
+ *  version's pages are kept and the version fields are dropped. */
+export const readSnapshot = (stored: unknown): SiteSnapshot => {
+  const snapshot = stored as LegacySnapshot;
+  const { versions, ...project } = snapshot.project;
+  const config = withoutLegacySearchConfig(project.config);
+  if (!versions && config === project.config) return snapshot;
+  const kept = new Set((versions ?? []).filter((version) => version.isDefault).map((version) => version.id));
+  const pages = versions
+    ? snapshot.pages.flatMap(({ versionId, ...page }) => (versionId === undefined || kept.has(versionId) ? [page] : []))
+    : snapshot.pages;
+  return { ...snapshot, project: { ...project, config }, pages };
+};
+
+/** Whether a stored snapshot still carries docs versions other than the default. */
+export const hasLegacyVersions = (stored: unknown): boolean => ((stored as LegacySnapshot).project.versions?.length ?? 0) > 1;
 
 /** Compose an immutable site snapshot from a project + its pages (publish time). */
 export const buildSnapshot = (project: ProjectRow, pages: PageRow[], generatedAt: string): SiteSnapshot => {
@@ -620,18 +593,11 @@ export const buildSnapshot = (project: ProjectRow, pages: PageRow[], generatedAt
     throw new Error(`Project ${project.id} must have exactly one default language before publishing.`);
   }
   // Only the default branch is published; other branches hold unmerged change requests.
-  const branchRows = project.branches.filter((branch) => branch.isDefault);
-  if (branchRows.length !== 1) {
+  const defaultBranches = project.branches.filter((branch) => branch.isDefault);
+  if (defaultBranches.length !== 1) {
     throw new Error(`Project ${project.id} must have exactly one default branch before publishing.`);
   }
-  const usedVersionSlugs = new Set<string>();
-  const versions: SnapshotVersion[] = branchRows.map((branch) => ({
-    id: branch.id,
-    name: branch.name,
-    slug: uniqueVersionSlug(branch.name, branch.id, usedVersionSlugs),
-    isDefault: branch.isDefault,
-  }));
-  const versionById = new Map(versions.map((version) => [version.id, version]));
+  const defaultBranchId = defaultBranches[0]?.id;
   const draftBranchIds = new Set(project.branches.filter((branch) => !branch.isDefault).map((branch) => branch.id));
   // Resolve Mintlify-style `{{ variables }}` once, then bake the substituted text
   // into the snapshot so the live site, search index and SEO all see final values.
@@ -661,18 +627,15 @@ export const buildSnapshot = (project: ProjectRow, pages: PageRow[], generatedAt
       icon: project.icon,
       config: withoutSlugHistory(addonConfig),
       languages,
-      versions,
     },
     pages: pages.flatMap((page) => {
-      const version = versionById.get(page.branchId);
-      if (!version) {
+      if (page.branchId !== defaultBranchId) {
         if (draftBranchIds.has(page.branchId)) return [];
         throw new Error(`Page ${page.id} references a branch outside project ${project.id}.`);
       }
       return {
         id: page.id,
         parentId: page.parentId,
-        versionId: version.id,
         createdAt: page.createdAt,
         updatedAt: page.updatedAt,
         languageCode: page.languageCode,

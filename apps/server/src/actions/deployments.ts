@@ -4,7 +4,7 @@ import { Prisma, prisma } from '@nibleaf/database';
 import { projectAddonRowsForDelivery } from '@nibleaf/shared/addons';
 import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { type RedirectValidationIssue, summarizeRedirectIssues, validateSnapshotRedirects } from '@nibleaf/shared/redirects';
-import { buildSnapshot, defaultVersionOnly, type SiteSnapshot, type SnapshotPage } from '@nibleaf/shared/site';
+import { buildSnapshot, readSnapshot, type SiteSnapshot, type SnapshotPage } from '@nibleaf/shared/site';
 import type { CreateDeploymentBody } from '@nibleaf/validators';
 import { diffLines } from 'diff';
 import { badRequest, notFound } from '@/errors';
@@ -329,8 +329,8 @@ export const getDeploymentDiff = async (projectId: string, id: string) => {
     orderBy: { version: 'desc' },
   });
 
-  const currentSnapshot = defaultVersionOnly(deployment.snapshot as unknown as SiteSnapshot);
-  const previousSnapshot = previousDeployment?.snapshot ? defaultVersionOnly(previousDeployment.snapshot as unknown as SiteSnapshot) : null;
+  const currentSnapshot = readSnapshot(deployment.snapshot);
+  const previousSnapshot = previousDeployment?.snapshot ? readSnapshot(previousDeployment.snapshot) : null;
   const previousPages = previousSnapshot ? previousSnapshot.pages : [];
   const previousById = new Map(previousPages.map((page) => [page.id, page]));
   const currentIds = new Set(currentSnapshot.pages.map((page) => page.id));
@@ -377,7 +377,7 @@ export const getPendingChanges = async (projectId: string): Promise<PendingChang
     };
   }
 
-  const snap = defaultVersionOnly(latest.snapshot as unknown as SiteSnapshot);
+  const snap = readSnapshot(latest.snapshot);
   const prevById = new Map(snap.pages.map((p) => [p.id, p]));
   const currentIds = new Set(current.map((p) => p.id));
   const changes: PendingChange[] = [];
@@ -505,7 +505,7 @@ export const rollbackDeployment = async (organizationId: string, projectId: stri
   if (target.status !== 'READY' || !target.snapshot) {
     throw badRequest('Only a published deployment with a snapshot can be rolled back to.', { id: deploymentId });
   }
-  const snapshot = defaultVersionOnly(target.snapshot as unknown as SiteSnapshot);
+  const snapshot = readSnapshot(target.snapshot);
   return createWithNextVersion(projectId, (version) =>
     prisma.deployment.create({
       data: {

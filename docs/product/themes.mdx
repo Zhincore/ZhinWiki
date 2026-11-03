@@ -171,14 +171,12 @@ conventions. `corepack pnpm install && corepack pnpm dev` runs it, and
 secret, or network request is required.
 
 - `docs.json` is a Mintlify-compatible manifest (`name`, `colors`,
-  `navigation.languages[].pages`, `navigation.versions[]` when a project has
-  several versions) plus an `x-nibleaf` block with the resolved theme tokens,
-  languages with their direction, versions, and the content path. Nibleaf
+  `navigation.languages[].pages`) plus an `x-nibleaf` block with the resolved
+  theme tokens, languages with their direction, and the content path. Nibleaf
   regenerates it on every sync; do not hand-edit it.
 - `content/` holds the MDX pages with the same frontmatter Git sync writes
   (`title`, `description`, `icon`, optional `hidden`). The default language sits
-  at the content root, other languages under `content/<code>/`, and non-default
-  versions under `content/versions/<slug>/`. Folders are navigation groups; a
+  at the content root, other languages under `content/<code>/`. Folders are navigation groups; a
   file that `docs.json` does not list yet is appended to its group so the site
   keeps working while Nibleaf catches up.
 - `src/components/layout/` contains the Harbor, Manuscript, and Signal shells

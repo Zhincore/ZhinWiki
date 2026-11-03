@@ -6,7 +6,7 @@ import { createLogger } from '@nibleaf/logger';
 import { getQdrantClient, type QdrantFilter, type QdrantIndexedPoint, type QdrantPoint } from '@nibleaf/qdrant';
 import { chunkSearchDocument, OpenRouterEmbeddingProvider, type SearchChunk, type SearchChunkSource, sparseVectorForChunk } from '@nibleaf/search';
 import { instanceBrand } from '@nibleaf/shared/brand/server';
-import { defaultVersionOnly, extractHeadings, type SiteSnapshot } from '@nibleaf/shared/site';
+import { extractHeadings, readSnapshot, type SiteSnapshot } from '@nibleaf/shared/site';
 import { buildUsageEvent, deterministicUsageEventId } from '@nibleaf/usage';
 import type { Job } from 'bullmq';
 import { z } from 'zod';
@@ -47,13 +47,9 @@ const sourceFromPage = (page: SiteSnapshot['pages'][number]): SearchChunkSource 
   visible: page.kind === 'PAGE' && !page.hidden && !page.config?.seo?.noindex,
 });
 
-const payloadFromChunk = (
-  chunk: SearchChunk,
-  meta: { projectId: string; deploymentId: string; versionSlug: string; visibility: 'public' | 'private' },
-) => ({
+const payloadFromChunk = (chunk: SearchChunk, meta: { projectId: string; deploymentId: string; visibility: 'public' | 'private' }) => ({
   project_id: meta.projectId,
   deployment_id: meta.deploymentId,
-  version_slug: meta.versionSlug,
   language: chunk.language,
   visibility: meta.visibility,
   visible: chunk.visible,
@@ -80,7 +76,6 @@ const payloadSignature = (payload: Record<string, unknown>) =>
   JSON.stringify([
     payload.project_id,
     payload.deployment_id,
-    payload.version_slug,
     payload.language,
     payload.visibility,
     payload.visible,
@@ -98,21 +93,19 @@ const payloadSignature = (payload: Record<string, unknown>) =>
   ]);
 
 const reusablePayloadSchema = z.object({
-  version_slug: z.string(),
   language: z.string(),
   page_id: z.string(),
   ordinal: z.number().int().nonnegative(),
   content_hash: z.string(),
 });
 
-const reuseKey = (input: { versionSlug: string; language: string; pageId: string; ordinal: number; contentHash: string }) =>
-  JSON.stringify([input.versionSlug, input.language, input.pageId, input.ordinal, input.contentHash]);
+const reuseKey = (input: { language: string; pageId: string; ordinal: number; contentHash: string }) =>
+  JSON.stringify([input.language, input.pageId, input.ordinal, input.contentHash]);
 
 const reuseKeyFromPoint = (point: QdrantIndexedPoint) => {
   const parsed = reusablePayloadSchema.safeParse(point.payload);
   if (!parsed.success || !point.vector) return null;
   return reuseKey({
-    versionSlug: parsed.data.version_slug,
     language: parsed.data.language,
     pageId: parsed.data.page_id,
     ordinal: parsed.data.ordinal,
@@ -120,11 +113,10 @@ const reuseKeyFromPoint = (point: QdrantIndexedPoint) => {
   });
 };
 
-const issueFromChunk = (chunk: SearchChunk, versionSlug: string, status: 'stale' | 'failed', errorCode?: string) => ({
+const issueFromChunk = (chunk: SearchChunk, status: 'stale' | 'failed', errorCode?: string) => ({
   pageId: chunk.pageId,
   ordinal: chunk.ordinal,
   language: chunk.language,
-  versionSlug,
   status,
   ...(errorCode ? { errorCode } : {}),
 });
@@ -133,7 +125,6 @@ interface SearchIndexIssue {
   pageId: string;
   ordinal: number;
   language: string;
-  versionSlug: string;
   status: 'stale' | 'failed';
   errorCode?: string;
 }
@@ -142,7 +133,6 @@ const staleIssueSchema = z.object({
   page_id: z.string(),
   ordinal: z.number().int().nonnegative(),
   language: z.string(),
-  version_slug: z.string(),
 });
 
 class SearchIndexFailure extends Error {
@@ -348,7 +338,7 @@ export async function handleSearchJobs(job: Job<ReindexProjectJobData>) {
       }),
     ]);
     if (!project) throw new SearchIndexFailure('project_not_found', 0, []);
-    const snapshot = defaultVersionOnly(deployment.snapshot as unknown as SiteSnapshot);
+    const snapshot = readSnapshot(deployment.snapshot);
     const provider = new OpenRouterEmbeddingProvider({
       apiKey: env.OPENROUTER_API_KEY,
       model: env.SEARCH_EMBEDDING_MODEL,
@@ -361,23 +351,13 @@ export async function handleSearchJobs(job: Job<ReindexProjectJobData>) {
     if (provider.dimensions !== client.vectorSize) throw new SearchIndexFailure('vector_size_mismatch', 0, []);
 
     const visibility = project.accessMode === 'PUBLIC' ? 'public' : 'private';
-    const desired = snapshot.project.versions.flatMap((version) =>
-      snapshot.pages
-        .filter((page) => page.versionId === version.id && page.kind === 'PAGE' && !page.hidden && !page.config?.seo?.noindex)
-        .flatMap((page) =>
-          chunkSearchDocument({ projectId: job.data.projectId, deploymentId: deployment.id, versionSlug: version.slug }, sourceFromPage(page)),
-        )
-        .map((chunk) => ({
-          chunk,
-          versionSlug: version.slug,
-          payload: payloadFromChunk(chunk, {
-            projectId: job.data.projectId,
-            deploymentId: deployment.id,
-            versionSlug: version.slug,
-            visibility,
-          }),
-        })),
-    );
+    const desired = snapshot.pages
+      .filter((page) => page.kind === 'PAGE' && !page.hidden && !page.config?.seo?.noindex)
+      .flatMap((page) => chunkSearchDocument({ projectId: job.data.projectId, deploymentId: deployment.id }, sourceFromPage(page)))
+      .map((chunk) => ({
+        chunk,
+        payload: payloadFromChunk(chunk, { projectId: job.data.projectId, deploymentId: deployment.id, visibility }),
+      }));
     expectedChunks = desired.length;
     expectedPages = new Set(desired.map(({ chunk }) => chunk.pageId)).size;
     await renewRunClaim(run);
@@ -410,7 +390,6 @@ export async function handleSearchJobs(job: Job<ReindexProjectJobData>) {
       }
       const dense = reusableByKey.get(
         reuseKey({
-          versionSlug: item.versionSlug,
           language: item.chunk.language,
           pageId: item.chunk.pageId,
           ordinal: item.chunk.ordinal,
@@ -429,7 +408,7 @@ export async function handleSearchJobs(job: Job<ReindexProjectJobData>) {
           return await provider.embed(batch.map(({ chunk }) => embeddingText(chunk)));
         } catch (cause) {
           failedChunks = batch.length;
-          issueSample = batch.slice(0, 25).map(({ chunk, versionSlug }) => issueFromChunk(chunk, versionSlug, 'failed', 'embedding_failed'));
+          issueSample = batch.slice(0, 25).map(({ chunk }) => issueFromChunk(chunk, 'failed', 'embedding_failed'));
           throw new SearchIndexFailure('embedding_failed', failedChunks, issueSample, cause);
         }
       };
@@ -499,7 +478,6 @@ export async function handleSearchJobs(job: Job<ReindexProjectJobData>) {
               pageId: metadata.data.page_id,
               ordinal: metadata.data.ordinal,
               language: metadata.data.language,
-              versionSlug: metadata.data.version_slug,
               status: 'stale' as const,
             },
           ]

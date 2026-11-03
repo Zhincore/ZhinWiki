@@ -23,7 +23,6 @@ export function MobileNav({
   projectId,
   currentPath,
   lang,
-  version,
   label,
   closeLabel,
   toggleLabel,
@@ -36,7 +35,6 @@ export function MobileNav({
   projectId: string;
   currentPath: string;
   lang?: string;
-  version?: string;
   label: string;
   closeLabel?: string;
   toggleLabel: string;
@@ -102,7 +100,7 @@ export function MobileNav({
                 <ExternalLink className="size-3.5" aria-hidden />
               </a>
             ) : null}
-            <SiteNav nodes={nodes} projectId={projectId} currentPath={currentPath} lang={lang} version={version} toggleLabel={toggleLabel} />
+            <SiteNav nodes={nodes} projectId={projectId} currentPath={currentPath} lang={lang} toggleLabel={toggleLabel} />
           </div>
         </ScrollArea>
       </SheetContent>

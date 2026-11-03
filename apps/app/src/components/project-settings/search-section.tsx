@@ -18,7 +18,6 @@ import {
   SectionHeader,
   Segmented,
   sortLanguagesDefaultFirst,
-  ToggleRow,
   useScopeDirtyGuard,
 } from './shared';
 
@@ -109,7 +108,6 @@ function ProjectSearchConfigurationForm({
   configuration: {
     maxResults: number;
     filtersEnabled: boolean;
-    versionFilterEnabled: boolean;
     aiAnswers: boolean;
     hotkey: Hotkey;
     placeholder: string | null;
@@ -122,12 +120,8 @@ function ProjectSearchConfigurationForm({
   const [hotkey, setHotkey] = useState<Hotkey>(configuration.hotkey);
   const [aiAnswers, setAiAnswers] = useState(configuration.aiAnswers ? 'enabled' : 'disabled');
   const { data: publicMeta } = useGetPublicMeta();
-  const [versionFilterEnabled, setVersionFilterEnabled] = useState(configuration.versionFilterEnabled);
   // The hotkey control lives outside the form, so its dirtiness is tracked by value.
-  const controlsDirty =
-    hotkey !== configuration.hotkey ||
-    (aiAnswers === 'enabled') !== configuration.aiAnswers ||
-    versionFilterEnabled !== configuration.versionFilterEnabled;
+  const controlsDirty = hotkey !== configuration.hotkey || (aiAnswers === 'enabled') !== configuration.aiAnswers;
 
   const defaultValues = { placeholder: configuration.placeholder ?? '', maxResults: String(configuration.maxResults) };
   const form = useForm({
@@ -141,7 +135,6 @@ function ProjectSearchConfigurationForm({
           maxResults: Number.isFinite(parsedMaxResults)
             ? Math.min(maxResultsConstraint.max, Math.max(maxResultsConstraint.min, parsedMaxResults))
             : maxResultsConstraint.default,
-          versionFilterEnabled,
           aiAnswers: aiAnswers === 'enabled',
         });
         toast.success(t('common.saved'));
@@ -197,15 +190,6 @@ function ProjectSearchConfigurationForm({
           value={hotkey}
         />
       </Field>
-
-      <div className="mb-6 rounded-lg border px-4">
-        <ToggleRow
-          checked={versionFilterEnabled}
-          hint={t('settings.search.versionFilters.hint')}
-          onCheckedChange={setVersionFilterEnabled}
-          title={t('settings.search.versionFilters.label')}
-        />
-      </div>
 
       {publicMeta?.ai?.answers ? (
         <Field hint={t('settings.search.aiAnswers.hint')} label={t('settings.search.aiAnswers.label')}>

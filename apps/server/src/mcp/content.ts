@@ -4,7 +4,7 @@ import type { Context } from 'hono';
 import { z } from 'zod';
 import { AppError } from '@/errors';
 import type { HonoEnv } from '@/lib/hono/context';
-import { getPageDto, getProjectDto, listLanguageDtos, listPageDtos, listVersionDtos } from './dto';
+import { getPageDto, getProjectDto, listLanguageDtos, listPageDtos } from './dto';
 import { runMcpReadTool, runMcpResource } from './result';
 import type { McpPrincipal } from './types';
 
@@ -33,12 +33,11 @@ export const registerContentSurface = (server: McpServer, ctx: Context<HonoEnv>,
       'list_pages',
       {
         title: 'List pages',
-        description: 'List page metadata in the bound project. Optional language and version IDs are revalidated by the shared page action.',
-        inputSchema: z.object({ languageId: z.string().trim().min(1).optional(), versionId: z.string().trim().min(1).optional() }).strict(),
+        description: 'List published-branch page metadata in the bound project. An optional language ID is revalidated by the shared page action.',
+        inputSchema: z.object({ languageId: z.string().trim().min(1).optional() }).strict(),
         annotations: readOnly,
       },
-      ({ languageId, versionId }) =>
-        runMcpReadTool(ctx, principal, 'list_pages', 'pages:read', () => listPageDtos(principal.project.id, languageId, versionId)),
+      ({ languageId }) => runMcpReadTool(ctx, principal, 'list_pages', 'pages:read', () => listPageDtos(principal.project.id, languageId)),
     );
     server.registerTool(
       'get_page',
@@ -82,20 +81,6 @@ export const registerContentSurface = (server: McpServer, ctx: Context<HonoEnv>,
       `nibleaf://projects/${principal.project.id}/languages`,
       { title: `${instanceBrand().name} project languages`, mimeType: 'application/json' },
       (uri) => runMcpResource(ctx, principal, 'languages', 'languages:read', uri, () => listLanguageDtos(principal.project.id)),
-    );
-  }
-
-  if (principal.apiKey.scopes.includes('versions:read')) {
-    server.registerTool(
-      'list_versions',
-      { title: 'List versions', description: 'List documentation versions; version IDs are the shared branch IDs.', annotations: readOnly },
-      () => runMcpReadTool(ctx, principal, 'list_versions', 'versions:read', () => listVersionDtos(principal.project.id)),
-    );
-    server.registerResource(
-      'versions',
-      `nibleaf://projects/${principal.project.id}/versions`,
-      { title: `${instanceBrand().name} project versions`, mimeType: 'application/json' },
-      (uri) => runMcpResource(ctx, principal, 'versions', 'versions:read', uri, () => listVersionDtos(principal.project.id)),
     );
   }
 };

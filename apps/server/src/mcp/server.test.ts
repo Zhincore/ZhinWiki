@@ -179,7 +179,6 @@ beforeEach(() => {
     configuration: {
       maxResults: 12,
       filtersEnabled: true,
-      versionFilterEnabled: true,
       aiAnswers: false,
       hotkey: 'cmdk',
       placeholder: null,
@@ -198,7 +197,7 @@ beforeEach(() => {
       embeddingModel: 'text-embedding-3-small',
       vectorSize: 1536,
     },
-    corpus: { chunks: null, pages: null, languages: [], versions: [], distributionTruncated: { languages: false, versions: false } },
+    corpus: { chunks: null, pages: null, languages: [], distributionTruncated: { languages: false } },
     latestRun: null,
     samples: { items: [], nextCursor: null, hasMore: false },
     issues: { staleCount: 0, failedCount: 0, items: [] },
@@ -334,7 +333,6 @@ describe('Nibleaf MCP protocol surface', () => {
     ['projects:read', ['get_capabilities', 'get_project']],
     ['pages:read', ['get_capabilities', 'get_page', 'list_pages']],
     ['languages:read', ['get_capabilities', 'list_languages']],
-    ['versions:read', ['get_capabilities', 'list_versions']],
     ['analytics:read', ['get_analytics_overview', 'get_capabilities']],
     ['search:read', ['get_capabilities', 'get_search_configuration', 'get_search_index_diagnostics']],
     ['usage:read', ['get_capabilities', 'get_usage_summary']],
@@ -409,7 +407,7 @@ describe('Nibleaf MCP protocol surface', () => {
     });
     expect(response.error).toBeUndefined();
     expect(mocks.getPage).toHaveBeenCalledWith('project-1', 'page-1');
-    expect(response.result?.contents[0]?.text).toContain('"versionId":"version-1"');
+    expect(response.result?.contents[0]?.text).toContain('"id":"page-1"');
     await clientTransport.close();
     await server.close();
   });
@@ -587,7 +585,7 @@ describe('Nibleaf MCP protocol surface', () => {
         alias: 'private-alias',
         collection: 'physical-collection',
       },
-      corpus: { chunks: 3, pages: 1, languages: [], versions: [], distributionTruncated: { languages: false, versions: false } },
+      corpus: { chunks: 3, pages: 1, languages: [], distributionTruncated: { languages: false } },
       latestRun: null,
       samples: { items: [], nextCursor: null, hasMore: false },
       issues: { staleCount: 0, failedCount: 0, items: [] },

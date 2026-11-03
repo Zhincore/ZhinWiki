@@ -6,7 +6,6 @@ import { chunkFromPoint, filterForSearchScope } from './runtime';
 const scope = (projectId = 'tenant-a', pages: string[] | null = ['page-a']): SearchScope => ({
   projectId,
   deploymentId: 'deployment-a',
-  versionSlug: 'main',
   language: 'ar',
   visibility: 'private',
   allowedPageIds: pages === null ? null : new Set(pages),
@@ -18,7 +17,6 @@ const point = (overrides: Record<string, unknown> = {}): QdrantScoredPoint => ({
   payload: {
     project_id: 'tenant-a',
     deployment_id: 'deployment-a',
-    version_slug: 'main',
     language: 'ar',
     visibility: 'private',
     visible: true,
@@ -37,13 +35,12 @@ const point = (overrides: Record<string, unknown> = {}): QdrantScoredPoint => ({
 });
 
 describe('server-derived Qdrant scope', () => {
-  it('requires tenant, deployment, version, language, visibility, visible, and page grants', () => {
+  it('requires tenant, deployment, language, visibility, visible, and page grants', () => {
     const filter = filterForSearchScope(scope());
     expect(filter?.must).toEqual(
       expect.arrayContaining([
         { key: 'project_id', match: { value: 'tenant-a' } },
         { key: 'deployment_id', match: { value: 'deployment-a' } },
-        { key: 'version_slug', match: { value: 'main' } },
         { key: 'language', match: { value: 'ar' } },
         { key: 'visibility', match: { value: 'private' } },
         { key: 'visible', match: { value: true } },

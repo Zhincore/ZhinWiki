@@ -11,7 +11,6 @@ const filter = (projectId: string, pageId: string): QdrantFilter => ({
   must: [
     { key: 'project_id', match: { value: projectId } },
     { key: 'deployment_id', match: { value: 'deployment-a' } },
-    { key: 'version_slug', match: { value: 'main' } },
     { key: 'language', match: { value: 'ar' } },
     { key: 'visibility', match: { value: 'private' } },
     { key: 'visible', match: { value: true } },
@@ -25,7 +24,6 @@ const point = (id: string, projectId: string, pageId: string, content: string): 
   payload: {
     project_id: projectId,
     deployment_id: 'deployment-a',
-    version_slug: 'main',
     language: 'ar',
     visibility: 'private',
     visible: true,

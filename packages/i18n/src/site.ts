@@ -19,14 +19,12 @@ import { site_changelogpage } from './paraglide/messages/site_changelogpage.js';
 import { site_changelogpages } from './paraglide/messages/site_changelogpages.js';
 import { site_changelogrelease } from './paraglide/messages/site_changelogrelease.js';
 import { site_changelogsubtitle } from './paraglide/messages/site_changelogsubtitle.js';
-import { site_changeversion } from './paraglide/messages/site_changeversion.js';
 import { site_checking } from './paraglide/messages/site_checking.js';
 import { site_closesearch } from './paraglide/messages/site_closesearch.js';
 import { site_copied } from './paraglide/messages/site_copied.js';
 import { site_copycode } from './paraglide/messages/site_copycode.js';
 import { site_copymarkdown } from './paraglide/messages/site_copymarkdown.js';
 import { site_defaultvalue } from './paraglide/messages/site_defaultvalue.js';
-import { site_defaultversion } from './paraglide/messages/site_defaultversion.js';
 import { site_deprecated } from './paraglide/messages/site_deprecated.js';
 import { site_details } from './paraglide/messages/site_details.js';
 import { site_dismissbanner } from './paraglide/messages/site_dismissbanner.js';
@@ -66,7 +64,6 @@ import { site_searchdocumentation } from './paraglide/messages/site_searchdocume
 import { site_searchempty } from './paraglide/messages/site_searchempty.js';
 import { site_searchfailed } from './paraglide/messages/site_searchfailed.js';
 import { site_searchfilterlanguage } from './paraglide/messages/site_searchfilterlanguage.js';
-import { site_searchfilterversion } from './paraglide/messages/site_searchfilterversion.js';
 import { site_searching } from './paraglide/messages/site_searching.js';
 import { site_searchmode } from './paraglide/messages/site_searchmode.js';
 import { site_searchplaceholder } from './paraglide/messages/site_searchplaceholder.js';
@@ -89,7 +86,6 @@ const siteMessages = {
   search: site_search,
   searchDocumentation: site_searchdocumentation,
   searchFilterLanguage: site_searchfilterlanguage,
-  searchFilterVersion: site_searchfilterversion,
   searchPlaceholder: site_searchplaceholder,
   searchDescription: site_searchdescription,
   searchEmpty: site_searchempty,
@@ -160,8 +156,6 @@ const siteMessages = {
   showProperties: site_showproperties,
   viewDetails: site_viewdetails,
   dismissBanner: site_dismissbanner,
-  changeVersion: site_changeversion,
-  defaultVersion: site_defaultversion,
   tags: site_tags,
 } satisfies Record<string, MessageFn>;
 

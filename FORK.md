@@ -192,8 +192,12 @@ branch stores one change request (CR), reviewed and merged back.
   `main` edits are overwritten and show in its diff.
 - UI: **Edit** on `main` opens a CR; `?cr=<n>` binds the editor; list at
   `/app/projects/:id/changes`, CR at `/changes/:n`, history at `/history`.
-- Public output (`buildSnapshot`, publish, served snapshots) reads only `main`;
-  exports and the MCP `versions` resource still list CR branches.
+- Public output (`buildSnapshot`, publish, served snapshots, search, exports,
+  MCP `list_pages`) reads only `main`; snapshots carry no version fields.
+  Snapshots published with docs versions are read as their default version
+  (`readSnapshot`); version-prefixed URLs (`/v2/…`) 404. No version switcher,
+  search version filter, `versions:read` MCP scope, or `versions/<slug>/`
+  repository directory.
 
 ## Sign-up hardening
 

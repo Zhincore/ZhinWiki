@@ -20,10 +20,9 @@ export const Route = createFileRoute('/sites/$projectId/$')({
   // Server-fetch the page so its content + per-page SEO tags are in the HTML.
   loader: async ({ params, deps, location }) => {
     const path = params._splat ?? '';
-    const version = path ? path.split('/')[0] : undefined;
     let page: SitePage;
     try {
-      page = await getSitePageFn({ data: { projectId: params.projectId, path, language: deps.lang, version } });
+      page = await getSitePageFn({ data: { projectId: params.projectId, path, language: deps.lang } });
     } catch (error) {
       if (!(error instanceof ApiResponseError) || error.status !== 404) {
         throw error;
@@ -70,10 +69,6 @@ export const Route = createFileRoute('/sites/$projectId/$')({
     // canonical, and share links all agree. (Thrown outside the try so the
     // redirect isn't swallowed by the 404 fallback.)
     const requested = path.replace(/^\/+|\/+$/g, '');
-    const resolvedVersion = page.versions.find((item) => item.slug === page.activeVersion);
-    const prefix = resolvedVersion && !resolvedVersion.isDefault ? resolvedVersion.slug : undefined;
-    const requestedContent =
-      prefix && (requested === prefix || requested.startsWith(`${prefix}/`)) ? requested.slice(prefix.length).replace(/^\/+/, '') : requested;
     // Compare decoded so an encoded splat (Arabic slugs) never loops the redirect.
     const safeDecode = (value: string): string => {
       try {
@@ -82,13 +77,13 @@ export const Route = createFileRoute('/sites/$projectId/$')({
         return value;
       }
     };
-    if (requestedContent && safeDecode(requestedContent) !== page.page.path) {
-      const target = [prefix, page.page.path].filter(Boolean).join('/');
+    if (requested && safeDecode(requested) !== page.page.path) {
+      const target = page.page.path;
       const query = deps.lang ? `?lang=${encodeURIComponent(deps.lang)}` : '';
       const href = `${siteBasePath(params.projectId)}/${target}${query}`;
       throw redirect({ href, statusCode: 302 });
     }
-    return { kind: 'page' as const, page, lang: deps.lang, version, siteOrigin: customDomainOrigin() };
+    return { kind: 'page' as const, page, lang: deps.lang, siteOrigin: customDomainOrigin() };
   },
   head: ({ loaderData, params }) => {
     if (loaderData?.kind === 'openapi') {

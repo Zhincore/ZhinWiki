@@ -7,7 +7,6 @@ import { api } from '@/services/api';
 const siteInput = z.object({
   projectId: z.string().min(1),
   language: z.string().min(1).optional(),
-  version: z.string().min(1).optional(),
 });
 
 const sitePageInput = siteInput.extend({ path: z.string() });
@@ -18,7 +17,7 @@ export const getSiteFn = createServerFn({ method: 'GET' })
     getData<SiteShell>(
       await api.public.sites[':id'].$get({
         param: { id: data.projectId },
-        query: { ...(data.language ? { lang: data.language } : {}), ...(data.version ? { version: data.version } : {}) },
+        query: { ...(data.language ? { lang: data.language } : {}) },
       }),
       'site',
     ),
@@ -33,7 +32,6 @@ export const getSitePageFn = createServerFn({ method: 'GET' })
         query: {
           path: data.path,
           ...(data.language ? { lang: data.language } : {}),
-          ...(data.version ? { version: data.version } : {}),
         },
       }),
       'page',

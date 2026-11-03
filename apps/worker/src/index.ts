@@ -6,6 +6,7 @@ import { setMessageBrand } from '@nibleaf/i18n/brand';
 import { logger } from '@nibleaf/logger';
 import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { env } from './env';
+import { backfillPageSearchDocuments } from './lib/page-search-documents';
 import systemApp, { setWorkerReady } from './modules/system/handlers';
 import { processors } from './processors';
 import { startDeploymentReaper } from './reaper';
@@ -36,6 +37,12 @@ async function main() {
   await bootWorkers(processors);
   if (isQueueEnabled(QueueNames.EXPORT)) {
     await scheduleExportMaintenance();
+  }
+  // Index live deployments published before full-text search rows existed.
+  if (isQueueEnabled(QueueNames.SEARCH)) {
+    void backfillPageSearchDocuments()
+      .then((count) => count > 0 && logger.info({ count }, 'full-text search backfill finished'))
+      .catch((error) => logger.warn({ error }, 'full-text search backfill failed'));
   }
   // Sweep deployments stranded by a crash mid-build back to FAILED.
   reaperTimer = startDeploymentReaper();

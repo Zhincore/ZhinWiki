@@ -7,6 +7,7 @@ export * from './answer';
 export { lightStemArabicToken, normalizeArabicMorphologyText, normalizeArabicSearchText } from './arabic';
 export * from './hybrid';
 export * from './providers';
+export * from './text-search';
 
 // Orama ships a built-in tokenizer (word splitter + optional stemmer) per
 // language. We map a project language CODE (BCP-47 primary subtag) to the Orama

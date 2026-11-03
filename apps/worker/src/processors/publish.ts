@@ -325,6 +325,11 @@ async function completePublish(
     { name: 'index-deployment', data: { projectId: job.projectId, deploymentId: job.deploymentId } },
     { jobId: `search-${job.deploymentId}` },
   ).catch((error) => log.warn({ projectId: job.projectId, deploymentId: job.deploymentId, error }, 'could not enqueue hybrid search indexing'));
+  await createJob(
+    QueueNames.SEARCH,
+    { name: 'index-text', data: { projectId: job.projectId, deploymentId: job.deploymentId } },
+    { jobId: `text-search-${job.deploymentId}` },
+  ).catch((error) => log.warn({ projectId: job.projectId, deploymentId: job.deploymentId, error }, 'could not enqueue full-text search indexing'));
   await recordPublishReady(job, ready);
   await notifyDeployment({
     deploymentId: job.deploymentId,

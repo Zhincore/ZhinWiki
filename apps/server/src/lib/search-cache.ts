@@ -1,5 +1,5 @@
-import { createDocIndex, type DocIndex, oramaLanguageForCode, type SearchDoc } from '@nibleaf/search';
-import { extractHeadings, type SnapshotPage } from '@nibleaf/shared/site';
+import { createDocIndex, type DocIndex, oramaLanguageForCode } from '@nibleaf/search';
+import { pageSearchDocuments, type SnapshotPage } from '@nibleaf/shared/site';
 import { LruCache } from './lru';
 
 interface Entry {
@@ -31,23 +31,6 @@ const authorizationScopeKey = (allowedPageIds: ReadonlySet<string> | null): stri
 const cacheKey = (projectId: string, lang: string, allowedPageIds: ReadonlySet<string> | null): string =>
   `${projectId}:${lang}:${authorizationScopeKey(allowedPageIds)}`;
 
-const docsFromPages = (pages: SnapshotPage[]): SearchDoc[] =>
-  pages
-    // Exclude pages we serve `<meta robots noindex>` for, so in-product search
-    // never surfaces a page we've told crawlers to ignore.
-    .filter((page) => page.kind === 'PAGE' && !page.hidden && !page.config?.seo?.noindex)
-    .map((page) => ({
-      id: page.id,
-      title: page.title,
-      path: page.path,
-      description: page.description ?? '',
-      // Include the sidebar label (if it differs from the title) so a search for
-      // the short nav label still finds the page.
-      headings: [page.config?.sidebarTitle?.trim(), ...extractHeadings(page.content).map((heading) => heading.text)].filter(Boolean).join(' '),
-      content: page.content,
-      icon: page.icon ?? undefined,
-    }));
-
 /** Get (or build) the cached search index for a project's published deployment,
  *  scoped to a single language. */
 export const getCachedIndex = async (
@@ -63,7 +46,7 @@ export const getCachedIndex = async (
     return existing.index;
   }
   const scoped = pages.filter((page) => page.languageCode === lang);
-  const index = await createDocIndex(docsFromPages(scoped), oramaLanguageForCode(lang));
+  const index = await createDocIndex(pageSearchDocuments(scoped), oramaLanguageForCode(lang));
   cache.set(mapKey, { key: deploymentId, index });
   return index;
 };

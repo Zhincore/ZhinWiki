@@ -95,7 +95,7 @@ jobs:
         env:
           POSTGRES_URL: postgresql://nibleaf:nibleaf@127.0.0.1:5432/nibleaf
           ACTIVATION_INTEGRATION: "1"
-        run: pnpm --filter @nibleaf/worker exec vitest run src/lib/publish-activation.postgres.test.ts
+        run: pnpm --filter @nibleaf/worker exec vitest run src/lib/publish-activation.postgres.test.ts src/lib/page-search-documents.postgres.test.ts
 
       - name: Verify Better Auth on PostgreSQL
         env:
@@ -107,7 +107,7 @@ jobs:
         env:
           POSTGRES_URL: postgresql://nibleaf:nibleaf@127.0.0.1:5432/nibleaf
           ACTIVATION_INTEGRATION: "1"
-        run: pnpm --filter @nibleaf/server exec vitest run src/actions/platform-events.postgres.test.ts
+        run: pnpm --filter @nibleaf/server exec vitest run src/actions/platform-events.postgres.test.ts src/lib/cross-wiki-search.postgres.test.ts
 
       - name: Exercise ClickHouse analytics migrations
         env:

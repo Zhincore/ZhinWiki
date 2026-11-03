@@ -443,6 +443,7 @@ model Project {
   gitConnection   GitConnection?
   gitPreviews     GitPreview[]
   searchIndexRuns SearchIndexRun[]
+  pageSearchDocuments PageSearchDocument[]
   importRuns      ImportRun[]
   usageIngestCheckpoints UsageIngestCheckpoint[]
   addons          ProjectAddon[]
@@ -1237,10 +1238,37 @@ model Deployment {
 
   exportSnapshots ExportSnapshot[]
   searchIndexRuns SearchIndexRun[]
+  pageSearchDocuments PageSearchDocument[]
 
   @@unique([projectId, version])
   @@index([projectId, status])
   @@map("deployment")
+}
+
+/// Postgres full-text document of one page of a project's live READY
+/// deployment, for cross-wiki search. Written by the worker after publish;
+/// rows of older deployments are replaced. `textConfig` is the language's
+/// text search configuration; `searchVector` is generated from it (title A,
+/// headings B, body C) and GIN-indexed.
+model PageSearchDocument {
+  projectId    String
+  project      Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deploymentId String
+  deployment   Deployment               @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  languageCode String
+  pageId       String
+  title        String
+  path         String
+  headings     String
+  body         String
+  icon         String?
+  textConfig   Unsupported("regconfig")
+  searchVector Unsupported("tsvector")? @default(dbgenerated("((setweight(to_tsvector(\"textConfig\", title), 'A'::\"char\") || setweight(to_tsvector(\"textConfig\", headings), 'B'::\"char\")) || setweight(to_tsvector(\"textConfig\", body), 'C'::\"char\"))"))
+
+  @@id([projectId, deploymentId, languageCode, pageId])
+  @@index([deploymentId])
+  @@index([searchVector], type: Gin)
+  @@map("page_search_document")
 }
 
 /// Durable, privacy-minimized state for one immutable deployment indexing run.

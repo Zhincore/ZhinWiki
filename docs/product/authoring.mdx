@@ -67,15 +67,17 @@ change request has three tabs:
 - **Changes**: only the changed pages, one diff at a time, with previous and
   next buttons.
 
-Set **Ready for review** when the change request is complete, and review it as
-a reader:
+Status actions, review and **Merge** show in the change request's header on
+every tab, including the Editor. Set **Ready for review** when the change
+request is complete, and review it as a reader:
 
 1. Open every changed page in Preview.
 2. Test new links and paths.
 3. Search using words a reader would type.
 4. Check a narrow mobile viewport and keyboard focus.
 5. Confirm title, description, indexing, and language relationships.
-6. Select **Merge**, then publish once and verify the public deployment.
+6. Select **Merge** (it publishes the site unless publish on merge is off),
+   then verify the public deployment.
 
 A merge applies each changed page onto `main` in place, so comments and reader
 access on those pages stay, and pages added to `main` in the meantime are kept.
@@ -90,7 +92,8 @@ merging; **Reopen** brings it back.
 
 Members ask for a review under **Reviewers** on the Overview; the reviewer gets
 a notification and an email. **Submit review** approves, requests changes, or
-comments, with an optional message. Each reviewer's latest approval or change
+comments, with an optional message; **Approve and merge** also merges when
+the approval is enough. Each reviewer's latest approval or change
 request counts, and removing a reviewer drops their verdict. Editing pages after
 an approval sets it aside until the reviewer approves again. **Merge** stays
 disabled until the change request has the approvals the wiki requires
@@ -112,11 +115,12 @@ request, and can have up to five open at once. Turn this off under
 
 ### Publish on merge, history and revert
 
-Turn on **Settings → Change requests → Publish on merge** (admins) to publish
-the site each time a change request is merged. The **Publish** button is then
-hidden; a failed publish leaves the merge in place and shows on the overview
+By default the site is published each time a change request is merged; admins
+turn this off under **Settings → Change requests → Publish on merge**. While it
+is on, the editor shows **Publish** only in site settings, for settings
+changes; a failed publish leaves the merge in place and shows on the overview
 with a **Publish** button to try again, and deployment rollback stays
-available. Settings changes go live with the next merge.
+available.
 
 **History** in the dashboard lists merged change requests, newest first, with
 who merged them and how many pages each changed. **Revert** on a merged change

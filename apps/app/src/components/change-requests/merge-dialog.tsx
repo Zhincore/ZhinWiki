@@ -14,13 +14,19 @@ import { useT } from '@nibleaf/i18n/react';
 import { GitMerge, Loader2, TriangleAlert } from 'lucide-react';
 import { useId, useState } from 'react';
 import { toast } from 'sonner';
-import { type MergeConflict, type MergeConflictReason, useMergeChangeRequest } from '@/hooks/api';
+import { type MergeConflict, type MergeConflictReason, type MergedChangeRequest, useMergeChangeRequest } from '@/hooks/api';
 import { conflictsFromError, forceList } from './merge-conflicts';
 
 const REASON: Record<MergeConflictReason, MessageKey> = {
   BOTH_CHANGED: 'changeRequest.conflict.bothChanged',
   DELETED_ON_MAIN: 'changeRequest.conflict.deletedOnMain',
   DELETED_IN_BRANCH: 'changeRequest.conflict.deletedInBranch',
+};
+
+/** Toast for a finished merge and how its publish went. */
+export const toastMerged = (t: ReturnType<typeof useT>, publish: MergedChangeRequest['publish']) => {
+  if (publish === 'failed') toast.warning(t('changeRequest.mergePublishFailed'));
+  else toast.success(t(publish === 'queued' ? 'changeRequest.mergedPublishing' : 'changeRequest.merged'));
 };
 
 /** Merge confirmation. Conflicting pages are listed with their reason; the
@@ -64,8 +70,7 @@ export function MergeDialog({
     if (unresolved > 0) return;
     merge.mutate(force, {
       onSuccess: ({ publish }) => {
-        if (publish === 'failed') toast.warning(t('changeRequest.mergePublishFailed'));
-        else toast.success(t(publish === 'queued' ? 'changeRequest.mergedPublishing' : 'changeRequest.merged'));
+        toastMerged(t, publish);
         onOpenChange(false);
       },
       onError: (failure) => {

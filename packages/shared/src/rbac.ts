@@ -150,7 +150,7 @@ export const changeRequestPolicy = (config: unknown): { requiredApprovals: numbe
   return {
     requiredApprovals: typeof required === 'number' && Number.isInteger(required) && required >= 0 ? required : 1,
     outsideContributions: section?.outsideContributions !== false,
-    publishOnMerge: section?.publishOnMerge === true,
+    publishOnMerge: section?.publishOnMerge !== false,
   };
 };
 

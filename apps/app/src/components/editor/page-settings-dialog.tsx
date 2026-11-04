@@ -58,17 +58,20 @@ function useHomeWikiSlugClash(projectId: string, topLevelSlug: string): boolean 
  *  the language and site defaults on the published site. */
 export function PageSettingsDialog({
   projectId,
+  branchId,
   page,
   open,
   onOpenChange,
 }: {
   projectId: string;
+  /** The change request branch the page belongs to, if any. */
+  branchId?: string | null;
   page: PageNode;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const t = useT();
-  const update = useUpdatePage(projectId);
+  const update = useUpdatePage(projectId, branchId);
 
   // General
   const [title, setTitle] = useState(page.title);

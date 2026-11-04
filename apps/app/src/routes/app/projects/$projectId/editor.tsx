@@ -37,6 +37,7 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { ChangeRequestHeader, isChangeRequestEditable, useChangeRequestAccess } from '@/components/change-requests/change-request-header';
 import { ChangeRequestsMenu } from '@/components/change-requests/change-requests-menu';
+import { StatusActions } from '@/components/change-requests/status-actions';
 import { AddLanguageDialog } from '@/components/editor/add-language-dialog';
 import { AiAssist } from '@/components/editor/ai-assist';
 import { CommentsPanel } from '@/components/editor/comments-panel';
@@ -53,6 +54,7 @@ import { detectUnsupportedMdxTags } from '@/components/editor/unsupported-mdx';
 import { ConfigDirtyProvider } from '@/components/project-settings/shared';
 import type { Language, PageNode } from '@/hooks/api';
 import {
+  useChangeRequest,
   useChangeRequests,
   useComments,
   useCreatePage,
@@ -113,6 +115,7 @@ function EditorPage() {
   // ─── Change request: pages are edited only in one; main is read-only ─────────
   const { data: changeRequests, isFetching: changeRequestsFetching } = useChangeRequests(projectId);
   const changeRequest = cr === undefined ? undefined : changeRequests?.find((c) => c.number === cr);
+  const { data: changeRequestDetail } = useChangeRequest(projectId, changeRequest?.number);
   // Outside contributors get only content editing, in their own change requests.
   const { contributor, canEdit } = useChangeRequestAccess(projectId, changeRequest);
   const notYours = Boolean(changeRequest) && !canEdit;
@@ -133,11 +136,11 @@ function EditorPage() {
   // ─── Data: all languages + all pages of main or the change request (every language) ───
   const { data: languages } = useLanguages(projectId);
   const { data: allPages, isPending } = usePages(cr === undefined || activeBranchId ? projectId : undefined, undefined, activeBranchId ?? undefined);
-  const createPage = useCreatePage(projectId);
-  const deletePage = useDeletePage(projectId);
-  const updatePage = useUpdatePage(projectId);
+  const createPage = useCreatePage(projectId, activeBranchId);
+  const deletePage = useDeletePage(projectId, activeBranchId);
+  const updatePage = useUpdatePage(projectId, activeBranchId);
   const uploadAsset = useUploadAsset(projectId, contributor);
-  const reorderPages = useReorderPages(projectId);
+  const reorderPages = useReorderPages(projectId, activeBranchId);
   const confirm = useConfirm();
   const configDirtySources = useRef(new Set<string>());
   const reportConfigDirty = useCallback((source: string, dirty: boolean) => {
@@ -486,6 +489,16 @@ function EditorPage() {
     return configIsSaved();
   };
 
+  const saveDraftFirst = async () => {
+    try {
+      await flushCurrentDraft();
+      return true;
+    } catch {
+      toast.error(t('editor.saveError'));
+      return false;
+    }
+  };
+
   const openDraftPreview = async () => {
     if (!configIsSaved()) return;
     // Open synchronously so browsers treat this as a user-initiated popup. We
@@ -679,6 +692,7 @@ function EditorPage() {
           <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
         </Button>
       )}
+      {changeRequestDetail ? <StatusActions projectId={projectId} changeRequest={changeRequestDetail} prepare={saveDraftFirst} /> : null}
     </ChangeRequestHeader>
   ) : (
     <header className="flex h-14 shrink-0 items-center gap-1.5 border-border border-b bg-background px-2 sm:gap-2.5 sm:px-3">
@@ -722,7 +736,7 @@ function EditorPage() {
             <Button aria-label={t('project.preview')} onClick={() => void openDraftPreview()} size="sm" variant="outline" className="cursor-pointer">
               <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
             </Button>
-            {project && !changeRequestPolicy(project.config).publishOnMerge ? (
+            {project && (view === 'config' || !changeRequestPolicy(project.config).publishOnMerge) ? (
               <PublishControl project={project} initialPublishOpen={publishParam} beforePublish={preparePublish} />
             ) : null}
           </>
@@ -980,7 +994,13 @@ function EditorPage() {
                 // title so saving settings cannot restore the stale tree title.
                 const settingsPage = target && synced?.id === target.id ? { ...target, title: synced.title } : target;
                 return settingsPage ? (
-                  <PageSettingsDialog projectId={projectId} page={settingsPage} open onOpenChange={(o) => !o && setSettingsForId(null)} />
+                  <PageSettingsDialog
+                    projectId={projectId}
+                    branchId={activeBranchId}
+                    page={settingsPage}
+                    open
+                    onOpenChange={(o) => !o && setSettingsForId(null)}
+                  />
                 ) : null;
               })()
             : null}

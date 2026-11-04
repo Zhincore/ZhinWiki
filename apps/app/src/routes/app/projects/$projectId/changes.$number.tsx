@@ -1,41 +1,25 @@
 import { Button } from '@nibleaf/design-system/components/ui/button';
-import { useConfirm } from '@nibleaf/design-system/components/ui/confirm';
 import { Skeleton } from '@nibleaf/design-system/components/ui/skeleton';
 import { Textarea } from '@nibleaf/design-system/components/ui/textarea';
 import { cn } from '@nibleaf/design-system/lib/utils';
 import { useT } from '@nibleaf/i18n/react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import {
-  Archive,
-  ArrowLeft,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  GitMerge,
-  Loader2,
-  RotateCcw,
-  Send,
-  TriangleAlert,
-  Undo2,
-} from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Eye, TriangleAlert } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { ChangeRequestHeader, useChangeRequestAccess } from '@/components/change-requests/change-request-header';
 import { ChangedPages, ChangeMarker, changeKey, useChangesByLanguage } from '@/components/change-requests/changed-pages';
-import { MergeDialog } from '@/components/change-requests/merge-dialog';
-import { ApprovalStatus, ParticipantsPanel, ReviewersPanel, ReviewHistory, SubmitReviewMenu } from '@/components/change-requests/reviews';
+import { ParticipantsPanel, ReviewersPanel, ReviewHistory } from '@/components/change-requests/reviews';
+import { StatusActions } from '@/components/change-requests/status-actions';
 import { useUserName } from '@/components/change-requests/user-name';
 import { QueryErrorState } from '@/components/query-error-state';
 import {
   type ChangeRequestDetail,
   type ChangeRequestPageChange,
-  type ChangeRequestStatus,
   type Language,
   useChangeRequest,
   useLanguages,
-  useRevertChangeRequest,
   useUpdateChangeRequest,
 } from '@/hooks/api';
 import { useFormatters } from '@/lib/format';
@@ -61,6 +45,7 @@ function ChangeRequestPage() {
   const number = Number(numberParam);
   const { data: changeRequest, isError, refetch, isRefetching } = useChangeRequest(projectId, number);
   const { data: languages } = useLanguages(projectId);
+  const { contributor } = useChangeRequestAccess(projectId, changeRequest);
 
   if (isError) {
     return (
@@ -85,6 +70,17 @@ function ChangeRequestPage() {
         tab={tab === 'changes' ? 'changes' : 'overview'}
         back={{ to: '/app/projects/$projectId/changes', label: t('changeRequest.backToList') }}
       >
+        {changeRequest.branchId && !contributor ? (
+          <Button
+            nativeButton={false}
+            render={<Link to="/app/projects/$projectId/preview" params={{ projectId }} search={{ branchId: changeRequest.branchId }} />}
+            size="sm"
+            variant="ghost"
+            aria-label={t('project.preview')}
+          >
+            <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
+          </Button>
+        ) : null}
         <StatusActions projectId={projectId} changeRequest={changeRequest} />
       </ChangeRequestHeader>
       {tab === 'changes' ? (
@@ -93,93 +89,6 @@ function ChangeRequestPage() {
         <OverviewTab projectId={projectId} changeRequest={changeRequest} languages={languages} />
       )}
     </div>
-  );
-}
-
-/** Status transitions and the merge entry point for the header. */
-function StatusActions({ projectId, changeRequest }: { projectId: string; changeRequest: ChangeRequestDetail }) {
-  const t = useT();
-  const confirm = useConfirm();
-  const update = useUpdateChangeRequest(projectId, changeRequest.number);
-  const revert = useRevertChangeRequest(projectId, changeRequest.number);
-  const [mergeOpen, setMergeOpen] = useState(false);
-  const { contributor, canEdit } = useChangeRequestAccess(projectId, changeRequest);
-  const { status, branchId } = changeRequest;
-  const open = status === 'DRAFT' || status === 'IN_REVIEW';
-  const setStatus = (next: Exclude<ChangeRequestStatus, 'MERGED'>) =>
-    update.mutate({ status: next }, { onError: (error) => toast.error(error.message) });
-  const archive = async () => {
-    const ok = await confirm({
-      title: t('changeRequest.archive'),
-      description: t('changeRequest.archiveConfirm'),
-      confirmLabel: t('changeRequest.archive'),
-    });
-    if (ok) setStatus('ARCHIVED');
-  };
-  const confirmRevert = async () => {
-    const ok = await confirm({
-      title: t('changeRequest.revert'),
-      description: t('changeRequest.revertConfirm'),
-      confirmLabel: t('changeRequest.revert'),
-    });
-    if (ok) revert.revert();
-  };
-
-  return (
-    <>
-      {branchId && !contributor ? (
-        <Button
-          nativeButton={false}
-          render={<Link to="/app/projects/$projectId/preview" params={{ projectId }} search={{ branchId }} />}
-          size="sm"
-          variant="ghost"
-          aria-label={t('project.preview')}
-        >
-          <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
-        </Button>
-      ) : null}
-      {open && canEdit ? (
-        <Button size="sm" variant="ghost" onClick={() => void archive()} disabled={update.isPending} aria-label={t('changeRequest.archive')}>
-          <Archive className="size-3.5" /> <span className="hidden md:inline">{t('changeRequest.archive')}</span>
-        </Button>
-      ) : null}
-      {status === 'DRAFT' && canEdit ? (
-        <Button size="sm" variant="outline" onClick={() => setStatus('IN_REVIEW')} disabled={update.isPending}>
-          <Send className="size-3.5" /> {t('changeRequest.markReady')}
-        </Button>
-      ) : null}
-      {status === 'IN_REVIEW' && canEdit ? (
-        <Button size="sm" variant="outline" onClick={() => setStatus('DRAFT')} disabled={update.isPending}>
-          <Undo2 className="size-3.5" /> {t('changeRequest.backToDraft')}
-        </Button>
-      ) : null}
-      {status === 'ARCHIVED' && branchId && canEdit ? (
-        <Button size="sm" variant="outline" onClick={() => setStatus('DRAFT')} disabled={update.isPending}>
-          <RotateCcw className="size-3.5" /> {t('changeRequest.reopen')}
-        </Button>
-      ) : null}
-      {status === 'MERGED' && !contributor && changeRequest.changes.length > 0 ? (
-        <Button size="sm" variant="outline" onClick={() => void confirmRevert()} disabled={revert.isPending}>
-          {revert.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Undo2 className="size-3.5" />} {t('changeRequest.revert')}
-        </Button>
-      ) : null}
-      {open && !contributor ? <SubmitReviewMenu projectId={projectId} number={changeRequest.number} /> : null}
-      {open && branchId && !contributor ? (
-        <>
-          <ApprovalStatus review={changeRequest.review} />
-          <Button size="sm" onClick={() => setMergeOpen(true)} disabled={!changeRequest.review.mergeable}>
-            <GitMerge className="size-3.5" /> {t('changeRequest.merge')}
-          </Button>
-          <MergeDialog
-            projectId={projectId}
-            number={changeRequest.number}
-            conflicts={changeRequest.conflicts}
-            open={mergeOpen}
-            onOpenChange={setMergeOpen}
-          />
-        </>
-      ) : null}
-    </>
   );
 }
 

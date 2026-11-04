@@ -23,7 +23,7 @@ import type {
   UpsertOpenApiBody,
 } from '@nibleaf/validators';
 import { inferUploadableAssetContentType } from '@nibleaf/validators';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { ApiResponseError, getData, mutateData } from './client-helpers';
 import { queryKeys } from './query-keys';
@@ -179,16 +179,24 @@ export const useDeleteOpenApi = (projectId: string) => {
   });
 };
 
-export const useCreatePage = (projectId: string) => {
+/** Edits on a change request's branch change its diff and can set approvals aside. */
+const invalidateChangeRequestsOnBranch = (qc: QueryClient, projectId: string, branchId: string | null | undefined) => {
+  if (branchId) void qc.invalidateQueries({ queryKey: queryKeys.changeRequests.all(projectId) });
+};
+
+export const useCreatePage = (projectId: string, branchId?: string | null) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: CreatePageBody) =>
       mutateData<Page>(await api.app.projects[':projectId'].pages.$post({ param: { projectId }, json: body }), 'Could not create the page.'),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) }),
+    onSuccess: () => {
+      invalidateChangeRequestsOnBranch(qc, projectId, branchId);
+      return qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
+    },
   });
 };
 
-export const useUpdatePage = (projectId: string) => {
+export const useUpdatePage = (projectId: string, branchId?: string | null) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ pageId, body }: { pageId: string; body: UpdatePageBody }) =>
@@ -200,25 +208,32 @@ export const useUpdatePage = (projectId: string) => {
       qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.pages.detail(projectId, pageId) });
       qc.invalidateQueries({ queryKey: queryKeys.deployments.changes(projectId) });
+      invalidateChangeRequestsOnBranch(qc, projectId, branchId);
     },
   });
 };
 
-export const useDeletePage = (projectId: string) => {
+export const useDeletePage = (projectId: string, branchId?: string | null) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (pageId: string) =>
       mutateData(await api.app.projects[':projectId'].pages[':id'].$delete({ param: { projectId, id: pageId } }), 'Could not delete the page.'),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) }),
+    onSuccess: () => {
+      invalidateChangeRequestsOnBranch(qc, projectId, branchId);
+      return qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
+    },
   });
 };
 
-export const useReorderPages = (projectId: string) => {
+export const useReorderPages = (projectId: string, branchId?: string | null) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: ReorderPagesBody) =>
       mutateData(await api.app.projects[':projectId'].pages.reorder.$post({ param: { projectId }, json: body }), 'Could not reorder pages.'),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) }),
+    onSuccess: () => {
+      invalidateChangeRequestsOnBranch(qc, projectId, branchId);
+      return qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
+    },
   });
 };
 

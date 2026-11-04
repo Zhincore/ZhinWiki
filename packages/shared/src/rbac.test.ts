@@ -182,15 +182,16 @@ describe('export permissions', () => {
 });
 
 describe('changeRequestPolicy', () => {
-  it('defaults to one approval, open contributions and no publish on merge', () => {
-    expect(changeRequestPolicy(null)).toEqual({ requiredApprovals: 1, outsideContributions: true, publishOnMerge: false });
+  it('defaults to one approval, open contributions and publish on merge', () => {
+    expect(changeRequestPolicy(null)).toEqual({ requiredApprovals: 1, outsideContributions: true, publishOnMerge: true });
+    expect(changeRequestPolicy({ changeRequests: { publishOnMerge: 'no' } }).publishOnMerge).toBe(true);
     expect(changeRequestPolicy({ changeRequests: { requiredApprovals: -1 } }).requiredApprovals).toBe(1);
   });
   it('reads explicit settings, including zero approvals', () => {
-    expect(changeRequestPolicy({ changeRequests: { requiredApprovals: 0, outsideContributions: false, publishOnMerge: true } })).toEqual({
+    expect(changeRequestPolicy({ changeRequests: { requiredApprovals: 0, outsideContributions: false, publishOnMerge: false } })).toEqual({
       requiredApprovals: 0,
       outsideContributions: false,
-      publishOnMerge: true,
+      publishOnMerge: false,
     });
   });
 });

@@ -2779,5 +2779,7 @@
   "settings_import_conflict": "Draf Anda berubah selama impor. Suntingan Anda tetap tersimpan. Tinjau halaman Anda sebelum mencoba ulang.",
   "settings_import_inprogress": "Impor untuk proyek ini sedang berjalan. Tunggu hingga selesai sebelum memulai impor lain.",
   "settings_import_busy": "Kapasitas impor sedang penuh atau impor tidak dapat selesai tepat waktu. Coba lagi sebentar lagi.",
-  "settings_import_nodelimit": "Impor melampaui batas {limit} entri navigasi. Impor ruang yang lebih kecil. Draf Anda tetap tersimpan."
+  "settings_import_nodelimit": "Impor melampaui batas {limit} entri navigasi. Impor ruang yang lebih kecil. Draf Anda tetap tersimpan.",
+  "account_setname_title": "Pilih nama tampilan Anda",
+  "account_setname_description": "Beri tahu kami cara memanggil Anda. Nama Anda ditampilkan kepada orang yang berkolaborasi dengan Anda."
 }

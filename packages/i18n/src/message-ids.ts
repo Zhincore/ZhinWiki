@@ -2780,6 +2780,8 @@ export const MESSAGE_IDS = {
   'admin.status.disabled': 'admin_status_disabled',
   'admin.operations.gitKind.pull': 'admin_operations_gitkind_pull',
   'admin.operations.gitKind.push': 'admin_operations_gitkind_push',
+  'account.setName.title': 'account_setname_title',
+  'account.setName.description': 'account_setname_description',
 } as const;
 
 export type MessageKey = keyof typeof MESSAGE_IDS;

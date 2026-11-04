@@ -136,11 +136,11 @@ function EditorPage() {
   // ─── Data: all languages + all pages of main or the change request (every language) ───
   const { data: languages } = useLanguages(projectId);
   const { data: allPages, isPending } = usePages(cr === undefined || activeBranchId ? projectId : undefined, undefined, activeBranchId ?? undefined);
-  const createPage = useCreatePage(projectId);
-  const deletePage = useDeletePage(projectId);
-  const updatePage = useUpdatePage(projectId);
+  const createPage = useCreatePage(projectId, activeBranchId);
+  const deletePage = useDeletePage(projectId, activeBranchId);
+  const updatePage = useUpdatePage(projectId, activeBranchId);
   const uploadAsset = useUploadAsset(projectId, contributor);
-  const reorderPages = useReorderPages(projectId);
+  const reorderPages = useReorderPages(projectId, activeBranchId);
   const confirm = useConfirm();
   const configDirtySources = useRef(new Set<string>());
   const reportConfigDirty = useCallback((source: string, dirty: boolean) => {
@@ -994,7 +994,13 @@ function EditorPage() {
                 // title so saving settings cannot restore the stale tree title.
                 const settingsPage = target && synced?.id === target.id ? { ...target, title: synced.title } : target;
                 return settingsPage ? (
-                  <PageSettingsDialog projectId={projectId} page={settingsPage} open onOpenChange={(o) => !o && setSettingsForId(null)} />
+                  <PageSettingsDialog
+                    projectId={projectId}
+                    branchId={activeBranchId}
+                    page={settingsPage}
+                    open
+                    onOpenChange={(o) => !o && setSettingsForId(null)}
+                  />
                 ) : null;
               })()
             : null}

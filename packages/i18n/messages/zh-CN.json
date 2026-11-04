@@ -2779,5 +2779,7 @@
   "settings_import_conflict": "导入期间你的草稿发生了更改。你的编辑已保留。重试前请检查你的页面。",
   "settings_import_inprogress": "此项目已有导入正在运行。请等待其完成后再开始新的导入。",
   "settings_import_busy": "导入容量繁忙，或导入未能及时完成。请稍后重试。",
-  "settings_import_nodelimit": "导入超出了 {limit} 个导航条目的限制。请导入较小的空间。你的草稿已保留。"
+  "settings_import_nodelimit": "导入超出了 {limit} 个导航条目的限制。请导入较小的空间。你的草稿已保留。",
+  "account_setname_title": "设置显示名称",
+  "account_setname_description": "告诉我们该如何称呼你。你的名称会向协作者显示。"
 }

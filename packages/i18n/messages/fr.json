@@ -2779,5 +2779,7 @@
   "settings_import_conflict": "Votre brouillon a changé pendant l'importation. Vos modifications ont été conservées. Vérifiez vos pages avant de réessayer.",
   "settings_import_inprogress": "Une importation est déjà en cours pour ce projet. Attendez qu'elle se termine avant d'en lancer une autre.",
   "settings_import_busy": "La capacité d'importation est saturée ou l'importation n'a pas pu se terminer à temps. Réessayez dans un instant.",
-  "settings_import_nodelimit": "L'importation dépasse la limite de {limit} entrées de navigation. Importez un espace plus petit. Votre brouillon a été conservé."
+  "settings_import_nodelimit": "L'importation dépasse la limite de {limit} entrées de navigation. Importez un espace plus petit. Votre brouillon a été conservé.",
+  "account_setname_title": "Choisissez votre nom d’affichage",
+  "account_setname_description": "Dites-nous comment vous appeler. Votre nom est visible par les personnes avec qui vous collaborez."
 }

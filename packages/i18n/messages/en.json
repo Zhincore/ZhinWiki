@@ -421,6 +421,7 @@
   "editor_pages": "Pages",
   "editor_backtodashboard": "Back to dashboard",
   "editor_config_heading": "Site settings",
+  "editor_config_close": "Back to editor",
   "editor_viewonsite": "View on site",
   "editor_ai_title": "AI assist",
   "editor_ai_intro": "Continue writing, rephrase for clarity, or generate from a prompt — grounded in this doc.",

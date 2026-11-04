@@ -421,6 +421,7 @@
   "editor_pages": "paginas",
   "editor_backtodashboard": "Volver al tablero",
   "editor_config_heading": "Configuración del sitio",
+  "editor_config_close": "Volver al editor",
   "editor_viewonsite": "Ver en el sitio",
   "editor_ai_title": "asistencia de IA",
   "editor_ai_intro": "Continúe escribiendo, reformule para mayor claridad o genere a partir de un mensaje, basado en este documento.",

@@ -31,6 +31,7 @@ import {
   Trash2,
   TriangleAlert,
   Type as TypeIcon,
+  X,
 } from 'lucide-react';
 import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -89,6 +90,8 @@ export const Route = createFileRoute('/app/projects/$projectId/editor')({
       })
       .parse(search),
 });
+
+const BACK_CLASS = 'flex items-center gap-1.5 rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
 
 /** Upload refusals with their own message; anything else reads as a failed upload. */
 const imageUploadErrorMessage = (error: unknown) => {
@@ -155,6 +158,11 @@ function EditorPage() {
       confirmLabel: t('settings.chrome.scope.discardConfirm'),
       destructive: true,
     });
+  };
+
+  /** Leaves site settings for the content view, unless unsaved settings are kept. */
+  const closeConfig = async () => {
+    if (await guardConfigChanges()) setView('content');
   };
 
   // Upload an image (paste/drop/pick) and return its hosted URL for the editor;
@@ -677,6 +685,13 @@ function EditorPage() {
     />
   );
 
+  const backContent = (
+    <>
+      <ChevronLeft className="size-4 rtl:-scale-x-100" />
+      {project?.name ? <span className="hidden max-w-[200px] truncate font-medium text-foreground text-sm sm:inline">{project.name}</span> : null}
+    </>
+  );
+
   // Top bar. Main: back + change requests on the left, Edit / configure /
   // preview / publish on the right. A change request gets its own header.
   const header = changeRequest ? (
@@ -696,15 +711,21 @@ function EditorPage() {
     </ChangeRequestHeader>
   ) : (
     <header className="flex h-14 shrink-0 items-center gap-1.5 border-border border-b bg-background px-2 sm:gap-2.5 sm:px-3">
-      <Link
-        to="/app/projects/$projectId"
-        params={{ projectId }}
-        className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        title={t('editor.backToDashboard')}
-      >
-        <ChevronLeft className="size-4 rtl:-scale-x-100" />
-        {project?.name ? <span className="hidden max-w-[200px] truncate font-medium text-foreground text-sm sm:inline">{project.name}</span> : null}
-      </Link>
+      {view === 'config' ? (
+        <button
+          type="button"
+          onClick={() => void closeConfig()}
+          className={cn(BACK_CLASS, 'cursor-pointer')}
+          title={t('editor.config.close')}
+          aria-label={t('editor.config.close')}
+        >
+          {backContent}
+        </button>
+      ) : (
+        <Link to="/app/projects/$projectId" params={{ projectId }} className={BACK_CLASS} title={t('editor.backToDashboard')}>
+          {backContent}
+        </Link>
+      )}
       {/* Divider only once the project name is loaded — otherwise it dangles next to the chevron. */}
       {project?.name ? <span className="hidden h-5 w-px bg-border sm:block" /> : null}
       {cr === undefined ? (
@@ -721,14 +742,14 @@ function EditorPage() {
               size="sm"
               variant={view === 'config' ? 'secondary' : 'ghost'}
               className="cursor-pointer"
-              onClick={async () => {
-                const nextView = view === 'config' ? 'content' : 'config';
-                if (view === 'config' && !(await guardConfigChanges())) return;
-                setView(nextView);
-                if (nextView === 'config') {
-                  setSidebarCollapsed(false);
-                  setMobileSidebarOpen(true);
+              onClick={() => {
+                if (view === 'config') {
+                  void closeConfig();
+                  return;
                 }
+                setView('config');
+                setSidebarCollapsed(false);
+                setMobileSidebarOpen(true);
               }}
             >
               <SlidersHorizontal className="size-3.5" /> <span className="hidden md:inline">{t('editor.mode.configuration')}</span>
@@ -1011,8 +1032,18 @@ function EditorPage() {
           <section className="min-h-0 min-w-0 overflow-y-auto">
             {/* A muted overline so it reads as "Site configuration › <section>"
             rather than competing with each section's own heading. */}
-            <div className="border-border border-b px-6 py-3">
+            <div className="flex items-center justify-between gap-2 border-border border-b py-2 ps-6 pe-3">
               <span className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">{t('editor.config.heading')}</span>
+              <Button
+                size="icon-xs"
+                variant="ghost"
+                className="cursor-pointer"
+                onClick={() => void closeConfig()}
+                aria-label={t('editor.config.close')}
+                title={t('editor.config.close')}
+              >
+                <X className="size-3.5" />
+              </Button>
             </div>
             <div className="mx-auto w-full max-w-6xl px-5 pt-7 pb-32 sm:px-8">
               {project ? (

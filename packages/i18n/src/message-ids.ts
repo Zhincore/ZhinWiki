@@ -2649,6 +2649,8 @@ export const MESSAGE_IDS = {
   'changeRequest.history.empty': 'changerequest_history_empty',
   'changeRequest.history.pages': 'changerequest_history_pages',
   'changeRequest.history.loadMore': 'changerequest_history_loadmore',
+  'account.setName.title': 'account_setname_title',
+  'account.setName.description': 'account_setname_description',
 } as const;
 
 export type MessageKey = keyof typeof MESSAGE_IDS;

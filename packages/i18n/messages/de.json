@@ -2648,5 +2648,7 @@
   "settings_import_conflict": "Ihr Entwurf wurde während des Imports geändert. Ihre Änderungen blieben erhalten. Prüfen Sie Ihre Seiten, bevor Sie es erneut versuchen.",
   "settings_import_inprogress": "Für dieses Projekt läuft bereits ein Import. Warten Sie, bis er abgeschlossen ist, bevor Sie einen weiteren starten.",
   "settings_import_busy": "Die Importkapazität ist ausgelastet oder der Import konnte nicht rechtzeitig abgeschlossen werden. Versuchen Sie es in Kürze erneut.",
-  "settings_import_nodelimit": "Der Import überschreitet das Limit von {limit} Navigationseinträgen. Importieren Sie einen kleineren Bereich. Ihr Entwurf blieb erhalten."
+  "settings_import_nodelimit": "Der Import überschreitet das Limit von {limit} Navigationseinträgen. Importieren Sie einen kleineren Bereich. Ihr Entwurf blieb erhalten.",
+  "account_setname_title": "Anzeigenamen wählen",
+  "account_setname_description": "Sagen Sie uns, wie wir Sie nennen sollen. Ihr Name wird Personen angezeigt, mit denen Sie zusammenarbeiten."
 }

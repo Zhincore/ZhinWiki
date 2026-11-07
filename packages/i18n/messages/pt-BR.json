@@ -2648,5 +2648,7 @@
   "settings_import_conflict": "Seu rascunho mudou durante a importação. Suas edições foram preservadas. Revise suas páginas antes de tentar novamente.",
   "settings_import_inprogress": "Já existe uma importação em andamento para este projeto. Aguarde a conclusão antes de iniciar outra.",
   "settings_import_busy": "A capacidade de importação está ocupada ou a importação não pôde ser concluída a tempo. Tente novamente em breve.",
-  "settings_import_nodelimit": "A importação excede o limite de {limit} itens de navegação. Importe um espaço menor. Seu rascunho foi preservado."
+  "settings_import_nodelimit": "A importação excede o limite de {limit} itens de navegação. Importe um espaço menor. Seu rascunho foi preservado.",
+  "account_setname_title": "Escolha seu nome de exibição",
+  "account_setname_description": "Diga como devemos chamar você. Seu nome é exibido para as pessoas com quem você colabora."
 }

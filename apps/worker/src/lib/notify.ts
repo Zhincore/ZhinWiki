@@ -26,12 +26,12 @@ async function createDeploymentNotifications(
       ? {
           type: 'deploy_ready',
           title: `${opts.projectName} published`,
-          body: `Version v${opts.version} is live.`,
+          body: `Publish #${opts.version} is live.`,
         }
       : {
           type: 'deploy_failed',
           title: `${opts.projectName} publish failed`,
-          body: `Version v${opts.version} did not publish.${opts.error ? ` ${opts.error.slice(0, 300)}` : ''}`,
+          body: `Publish #${opts.version} failed.${opts.error ? ` ${opts.error.slice(0, 300)}` : ''}`,
         };
   await prisma.notification.createMany({
     data: members.map((member) => ({

@@ -104,13 +104,13 @@ describe('deployment notification retry identity', () => {
   });
 
   it('sends no success email for a publish on merge, only the bell', async () => {
-    await notifyDeployment({ ...options, auto: true });
+    await notifyDeployment({ ...options, source: 'merge' });
     expect(rows.size).toBe(3);
     expect(jobs.size).toBe(0);
-    await notifyDeployment({ ...options, outcome: 'failed', auto: true });
+    await notifyDeployment({ ...options, outcome: 'failed', source: 'merge' });
     expect(rows.size).toBe(6);
     expect(jobs.size).toBe(2);
-    await notifyDeployment({ ...options, deploymentId: 'deployment-b', auto: false });
+    await notifyDeployment({ ...options, deploymentId: 'deployment-b' });
     expect(rows.size).toBe(9);
     expect(jobs.size).toBe(4);
   });

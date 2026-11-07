@@ -6,10 +6,12 @@ export interface PublishDeploymentJobData {
   /** Skip the (non-structural) grammar lint at build time — broken-link checks
    *  still block. Set by the dashboard's "Publish anyway" action. */
   skipGrammarChecks?: boolean;
-  /** True for publishes started by the system (publish on merge) rather than
-   *  the Publish button: activation metrics exclude them and no success email
-   *  is sent. */
+  /** True for system-triggered publishes (e.g. the starter site published at
+   *  sign-up) so activation metrics can exclude them. */
   auto?: boolean;
+  /** Set when a change-request merge started the publish; no success email is
+   *  sent since the merge already notified its people. */
+  source?: 'merge';
   /** Paraglide interface locale resolved when the publish was requested. */
   locale?: string;
 }

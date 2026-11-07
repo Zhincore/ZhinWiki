@@ -46,10 +46,10 @@ async function createDeploymentNotifications(
 }
 
 /** Whether the outcome is emailed: the workspace toggle must allow it, and a
- *  publish on merge (`auto`) sends no success email since the merge already
- *  notified its people. */
-async function deploymentEmailEnabled(organizationId: string, opts: { outcome: 'ready' | 'failed'; auto?: boolean }): Promise<boolean> {
-  if (opts.outcome === 'ready' && opts.auto) {
+ *  publish on merge sends no success email since the merge already notified
+ *  its people. */
+async function deploymentEmailEnabled(organizationId: string, opts: { outcome: 'ready' | 'failed'; source?: 'merge' }): Promise<boolean> {
+  if (opts.outcome === 'ready' && opts.source === 'merge') {
     return false;
   }
   const org = await prisma.organization.findUnique({ where: { id: organizationId }, select: { metadata: true } });
@@ -71,7 +71,7 @@ export async function notifyDeployment(opts: {
   outcome: 'ready' | 'failed';
   error?: string;
   locale?: string;
-  auto?: boolean;
+  source?: 'merge';
 }): Promise<void> {
   const project = await prisma.project.findUnique({ where: { id: opts.projectId }, select: { organizationId: true } });
   if (!project?.organizationId) {

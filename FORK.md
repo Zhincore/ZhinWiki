@@ -189,7 +189,7 @@ branch stores one change request (CR), reviewed and merged back.
   `change_request_reviewed`, `change_request_merged`.
 - Publish on merge: `config.changeRequests.publishOnMerge` (admin setting,
   default on, off only when `false`). After a merge the handler calls
-  `createDeployment` (`auto`); a refused publish leaves the merge, answers
+  `createDeployment` (`source: 'merge'`, `auto`); a refused publish leaves the merge, answers
   `publish: 'failed'` and is stored as a FAILED deployment
   (`recordRefusedDeployment`), like build failures. Editor Publish button
   shown only in site settings, first-publish nudge hidden; the overview
@@ -198,7 +198,7 @@ branch stores one change request (CR), reviewed and merged back.
   `notify.ts`): workspace toggles gate only the email, the bell notification
   is always created; `project_deploy` defaults off (`defaultNotificationEnabled`,
   also the settings tab's shown default), `project_deploy_failed` on. A
-  publish on merge (`auto` job data) sends no success email.
+  publish on merge (`source: 'merge'` job data) sends no success email.
 - History: `GET …/change-requests/history?cursor=` (viewer rule, like the
   list): merged CRs by `mergedAt` desc, 20 per page, `pagesCount` from the
   merge record.

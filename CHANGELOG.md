@@ -43,6 +43,9 @@ Back up first: the migrations below are forward-only. The full list is in
   URLs (`/<site>/<version>/…`) now return 404. Static and Markdown export ZIPs
   use `<lang>/<path>` instead of `<version>/<lang>/<path>`. The MCP
   `versions:read` scope and `list_versions` tool are removed.
+- **Publish on merge is now the default.** A wiki that never set the option
+  publishes on every merged change request; turn it off per wiki under
+  Settings → Change requests to keep manual publishing.
 - The upstream two-step BullMQ upgrade does not apply: v0.1.0 already runs
   BullMQ 6.
 
@@ -62,9 +65,16 @@ Back up first: the migrations below are forward-only. The full list is in
 - Cross-wiki search (`scope=all`) backed by a Postgres full-text table
   ([#98](https://github.com/Zhincore/ZhinWiki/pull/98), [#99](https://github.com/Zhincore/ZhinWiki/pull/99)).
 - Account deletion archives the user's open change requests ([#97](https://github.com/Zhincore/ZhinWiki/pull/97)).
+- Change-request actions and "Approve and merge" in the editor's top bar
+  ([#105](https://github.com/Zhincore/ZhinWiki/pull/105)).
+- Account settings link in the sidebar menu and a display-name prompt on first
+  sign-in; the sidebar falls back to your own email until a name is set
+  ([#106](https://github.com/Zhincore/ZhinWiki/pull/106)).
 
 ### Changed
 
+- Publish on merge is on by default; the Publish button stays available in
+  site settings ([#105](https://github.com/Zhincore/ZhinWiki/pull/105)).
 - Docs versions removed ([#93](https://github.com/Zhincore/ZhinWiki/pull/93)).
 - Plan tab and Cloud wording removed ([#59](https://github.com/Zhincore/ZhinWiki/pull/59), [#60](https://github.com/Zhincore/ZhinWiki/pull/60)); fork docs and rebrand
   ([#66](https://github.com/Zhincore/ZhinWiki/pull/66), [#76](https://github.com/Zhincore/ZhinWiki/pull/76), [#95](https://github.com/Zhincore/ZhinWiki/pull/95), [#96](https://github.com/Zhincore/ZhinWiki/pull/96), [#102](https://github.com/Zhincore/ZhinWiki/pull/102)).
@@ -77,6 +87,8 @@ Back up first: the migrations below are forward-only. The full list is in
 
 - Background import failures are translated and GitBook starts are capped
   atomically ([#77](https://github.com/Zhincore/ZhinWiki/pull/77)).
+- The back arrow and a new close button in site settings return to the editor
+  instead of leaving it ([#107](https://github.com/Zhincore/ZhinWiki/pull/107)).
 - Better Auth's own sign-in and code-email limits are keyed on the resolved
   client IP instead of one bucket shared by every client behind a proxy chain
   ([#103](https://github.com/Zhincore/ZhinWiki/pull/103)).

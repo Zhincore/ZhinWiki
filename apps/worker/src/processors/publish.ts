@@ -339,12 +339,13 @@ async function completePublish(
     outcome: 'ready',
     siteUrl: siteUrlFor(job.projectId),
     locale: job.locale,
+    source: job.source,
   });
   return { pages: ready.pagesCount };
 }
 
 export async function handlePublishJobs(job: Job<PublishDeploymentJobData>): Promise<{ pages: number }> {
-  const { deploymentId, projectId, skipGrammarChecks, auto, locale } = job.data;
+  const { deploymentId, projectId, skipGrammarChecks, auto, locale, source } = job.data;
   const lifecycleOccurredAt = new Date(job.timestamp ?? Date.now()).toISOString();
   log.info({ deploymentId, projectId }, 'building deployment');
 
@@ -486,6 +487,7 @@ export async function handlePublishJobs(job: Job<PublishDeploymentJobData>): Pro
       outcome: 'failed',
       error: failed.error ?? undefined,
       locale,
+      source,
     });
     throw error;
   }

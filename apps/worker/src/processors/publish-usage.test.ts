@@ -152,4 +152,11 @@ describe('publish usage queue isolation', () => {
     expect(mocks.notifyDeployment).toHaveBeenLastCalledWith(expect.objectContaining({ deploymentId: 'deployment-a', outcome: 'ready' }));
     expect(mocks.deploymentUpdate).not.toHaveBeenCalled();
   });
+
+  it('tells the notification whether the publish was started by a merge', async () => {
+    mocks.deploymentFindFirst.mockResolvedValue({ status: 'READY', pagesCount: 3, createdById: 'author-a', version: 2, completedAt: new Date() });
+    const job = { data: { deploymentId: 'deployment-a', projectId: 'project-a', auto: true, source: 'merge' } } as Job<PublishDeploymentJobData>;
+    await expect(handlePublishJobs(job)).resolves.toEqual({ pages: 3 });
+    expect(mocks.notifyDeployment).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'ready', source: 'merge' }));
+  });
 });

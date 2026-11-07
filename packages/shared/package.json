@@ -16,6 +16,7 @@
     "./ids": "./src/ids.ts",
     "./integrations": "./src/integrations.ts",
     "./mcp": "./src/mcp.ts",
+    "./notifications": "./src/notifications.ts",
     "./markdown-discovery": "./src/markdown-discovery.ts",
     "./markdown-code": "./src/markdown-code.ts",
     "./markdown-key": "./src/markdown-key.ts",

@@ -9,6 +9,9 @@ export interface PublishDeploymentJobData {
   /** True for system-triggered publishes (e.g. the starter site published at
    *  sign-up) so activation metrics can exclude them. */
   auto?: boolean;
+  /** Set when a change-request merge started the publish; no success email is
+   *  sent since the merge already notified its people. */
+  source?: 'merge';
   /** Paraglide interface locale resolved when the publish was requested. */
   locale?: string;
 }

@@ -242,7 +242,7 @@ describe('publish on merge', () => {
 
   it('publishes like the Publish button by default', async () => {
     expect(await merge()).toEqual({ status: 200, publish: 'queued' });
-    expect(mocks.createDeployment).toHaveBeenCalledWith('org', 'project', 'user', { message: 'Merge #1: Fix' }, 'en', true);
+    expect(mocks.createDeployment).toHaveBeenCalledWith('org', 'project', 'user', { message: 'Merge #1: Fix' }, 'en', 'merge');
   });
 
   it('keeps the merge and reports a publish that cannot start', async () => {

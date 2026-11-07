@@ -49,7 +49,7 @@ const publishMerged = async (
   const message = `Merge #${changeRequest.number}: ${changeRequest.title}`.slice(0, 200);
   const userId = getContextUserOrThrow().id;
   try {
-    await createDeployment(project.organizationId, project.id, userId, { message }, getContextLocale(), true);
+    await createDeployment(project.organizationId, project.id, userId, { message }, getContextLocale(), 'merge');
     return 'queued';
   } catch (error) {
     logger.warn({ error, projectId: project.id, number: changeRequest.number }, 'publish on merge failed; the change request stays merged');

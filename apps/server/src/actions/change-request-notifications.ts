@@ -7,8 +7,9 @@ import {
   renderChangeRequestEmail,
   resolveEmailLanguage,
 } from '@nibleaf/email';
+import { notificationEnabled } from '@nibleaf/shared/notifications';
 import { env } from '@/env';
-import { notificationEnabled, notificationName } from './notifications';
+import { notificationName } from './notifications';
 
 /** Stored notification type and the workspace toggle that silences each event. */
 const EVENTS: Record<ChangeRequestEmailEvent, { type: string; preference: string }> = {

@@ -3,11 +3,12 @@ import { prisma } from '@nibleaf/database';
 import { type EmailLanguage, renderMemberInvitationEmail } from '@nibleaf/email';
 import { instanceBrand } from '@nibleaf/shared/brand/server';
 import { MemberRole } from '@nibleaf/shared/constants';
+import { notificationEnabled } from '@nibleaf/shared/notifications';
 import { canAssignRole, canManageMember, planOwnershipTransfer } from '@nibleaf/shared/rbac';
 import type { UpdateMemberRoleBody } from '@nibleaf/validators';
 import { env } from '@/env';
 import { conflict, forbidden, notFound } from '@/errors';
-import { notificationEnabled, notificationName } from './notifications';
+import { notificationName } from './notifications';
 
 const INVITE_TTL_DAYS = 7;
 

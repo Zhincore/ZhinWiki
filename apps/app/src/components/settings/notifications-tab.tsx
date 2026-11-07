@@ -1,6 +1,7 @@
 import { Switch } from '@nibleaf/design-system/components/ui/switch';
 import type { MessageKey } from '@nibleaf/i18n';
 import { useT } from '@nibleaf/i18n/react';
+import { defaultNotificationEnabled } from '@nibleaf/shared/notifications';
 import { Bell } from 'lucide-react';
 import { useId } from 'react';
 import { toast } from 'sonner';
@@ -128,7 +129,7 @@ export function NotificationsTab({ projectId }: { projectId?: string }) {
   const { data: session } = useSession();
   const stored = (data?.notifications ?? {}) as Record<string, boolean>;
 
-  const isOn = (id: string) => stored[id] ?? true;
+  const isOn = (id: string) => stored[id] ?? defaultNotificationEnabled(id);
 
   const toggle = (id: string) => {
     const next = { ...stored, [id]: !isOn(id) };

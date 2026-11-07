@@ -120,7 +120,9 @@ turn this off under **Settings → Change requests → Publish on merge**. While
 is on, the editor shows **Publish** only in site settings, for settings
 changes; a failed publish leaves the merge in place and shows on the overview
 with a **Publish** button to try again, and deployment rollback stays
-available.
+available. A publish on merge shows under the bell but sends no "published"
+email, even when that email is turned on; failed publishes are emailed as
+usual.
 
 **History** in the dashboard lists merged change requests, newest first, with
 who merged them and how many pages each changed. **Revert** on a merged change

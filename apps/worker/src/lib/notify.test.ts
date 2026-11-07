@@ -16,6 +16,8 @@ import { notifyDeployment } from './notify';
 
 const options = { deploymentId: 'deployment-a', projectId: 'project-a', projectName: 'Fixture', version: 1, outcome: 'ready', locale: 'ar' } as const;
 
+const preferences = (notifications: Record<string, boolean>) => ({ metadata: JSON.stringify({ notifications }) });
+
 describe('deployment notification retry identity', () => {
   const rows = new Map<string, unknown>();
   const jobs = new Map<string, unknown>();
@@ -24,7 +26,7 @@ describe('deployment notification retry identity', () => {
     rows.clear();
     jobs.clear();
     mocks.project.mockResolvedValue({ organizationId: 'org-a' });
-    mocks.organization.mockResolvedValue({ metadata: null });
+    mocks.organization.mockResolvedValue(preferences({ project_deploy: true }));
     mocks.members.mockImplementation(async ({ where }) =>
       where.role
         ? [{ user: { email: 'a@example.invalid' } }, { user: { email: 'b@example.invalid' } }]
@@ -76,16 +78,40 @@ describe('deployment notification retry identity', () => {
     expect(jobs.size).toBe(2);
   });
 
-  it('honors current outcome preferences even on retry and does not reserve suppressed IDs', async () => {
-    mocks.organization.mockResolvedValue({ metadata: JSON.stringify({ notifications: { project_deploy: false } }) });
+  it('honors current email preferences even on retry, keeps the bell and does not reserve suppressed IDs', async () => {
+    mocks.organization.mockResolvedValue(preferences({ project_deploy: false, project_deploy_failed: false }));
     await notifyDeployment(options);
-    expect(rows.size).toBe(0);
+    expect(rows.size).toBe(3);
     expect(jobs.size).toBe(0);
     await notifyDeployment({ ...options, outcome: 'failed' });
-    expect(rows.size).toBe(3);
+    expect(rows.size).toBe(6);
+    expect(jobs.size).toBe(0);
+    mocks.organization.mockResolvedValue(preferences({ project_deploy: true }));
+    await notifyDeployment(options);
+    await notifyDeployment({ ...options, outcome: 'failed' });
+    expect(rows.size).toBe(6);
+    expect(jobs.size).toBe(4);
+  });
+
+  it('emails failures but not successes until the workspace opts in', async () => {
     mocks.organization.mockResolvedValue({ metadata: null });
     await notifyDeployment(options);
+    expect(rows.size).toBe(3);
+    expect(jobs.size).toBe(0);
+    await notifyDeployment({ ...options, outcome: 'failed' });
     expect(rows.size).toBe(6);
+    expect(jobs.size).toBe(2);
+  });
+
+  it('sends no success email for a publish on merge, only the bell', async () => {
+    await notifyDeployment({ ...options, auto: true });
+    expect(rows.size).toBe(3);
+    expect(jobs.size).toBe(0);
+    await notifyDeployment({ ...options, outcome: 'failed', auto: true });
+    expect(rows.size).toBe(6);
+    expect(jobs.size).toBe(2);
+    await notifyDeployment({ ...options, deploymentId: 'deployment-b', auto: false });
+    expect(rows.size).toBe(9);
     expect(jobs.size).toBe(4);
   });
 

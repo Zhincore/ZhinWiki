@@ -2,24 +2,7 @@ import { createHash } from 'node:crypto';
 import { createJob, QueueNames } from '@nibleaf/bullmq';
 import { prisma } from '@nibleaf/database';
 import { renderDeploymentEmail, resolveEmailLanguage } from '@nibleaf/email';
-
-/**
- * Workspace notification preferences live as a JSON blob on `Organization.metadata`
- * (`{ notifications: { [id]: boolean } }`). Every notification defaults ON, so only
- * an explicit `false` silences it. (Mirrors apps/server/src/actions/notifications.ts —
- * the worker can't import server actions, and the logic is tiny + stable.)
- */
-function notificationEnabled(metadata: string | null | undefined, id: string): boolean {
-  if (!metadata) {
-    return true;
-  }
-  try {
-    const parsed = JSON.parse(metadata) as { notifications?: Record<string, boolean> };
-    return parsed.notifications?.[id] !== false;
-  } catch {
-    return true;
-  }
-}
+import { notificationEnabled } from '@nibleaf/shared/notifications';
 
 function deploymentNotificationId(opts: { deploymentId: string; projectId: string; outcome: 'ready' | 'failed' }, recipient: string): string {
   return `deployment-${createHash('sha256')
@@ -62,9 +45,20 @@ async function createDeploymentNotifications(
   });
 }
 
-/** Email a project's org admins/owners about a deployment outcome, when the relevant
- *  notification toggle is enabled. Also drops an in-app notification (the dashboard
- *  bell) for every org member. Attempt both channels, then throw on partial
+/** Whether the outcome is emailed: the workspace toggle must allow it, and a
+ *  publish on merge (`auto`) sends no success email since the merge already
+ *  notified its people. */
+async function deploymentEmailEnabled(organizationId: string, opts: { outcome: 'ready' | 'failed'; auto?: boolean }): Promise<boolean> {
+  if (opts.outcome === 'ready' && opts.auto) {
+    return false;
+  }
+  const org = await prisma.organization.findUnique({ where: { id: organizationId }, select: { metadata: true } });
+  return notificationEnabled(org?.metadata, opts.outcome === 'ready' ? 'project_deploy' : 'project_deploy_failed');
+}
+
+/** Drop an in-app notification (the dashboard bell) for every org member about a
+ *  deployment outcome, and email the org admins/owners when the relevant
+ *  notification toggle is enabled. Attempt both channels, then throw on partial
  *  failure so a READY retry repairs missing deliveries without revoking READY.
  *  Email deduplication lasts only while the BullMQ job is retained; it is not
  *  permanent exactly-once provider delivery. */
@@ -77,17 +71,12 @@ export async function notifyDeployment(opts: {
   outcome: 'ready' | 'failed';
   error?: string;
   locale?: string;
+  auto?: boolean;
 }): Promise<void> {
   const project = await prisma.project.findUnique({ where: { id: opts.projectId }, select: { organizationId: true } });
   if (!project?.organizationId) {
     return;
   }
-  const notificationId = opts.outcome === 'ready' ? 'project_deploy' : 'project_deploy_failed';
-  const org = await prisma.organization.findUnique({ where: { id: project.organizationId }, select: { metadata: true } });
-  if (!notificationEnabled(org?.metadata, notificationId)) {
-    return;
-  }
-  const deliveries: Promise<unknown>[] = [createDeploymentNotifications(project.organizationId, opts)];
   const emailDelivery = async () => {
     const members = await prisma.member.findMany({
       where: { organizationId: project.organizationId, role: { in: ['owner', 'admin'] } },
@@ -116,7 +105,11 @@ export async function notifyDeployment(opts: {
     );
     if (queued.some((result) => result.status === 'rejected')) throw new Error('Deployment email enqueue incomplete');
   };
-  deliveries.push(emailDelivery());
+  const emailEnabled = await deploymentEmailEnabled(project.organizationId, opts);
+  const deliveries: Promise<unknown>[] = [createDeploymentNotifications(project.organizationId, opts)];
+  if (emailEnabled) {
+    deliveries.push(emailDelivery());
+  }
   const results = await Promise.allSettled(deliveries);
   if (results.some((result) => result.status === 'rejected')) throw new Error('Deployment notification delivery incomplete');
 }

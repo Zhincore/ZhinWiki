@@ -4,23 +4,6 @@ import type { MarkNotificationsReadBody } from '@nibleaf/validators';
 /** Name shown for a user in notifications and emails: their name, else their email. */
 export const notificationName = (user: { name: string; email: string }): string => user.name || user.email;
 
-/**
- * Workspace notification preferences live as a JSON blob on `Organization.metadata`
- * (`{ notifications: { [id]: boolean } }`), edited in the per-site Notifications
- * settings. Every notification defaults ON, so only an explicit `false` silences it.
- */
-export function notificationEnabled(metadata: string | null | undefined, id: string): boolean {
-  if (!metadata) {
-    return true;
-  }
-  try {
-    const parsed = JSON.parse(metadata) as { notifications?: Record<string, boolean> };
-    return parsed.notifications?.[id] !== false;
-  } catch {
-    return true;
-  }
-}
-
 // ─── In-app notification inbox (the bell in the dashboard header) ────────────
 // Rows are personal (per user); producers fan one event out to every member of
 // the project's organization. Titles/bodies are stored as plain English text —

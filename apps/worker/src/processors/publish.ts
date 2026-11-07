@@ -339,6 +339,7 @@ async function completePublish(
     outcome: 'ready',
     siteUrl: siteUrlFor(job.projectId),
     locale: job.locale,
+    auto: job.auto,
   });
   return { pages: ready.pagesCount };
 }
@@ -486,6 +487,7 @@ export async function handlePublishJobs(job: Job<PublishDeploymentJobData>): Pro
       outcome: 'failed',
       error: failed.error ?? undefined,
       locale,
+      auto,
     });
     throw error;
   }

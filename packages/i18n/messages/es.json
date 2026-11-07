@@ -2648,5 +2648,7 @@
   "settings_import_conflict": "Tu borrador cambió durante la importación. Tus ediciones se conservaron. Revisa tus páginas antes de reintentar.",
   "settings_import_inprogress": "Ya hay una importación en curso para este proyecto. Espera a que termine antes de iniciar otra.",
   "settings_import_busy": "La capacidad de importación está ocupada o la importación no pudo completarse a tiempo. Inténtalo de nuevo en breve.",
-  "settings_import_nodelimit": "La importación supera el límite de {limit} entradas de navegación. Importa un espacio más pequeño. Tu borrador se conservó."
+  "settings_import_nodelimit": "La importación supera el límite de {limit} entradas de navegación. Importa un espacio más pequeño. Tu borrador se conservó.",
+  "account_setname_title": "Elige tu nombre visible",
+  "account_setname_description": "Dinos cómo llamarte. Tu nombre se muestra a las personas con las que colaboras."
 }

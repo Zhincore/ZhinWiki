@@ -1,4 +1,5 @@
 import { createFileRoute, Navigate, Outlet, redirect } from '@tanstack/react-router';
+import { SetNameDialog } from '@/components/app/set-name-dialog';
 import { SupportAccessBanner } from '@/components/app/support-access-banner';
 import { AppProviders } from '@/components/app-providers';
 import { PageLoader } from '@/components/page-loader';
@@ -36,7 +37,7 @@ function AppRoute() {
 
 function AppGuard() {
   const { routeSession, supportAdminUrl } = Route.useRouteContext();
-  const { data: session, isPending } = useSession();
+  const { data: session, isPending, refetch } = useSession();
   const resolvedSession = session ?? (isPending ? routeSession : null);
 
   if (isPending && !resolvedSession) {
@@ -53,6 +54,7 @@ function AppGuard() {
       <ProjectProvider>
         <Outlet />
       </ProjectProvider>
+      {impersonatedBy ? null : <SetNameDialog name={supportSession.user?.name} onSaved={refetch} />}
       {impersonatedBy && supportSession.user?.id ? (
         <SupportAccessBanner
           adminUrl={supportAdminUrl}

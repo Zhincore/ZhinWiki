@@ -75,6 +75,11 @@ Back up first: the migrations below are forward-only. The full list is in
 
 - Publish on merge is on by default; the Publish button stays available in
   site settings ([#105](https://github.com/Zhincore/ZhinWiki/pull/105)).
+- The successful-publish email is off by default and never sent for a publish
+  on merge; failures still email and the in-app notification stays. Notification
+  toggles now gate only the email ([#110](https://github.com/Zhincore/ZhinWiki/pull/110)).
+- Publish notifications say "Publish #n" instead of "Version vn"
+  ([#111](https://github.com/Zhincore/ZhinWiki/pull/111)).
 - Docs versions removed ([#93](https://github.com/Zhincore/ZhinWiki/pull/93)).
 - Plan tab and Cloud wording removed ([#59](https://github.com/Zhincore/ZhinWiki/pull/59), [#60](https://github.com/Zhincore/ZhinWiki/pull/60)); fork docs and rebrand
   ([#66](https://github.com/Zhincore/ZhinWiki/pull/66), [#76](https://github.com/Zhincore/ZhinWiki/pull/76), [#95](https://github.com/Zhincore/ZhinWiki/pull/95), [#96](https://github.com/Zhincore/ZhinWiki/pull/96), [#102](https://github.com/Zhincore/ZhinWiki/pull/102)).

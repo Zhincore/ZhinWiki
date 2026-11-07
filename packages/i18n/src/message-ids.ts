@@ -308,6 +308,7 @@ export const MESSAGE_IDS = {
   'changeRequest.review.state.pending': 'changerequest_review_state_pending',
   'changeRequest.review.submit': 'changerequest_review_submit',
   'changeRequest.review.approve': 'changerequest_review_approve',
+  'changeRequest.review.approveAndMerge': 'changerequest_review_approveandmerge',
   'changeRequest.review.requestChanges': 'changerequest_review_requestchanges',
   'changeRequest.review.comment': 'changerequest_review_comment',
   'changeRequest.review.bodyPlaceholder': 'changerequest_review_bodyplaceholder',

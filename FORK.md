@@ -186,12 +186,12 @@ branch stores one change request (CR), reviewed and merged back.
   workspace toggles `change_request_review_requested`,
   `change_request_reviewed`, `change_request_merged`.
 - Publish on merge: `config.changeRequests.publishOnMerge` (admin setting,
-  default off). After a merge the handler calls `createDeployment` (`auto`);
-  a refused publish leaves the merge, answers `publish: 'failed'` and is
-  stored as a FAILED deployment (`recordRefusedDeployment`), like build
-  failures. Publish button and first-publish nudge hidden; the overview
-  failure card offers Publish, rollback stays. Settings-only edits wait for
-  the next merge.
+  default on, off only when `false`). After a merge the handler calls
+  `createDeployment` (`auto`); a refused publish leaves the merge, answers
+  `publish: 'failed'` and is stored as a FAILED deployment
+  (`recordRefusedDeployment`), like build failures. Editor Publish button
+  shown only in site settings, first-publish nudge hidden; the overview
+  failure card offers Publish, rollback stays.
 - History: `GET …/change-requests/history?cursor=` (viewer rule, like the
   list): merged CRs by `mergedAt` desc, 20 per page, `pagesCount` from the
   merge record.

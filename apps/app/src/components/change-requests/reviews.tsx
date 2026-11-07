@@ -13,7 +13,7 @@ import { Textarea } from '@nibleaf/design-system/components/ui/textarea';
 import { cn } from '@nibleaf/design-system/lib/utils';
 import type { MessageKey } from '@nibleaf/i18n';
 import { useT } from '@nibleaf/i18n/react';
-import { Check, ChevronDown, MessageSquare, RotateCcw, UserPlus, X } from 'lucide-react';
+import { Check, ChevronDown, GitMerge, MessageSquare, RotateCcw, UserPlus, X } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -75,13 +75,25 @@ export function ApprovalStatus({ review }: { review: ChangeRequestDetail['review
   );
 }
 
-/** Approve, request changes or comment, with an optional message. */
-export function SubmitReviewMenu({ projectId, number }: { projectId: string; number: number }) {
+/** Approve, request changes or comment, with an optional message. With
+ *  `onApproved`, also offers to approve and then hand over to the merge. */
+export function SubmitReviewMenu({
+  projectId,
+  number,
+  beforeSubmit,
+  onApproved,
+}: {
+  projectId: string;
+  number: number;
+  beforeSubmit?: () => Promise<boolean>;
+  onApproved?: () => void;
+}) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [body, setBody] = useState('');
   const submit = useSubmitChangeRequestReview(projectId, number);
-  const send = (state: ChangeRequestReviewState) =>
+  const send = async (state: ChangeRequestReviewState, merge = false) => {
+    if (beforeSubmit && !(await beforeSubmit())) return;
     submit.mutate(
       { state, ...(body.trim() ? { body } : {}) },
       {
@@ -89,10 +101,12 @@ export function SubmitReviewMenu({ projectId, number }: { projectId: string; num
           toast.success(t('changeRequest.review.submitted'));
           setBody('');
           setOpen(false);
+          if (merge) onApproved?.();
         },
         onError: (error) => toast.error(error.message),
       },
     );
+  };
   return (
     <Popover onOpenChange={setOpen} open={open}>
       <PopoverTrigger
@@ -113,15 +127,20 @@ export function SubmitReviewMenu({ projectId, number }: { projectId: string; num
           onChange={(event) => setBody(event.target.value)}
         />
         <div className="flex flex-wrap justify-end gap-2">
-          <Button size="sm" variant="ghost" disabled={submit.isPending} onClick={() => send('COMMENTED')}>
+          <Button size="sm" variant="ghost" disabled={submit.isPending} onClick={() => void send('COMMENTED')}>
             <MessageSquare className="size-3.5" /> {t('changeRequest.review.comment')}
           </Button>
-          <Button size="sm" variant="outline" disabled={submit.isPending} onClick={() => send('CHANGES_REQUESTED')}>
+          <Button size="sm" variant="outline" disabled={submit.isPending} onClick={() => void send('CHANGES_REQUESTED')}>
             {t('changeRequest.review.requestChanges')}
           </Button>
-          <Button size="sm" disabled={submit.isPending} onClick={() => send('APPROVED')}>
+          <Button size="sm" variant={onApproved ? 'outline' : 'default'} disabled={submit.isPending} onClick={() => void send('APPROVED')}>
             <Check className="size-3.5" /> {t('changeRequest.review.approve')}
           </Button>
+          {onApproved ? (
+            <Button size="sm" disabled={submit.isPending} onClick={() => void send('APPROVED', true)}>
+              <GitMerge className="size-3.5" /> {t('changeRequest.review.approveAndMerge')}
+            </Button>
+          ) : null}
         </div>
       </PopoverContent>
     </Popover>

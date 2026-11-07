@@ -12,15 +12,15 @@ import { useTheme } from '@nibleaf/design-system/theme';
 import { INTERFACE_LOCALES } from '@nibleaf/i18n';
 import { useLocale } from '@nibleaf/i18n/react';
 import { useNavigate } from '@tanstack/react-router';
-import { ChevronsUpDown, Languages, LogOut, Moon, Sun } from 'lucide-react';
+import { ChevronsUpDown, Languages, LogOut, Moon, Sun, UserRound } from 'lucide-react';
 import { useState, useSyncExternalStore } from 'react';
 import { InterfaceLanguageDialog } from '@/components/interface-language-dialog';
 import { authClient } from '@/services/auth-client';
 
 const subscribeToHydration = () => () => undefined;
 
-/** Shared sidebar footer: the signed-in account button + menu (theme, language,
- *  sign out). Used by both the global app sidebar and the per-site sidebar. */
+/** Shared sidebar footer: the signed-in account button + menu (account settings,
+ *  theme, language, sign out). Used by both the global app sidebar and the per-site sidebar. */
 export function SidebarAccountFooter() {
   const { data: session } = authClient.useSession();
   const hydrated = useSyncExternalStore(
@@ -35,8 +35,11 @@ export function SidebarAccountFooter() {
   const [languageOpen, setLanguageOpen] = useState(false);
   const navigate = useNavigate();
 
-  const initials = (visibleSession?.user?.name ?? 'U')
-    .split(' ')
+  const email = visibleSession?.user?.email ?? '';
+  const ownName = visibleSession?.user?.name?.trim();
+  const name = ownName || email;
+  const initials = (ownName ? ownName.split(/\s+/) : (email.split('@')[0] || 'U').split(/[._+-]+/))
+    .filter(Boolean)
     .map((part) => part[0])
     .slice(0, 2)
     .join('')
@@ -54,33 +57,38 @@ export function SidebarAccountFooter() {
                 }
               >
                 <Avatar className="size-9 rounded-lg">
-                  {visibleSession?.user?.image ? <AvatarImage alt={visibleSession.user.name} src={visibleSession.user.image} /> : null}
+                  {visibleSession?.user?.image ? <AvatarImage alt={name} src={visibleSession.user.image} /> : null}
                   <AvatarFallback className="rounded-lg bg-gradient-to-br from-primary to-primary/60 font-semibold text-primary-foreground text-xs">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-start leading-tight">
                   <span className="truncate font-medium text-sm" dir="auto">
-                    {visibleSession?.user?.name ?? t('nav.account')}
+                    {name || t('nav.account')}
                   </span>
-                  <span className="truncate text-muted-foreground text-xs" dir="ltr">
-                    {visibleSession?.user?.email ?? ''}
-                  </span>
+                  {name !== email ? (
+                    <span className="truncate text-muted-foreground text-xs" dir="ltr">
+                      {email}
+                    </span>
+                  ) : null}
                 </div>
                 <ChevronsUpDown className="ms-auto size-4 text-muted-foreground" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64" side="top">
                 <DropdownMenuLabel className="flex items-center gap-3 py-2">
                   <Avatar className="size-9 rounded-lg">
-                    {visibleSession?.user?.image ? <AvatarImage alt={visibleSession.user.name} src={visibleSession.user.image} /> : null}
+                    {visibleSession?.user?.image ? <AvatarImage alt={name} src={visibleSession.user.image} /> : null}
                     <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                   </Avatar>
                   <span className="min-w-0">
-                    <span className="block truncate font-medium">{visibleSession?.user?.name ?? t('nav.account')}</span>
-                    <span className="block truncate font-normal text-muted-foreground text-xs">{visibleSession?.user?.email ?? ''}</span>
+                    <span className="block truncate font-medium">{name || t('nav.account')}</span>
+                    {name !== email ? <span className="block truncate font-normal text-muted-foreground text-xs">{email}</span> : null}
                   </span>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate({ to: '/app/settings', search: { tab: 'account' } })}>
+                  <UserRound className="size-4" /> {t('command.accountSettings')}
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}>
                   {resolvedTheme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
                   {resolvedTheme === 'dark' ? t('account.lightMode') : t('account.darkMode')}

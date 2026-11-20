@@ -15,7 +15,6 @@ on:
       - "pnpm-lock.yaml"
       - ".github/workflows/osv.yml"
       - "osv-scanner.toml"
-      - "osv-scanner.toml"
   schedule:
     - cron: "23 5 * * 1"
   workflow_dispatch:

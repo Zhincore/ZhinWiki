@@ -1,35 +1,12 @@
-import { keys as bullmqKeys } from '@nibleaf/bullmq/keys';
-import { Redis } from 'ioredis';
 import { AppError } from '@/errors';
 import { envExtras } from './env-extras';
+import { markRedisUnhealthy, sharedRedis } from './redis';
 
 /**
  * Per-workspace daily quota for the AI draft endpoint — the only place the
  * platform spends money per request, so it must be bounded. Backed by a redis
- * INCR with a 24h TTL (same Dragonfly instance BullMQ uses).
+ * INCR with a 24h TTL on the shared request-path connection.
  */
-
-let client: Redis | null = null;
-
-const getRedis = (): Redis => {
-  if (!client) {
-    const redisEnv = bullmqKeys();
-    client = new Redis({
-      host: redisEnv.REDIS_HOST,
-      port: redisEnv.REDIS_PORT,
-      db: redisEnv.REDIS_DB,
-      ...(redisEnv.REDIS_PASSWORD ? { password: redisEnv.REDIS_PASSWORD } : {}),
-      protocol: 2,
-      // Quota checks must fail fast, not queue up while redis is down.
-      enableOfflineQueue: false,
-      maxRetriesPerRequest: 1,
-      retryStrategy: (times) => Math.min(times * 100, 2000),
-    });
-    // Swallow connection errors — the quota check degrades to fail-open below.
-    client.on('error', () => undefined);
-  }
-  return client;
-};
 
 const DAY_SECONDS = 24 * 60 * 60;
 
@@ -46,10 +23,15 @@ export const assertAiQuota = async (organizationId: string): Promise<void> => {
 
   let used: number;
   try {
-    const redis = getRedis();
-    used = await redis.incr(key);
-    if (used === 1) {
-      await redis.expire(key, DAY_SECONDS);
+    const redis = await sharedRedis();
+    try {
+      used = await redis.incr(key);
+      if (used === 1) {
+        await redis.expire(key, DAY_SECONDS);
+      }
+    } catch (error) {
+      markRedisUnhealthy();
+      throw error;
     }
   } catch {
     return;

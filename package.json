@@ -40,9 +40,7 @@
     "analytics:migrate": "pnpm --filter @nibleaf/clickhouse migrate",
     "analytics:backfill": "tsx scripts/analytics-migration.ts backfill",
     "analytics:reconcile": "tsx scripts/analytics-migration.ts reconcile",
-    "analytics:rollback": "tsx scripts/analytics-migration.ts rollback",
-    "release:notes:engine": "pnpm dlx changelogithub@14.0.0",
-    "release:notes:dry": "node scripts/release-notes.mjs --dry"
+    "analytics:rollback": "tsx scripts/analytics-migration.ts rollback"
   },
   "dependencies": {
     "@nibleaf/tsconfig": "workspace:*",

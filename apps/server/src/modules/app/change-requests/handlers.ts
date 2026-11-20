@@ -115,7 +115,7 @@ const app = new Hono<HonoEnv>()
       const projectId = project.id;
       const data = await mergeChangeRequest(projectId, ctx.req.valid('param').number, getContextUserOrThrow().id, ctx.req.valid('json').force ?? []);
       const publish = await publishMerged(project, data);
-      await notify({ projectId, changeRequest: data, event: 'merged', recipients: [data.authorId] });
+      await notify({ projectId, changeRequest: data, event: publish === 'queued' ? 'mergedPublishing' : 'merged', recipients: [data.authorId] });
       return ctx.json({ data: { ...data, publish } }, 200);
     },
   )

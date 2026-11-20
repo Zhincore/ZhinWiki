@@ -224,7 +224,8 @@ export async function renderDeploymentEmail({
   };
 }
 
-export type ChangeRequestEmailEvent = 'approved' | 'changesRequested' | 'merged' | 'reviewRequested';
+/** `mergedPublishing`: merged on a wiki that publishes on merge, with the publish under way. */
+export type ChangeRequestEmailEvent = 'approved' | 'changesRequested' | 'merged' | 'mergedPublishing' | 'reviewRequested';
 
 export async function renderChangeRequestEmail({
   actorName,

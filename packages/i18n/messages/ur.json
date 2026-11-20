@@ -2044,6 +2044,8 @@
   "email_changerequest_changesrequested_message": "{actorName} نے {projectName} پر آپ کی تبدیلی کی درخواست “{title}” میں تبدیلیاں مانگی ہیں۔",
   "email_changerequest_merged_subject": "{actorName} نے #{number} {title} ضم کیا",
   "email_changerequest_merged_message": "{actorName} نے آپ کی تبدیلی کی درخواست “{title}” کو {projectName} میں ضم کیا۔",
+  "email_changerequest_mergedpublishing_subject": "{actorName} نے #{number} {title} ضم کیا، شائع ہو رہا ہے",
+  "email_changerequest_mergedpublishing_message": "{actorName} نے آپ کی تبدیلی کی درخواست “{title}” کو {projectName} میں ضم کیا۔ سائٹ شائع کی جا رہی ہے۔",
   "site_noanswergrounded": "I could not find enough information in the available documentation to answer confidently.",
   "site_importblog": "Blog",
   "site_importpages": "Pages",

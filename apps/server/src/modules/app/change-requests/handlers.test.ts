@@ -216,7 +216,13 @@ describe('notifications', () => {
     expect(mocks.notifyChangeRequest).not.toHaveBeenCalled();
   });
 
-  it('tells the author about the merge', async () => {
+  it('tells the author about the merge and the publish it started', async () => {
+    await send('POST', '/1/merge', {});
+    expect(mocks.notifyChangeRequest).toHaveBeenCalledWith(expect.objectContaining({ event: 'mergedPublishing', recipients: ['author'] }));
+  });
+
+  it('tells the author about the merge alone when the wiki does not publish on merge', async () => {
+    state.config = { changeRequests: { publishOnMerge: false } };
     await send('POST', '/1/merge', {});
     expect(mocks.notifyChangeRequest).toHaveBeenCalledWith(expect.objectContaining({ event: 'merged', recipients: ['author'] }));
   });

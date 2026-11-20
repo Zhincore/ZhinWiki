@@ -13,7 +13,6 @@ import { toast } from 'sonner';
 import { GithubIcon } from '@/components/icons/brand';
 import type { Deployment } from '@/hooks/api';
 import {
-  useBranches,
   useDeployments,
   useImportFromGit,
   useLanguages,
@@ -34,7 +33,6 @@ interface GitConfig {
   instanceUrl?: string;
   branch?: string;
   path?: string;
-  importBranchId?: string;
   importLanguageId?: string;
   lastImportedAt?: string;
   /** Publish automatically after each push-webhook sync. */
@@ -56,7 +54,6 @@ const DEFAULTS: Required<
   instanceUrl: 'https://gitlab.com',
   branch: 'main',
   path: 'docs',
-  importBranchId: '',
   importLanguageId: '',
 };
 
@@ -362,12 +359,7 @@ export function GitTab({ projectId }: { projectId?: string }) {
   const { data } = useWorkspaceSettings(projectId);
   const update = useUpdateWorkspaceSettings(projectId);
   const importFromGit = useImportFromGit(projectId ?? '');
-  const { data: branches } = useBranches(projectId);
   const { data: languages } = useLanguages(projectId);
-  const branchOptions: Array<{ value: string | null; label: string }> = [
-    { value: null, label: t('settings.git.defaultBranch') },
-    ...(branches ?? []).map((branch) => ({ value: branch.id, label: branch.name })),
-  ];
   const languageOptions: Array<{ value: string | null; label: string }> = [
     { value: null, label: t('settings.git.defaultLanguage') },
     ...(languages ?? []).map((language) => ({ value: language.id, label: `${language.label} (${language.code})` })),
@@ -388,7 +380,6 @@ export function GitTab({ projectId }: { projectId?: string }) {
           instanceUrl: git.instanceUrl,
           branch: git.branch,
           path: git.path,
-          importBranchId: git.importBranchId,
           importLanguageId: git.importLanguageId,
           // The PATCH replaces `git` wholesale, so carry the flags a partial
           // save must not flip (webhook fields are preserved server-side).
@@ -416,7 +407,6 @@ export function GitTab({ projectId }: { projectId?: string }) {
       instanceUrl: git.instanceUrl,
       branch: git.branch,
       path: git.path,
-      importBranchId: git.importBranchId,
       importLanguageId: git.importLanguageId,
     },
     onSubmit: async ({ value }) =>
@@ -428,7 +418,6 @@ export function GitTab({ projectId }: { projectId?: string }) {
           instanceUrl: provider === 'gitlab' ? value.instanceUrl.trim() || 'https://gitlab.com' : undefined,
           branch: value.branch.trim() || 'main',
           path: value.path.trim(),
-          importBranchId: value.importBranchId || undefined,
           importLanguageId: value.importLanguageId || undefined,
           connected: true,
         },
@@ -444,10 +433,9 @@ export function GitTab({ projectId }: { projectId?: string }) {
       instanceUrl: git.instanceUrl,
       branch: git.branch,
       path: git.path,
-      importBranchId: git.importBranchId,
       importLanguageId: git.importLanguageId,
     });
-  }, [form, git.branch, git.cloneUrl, git.importBranchId, git.importLanguageId, git.instanceUrl, git.path, git.provider, git.repo]);
+  }, [form, git.branch, git.cloneUrl, git.importLanguageId, git.instanceUrl, git.path, git.provider, git.repo]);
 
   const webUrl = repoWebUrl(git);
   const ProviderGlyph = git.provider === 'github' ? GithubIcon : GitBranch;
@@ -569,25 +557,6 @@ export function GitTab({ projectId }: { projectId?: string }) {
       </div>
       {projectId ? (
         <div className="mt-4 grid grid-cols-2 gap-4">
-          <form.Field name="importBranchId">
-            {(field) => (
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="git-import-branch">{t('settings.git.importBranch')}</Label>
-                <Select items={branchOptions} onValueChange={(next) => field.handleChange(next ?? '')} value={field.state.value || null}>
-                  <SelectTrigger className="w-full font-mono" dir="ltr" id="git-import-branch">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent dir="ltr">
-                    {branchOptions.map((option) => (
-                      <SelectItem key={option.value ?? ''} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </form.Field>
           <form.Field name="importLanguageId">
             {(field) => (
               <div className="flex flex-col gap-1.5">

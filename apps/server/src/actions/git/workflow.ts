@@ -17,7 +17,7 @@ import {
 import { z } from 'zod';
 import { env } from '@/env';
 import { badRequest, notFound } from '@/errors';
-import { getDefaultBranch } from '../branches';
+import { getImportBranch } from '../branches';
 import { getCurrentSnapshot } from '../deployments';
 import { deriveTitle, humanize, parseFrontmatter } from '../importers/content';
 import { ensureGroupPage, upsertLeafPage } from '../importers/persistence';
@@ -143,14 +143,12 @@ const serializeGitPage = (page: AuthoringPage): string => {
 
 const authoringContext = async (connection: { projectId: string; importBranchId: string | null; importLanguageId: string | null }) => {
   const [branch, language] = await Promise.all([
-    connection.importBranchId
-      ? prisma.branch.findFirst({ where: { id: connection.importBranchId, projectId: connection.projectId } })
-      : getDefaultBranch(connection.projectId),
+    getImportBranch(connection.projectId, connection.importBranchId),
     connection.importLanguageId
       ? prisma.language.findFirst({ where: { id: connection.importLanguageId, projectId: connection.projectId } })
       : getDefaultLanguage(connection.projectId),
   ]);
-  if (!(branch && language)) throw badRequest(`The configured ${instanceBrand().name} branch or language no longer exists.`);
+  if (!language) throw badRequest(`The configured ${instanceBrand().name} language no longer exists.`);
   return { branch, language };
 };
 
@@ -229,6 +227,7 @@ export const connectGitHub = async (projectId: string, actorUserId: string, inpu
   const headBranch = normalizeGitBranch(input.headBranch, 'Authoring branch');
   if (headBranch === baseBranch) throw badRequest('Use a dedicated authoring branch distinct from the base branch.');
   const contentPath = normalizeGitPath(input.contentPath);
+  await getImportBranch(projectId, input.importBranchId);
   const existing = await prisma.gitConnection.findUnique({ where: { projectId } });
   if (!input.token && !existing?.credentialEncrypted) throw badRequest('A fine-grained GitHub token is required for the first connection.');
   const provider = input.token
@@ -443,9 +442,9 @@ const applyContentToNibleaf = async (
   }
   const { branch, language } = await authoringContext(connection);
   // Repository layout v2: the default language lives at the content root,
-  // other languages under `<lang>/`. Only the published branch is mirrored.
+  // other languages under `<lang>/`.
   const location = themeContentLocation(path, snapshot, connection.contentPath);
-  if (!(location && branch.isDefault) || location.languageCode !== language.code) {
+  if (!location || location.languageCode !== language.code) {
     throw new Error(`Git content path ${path} is outside the configured ${branch.name}/${language.code} content directory.`);
   }
   const segments = location.relative.split('/').filter(Boolean);

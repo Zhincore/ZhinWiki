@@ -9,7 +9,7 @@ const db = vi.hoisted(() => ({
 }));
 vi.mock('@nibleaf/database', () => ({ prisma: db, Prisma: { DbNull: 'DbNull' } }));
 
-import { captureImportDraft, promoteImportReplacementBranch } from './branches';
+import { captureImportDraft, getImportBranch, promoteImportReplacementBranch } from './branches';
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -20,6 +20,15 @@ beforeEach(() => {
   db.changeRequest.count.mockResolvedValue(0);
   db.$transaction.mockImplementation(async (fn) => fn(db));
 });
+it('targets the default branch, which the stored id may name', async () => {
+  await expect(getImportBranch('project')).resolves.toMatchObject({ id: 'main' });
+  await expect(getImportBranch('project', 'main')).resolves.toMatchObject({ id: 'main' });
+});
+
+it('refuses a change-request branch as import target', async () => {
+  await expect(getImportBranch('project', 'cr-branch')).rejects.toMatchObject({ status: 400, details: { branchId: 'cr-branch' } });
+});
+
 it.each(['edit', 'insert', 'delete', 'config'])('preserves concurrent %s and returns a conflict', async (change) => {
   const snapshot = await captureImportDraft('project');
   if (change === 'edit') db.page.findMany.mockResolvedValue([{ id: 'page', content: 'Edited' }]);

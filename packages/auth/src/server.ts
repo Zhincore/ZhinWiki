@@ -654,7 +654,17 @@ async function publishStarterSite(projectId: string, userId: string, locale?: st
     // `auto: true` marks this as a system publish for the activation funnel;
     // user-initiated publishes send `auto: false`.
     const jobData: PublishDeploymentJobData = { deploymentId: deployment.id, projectId, auto: true, locale };
-    await withTimeout(createJob(QueueNames.PUBLISH, { name: 'publish-deployment', data: jobData }), ENQUEUE_TIMEOUT_MS);
+    try {
+      await withTimeout(createJob(QueueNames.PUBLISH, { name: 'publish-deployment', data: jobData }), ENQUEUE_TIMEOUT_MS);
+    } catch (error) {
+      // No job will pick the row up: fail it now so the new site does not show
+      // a publish in progress until the worker's reaper runs.
+      await prisma.deployment.update({
+        where: { id: deployment.id, status: 'PENDING' },
+        data: { status: 'FAILED', error: 'The publish could not be queued. Publish the site manually.', completedAt: new Date() },
+      });
+      throw error;
+    }
     await logPlatformEvent('publish_clicked', { userId, projectId, metadata: { auto: true } });
   } catch (error) {
     log.warn({ error, projectId }, 'starter site auto-publish failed; the user can publish manually');

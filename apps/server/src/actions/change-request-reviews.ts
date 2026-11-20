@@ -15,8 +15,8 @@ type Review = { authorId: string | null; state: ChangeRequestReviewState; create
  * Review state of a change request. Each reviewer's latest approval or change
  * request since they became a reviewer is their verdict (comments do not change
  * it); reviews by non-reviewers do not count. An approval older than the last
- * page edit (`editedAt`) is stale: no verdict, and the reviewer awaits review
- * again, as they do after being asked until they review.
+ * page edit or request for review (`editedAt`) is stale: no verdict, and the
+ * reviewer awaits review again, as they do after being asked until they review.
  */
 export const reviewSummary = ({
   reviewers,

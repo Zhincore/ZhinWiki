@@ -19,6 +19,7 @@ import { AuthLayout } from '@/layouts/auth';
 import { authEmailErrorMessage, isCaptchaError } from '@/lib/auth-errors';
 import { brandedTitle } from '@/lib/brand';
 import { readPendingInvitation } from '@/lib/invitations';
+import { safeReturnPath } from '@/lib/return-path';
 import { authClient } from '@/services/auth-client';
 
 export const Route = createFileRoute('/(auth)/sign-up')({
@@ -27,6 +28,7 @@ export const Route = createFileRoute('/(auth)/sign-up')({
       .object({
         invite: z.string().optional().catch(undefined),
         email: z.string().optional().catch(undefined),
+        redirect: z.string().optional().catch(undefined),
       })
       .parse(search),
   head: ({ matches }) => ({ meta: [{ title: brandedTitle(matches, 'Sign up') }, { name: 'robots', content: 'noindex, nofollow' }] }),
@@ -52,13 +54,13 @@ function SignUpPage() {
 
   const normalizedEmail = email.trim().toLowerCase();
   const invitationId = search.invite ?? readPendingInvitation() ?? undefined;
-  const afterAuthPath = invitationId ? `/accept-invite/${invitationId}` : '/app';
+  const afterAuthPath = invitationId ? `/accept-invite/${invitationId}` : (safeReturnPath(search.redirect) ?? '/app');
 
   const finishSignUp = async () => {
     if (invitationId) {
       await navigate({ to: '/accept-invite/$invitationId', params: { invitationId } });
     } else {
-      await navigate({ to: '/app' });
+      await navigate({ href: afterAuthPath });
     }
   };
 
@@ -134,7 +136,7 @@ function SignUpPage() {
         </p>
         <p className="mt-5 text-center text-muted-foreground text-sm">
           {t('auth.signUp.haveAccount')}{' '}
-          <Link className="text-primary hover:underline" to="/sign-in">
+          <Link className="text-primary hover:underline" search={{ redirect: search.redirect }} to="/sign-in">
             {t('auth.signIn.submit')}
           </Link>
         </p>
@@ -250,7 +252,7 @@ function SignUpPage() {
           <LegalNotice />
           <p className="mt-5 text-center text-muted-foreground text-sm">
             {t('auth.signUp.haveAccount')}{' '}
-            <Link className="text-primary hover:underline" to="/sign-in">
+            <Link className="text-primary hover:underline" search={{ redirect: search.redirect }} to="/sign-in">
               {t('auth.signIn.submit')}
             </Link>
           </p>

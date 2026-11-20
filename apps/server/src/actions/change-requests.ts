@@ -216,12 +216,14 @@ export const updateChangeRequest = async (projectId: string, number: number, bod
     }
   }
   // A status change applies only if no merge or branch deletion changed the status since it was read.
+  // Asking for review (again) sets earlier approvals aside, like a page edit does.
   const { count } = await prisma.changeRequest.updateMany({
     where: { id: changeRequest.id, ...(statusChange ? { status: changeRequest.status, branchId: changeRequest.branchId } : {}) },
     data: {
       ...(body.title === undefined ? {} : { title: body.title.trim() }),
       ...(body.description === undefined ? {} : { description: body.description }),
       ...(body.status === undefined ? {} : { status: body.status }),
+      ...(statusChange && body.status === 'IN_REVIEW' ? { editedAt: new Date() } : {}),
     },
   });
   if (count === 0) throw conflict('This change request changed meanwhile. Reload and try again.');

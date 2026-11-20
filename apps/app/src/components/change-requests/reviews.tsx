@@ -52,27 +52,32 @@ function UserAvatar({ user }: { user: ChangeRequestUser }) {
   );
 }
 
-/** Approval count against the wiki's requirement, or the blocking change request. */
-export function ApprovalStatus({ review }: { review: ChangeRequestDetail['review'] }) {
+const MERGE_TONE = {
+  blocked: 'bg-red-500/10 text-red-700 dark:text-red-300',
+  pending: 'bg-muted text-muted-foreground',
+  conflicts: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+  ready: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+} as const;
+
+export type MergeState = { message: string; tone: keyof typeof MERGE_TONE; blocked: boolean };
+
+/** What stands between a change request and its merge: a requested change,
+ *  missing approvals, no changed pages or conflicts to resolve; null when
+ *  nothing is worth saying. */
+export const useMergeState = (changeRequest: Pick<ChangeRequestDetail, 'review' | 'changes' | 'conflicts'>): MergeState | null => {
   const t = useT();
-  const blocked = review.changesRequested > 0;
-  if (!blocked && review.required === 0) return null;
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs',
-        blocked
-          ? 'bg-red-500/10 text-red-700 dark:text-red-300'
-          : review.mergeable
-            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-            : 'bg-muted text-muted-foreground',
-      )}
-    >
-      {blocked
-        ? t('changeRequest.review.state.changesRequested')
-        : t('changeRequest.review.approvals', { approvals: review.approvals, required: review.required })}
-    </span>
-  );
+  const { review, changes, conflicts } = changeRequest;
+  const approvals = t('changeRequest.review.approvals', { approvals: review.approvals, required: review.required });
+  if (review.changesRequested > 0) return { message: t('changeRequest.review.state.changesRequested'), tone: 'blocked', blocked: true };
+  if (!review.mergeable) return { message: approvals, tone: 'pending', blocked: true };
+  if (changes.length === 0) return { message: t('changeRequest.noChanges'), tone: 'pending', blocked: true };
+  if (conflicts.length > 0) return { message: t('changeRequest.review.conflicts', { count: conflicts.length }), tone: 'conflicts', blocked: false };
+  if (review.required > 0) return { message: approvals, tone: 'ready', blocked: false };
+  return null;
+};
+
+export function MergeStatus({ state }: { state: MergeState }) {
+  return <span className={cn('inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs', MERGE_TONE[state.tone])}>{state.message}</span>;
 }
 
 /** Approve, request changes or comment, with an optional message. With

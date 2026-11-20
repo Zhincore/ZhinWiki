@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate, Outlet, redirect } from '@tanstack/react-router';
+import { createFileRoute, Navigate, Outlet, redirect, useLocation } from '@tanstack/react-router';
 import { SetNameDialog } from '@/components/app/set-name-dialog';
 import { SupportAccessBanner } from '@/components/app/support-access-banner';
 import { AppProviders } from '@/components/app-providers';
@@ -9,10 +9,10 @@ import { useSession } from '@/services/auth-client';
 import { ProjectProvider } from '@/stores/active-project';
 
 export const Route = createFileRoute('/app')({
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const routeSession = await getSessionFn();
     if (!routeSession) {
-      throw redirect({ to: '/sign-in' });
+      throw redirect({ to: '/sign-in', search: { redirect: location.href } });
     }
     // Only support sessions learn the operator console origin, to link back after stopping.
     const supportAdminUrl = isSupportSession(routeSession) ? await getSupportAdminUrlFn() : null;
@@ -38,12 +38,13 @@ function AppRoute() {
 function AppGuard() {
   const { routeSession, supportAdminUrl } = Route.useRouteContext();
   const { data: session, isPending, refetch } = useSession();
+  const { href } = useLocation();
   const resolvedSession = session ?? (isPending ? routeSession : null);
 
   if (isPending && !resolvedSession) {
     return <PageLoader />;
   }
-  if (!resolvedSession) return <Navigate to="/sign-in" />;
+  if (!resolvedSession) return <Navigate to="/sign-in" search={{ redirect: href }} />;
   const supportSession = resolvedSession as {
     session?: { impersonatedBy?: string | null };
     user?: { id?: string | null; name?: string | null; email?: string | null };

@@ -317,6 +317,7 @@
   "changerequest_review_submitted": "Revisión enviada",
   "changerequest_review_error": "No se pudo enviar la revisión.",
   "changerequest_review_approvals": "Aprobaciones: {approvals}/{required}",
+  "changerequest_review_conflicts": "Conflictos: {count}",
   "changerequest_review_history": "Revisiones",
   "changerequest_notyours": "Solo el autor y los miembros de la wiki pueden editar esta solicitud de cambios.",
   "editor_addlanguage_title": "Agregar un idioma",

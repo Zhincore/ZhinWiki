@@ -317,6 +317,7 @@
   "changerequest_review_submitted": "Tinjauan terkirim",
   "changerequest_review_error": "Tidak dapat mengirim tinjauan.",
   "changerequest_review_approvals": "Persetujuan: {approvals}/{required}",
+  "changerequest_review_conflicts": "Konflik: {count}",
   "changerequest_review_history": "Tinjauan",
   "changerequest_notyours": "Hanya penulis dan anggota wiki yang dapat mengedit permintaan perubahan ini.",
   "editor_addlanguage_title": "Tambahkan bahasa",

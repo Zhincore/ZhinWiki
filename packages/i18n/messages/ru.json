@@ -317,6 +317,7 @@
   "changerequest_review_submitted": "Проверка отправлена",
   "changerequest_review_error": "Не удалось отправить проверку.",
   "changerequest_review_approvals": "Одобрения: {approvals}/{required}",
+  "changerequest_review_conflicts": "Конфликты: {count}",
   "changerequest_review_history": "Проверки",
   "changerequest_notyours": "Редактировать этот запрос на изменение могут только автор и участники вики.",
   "editor_addlanguage_title": "Добавить язык",

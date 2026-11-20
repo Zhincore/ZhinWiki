@@ -157,6 +157,63 @@ describe('planMerge', () => {
     ]);
   });
 
+  describe('a page deleted on main', () => {
+    const group = page('g', { kind: 'GROUP' });
+    const child = page('c', { parentId: 'g', path: 'g/c' });
+    /** Copies of `g` and `c` after main deleted both, which nulls their `sourcePageId`. */
+    const copies = (groupContent = '# g'): [MergePage, MergePage] => [
+      { ...fork(group, 'bg'), sourcePageId: null, content: groupContent },
+      { ...fork(child, 'bc', 'bg'), sourcePageId: null },
+    ];
+    const forkBase = { g: { hash: contentHash(group), copyId: 'bg' }, c: { hash: contentHash(child), copyId: 'bc' } };
+
+    it('comes back with its unchanged children when the branch wins on it', () => {
+      const branch = copies('# edited');
+      expect(merged(planMerge({ main: [], branch, forkBase, force: none }))).toMatchObject({ blocked: true });
+      const plan = merged(planMerge({ main: [], branch, forkBase, force: new Set(['bg']) }));
+      expect(plan.inserts).toEqual([
+        { id: 'bg', data: expect.objectContaining({ parentId: null, content: '# edited', path: 'g' }) },
+        { id: 'bc', data: expect.objectContaining({ parentId: 'bg', path: 'g/c' }) },
+      ]);
+      expect(reviewMerge({ main: [], branch, forkBase }).changes.map(({ change, branchPageId }) => [change, branchPageId])).toEqual([
+        ['modified', 'bg'],
+        ['added', 'bc'],
+      ]);
+    });
+
+    it('stays deleted with its children when the branch left it alone', () => {
+      const branch = copies();
+      expect(merged(planMerge({ main: [], branch, forkBase, force: none }))).toMatchObject({ conflicts: [], inserts: [], record: [] });
+      expect(reviewMerge({ main: [], branch, forkBase }).changes).toEqual([]);
+    });
+
+    it('keeps a child the branch moved under a page created in the branch', () => {
+      const [groupCopy, childCopy] = copies();
+      const added = page('bn', { slug: 'new', path: 'new', position: 1 });
+      const branch = [groupCopy, { ...childCopy, parentId: 'bn', path: 'new/c' }, added];
+      const plan = merged(planMerge({ main: [], branch, forkBase, force: none }));
+      expect(plan.inserts.map((insert) => [insert.id, insert.data.parentId, insert.data.path])).toEqual([
+        ['bc', 'bn', 'new/c'],
+        ['bn', null, 'new'],
+      ]);
+    });
+  });
+
+  it('puts children main added under a page the branch deleted and re-created under the new one', () => {
+    const group = page('g', { kind: 'GROUP' });
+    const lateChild = page('c', { parentId: 'g', path: 'g/c' });
+    const recreated = page('bg2', { kind: 'GROUP', slug: 'g', path: 'g' });
+    const plan = merged(planMerge({ main: [group, lateChild], branch: [recreated], forkBase: baseOf([], group), force: none }));
+    expect(plan.deletes).toEqual(['g']);
+    expect(plan.inserts).toEqual([{ id: 'bg2', data: expect.objectContaining({ parentId: null, slug: 'g', path: 'g' }) }]);
+    expect(plan.updates).toEqual([{ id: 'c', data: { parentId: 'bg2' } }]);
+    expect(plan.record.map(({ pageId, action }) => [pageId, action])).toEqual([
+      ['c', 'moved'],
+      ['bg2', 'added'],
+      ['g', 'removed'],
+    ]);
+  });
+
   it('lets the branch win only on the forced pages', () => {
     const conflicting = page('m1');
     const mainOnly = page('m2', { position: 1 });

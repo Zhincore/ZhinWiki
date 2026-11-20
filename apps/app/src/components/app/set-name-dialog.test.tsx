@@ -83,6 +83,18 @@ describe('SetNameDialog', () => {
     expect(onSaved).toHaveBeenCalledTimes(1);
   });
 
+  it('shows an error and does not save a name longer than 64 characters', async () => {
+    const onSaved = await render('');
+
+    await type('x'.repeat(65));
+    await act(async () => input()?.form?.requestSubmit());
+
+    expect(mocks.updateUser).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain('validation.maxLength');
+    expect(input()?.maxLength).toBe(64);
+  });
+
   it('keeps the dialog open and does not save a whitespace-only name', async () => {
     const onSaved = await render('');
 

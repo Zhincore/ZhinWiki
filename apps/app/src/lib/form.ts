@@ -20,6 +20,13 @@ export const required =
     return t ? t('validation.required', { label }) : `${label} is required`;
   };
 
+export const maxLength = (label: string, max: number, t?: Translator) => (value: string) => {
+  if (value.trim().length <= max) {
+    return;
+  }
+  return t ? t('validation.maxLength', { label, max }) : `${label} must be at most ${max} characters`;
+};
+
 export const email = (value: string, t?: Translator) => {
   if (value.trim().length === 0) {
     return t ? t('validation.emailRequired') : 'Email is required';

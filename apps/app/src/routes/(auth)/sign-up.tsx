@@ -4,6 +4,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@nibleaf/design-system/co
 import { Label } from '@nibleaf/design-system/components/ui/label';
 import { useOtpResendCountdown } from '@nibleaf/design-system/hooks/use-otp-resend-countdown';
 import { useT } from '@nibleaf/i18n/react';
+import { USER_NAME_MAX_LENGTH } from '@nibleaf/shared/constants';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
@@ -13,6 +14,7 @@ import { QueryErrorState } from '@/components/query-error-state';
 import { useGetPublicMeta } from '@/hooks/api/public';
 import { AuthLayout } from '@/layouts/auth';
 import { authEmailErrorMessage } from '@/lib/auth-errors';
+import { maxLength } from '@/lib/form';
 import { readPendingInvitation } from '@/lib/invitations';
 import { authClient, signIn } from '@/services/auth-client';
 
@@ -61,6 +63,11 @@ function SignUpPage() {
   };
 
   const requestCode = async () => {
+    const nameTooLong = maxLength(t('auth.field.name'), USER_NAME_MAX_LENGTH, t)(name);
+    if (nameTooLong) {
+      setError(nameTooLong);
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
     try {
@@ -175,6 +182,7 @@ function SignUpPage() {
                 autoComplete="name"
                 autoFocus
                 id="name"
+                maxLength={USER_NAME_MAX_LENGTH}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Ada Lovelace"
                 required

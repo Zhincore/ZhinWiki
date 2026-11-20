@@ -2,17 +2,19 @@ name: Dependency vulnerabilities
 
 on:
   push:
-    branches: [main]
+    branches: [main, upstream]
     paths:
       - "**/package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/osv.yml"
+      - "osv-scanner.toml"
   pull_request:
-    branches: [main]
+    branches: [main, upstream]
     paths:
       - "**/package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/osv.yml"
+      - "osv-scanner.toml"
   schedule:
     - cron: "23 5 * * 1"
   workflow_dispatch:

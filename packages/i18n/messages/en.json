@@ -317,6 +317,7 @@
   "changerequest_review_submitted": "Review submitted",
   "changerequest_review_error": "Could not submit the review.",
   "changerequest_review_approvals": "Approvals: {approvals}/{required}",
+  "changerequest_review_conflicts": "Conflicts: {count}",
   "changerequest_review_history": "Reviews",
   "changerequest_notyours": "Only the author and the wiki’s members can edit this change request.",
   "editor_addlanguage_title": "Add a language",

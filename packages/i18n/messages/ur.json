@@ -317,6 +317,7 @@
   "changerequest_review_submitted": "جائزہ جمع ہو گیا",
   "changerequest_review_error": "جائزہ جمع نہیں ہو سکا۔",
   "changerequest_review_approvals": "منظوریاں: {approvals}/{required}",
+  "changerequest_review_conflicts": "تنازعات: {count}",
   "changerequest_review_history": "جائزے",
   "changerequest_notyours": "اس تبدیلی کی درخواست میں صرف مصنف اور وکی کے اراکین ترمیم کر سکتے ہیں۔",
   "editor_addlanguage_title": "ایک زبان شامل کریں۔",

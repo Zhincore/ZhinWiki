@@ -3,7 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@nibleaf/design-system/components/ui/skeleton';
 import { cn } from '@nibleaf/design-system/lib/utils';
 import { useT } from '@nibleaf/i18n/react';
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Navigate, useNavigate } from '@tanstack/react-router';
 import { ChevronDown, Eye, FileText } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
 import { z } from 'zod';
@@ -41,7 +41,9 @@ function ProjectPreview() {
   const t = useT();
   const { data: project } = useProject(projectId);
   const { data: languages } = useLanguages(projectId);
-  const { data: branches } = useBranches(projectId);
+  // Outside contributors preview only a change request's branch; the branch list is members-only.
+  const contributor = project?.viewerRole === 'contributor';
+  const { data: branches } = useBranches(project && !contributor ? projectId : undefined);
   const activeLanguageId = search.languageId ?? languages?.find((language) => language.isDefault)?.id ?? languages?.[0]?.id;
   const activeLanguage = languages?.find((language) => language.id === activeLanguageId);
   // Content direction follows the previewed language (Arabic → RTL), mirroring
@@ -94,6 +96,10 @@ function ProjectPreview() {
       ) : null}
     </>
   );
+
+  if (contributor && !search.branchId) {
+    return <Navigate to="/app/projects/$projectId/changes" params={{ projectId }} replace />;
+  }
 
   if (!previewEnabled) {
     return (

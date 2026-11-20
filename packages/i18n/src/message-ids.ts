@@ -315,6 +315,7 @@ export const MESSAGE_IDS = {
   'changeRequest.review.submitted': 'changerequest_review_submitted',
   'changeRequest.review.error': 'changerequest_review_error',
   'changeRequest.review.approvals': 'changerequest_review_approvals',
+  'changeRequest.review.conflicts': 'changerequest_review_conflicts',
   'changeRequest.review.history': 'changerequest_review_history',
   'changeRequest.notYours': 'changerequest_notyours',
   'editor.addLanguage.title': 'editor_addlanguage_title',

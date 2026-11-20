@@ -18,11 +18,18 @@ import { AuthLayout } from '@/layouts/auth';
 import { authEmailErrorMessage, isCaptchaError } from '@/lib/auth-errors';
 import { brandedTitle } from '@/lib/brand';
 import { readPendingInvitation } from '@/lib/invitations';
+import { safeReturnPath } from '@/lib/return-path';
 import { authClient } from '@/services/auth-client';
 
 export const Route = createFileRoute('/(auth)/sign-in')({
   validateSearch: (search) =>
-    z.object({ invite: z.string().optional().catch(undefined), email: z.string().optional().catch(undefined) }).parse(search),
+    z
+      .object({
+        invite: z.string().optional().catch(undefined),
+        email: z.string().optional().catch(undefined),
+        redirect: z.string().optional().catch(undefined),
+      })
+      .parse(search),
   head: ({ matches }) => ({ meta: [{ title: brandedTitle(matches, 'Log in') }, { name: 'robots', content: 'noindex, nofollow' }] }),
   component: SignInPage,
 });
@@ -43,13 +50,13 @@ function SignInPage() {
 
   const normalizedEmail = email.trim().toLowerCase();
   const invitationId = search.invite ?? readPendingInvitation() ?? undefined;
-  const afterAuthPath = invitationId ? `/accept-invite/${invitationId}` : '/app';
+  const afterAuthPath = invitationId ? `/accept-invite/${invitationId}` : (safeReturnPath(search.redirect) ?? '/app');
 
   const finishSignIn = async () => {
     if (invitationId) {
       await navigate({ to: '/accept-invite/$invitationId', params: { invitationId } });
     } else {
-      await navigate({ to: '/app' });
+      await navigate({ href: afterAuthPath });
     }
   };
 
@@ -186,7 +193,7 @@ function SignInPage() {
           <LegalNotice />
           <p className="mt-5 text-center text-muted-foreground text-sm">
             {t('auth.signIn.noAccount')}{' '}
-            <Link className="text-primary hover:underline" to="/sign-up">
+            <Link className="text-primary hover:underline" search={{ redirect: search.redirect }} to="/sign-up">
               {t('auth.signIn.createOne')}
             </Link>
           </p>

@@ -27,6 +27,7 @@ export const MESSAGE_IDS = {
   'validation.emailRequired': 'validation_emailrequired',
   'validation.emailInvalid': 'validation_emailinvalid',
   'validation.minLength': 'validation_minlength',
+  'validation.maxLength': 'validation_maxlength',
   'nav.account': 'nav_account',
   'nav.sites': 'nav_sites',
   'nav.overview': 'nav_overview',

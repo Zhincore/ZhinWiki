@@ -5,12 +5,13 @@ import { Input } from '@nibleaf/design-system/components/ui/input';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@nibleaf/design-system/components/ui/input-otp';
 import { Label } from '@nibleaf/design-system/components/ui/label';
 import { useT } from '@nibleaf/i18n/react';
+import { USER_NAME_MAX_LENGTH } from '@nibleaf/shared/constants';
 import { useForm } from '@tanstack/react-form';
 import { Mail } from 'lucide-react';
 import { useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import { authEmailErrorMessage } from '@/lib/auth-errors';
-import { required, email as validateEmail } from '@/lib/form';
+import { maxLength, required, email as validateEmail } from '@/lib/form';
 import { authClient, useSession } from '@/services/auth-client';
 import { DeleteAccountSection } from './delete-account-section';
 import { GradientAvatar, SettingsSection } from './section';
@@ -42,11 +43,23 @@ function NameForm({ initialName }: { initialName: string }) {
         form.handleSubmit();
       }}
     >
-      <form.Field name="name" validators={{ onChange: ({ value }) => required(t('settings.account.name.label'), t)(value) }}>
+      <form.Field
+        name="name"
+        validators={{
+          onChange: ({ value }) =>
+            required(t('settings.account.name.label'), t)(value) ?? maxLength(t('settings.account.name.label'), USER_NAME_MAX_LENGTH, t)(value),
+        }}
+      >
         {(field) => (
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="acct-name">{t('settings.account.name.label')}</Label>
-            <Input id="acct-name" onBlur={field.handleBlur} onChange={(e) => field.handleChange(e.target.value)} value={field.state.value} />
+            <Input
+              id="acct-name"
+              maxLength={USER_NAME_MAX_LENGTH}
+              onBlur={field.handleBlur}
+              onChange={(e) => field.handleChange(e.target.value)}
+              value={field.state.value}
+            />
             <FieldError errors={field.state.meta.errors} />
           </div>
         )}

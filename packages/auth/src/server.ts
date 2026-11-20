@@ -22,6 +22,7 @@ import { admin, emailOTP, organization } from 'better-auth/plugins';
 import { prepareAccountDeletion } from './account-deletion';
 import { requireAuthEmailEnqueue, trackRequiredAuthEmail, withRequiredAuthEmailScope } from './auth-email-delivery';
 import { deliverAuthOtpEmail } from './auth-email-expiry';
+import { enforceDisplayName } from './display-name';
 import { keys } from './keys.server';
 import { googleOAuthEnabled } from './providers';
 
@@ -703,7 +704,7 @@ const authInstance = betterAuth({
   // Invitations go through `inviteMember`, which enforces the single-owner and
   // role rules. Better Auth's endpoint would let an owner invite a second owner.
   disabledPaths: ['/organization/invite-member'],
-  hooks: { after: requireAuthEmailEnqueue },
+  hooks: { before: enforceDisplayName, after: requireAuthEmailEnqueue },
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
   basePath: '/api/auth',

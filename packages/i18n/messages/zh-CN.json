@@ -14,6 +14,7 @@
   "validation_emailrequired": "电子邮件为必填项",
   "validation_emailinvalid": "输入有效的电子邮件地址",
   "validation_minlength": "{label} 必须至少有 {min} 个字符",
+  "validation_maxlength": "{label} 最多只能有 {max} 个字符",
   "nav_account": "账户",
   "nav_sites": "站点",
   "nav_overview": "概述",

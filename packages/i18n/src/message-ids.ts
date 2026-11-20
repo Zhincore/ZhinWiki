@@ -2221,6 +2221,8 @@ export const MESSAGE_IDS = {
   'email.changeRequest.changesRequested.message': 'email_changerequest_changesrequested_message',
   'email.changeRequest.merged.subject': 'email_changerequest_merged_subject',
   'email.changeRequest.merged.message': 'email_changerequest_merged_message',
+  'email.changeRequest.mergedPublishing.subject': 'email_changerequest_mergedpublishing_subject',
+  'email.changeRequest.mergedPublishing.message': 'email_changerequest_mergedpublishing_message',
   'site.noAnswerGrounded': 'site_noanswergrounded',
   'site.importBlog': 'site_importblog',
   'site.importPages': 'site_importpages',

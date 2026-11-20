@@ -2084,6 +2084,8 @@
   "email_changerequest_changesrequested_message": "طلب {actorName} تغييرات على طلب التغيير الخاص بك «{title}» في {projectName}.",
   "email_changerequest_merged_subject": "دمج {actorName} #{number} {title}",
   "email_changerequest_merged_message": "دمج {actorName} طلب التغيير الخاص بك «{title}» في {projectName}.",
+  "email_changerequest_mergedpublishing_subject": "دمج {actorName} #{number} {title}، جارٍ النشر",
+  "email_changerequest_mergedpublishing_message": "دمج {actorName} طلب التغيير الخاص بك «{title}» في {projectName}. يجري نشر الموقع.",
   "site_noanswergrounded": "لم أجد معلومات كافية في الوثائق المتاحة للإجابة بثقة.",
   "site_importblog": "المدونة",
   "site_importpages": "الصفحات",

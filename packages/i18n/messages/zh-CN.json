@@ -2044,6 +2044,8 @@
   "email_changerequest_changesrequested_message": "{actorName} 要求修改你在 {projectName} 上的变更请求“{title}”。",
   "email_changerequest_merged_subject": "{actorName} 合并了 #{number} {title}",
   "email_changerequest_merged_message": "{actorName} 已将你的变更请求“{title}”合并到 {projectName}。",
+  "email_changerequest_mergedpublishing_subject": "{actorName} 合并了 #{number} {title}，正在发布",
+  "email_changerequest_mergedpublishing_message": "{actorName} 已将你的变更请求“{title}”合并到 {projectName}。站点正在发布。",
   "site_noanswergrounded": "I could not find enough information in the available documentation to answer confidently.",
   "site_importblog": "Blog",
   "site_importpages": "Pages",

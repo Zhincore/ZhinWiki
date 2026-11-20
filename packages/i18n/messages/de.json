@@ -2044,6 +2044,8 @@
   "email_changerequest_changesrequested_message": "{actorName} fordert Änderungen an deiner Änderungsanfrage „{title}“ in {projectName} an.",
   "email_changerequest_merged_subject": "{actorName} hat #{number} {title} zusammengeführt",
   "email_changerequest_merged_message": "{actorName} hat deine Änderungsanfrage „{title}“ in {projectName} zusammengeführt.",
+  "email_changerequest_mergedpublishing_subject": "{actorName} hat #{number} {title} zusammengeführt, wird veröffentlicht",
+  "email_changerequest_mergedpublishing_message": "{actorName} hat deine Änderungsanfrage „{title}“ in {projectName} zusammengeführt. Die Website wird veröffentlicht.",
   "site_noanswergrounded": "I could not find enough information in the available documentation to answer confidently.",
   "site_importblog": "Blog",
   "site_importpages": "Pages",

@@ -1,5 +1,5 @@
 import { type ServerType, serve } from '@hono/node-server';
-import { isQueueEnabled, QueueNames, scheduleExportMaintenance } from '@nibleaf/bullmq';
+import { isQueueEnabled, QueueNames, scheduleErasureMaintenance, scheduleExportMaintenance } from '@nibleaf/bullmq';
 import { bootWorkers, closeQueueEvents, closeQueues, closeWorkers } from '@nibleaf/bullmq/workers';
 import { closeClickHouseClients, initializeClickHouseFn } from '@nibleaf/clickhouse';
 import { setMessageBrand } from '@nibleaf/i18n/brand';
@@ -37,6 +37,9 @@ async function main() {
   await bootWorkers(processors);
   if (isQueueEnabled(QueueNames.EXPORT)) {
     await scheduleExportMaintenance();
+  }
+  if (isQueueEnabled(QueueNames.ERASURE)) {
+    await scheduleErasureMaintenance();
   }
   // Index live deployments published before full-text search rows existed.
   if (isQueueEnabled(QueueNames.SEARCH)) {

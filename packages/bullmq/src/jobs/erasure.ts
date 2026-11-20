@@ -1,10 +1,15 @@
-export type ErasureJobName = 'erase-project-storage';
+export type ErasureJobName = 'erase-project-storage' | 'sweep-unconfirmed-uploads';
 
 export interface EraseProjectStorageJobData {
   projectId: string;
   /** The delayed last pass, which never schedules another. */
   finalPass?: boolean;
 }
+
+/** The scheduled upload sweep carries no data. */
+export type SweepUnconfirmedUploadsJobData = Record<string, never>;
+
+export type ErasureJobData = EraseProjectStorageJobData | SweepUnconfirmedUploadsJobData;
 
 /** BullMQ's exponential backoff has no cap, so 15 retries wait 5 s × (2^15 − 1),
  * about 45.5 hours in total: storage erasure outlasts an outage of nearly two days.

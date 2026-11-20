@@ -32,7 +32,7 @@ const app = new Hono<HonoEnv>()
   })
   .post('/presign', ...assetsRoutes.presign, validator('json', presignAssetBody), async (ctx) => {
     const { organizationId, projectId } = await scope(ctx);
-    return ctx.json({ data: await presignAsset(organizationId, projectId, ctx.req.valid('json')) }, 200);
+    return ctx.json({ data: await presignAsset(organizationId, projectId, getContextUserOrThrow().id, ctx.req.valid('json')) }, 200);
   })
   .post('/confirm', ...assetsRoutes.confirm, validator('json', confirmAssetBody), async (ctx) => {
     const { organizationId, projectId } = await scope(ctx);

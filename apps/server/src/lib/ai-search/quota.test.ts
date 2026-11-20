@@ -1,62 +1,34 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ connect: vi.fn(), eval: vi.fn(), disconnect: vi.fn(), clients: vi.fn() }));
-vi.mock('@/env', () => ({ env: { REDIS_HOST: 'localhost', REDIS_PORT: 6379, REDIS_DB: 3, SEARCH_ANSWER_DAILY_PER_PROJECT: 2 } }));
-vi.mock('ioredis', () => ({
-  Redis: class {
-    status = 'wait';
-    constructor(options: unknown) {
-      mocks.clients(options);
-    }
-    on = vi.fn();
-    disconnect = mocks.disconnect;
-    eval = mocks.eval;
-    async connect() {
-      await mocks.connect();
-      this.status = 'ready';
-    }
-  },
-}));
+const mocks = vi.hoisted(() => ({ sharedRedis: vi.fn(), markRedisUnhealthy: vi.fn(), eval: vi.fn() }));
+vi.mock('@/env', () => ({ env: { SEARCH_ANSWER_DAILY_PER_PROJECT: 2 } }));
+vi.mock('@/lib/redis', () => ({ sharedRedis: mocks.sharedRedis, markRedisUnhealthy: mocks.markRedisUnhealthy }));
 
-describe('answer quota connection lifecycle', () => {
+import { consumeAnswerQuota } from './quota';
+
+describe('answer quota', () => {
   beforeEach(() => {
-    vi.resetModules();
     vi.clearAllMocks();
+    mocks.sharedRedis.mockResolvedValue({ eval: mocks.eval });
     mocks.eval.mockResolvedValue(1);
   });
 
-  it('waits for one shared first connection before consuming concurrent quotas', async () => {
-    let ready: () => void = () => {
-      throw new Error('Connection fixture was not initialized');
-    };
-    mocks.connect.mockReturnValue(
-      new Promise<void>((resolve) => {
-        ready = resolve;
-      }),
-    );
-    const { consumeAnswerQuota } = await import('./quota');
-    const first = consumeAnswerQuota('project-a');
-    const second = consumeAnswerQuota('project-a');
-    expect(mocks.connect).toHaveBeenCalledOnce();
-    expect(mocks.eval).not.toHaveBeenCalled();
-    ready();
-    await expect(first).resolves.toEqual({ allowed: true, remaining: 1 });
-    await expect(second).resolves.toEqual({ allowed: true, remaining: 1 });
-    expect(mocks.eval).toHaveBeenCalledTimes(2);
+  it('counts on the shared connection and refuses past the daily limit', async () => {
+    await expect(consumeAnswerQuota('project-a')).resolves.toEqual({ allowed: true, remaining: 1 });
+    expect(mocks.eval).toHaveBeenCalledWith(expect.stringContaining('INCR'), 1, expect.stringContaining('project-a'));
     mocks.eval.mockResolvedValueOnce(3);
     await expect(consumeAnswerQuota('project-a')).resolves.toEqual({ allowed: false, remaining: 0 });
   });
 
-  it('fails closed on a connection outage and permits a fresh connection on retry', async () => {
-    mocks.connect.mockRejectedValueOnce(new Error('quota connection unavailable')).mockResolvedValueOnce(undefined);
-    const { consumeAnswerQuota } = await import('./quota');
-    await expect(consumeAnswerQuota('project-a')).rejects.toThrow('quota connection unavailable');
+  it('fails closed while the shared connection is unavailable', async () => {
+    mocks.sharedRedis.mockRejectedValueOnce(new Error('Redis reconnect paused'));
+    await expect(consumeAnswerQuota('project-a')).rejects.toThrow('Redis reconnect paused');
     expect(mocks.eval).not.toHaveBeenCalled();
-    await expect(consumeAnswerQuota('project-a')).resolves.toEqual({ allowed: true, remaining: 1 });
-    expect(mocks.clients).toHaveBeenCalledTimes(2);
-    expect(mocks.disconnect).toHaveBeenCalledOnce();
-    expect(mocks.clients).toHaveBeenLastCalledWith(
-      expect.objectContaining({ enableOfflineQueue: false, connectTimeout: 2000, commandTimeout: 2000 }),
-    );
+  });
+
+  it('marks the shared connection unhealthy when the counter command fails', async () => {
+    mocks.eval.mockRejectedValueOnce(new Error('Command timed out'));
+    await expect(consumeAnswerQuota('project-a')).rejects.toThrow('Command timed out');
+    expect(mocks.markRedisUnhealthy).toHaveBeenCalledOnce();
   });
 });

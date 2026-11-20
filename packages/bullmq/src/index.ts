@@ -54,6 +54,11 @@ export async function scheduleExportMaintenance(): Promise<void> {
   await ensurePlatformSchedules(getQueue(QueueNames.EXPORT), QueueNames.EXPORT);
 }
 
+/** Daily sweep of presigned uploads that were never confirmed. */
+export async function scheduleErasureMaintenance(): Promise<void> {
+  await ensurePlatformSchedules(getQueue(QueueNames.ERASURE), QueueNames.ERASURE);
+}
+
 export * from './constants';
 export { isQueueEnabled } from './keys';
 export {

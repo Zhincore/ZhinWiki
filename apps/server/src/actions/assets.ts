@@ -77,10 +77,12 @@ export const storeAsset = async ({
 export const findImportedAsset = async (projectId: string, importId: string, filename: string): Promise<Asset | null> =>
   await prisma.asset.findUnique({ where: { key: importedAssetKey(projectId, importId, filename) } });
 
-export const presignAsset = async (organizationId: string, projectId: string, body: PresignAssetBody) => {
+/** The upload is registered so the worker can sweep it if it is never confirmed. */
+export const presignAsset = async (organizationId: string, projectId: string, userId: string, body: PresignAssetBody) => {
   await assertProjectInOrg(organizationId, projectId);
   const key = assetKey(projectId, body.filename, body.contentType);
   const uploadUrl = await presignPutUrl({ key, contentType: body.contentType });
+  await prisma.assetUpload.create({ data: { projectId, key, contentType: body.contentType, createdById: userId } });
   return { key, uploadUrl };
 };
 
@@ -109,8 +111,12 @@ export const confirmAsset = async (organizationId: string, projectId: string, us
   await assertProjectInOrg(organizationId, projectId);
   assertOwnedKey(projectId, body.key);
   const size = body.contentType === SVG_CONTENT_TYPE ? await sanitizeUploadedSvg(body.key) : body.size;
-  return prisma.asset.create({
-    data: { projectId, key: body.key, url: publicUrlForKey(body.key), contentType: body.contentType, size, createdById: userId },
+  return prisma.$transaction(async (tx) => {
+    const asset = await tx.asset.create({
+      data: { projectId, key: body.key, url: publicUrlForKey(body.key), contentType: body.contentType, size, createdById: userId },
+    });
+    await tx.assetUpload.deleteMany({ where: { key: body.key } });
+    return asset;
   });
 };
 

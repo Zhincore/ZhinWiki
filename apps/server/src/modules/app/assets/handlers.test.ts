@@ -56,6 +56,7 @@ vi.mock('@nibleaf/database', () => {
     findUnique: vi.fn(async () => null),
     create: mocks.createAsset,
   };
+  const assetUpload = { create: vi.fn(async () => ({})), deleteMany: vi.fn(async () => ({ count: 1 })) };
   return {
     prisma: {
       user: {
@@ -67,7 +68,8 @@ vi.mock('@nibleaf/database', () => {
       deployment: { count: vi.fn(async () => 1) },
       changeRequest: { count: vi.fn(async () => state.openChangeRequests) },
       asset,
-      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn({ asset, $executeRaw: mocks.lock })),
+      assetUpload,
+      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn({ asset, assetUpload, $executeRaw: mocks.lock })),
     },
   };
 });

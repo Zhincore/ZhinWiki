@@ -25,15 +25,17 @@ const db = vi.hoisted(() => ({
     findMany: vi.fn(),
     delete: vi.fn(),
   },
+  assetUpload: { create: vi.fn(async ({ data }: { data: unknown }) => data), deleteMany: vi.fn(async () => ({ count: 1 })) },
   project: { findUniqueOrThrow: vi.fn() },
   changeRequest: { count: vi.fn() },
   page: { findMany: vi.fn() },
+  $transaction: vi.fn(async (fn: (tx: typeof db) => unknown) => fn(db)),
 }));
 
 vi.mock('@nibleaf/database', () => ({ prisma: db }));
 vi.mock('./projects', () => ({ assertProjectInOrg: vi.fn(async () => ({ id: 'p1' })), resolveWikiRole: vi.fn(async () => null) }));
 
-import { cleanupContributorAssets, confirmAsset, storeAsset } from './assets';
+import { cleanupContributorAssets, confirmAsset, presignAsset, storeAsset } from './assets';
 import { resolveWikiRole } from './projects';
 
 const key = 'projects/p1/assets/abc-logo.svg';
@@ -80,6 +82,21 @@ describe('SVG assets', () => {
   it('leaves raster uploads untouched', async () => {
     await confirmAsset('org', 'p1', 'u1', { key: 'projects/p1/assets/abc-shot.png', contentType: 'image/png', size: 10 });
     expect(storage.putObject).not.toHaveBeenCalled();
+  });
+});
+
+describe('presigned uploads', () => {
+  it('registers a presigned upload until it is confirmed', async () => {
+    const { key } = await presignAsset('org', 'p1', 'u1', { filename: 'logo.png', contentType: 'image/png', size: 10 });
+
+    expect(db.assetUpload.create).toHaveBeenCalledWith({ data: { projectId: 'p1', key, contentType: 'image/png', createdById: 'u1' } });
+  });
+
+  it('unregisters the upload in the same transaction that records the asset', async () => {
+    await confirmAsset('org', 'p1', 'u1', { key: 'projects/p1/assets/abc-shot.png', contentType: 'image/png', size: 10 });
+
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
+    expect(db.assetUpload.deleteMany).toHaveBeenCalledWith({ where: { key: 'projects/p1/assets/abc-shot.png' } });
   });
 });
 

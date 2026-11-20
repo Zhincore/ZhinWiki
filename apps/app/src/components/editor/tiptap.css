@@ -398,6 +398,10 @@
   padding: 8px 10px;
   text-align: start;
   vertical-align: top;
+  /* The editor wraps anywhere so long tokens never overflow; in a cell that
+     lets auto layout shrink a column below its longest word, so short columns
+     get squeezed to single letters. break-word keeps the word as the minimum. */
+  overflow-wrap: break-word;
 }
 .pl-editor .ProseMirror th {
   background: var(--color-muted);

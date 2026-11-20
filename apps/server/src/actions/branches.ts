@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { type Branch, Prisma, prisma } from '@nibleaf/database';
 import { newId } from '@nibleaf/shared/ids';
-import { AppError, conflict, forbidden, notFound } from '@/errors';
+import { AppError, badRequest, conflict, forbidden, notFound } from '@/errors';
 import { OPEN_CHANGE_REQUEST_STATUSES } from '@/lib/change-request-status';
 import { cleanupContributorAssets } from './assets';
 import { contentHash, type ForkBase, pageFingerprint } from './change-request-merge';
@@ -17,6 +17,16 @@ export const getDefaultBranch = async (projectId: string) => {
     throw new Error(`Project ${projectId} must have exactly one default branch.`);
   }
   return defaults[0];
+};
+
+/** The branch imports and Git sync write to: the default branch, which a
+ *  stored `id` may still name. Other branches belong to change requests. */
+export const getImportBranch = async (projectId: string, id?: string | null) => {
+  const main = await getDefaultBranch(projectId);
+  if (id && id !== main.id) {
+    throw badRequest('Imports write to the default branch only. Save the Git settings again to clear the old branch.', { branchId: id });
+  }
+  return main;
 };
 
 /** Throw unless the branch exists in the project; returns it. */

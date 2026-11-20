@@ -29,7 +29,7 @@ const mocks = vi.hoisted(() => {
   };
   return {
     createJob: vi.fn(),
-    getDefaultBranch: vi.fn(),
+    getImportBranch: vi.fn(),
     getDefaultLanguage: vi.fn(),
     getCurrentSnapshot: vi.fn(),
     parseFrontmatter: vi.fn(),
@@ -47,7 +47,7 @@ vi.mock('@nibleaf/database', () => ({ prisma: mocks.prisma }));
 vi.mock('@nibleaf/shared', () => ({ slugify: (value: string) => value.toLowerCase() }));
 // The repository generator derives docs.json navigation with the real buildNavTree.
 vi.mock('@nibleaf/shared/site', async (importOriginal) => ({ ...(await importOriginal<object>()), buildSnapshot: vi.fn() }));
-vi.mock('../branches', () => ({ getDefaultBranch: mocks.getDefaultBranch }));
+vi.mock('../branches', () => ({ getImportBranch: mocks.getImportBranch }));
 vi.mock('../deployments', () => ({
   getCurrentSnapshot: mocks.getCurrentSnapshot,
 }));
@@ -164,7 +164,7 @@ beforeEach(() => {
   mocks.prisma.gitConflict.findMany.mockResolvedValue([]);
   mocks.prisma.gitAuditEvent.create.mockResolvedValue({});
   mocks.prisma.page.findMany.mockResolvedValue([]);
-  mocks.getDefaultBranch.mockResolvedValue({ id: 'branch-1', name: 'Main' });
+  mocks.getImportBranch.mockResolvedValue({ id: 'branch-1', name: 'Main' });
   mocks.getDefaultLanguage.mockResolvedValue({ id: 'language-1', code: 'en' });
   mocks.provider.getBranchSha.mockImplementation(async (_repository: string, branch: string) => (branch === 'main' ? 'base-sha' : 'head-sha'));
   mocks.provider.listMarkdownFiles.mockResolvedValue([]);

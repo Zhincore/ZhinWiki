@@ -12,7 +12,7 @@ import got from 'got';
 import { z } from 'zod';
 import { badRequest } from '@/errors';
 import { isPrivateIp } from '@/lib/client-ip';
-import { assertBranchInProject, getDefaultBranch } from './branches';
+import { getImportBranch } from './branches';
 import { deriveTitle, humanize, MAX_IMPORT_FILES, parseFrontmatter } from './importers/content';
 import { getGitHubTextFile, listGitHubFiles } from './importers/github';
 import { ensureGroupPage, type ImportTarget, upsertLeafPage } from './importers/persistence';
@@ -282,7 +282,7 @@ export const importFromGitProvider = async (organizationId: string, projectId: s
     throw badRequest('No Markdown (.md/.mdx) files found at that repo path.');
   }
 
-  const branchRow = git.importBranchId ? await assertBranchInProject(projectId, git.importBranchId) : await getDefaultBranch(projectId);
+  const branchRow = await getImportBranch(projectId, git.importBranchId);
   const language = git.importLanguageId ? await assertLanguageInProject(projectId, git.importLanguageId) : await getDefaultLanguage(projectId);
   const target: ImportTarget = { projectId, branchId: branchRow.id, languageId: language.id };
 

@@ -6,6 +6,67 @@ manifest remains the authority for the latest published artifact.
 
 ## Unreleased
 
+## v0.3.0
+
+ZhinWiki release; changes since ZhinWiki v0.2.0.
+
+### Highlights
+
+Dependency fixes for 28 known vulnerabilities, a smoother change-request flow for outside contributors, tables that wrap instead of breaking words or forcing a sideways scroll, and cleanup of uploads that were never attached to a page.
+
+### Upgrade actions
+
+Back up first: the migration is forward-only.
+
+- **Replace the Compose file and env template** with this release's copies and
+  keep `.env`. The production Compose file now passes the search, Qdrant,
+  ClickHouse, export, AI and `WORKER_QUEUES` variables to the services, so
+  values that were silently ignored before take effect: check `SEARCH_RUNTIME`
+  (`legacy` unless you run Qdrant) and `QDRANT_URL` (empty unless you run
+  Qdrant). `CLICKHOUSE_PASSWORD` is gone; nothing read it.
+- **Migration on start:** `asset_upload` (tracks presigned uploads until they
+  are confirmed).
+- The successful-publish email is now off by default and never sent for a
+  publish on merge; turn it on per wiki under Settings → Notifications.
+- Git imports and two-way sync always target `main`; the import-branch picker
+  is gone. A connection still pointing at another branch is refused until the
+  Git settings are saved again.
+
+### Added
+
+- Change requests for contributors: preview of their own change request, a
+  return link after signing in from "Suggest changes", a reason next to a
+  disabled Merge button, and approvals that go stale when review is requested
+  again ([#118](https://github.com/Zhincore/ZhinWiki/pull/118)).
+- The merged notification says when the merge is being published ([#125](https://github.com/Zhincore/ZhinWiki/pull/125)).
+- Daily sweep of presigned uploads that were never confirmed ([#122](https://github.com/Zhincore/ZhinWiki/pull/122)).
+- Display names are limited to 64 characters ([#119](https://github.com/Zhincore/ZhinWiki/pull/119)).
+- CI runs on the `upstream` branch and its pull requests ([#128](https://github.com/Zhincore/ZhinWiki/pull/128), [#129](https://github.com/Zhincore/ZhinWiki/pull/129), [#131](https://github.com/Zhincore/ZhinWiki/pull/131)).
+
+### Changed
+
+- The successful-publish email is off by default and skipped for a publish on
+  merge; notification toggles gate only the email ([#110](https://github.com/Zhincore/ZhinWiki/pull/110)).
+- Publish notifications say "Publish #n" instead of "Version vn" ([#111](https://github.com/Zhincore/ZhinWiki/pull/111)).
+- Git imports and sync write to `main` only ([#124](https://github.com/Zhincore/ZhinWiki/pull/124)).
+- The env template and the production Compose file list the same variables ([#114](https://github.com/Zhincore/ZhinWiki/pull/114)).
+- 181 unused interface strings removed ([#121](https://github.com/Zhincore/ZhinWiki/pull/121)).
+- AI quotas share the request-path Redis connection ([#116](https://github.com/Zhincore/ZhinWiki/pull/116)).
+- CONTRIBUTING.md describes the current release process ([#113](https://github.com/Zhincore/ZhinWiki/pull/113)).
+
+### Fixed
+
+- hono, `@hono/node-server`, effect and next updated past 28 known
+  vulnerabilities, two of them High ([#130](https://github.com/Zhincore/ZhinWiki/pull/130)).
+- Merging a change request keeps the subtrees of pages deleted on `main` and
+  re-created in the change request, and vice versa ([#123](https://github.com/Zhincore/ZhinWiki/pull/123)).
+- A deployment whose publish job cannot be queued is marked failed instead of
+  staying pending ([#120](https://github.com/Zhincore/ZhinWiki/pull/120)).
+- Sign-in ignores a form submit until the captcha configuration has loaded ([#117](https://github.com/Zhincore/ZhinWiki/pull/117)).
+- Editor table columns are never narrower than their longest word; published
+  tables wrap cells to the column instead of forcing a sideways scroll
+  ([#126](https://github.com/Zhincore/ZhinWiki/pull/126), [#127](https://github.com/Zhincore/ZhinWiki/pull/127)).
+
 ## v0.2.0
 
 ZhinWiki release; changes since ZhinWiki v0.1.0.

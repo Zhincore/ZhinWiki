@@ -184,10 +184,25 @@ const deletedInBranch = ({ main, branch, forkBase }: MergeInput) => {
   return main.filter((page) => forkBase?.[page.id] !== undefined && !linked.has(page.id));
 };
 
-/** Branch page states, pages deleted in the branch, and the pages both sides
- *  changed or one side deleted while the other edited. */
+/** Branch pages without a main page that the merge writes to main: created in
+ *  the branch, edited since main deleted them (a conflict the merge forces), or
+ *  unchanged under such a page, so a re-created page keeps its subtree. */
+const landing = (states: BranchPageState[]) => {
+  const byId = new Map(states.map((state) => [state.page.id, state]));
+  const lands = (state: BranchPageState): boolean => {
+    if (!state.page.forkFingerprint || state.contentChanged) return true;
+    const parent = state.page.parentId ? byId.get(state.page.parentId) : undefined;
+    return parent !== undefined && !parent.source && lands(parent);
+  };
+  return new Set(states.filter((state) => !state.source && lands(state)).map((state) => state.page.id));
+};
+
+/** Branch page states, the pages without a main page the merge writes, pages
+ *  deleted in the branch, and the pages both sides changed or one side
+ *  deleted while the other edited. */
 const analyze = (input: MergeInput) => {
   const states = branchStates(input);
+  const inserted = landing(states);
   const removed = deletedInBranch(input);
   const conflicts: MergeConflict[] = [];
   const conflict = (page: MergePage, reason: MergeConflictReason) =>
@@ -204,7 +219,7 @@ const analyze = (input: MergeInput) => {
   for (const page of removed) {
     if (contentHash(page) !== input.forkBase?.[page.id]?.hash) conflict(page, 'DELETED_IN_BRANCH');
   }
-  return { states, removed, conflicts };
+  return { states, inserted, removed, conflicts };
 };
 
 export type PageChange = {
@@ -232,11 +247,12 @@ const pageChange = (change: PageChangeKind, main: MergePage | undefined, copy: M
  *  point, and its merge conflicts (none for untracked branches). */
 export const reviewMerge = (input: MergeInput): { changes: PageChange[]; conflicts: MergeConflict[] } => {
   if (input.forkBase === null) return { changes: legacyPairs(input).map(({ change, main, copy }) => pageChange(change, main, copy)), conflicts: [] };
-  const { states, removed, conflicts } = analyze(input);
+  const { states, inserted, removed, conflicts } = analyze(input);
   const changes = states.flatMap(({ page, source, contentChanged, parentChanged, positionChanged }) => {
     if (!page.forkFingerprint) return [pageChange('added', undefined, page)];
     if (contentChanged) return [pageChange('modified', source, page)];
-    return (parentChanged || positionChanged) && source ? [pageChange('moved', source, page)] : [];
+    if (!source) return inserted.has(page.id) ? [pageChange('added', undefined, page)] : [];
+    return parentChanged || positionChanged ? [pageChange('moved', source, page)] : [];
   });
   return { changes: [...changes, ...removed.map((page) => pageChange('removed', page, undefined))], conflicts };
 };
@@ -246,7 +262,10 @@ export const reviewMerge = (input: MergeInput): { changes: PageChange[]; conflic
  * matched through `sourcePageId`; `forkBase` tells pages deleted in the branch
  * apart from pages created on main after the fork, which are kept. `force`
  * lists the conflicting page ids the branch wins on; any other conflict blocks
- * the merge. Branches without fork tracking are merged by replacing main.
+ * the merge. A page deleted on main comes back with its unchanged subtree when
+ * the branch wins on it; a page the branch deleted and re-created at the same
+ * place takes over the children main added under it meanwhile. Branches
+ * without fork tracking are merged by replacing main.
  */
 export const planMerge = (input: MergeInput & { force: ReadonlySet<string> }): MergePlan => {
   if (input.forkBase === null) {
@@ -262,7 +281,7 @@ export const planMerge = (input: MergeInput & { force: ReadonlySet<string> }): M
     return { legacy: true, record };
   }
   const { main, branch, force } = input;
-  const { states, removed, conflicts } = analyze(input);
+  const { states, inserted, removed, conflicts } = analyze(input);
   if (conflicts.some((item) => !force.has(item.pageId))) {
     return { legacy: false, conflicts, blocked: true, inserts: [], updates: [], deletes: [], record: [] };
   }
@@ -270,16 +289,11 @@ export const planMerge = (input: MergeInput & { force: ReadonlySet<string> }): M
   // Every conflict is forced from here on, so the branch wins on each.
   const mainById = new Map(main.map((page) => [page.id, page]));
   const branchById = new Map(branch.map((page) => [page.id, page]));
-  const inserted = new Set<string>();
   const updates = new Map<string, Partial<MergedFields>>();
   const deletes = new Set(removed.map((page) => page.id));
   const record: MergeRecordEntry[] = [];
   for (const { page, source, contentChanged, parentChanged, positionChanged } of states) {
-    if (!page.forkFingerprint || (!source && contentChanged)) {
-      inserted.add(page.id);
-      continue;
-    }
-    if (!source || (!contentChanged && !parentChanged && !positionChanged)) continue;
+    if (!source || !(contentChanged || parentChanged || positionChanged)) continue;
     updates.set(source.id, {
       ...(contentChanged ? pick(mergedFields(page), CONTENT_FIELDS) : {}),
       ...(parentChanged ? { parentId: page.parentId } : {}),
@@ -298,10 +312,31 @@ export const planMerge = (input: MergeInput & { force: ReadonlySet<string> }): M
     }
     return null;
   };
-  /** Nearest main ancestor that survives the merge. */
+  const siblingKey = (page: { languageId: string; parentId: string | null; slug: string }) =>
+    `${page.languageId}\u0000${page.parentId ?? ''}\u0000${page.slug}`;
+  /** Inserted page at the place of each deleted main page: the branch re-created it. Parents first, so nested re-creations chain. */
+  const replacement = new Map<string, string>();
+  const insertedAt = new Map(
+    [...inserted].flatMap((id) => {
+      const page = branchById.get(id);
+      return page ? [[siblingKey({ ...page, parentId: mainParent(page.parentId) }), id] as const] : [];
+    }),
+  );
+  const depth = (id: string) => mainById.get(id)?.path.split('/').length ?? 0;
+  for (const id of [...deletes].sort((a, b) => depth(a) - depth(b))) {
+    const page = mainById.get(id);
+    const parentId = page?.parentId ? (replacement.get(page.parentId) ?? page.parentId) : null;
+    const replacer = page && insertedAt.get(siblingKey({ ...page, parentId }));
+    if (replacer) replacement.set(id, replacer);
+  }
+  /** Nearest main ancestor that survives the merge, or the page the branch re-created in a deleted one's place. */
   const survivingParent = (parentId: string | null) => {
     let id = parentId;
-    while (id && deletes.has(id)) id = mainById.get(id)?.parentId ?? null;
+    while (id && deletes.has(id)) {
+      const replaced = replacement.get(id);
+      if (replaced) return replaced;
+      id = mainById.get(id)?.parentId ?? null;
+    }
     return id;
   };
 
@@ -344,8 +379,6 @@ export const planMerge = (input: MergeInput & { force: ReadonlySet<string> }): M
   }
 
   const applied = new Set([...updates.keys(), ...inserted]);
-  const siblingKey = (page: { languageId: string; parentId: string | null; slug: string }) =>
-    `${page.languageId}\u0000${page.parentId ?? ''}\u0000${page.slug}`;
   // Pages the branch wrote or that land under a new parent yield their slug to pages already there.
   const placed = new Set([
     ...applied,

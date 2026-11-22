@@ -426,6 +426,7 @@ model Project {
   domains         Domain[]
   apiKeys         ApiKey[]
   assets          Asset[]
+  assetUploads    AssetUpload[]
   comments        Comment[]
   analyticsEvents AnalyticsEvent[]
   readers         Reader[]
@@ -1531,6 +1532,21 @@ model Asset {
 
   @@index([projectId])
   @@map("asset")
+}
+
+/// A presigned member upload awaiting confirmation. Confirming deletes the row;
+/// the worker sweeps rows (and their objects) that were never confirmed.
+model AssetUpload {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  key         String   @unique
+  contentType String
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("asset_upload")
 }
 
 model Comment {

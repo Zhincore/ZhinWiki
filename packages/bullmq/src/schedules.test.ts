@@ -4,7 +4,7 @@ import { QueueNames } from './constants';
 import { ensurePlatformSchedules, PLATFORM_SCHEDULES, type ScheduleQueue } from './schedules';
 import { QUEUE_CONFIGS } from './utils/queue';
 
-function fixture(queueName: 'analytics' | 'export' = 'analytics', migrated = true) {
+function fixture(queueName: 'analytics' | 'export' | 'erasure' = 'analytics', migrated = true) {
   const entries = new Map<string, Record<string, unknown>>();
   if (migrated) {
     for (const schedule of PLATFORM_SCHEDULES.filter((item) => item.queue === queueName)) {
@@ -30,14 +30,29 @@ function fixture(queueName: 'analytics' | 'export' = 'analytics', migrated = tru
 }
 
 describe('BullMQ 6 platform schedulers', () => {
-  it.each([QueueNames.ANALYTICS, QueueNames.EXPORT])('preserves migrated %s IDs, cron and retry/retention options across startup', async (name) => {
+  it.each([
+    [QueueNames.ANALYTICS, 2],
+    [QueueNames.EXPORT, 2],
+    [QueueNames.ERASURE, 1],
+  ])('preserves migrated %s IDs, cron and retry/retention options across startup', async (name, count) => {
     const state = fixture(name);
     const before = [...state.entries.values()].map(({ template: _template, ...entry }) => entry);
     await ensurePlatformSchedules(state.client, name);
     await ensurePlatformSchedules(state.client, name);
     expect([...state.entries.values()].map(({ template: _template, ...entry }) => entry)).toEqual(before);
     for (const call of state.queue.upsertJobScheduler.mock.calls) expect(call[2].opts).toEqual(QUEUE_CONFIGS[name].defaultJobOptions);
-    expect(state.entries.size).toBe(2);
+    expect(state.entries.size).toBe(count);
+  });
+
+  it('creates the daily upload sweep on a fresh erasure queue', async () => {
+    const state = fixture('erasure', false);
+    await ensurePlatformSchedules(state.client, QueueNames.ERASURE);
+    expect([...state.entries.keys()]).toEqual(['sweep-unconfirmed-uploads-daily']);
+    expect(state.queue.upsertJobScheduler).toHaveBeenCalledWith(
+      'sweep-unconfirmed-uploads-daily',
+      { pattern: '41 3 * * *', tz: 'UTC' },
+      expect.objectContaining({ name: 'sweep-unconfirmed-uploads', data: {} }),
+    );
   });
 
   it('creates stable schedulers on a fresh queue without duplicates', async () => {

@@ -10,6 +10,7 @@ export const PLATFORM_SCHEDULES = [
   { queue: QueueNames.ANALYTICS, id: 'reconcile-usage-periods', name: 'reconcile-usage', pattern: '*/5 * * * *' },
   { queue: QueueNames.EXPORT, id: 'dispatch-export-schedules', name: 'dispatch-export-schedules', pattern: '* * * * *' },
   { queue: QueueNames.EXPORT, id: 'cleanup-exports', name: 'cleanup-exports', pattern: '17 2 * * *' },
+  { queue: QueueNames.ERASURE, id: 'sweep-unconfirmed-uploads-daily', name: 'sweep-unconfirmed-uploads', pattern: '41 3 * * *' },
 ] as const;
 
 type Schedule = (typeof PLATFORM_SCHEDULES)[number];
@@ -42,7 +43,7 @@ function assertDefinition(entry: JobSchedulerJson, schedule: Schedule) {
 function assertData(data: unknown, schedule: Schedule) {
   if (!data || typeof data !== 'object') throw new ScheduleConfigurationError(`Missing schedule data: ${schedule.id}`);
   const fields = Object.keys(data);
-  if (schedule.queue === QueueNames.ANALYTICS && fields.length === 0) return;
+  if ((schedule.queue === QueueNames.ANALYTICS || schedule.queue === QueueNames.ERASURE) && fields.length === 0) return;
   if (
     schedule.queue === QueueNames.EXPORT &&
     fields.length === 1 &&

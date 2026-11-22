@@ -339,6 +339,32 @@ describe('outside contributors', () => {
   });
 });
 
+describe('updateChangeRequest', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    prisma.changeRequest.updateMany.mockResolvedValue({ count: 1 });
+  });
+
+  it('sets earlier approvals aside when the change request is sent for review again', async () => {
+    prisma.changeRequest.findUnique.mockResolvedValue({ id: 'cr-1', authorId: 'u1', status: 'DRAFT', branchId: 'cr' });
+    await updateChangeRequest('p', 1, { status: 'IN_REVIEW' });
+    expect(prisma.changeRequest.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: 'IN_REVIEW', editedAt: expect.any(Date) } }),
+    );
+  });
+
+  it.each([
+    ['back to draft', { status: 'IN_REVIEW', body: { status: 'DRAFT' } }],
+    ['a title change', { status: 'IN_REVIEW', body: { title: 'New' } }],
+  ] as const)('keeps approvals through %s', async (_label, { status, body }) => {
+    prisma.changeRequest.findUnique.mockResolvedValue({ id: 'cr-1', authorId: 'u1', status, branchId: 'cr' });
+    await updateChangeRequest('p', 1, body);
+    expect(prisma.changeRequest.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.not.objectContaining({ editedAt: expect.anything() }) }),
+    );
+  });
+});
+
 describe('listMergedChangeRequests', () => {
   const rows = (count: number) => Array.from({ length: count }, (_, index) => ({ id: `cr-${index + 1}`, number: index + 1 }));
 

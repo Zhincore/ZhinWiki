@@ -317,6 +317,7 @@
   "changerequest_review_submitted": "রিভিউ জমা হয়েছে",
   "changerequest_review_error": "রিভিউ জমা দেওয়া যায়নি।",
   "changerequest_review_approvals": "অনুমোদন: {approvals}/{required}",
+  "changerequest_review_conflicts": "দ্বন্দ্ব: {count}",
   "changerequest_review_history": "রিভিউ",
   "changerequest_notyours": "শুধু লেখক এবং উইকির সদস্যরা এই পরিবর্তন অনুরোধ সম্পাদনা করতে পারেন।",
   "editor_addlanguage_title": "একটি ভাষা যোগ করুন",

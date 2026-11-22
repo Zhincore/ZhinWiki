@@ -45,7 +45,7 @@ function ChangeRequestPage() {
   const number = Number(numberParam);
   const { data: changeRequest, isError, refetch, isRefetching } = useChangeRequest(projectId, number);
   const { data: languages } = useLanguages(projectId);
-  const { contributor } = useChangeRequestAccess(projectId, changeRequest);
+  const { canEdit } = useChangeRequestAccess(projectId, changeRequest);
 
   if (isError) {
     return (
@@ -70,7 +70,7 @@ function ChangeRequestPage() {
         tab={tab === 'changes' ? 'changes' : 'overview'}
         back={{ to: '/app/projects/$projectId/changes', label: t('changeRequest.backToList') }}
       >
-        {changeRequest.branchId && !contributor ? (
+        {changeRequest.branchId && canEdit ? (
           <Button
             nativeButton={false}
             render={<Link to="/app/projects/$projectId/preview" params={{ projectId }} search={{ branchId: changeRequest.branchId }} />}

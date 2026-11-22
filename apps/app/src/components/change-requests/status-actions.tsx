@@ -15,7 +15,7 @@ import {
 import { useChangeRequestAccess } from './change-request-header';
 import { conflictsFromError } from './merge-conflicts';
 import { MergeDialog, toastMerged } from './merge-dialog';
-import { ApprovalStatus, SubmitReviewMenu } from './reviews';
+import { MergeStatus, SubmitReviewMenu, useMergeState } from './reviews';
 
 /** Status transitions, review and merge for a change request header.
  *  `prepare` runs before a review or merge starts, e.g. to save a draft;
@@ -40,6 +40,7 @@ export function StatusActions({
   const { contributor, canEdit } = useChangeRequestAccess(projectId, changeRequest);
   const open = status === 'DRAFT' || status === 'IN_REVIEW';
   const mergeable = open && Boolean(branchId) && !contributor;
+  const mergeState = useMergeState(changeRequest);
   const setStatus = (next: Exclude<ChangeRequestStatus, 'MERGED'>) =>
     update.mutate({ status: next }, { onError: (error) => toast.error(error.message) });
   const archive = async () => {
@@ -137,12 +138,13 @@ export function StatusActions({
       ) : null}
       {mergeable ? (
         <>
-          <ApprovalStatus review={changeRequest.review} />
+          {mergeState ? <MergeStatus state={mergeState} /> : null}
           <Button
             size="sm"
             onClick={() => void openMerge()}
-            disabled={!changeRequest.review.mergeable || merge.isPending}
+            disabled={mergeState?.blocked || merge.isPending}
             aria-label={t('changeRequest.merge')}
+            title={mergeState?.message}
           >
             {merge.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <GitMerge className="size-3.5" />}{' '}
             <span className="hidden md:inline">{t('changeRequest.merge')}</span>

@@ -702,11 +702,11 @@ function EditorPage() {
       back={{ to: '/app/projects/$projectId/editor', label: t('changeRequest.backToMain') }}
     >
       {saveStatus}
-      {contributor ? null : (
+      {canEdit ? (
         <Button aria-label={t('project.preview')} onClick={() => void openDraftPreview()} size="sm" variant="outline" className="cursor-pointer">
           <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
         </Button>
-      )}
+      ) : null}
       {changeRequestDetail ? <StatusActions projectId={projectId} changeRequest={changeRequestDetail} prepare={saveDraftFirst} /> : null}
     </ChangeRequestHeader>
   ) : (

@@ -317,6 +317,7 @@
   "changerequest_review_submitted": "审阅已提交",
   "changerequest_review_error": "无法提交审阅。",
   "changerequest_review_approvals": "批准：{approvals}/{required}",
+  "changerequest_review_conflicts": "冲突：{count}",
   "changerequest_review_history": "审阅记录",
   "changerequest_notyours": "只有作者和 Wiki 成员可以编辑此变更请求。",
   "editor_addlanguage_title": "添加语言",

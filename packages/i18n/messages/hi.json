@@ -317,6 +317,7 @@
   "changerequest_review_submitted": "समीक्षा भेजी गई",
   "changerequest_review_error": "समीक्षा नहीं भेजी जा सकी।",
   "changerequest_review_approvals": "स्वीकृतियाँ: {approvals}/{required}",
+  "changerequest_review_conflicts": "टकराव: {count}",
   "changerequest_review_history": "समीक्षाएँ",
   "changerequest_notyours": "केवल लेखक और विकी के सदस्य इस परिवर्तन अनुरोध को संपादित कर सकते हैं।",
   "editor_addlanguage_title": "एक भाषा जोड़ें",

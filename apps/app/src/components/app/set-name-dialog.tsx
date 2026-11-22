@@ -4,9 +4,11 @@ import { FieldError } from '@nibleaf/design-system/components/ui/form-field';
 import { Input } from '@nibleaf/design-system/components/ui/input';
 import { Label } from '@nibleaf/design-system/components/ui/label';
 import { useT } from '@nibleaf/i18n/react';
+import { USER_NAME_MAX_LENGTH } from '@nibleaf/shared/constants';
 import { useNavigate } from '@tanstack/react-router';
 import { LogOut } from 'lucide-react';
 import { useState, useSyncExternalStore } from 'react';
+import { maxLength } from '@/lib/form';
 import { authClient } from '@/services/auth-client';
 
 const subscribeToHydration = () => () => undefined;
@@ -27,6 +29,11 @@ export function SetNameDialog({ name: currentName, onSaved }: { name: string | n
 
   const submit = async () => {
     if (!name.trim()) return;
+    const tooLong = maxLength(t('settings.account.name.label'), USER_NAME_MAX_LENGTH, t)(name);
+    if (tooLong) {
+      setError(tooLong);
+      return;
+    }
     setSubmitting(true);
     setError(undefined);
     try {
@@ -59,7 +66,15 @@ export function SetNameDialog({ name: currentName, onSaved }: { name: string | n
           </DialogHeader>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="set-name">{t('settings.account.name.label')}</Label>
-            <Input autoComplete="name" autoFocus dir="auto" id="set-name" onChange={(event) => setName(event.target.value)} value={name} />
+            <Input
+              autoComplete="name"
+              autoFocus
+              dir="auto"
+              id="set-name"
+              maxLength={USER_NAME_MAX_LENGTH}
+              onChange={(event) => setName(event.target.value)}
+              value={name}
+            />
             <FieldError errors={error ? [error] : []} />
           </div>
           <DialogFooter>

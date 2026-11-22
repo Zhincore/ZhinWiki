@@ -14,6 +14,7 @@
   "validation_emailrequired": "Требуется электронная почта",
   "validation_emailinvalid": "Введите действительный адрес электронной почты",
   "validation_minlength": "{label} должен содержать не менее {min} символов.",
+  "validation_maxlength": "{label} должен содержать не более {max} символов.",
   "nav_account": "Аккаунт",
   "nav_sites": "Сайты",
   "nav_overview": "Обзор",

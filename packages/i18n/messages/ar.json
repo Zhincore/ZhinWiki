@@ -14,6 +14,7 @@
   "validation_emailrequired": "البريد الإلكتروني مطلوب",
   "validation_emailinvalid": "أدخل بريدًا إلكترونيًا صالحًا",
   "validation_minlength": "يجب ألا يقل {label} عن {min} أحرف",
+  "validation_maxlength": "يجب ألا يزيد {label} عن {max} حرفًا",
   "nav_account": "الحساب",
   "nav_sites": "المواقع",
   "nav_overview": "نظرة عامة",

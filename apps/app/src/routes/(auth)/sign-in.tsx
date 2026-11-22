@@ -54,6 +54,8 @@ function SignInPage() {
   };
 
   const requestCode = async () => {
+    // The instance's captcha config is still loading: nothing has failed yet.
+    if (!captcha.ready) return;
     setIsSubmitting(true);
     setError(null);
     try {

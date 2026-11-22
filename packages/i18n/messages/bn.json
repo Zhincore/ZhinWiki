@@ -12,6 +12,7 @@
   "validation_required": "{label} প্রয়োজন",
   "validation_emailrequired": "ইমেল প্রয়োজন",
   "validation_emailinvalid": "একটি বৈধ ইমেল ঠিকানা লিখুন",
+  "validation_maxlength": "{label} সর্বোচ্চ {max} অক্ষর হতে পারে",
   "nav_account": "হিসাব",
   "nav_sites": "সাইট",
   "nav_overview": "ওভারভিউ",

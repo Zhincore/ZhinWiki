@@ -391,18 +391,14 @@
     }
 
     /* Horizontal scroll for any wide block. Wrap it and the wrapper owns the
-       flow margin. Tables shrink to fit, so widen the table to make it scroll
-       instead of compress. */
+       flow margin. A table wraps its cells to fit the column and only scrolls
+       once its columns cannot get narrower than their longest words. */
     &:where(.typeset-scroll) {
       overflow-x: auto;
       margin-block-start: var(--typeset-flow);
     }
     &:where(.typeset-scroll > *) {
       margin-block-start: 0;
-    }
-    &:where(.typeset-scroll table) {
-      width: max-content;
-      max-width: none;
     }
     &:where(thead th) {
       font-weight: 500;

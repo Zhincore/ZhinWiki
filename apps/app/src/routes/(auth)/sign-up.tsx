@@ -6,6 +6,7 @@ import { useCaptcha } from '@nibleaf/design-system/hooks/use-captcha';
 import { useOtpResendCountdown } from '@nibleaf/design-system/hooks/use-otp-resend-countdown';
 import { getLocale } from '@nibleaf/i18n';
 import { useT } from '@nibleaf/i18n/react';
+import { USER_NAME_MAX_LENGTH } from '@nibleaf/shared/constants';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
@@ -18,6 +19,7 @@ import { useTenancy } from '@/hooks/use-tenancy';
 import { AuthLayout } from '@/layouts/auth';
 import { authEmailErrorMessage, isCaptchaError } from '@/lib/auth-errors';
 import { brandedTitle } from '@/lib/brand';
+import { maxLength } from '@/lib/form';
 import { readPendingInvitation } from '@/lib/invitations';
 import { safeReturnPath } from '@/lib/return-path';
 import { authClient } from '@/services/auth-client';
@@ -65,6 +67,11 @@ function SignUpPage() {
   };
 
   const requestCode = async () => {
+    const nameTooLong = maxLength(t('auth.field.name'), USER_NAME_MAX_LENGTH, t)(name);
+    if (nameTooLong) {
+      setError(nameTooLong);
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
     try {
@@ -158,6 +165,7 @@ function SignUpPage() {
                 autoComplete="name"
                 autoFocus
                 id="name"
+                maxLength={USER_NAME_MAX_LENGTH}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Ada Lovelace"
                 required

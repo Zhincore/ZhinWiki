@@ -35,3 +35,6 @@ export const DeploymentStatus = {
 export type DeploymentStatus = (typeof DeploymentStatus)[keyof typeof DeploymentStatus];
 
 export const API_KEY_PREFIX = 'plm';
+
+/** Longest display name a user can set (trimmed). */
+export const USER_NAME_MAX_LENGTH = 64;

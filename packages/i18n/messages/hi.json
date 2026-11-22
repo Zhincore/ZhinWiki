@@ -12,6 +12,7 @@
   "validation_required": "{label} आवश्यक है",
   "validation_emailrequired": "ईमेल आवश्यक है",
   "validation_emailinvalid": "एक वैध ईमेल पता दर्ज करें",
+  "validation_maxlength": "{label} अधिकतम {max} वर्ण का होना चाहिए",
   "nav_account": "खाता",
   "nav_sites": "साइटें",
   "nav_overview": "सिंहावलोकन",

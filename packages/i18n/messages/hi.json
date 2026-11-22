@@ -2043,6 +2043,8 @@
   "email_changerequest_changesrequested_message": "{actorName} ने {projectName} पर आपके परिवर्तन अनुरोध “{title}” में बदलाव माँगे हैं।",
   "email_changerequest_merged_subject": "{actorName} ने #{number} {title} मर्ज किया",
   "email_changerequest_merged_message": "{actorName} ने आपका परिवर्तन अनुरोध “{title}” {projectName} में मर्ज किया।",
+  "email_changerequest_mergedpublishing_subject": "{actorName} ने #{number} {title} मर्ज किया, प्रकाशित हो रहा है",
+  "email_changerequest_mergedpublishing_message": "{actorName} ने आपका परिवर्तन अनुरोध “{title}” {projectName} में मर्ज किया। साइट प्रकाशित की जा रही है।",
   "site_noanswergrounded": "I could not find enough information in the available documentation to answer confidently.",
   "site_importblog": "Blog",
   "site_importpages": "Pages",

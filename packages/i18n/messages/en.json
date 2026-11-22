@@ -2083,6 +2083,8 @@
   "email_changerequest_changesrequested_message": "{actorName} requested changes on your change request “{title}” on {projectName}.",
   "email_changerequest_merged_subject": "{actorName} merged #{number} {title}",
   "email_changerequest_merged_message": "{actorName} merged your change request “{title}” into {projectName}.",
+  "email_changerequest_mergedpublishing_subject": "{actorName} merged #{number} {title}, publishing now",
+  "email_changerequest_mergedpublishing_message": "{actorName} merged your change request “{title}” into {projectName}. The site is being published.",
   "site_noanswergrounded": "I could not find enough information in the available documentation to answer confidently.",
   "site_importblog": "Blog",
   "site_importpages": "Pages",

@@ -67,6 +67,19 @@ describe('notifyChangeRequest', () => {
     expect(mocks.createMany.mock.calls[0]?.[0]).toEqual(english);
   });
 
+  it('says the site is being published after a merge that publishes', async () => {
+    await notifyChangeRequest({ ...input, event: 'mergedPublishing', recipients: ['author'] });
+    expect(mocks.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ type: 'change_request_merged', title: 'Rita merged #3 Fix typos, publishing now' })],
+    });
+    expect(mocks.createJob).toHaveBeenCalledWith(
+      'email',
+      expect.objectContaining({
+        data: expect.objectContaining({ subject: 'Rita merged #3 Fix typos, publishing now', text: expect.stringContaining('being published') }),
+      }),
+    );
+  });
+
   it('names the actor by email when their name is empty', async () => {
     await notifyChangeRequest({ ...input, actor: { ...input.actor, name: '' }, recipients: ['author'] });
     expect(mocks.createMany).toHaveBeenCalledWith({ data: [expect.objectContaining({ title: expect.stringMatching(/^rita@example\.com /) })] });

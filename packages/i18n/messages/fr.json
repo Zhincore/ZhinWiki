@@ -2043,6 +2043,8 @@
   "email_changerequest_changesrequested_message": "{actorName} demande des modifications sur votre demande de modification « {title} » sur {projectName}.",
   "email_changerequest_merged_subject": "{actorName} a fusionné #{number} {title}",
   "email_changerequest_merged_message": "{actorName} a fusionné votre demande de modification « {title} » dans {projectName}.",
+  "email_changerequest_mergedpublishing_subject": "{actorName} a fusionné #{number} {title}, publication en cours",
+  "email_changerequest_mergedpublishing_message": "{actorName} a fusionné votre demande de modification « {title} » dans {projectName}. Le site est en cours de publication.",
   "site_noanswergrounded": "I could not find enough information in the available documentation to answer confidently.",
   "site_importblog": "Blog",
   "site_importpages": "Pages",

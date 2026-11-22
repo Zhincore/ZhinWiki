@@ -17,6 +17,7 @@ const EVENTS: Record<ChangeRequestEmailEvent, { type: string; preference: string
   approved: { type: 'change_request_approved', preference: 'change_request_reviewed' },
   changesRequested: { type: 'change_request_changes_requested', preference: 'change_request_reviewed' },
   merged: { type: 'change_request_merged', preference: 'change_request_merged' },
+  mergedPublishing: { type: 'change_request_merged', preference: 'change_request_merged' },
 };
 
 /**

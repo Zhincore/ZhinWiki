@@ -12,6 +12,8 @@ import {
   email_changerequest_changesrequested_subject,
   email_changerequest_merged_message,
   email_changerequest_merged_subject,
+  email_changerequest_mergedpublishing_message,
+  email_changerequest_mergedpublishing_subject,
   email_changerequest_reviewrequested_message,
   email_changerequest_reviewrequested_subject,
   email_deployment_failed_detail,
@@ -137,6 +139,8 @@ const emailMessages = {
   'email.changeRequest.changesRequested.message': email_changerequest_changesrequested_message,
   'email.changeRequest.merged.subject': email_changerequest_merged_subject,
   'email.changeRequest.merged.message': email_changerequest_merged_message,
+  'email.changeRequest.mergedPublishing.subject': email_changerequest_mergedpublishing_subject,
+  'email.changeRequest.mergedPublishing.message': email_changerequest_mergedpublishing_message,
 };
 
 export type EmailMessageKey = keyof typeof emailMessages;

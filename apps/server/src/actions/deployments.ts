@@ -482,9 +482,29 @@ export const createDeployment = async (
     locale,
     ...(source ? { source } : {}),
   };
-  await createJob(QueueNames.PUBLISH, { name: 'publish-deployment', data: jobData });
+  try {
+    await createJob(QueueNames.PUBLISH, { name: 'publish-deployment', data: jobData });
+  } catch (error) {
+    await failUnqueuedDeployment(deployment.id, projectId);
+    throw error;
+  }
   logPlatformEvent('publish_clicked', { userId, projectId, metadata: { auto, version: deployment.version } });
   return deployment;
+};
+
+const ENQUEUE_FAILED_ERROR = 'The publish could not be queued (the queue backend was unavailable). Try again.';
+
+/** No job will ever pick this row up, so flip it to FAILED now instead of
+ *  leaving a publish that looks in progress until the worker's reaper runs. */
+export const failUnqueuedDeployment = async (deploymentId: string, projectId: string): Promise<void> => {
+  try {
+    await prisma.deployment.update({
+      where: { id: deploymentId, projectId, status: 'PENDING' },
+      data: { status: 'FAILED', error: ENQUEUE_FAILED_ERROR, completedAt: new Date() },
+    });
+  } catch (error) {
+    log.error({ deploymentId, projectId, error }, 'could not mark an unqueued deployment as failed');
+  }
 };
 
 /** Record a publish refused before it started (takedown, redirect errors) as

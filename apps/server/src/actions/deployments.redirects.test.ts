@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   pageFindMany: vi.fn(),
   deploymentAggregate: vi.fn(),
   deploymentCreate: vi.fn(),
+  deploymentUpdate: vi.fn(),
   platformEventCreate: vi.fn(),
 }));
 
@@ -16,7 +17,7 @@ vi.mock('@nibleaf/database', () => ({
   prisma: {
     project: { findFirst: mocks.projectFindFirst, findUnique: mocks.projectFindUnique },
     page: { findMany: mocks.pageFindMany },
-    deployment: { aggregate: mocks.deploymentAggregate, create: mocks.deploymentCreate },
+    deployment: { aggregate: mocks.deploymentAggregate, create: mocks.deploymentCreate, update: mocks.deploymentUpdate },
     platformEvent: { create: mocks.platformEventCreate },
   },
 }));
@@ -139,6 +140,31 @@ describe('createDeployment redirect preflight', () => {
     const snapshot = await getCurrentSnapshot('project-1');
 
     expect(snapshot.project.config).toMatchObject({ addons: { feedback: false } });
+  });
+
+  it('fails the pending deployment and rethrows when the publish job cannot be queued', async () => {
+    const value = project([]);
+    mocks.projectFindFirst.mockResolvedValue(value);
+    mocks.projectFindUnique.mockResolvedValue(value);
+    mocks.createJob.mockRejectedValue(new Error('redis down'));
+    mocks.deploymentUpdate.mockResolvedValue({});
+
+    await expect(createDeployment('org-1', 'project-1', 'user-1', {})).rejects.toThrow('redis down');
+    expect(mocks.deploymentUpdate).toHaveBeenCalledWith({
+      where: { id: 'deployment-3', projectId: 'project-1', status: 'PENDING' },
+      data: { status: 'FAILED', error: expect.stringContaining('could not be queued'), completedAt: expect.any(Date) },
+    });
+    expect(mocks.platformEventCreate).not.toHaveBeenCalled();
+  });
+
+  it('surfaces the enqueue error even when marking the deployment failed also fails', async () => {
+    const value = project([]);
+    mocks.projectFindFirst.mockResolvedValue(value);
+    mocks.projectFindUnique.mockResolvedValue(value);
+    mocks.createJob.mockRejectedValue(new Error('redis down'));
+    mocks.deploymentUpdate.mockRejectedValue(new Error('db down'));
+
+    await expect(createDeployment('org-1', 'project-1', 'user-1', {})).rejects.toThrow('redis down');
   });
 
   it('does not reveal or publish a project outside the caller organization', async () => {

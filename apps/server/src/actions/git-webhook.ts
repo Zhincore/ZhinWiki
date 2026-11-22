@@ -7,6 +7,7 @@ import { MemberRole } from '@nibleaf/shared/constants';
 import type { GitConfigStored } from '@nibleaf/validators';
 import { z } from 'zod';
 import { badRequest } from '@/errors';
+import { failUnqueuedDeployment } from './deployments';
 import { importFromGitProvider } from './git-import';
 import { logPlatformEvent } from './platform-events';
 
@@ -147,7 +148,12 @@ const enqueueWebhookPublish = async (organizationId: string, projectId: string, 
     return;
   }
   const jobData: PublishDeploymentJobData = { deploymentId, projectId, auto: true };
-  await createJob(QueueNames.PUBLISH, { name: 'publish-deployment', data: jobData });
+  try {
+    await createJob(QueueNames.PUBLISH, { name: 'publish-deployment', data: jobData });
+  } catch (error) {
+    await failUnqueuedDeployment(deploymentId, projectId);
+    throw error;
+  }
   logPlatformEvent('publish_clicked', { userId: owner?.userId ?? null, projectId, metadata: { auto: true, source: 'git-webhook', version } });
 };
 

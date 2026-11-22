@@ -12,6 +12,7 @@
   "validation_required": "{label} wajib diisi",
   "validation_emailrequired": "Email diperlukan",
   "validation_emailinvalid": "Masukkan alamat email yang valid",
+  "validation_maxlength": "{label} maksimal {max} karakter",
   "nav_account": "Akun",
   "nav_sites": "Situs",
   "nav_overview": "Ikhtisar",

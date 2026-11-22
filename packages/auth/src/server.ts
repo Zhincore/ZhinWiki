@@ -23,6 +23,7 @@ import { admin, emailOTP, organization } from 'better-auth/plugins';
 import { prepareAccountDeletion } from './account-deletion';
 import { requireAuthEmailEnqueue, trackRequiredAuthEmail, withRequiredAuthEmailScope } from './auth-email-delivery';
 import { deliverAuthOtpEmail } from './auth-email-expiry';
+import { enforceDisplayName } from './display-name';
 import { keys } from './keys.server';
 import { isUnverifiedOAuthSignUp, oauthCredentials } from './providers';
 import { onUserCreated, organizationTenancyOptions } from './tenancy';
@@ -727,7 +728,7 @@ const authInstance = betterAuth({
   // Password auth is off, so the email-OTP password reset routes would only
   // send unsolicited codes to any registered address.
   disabledPaths: ['/organization/invite-member', '/email-otp/request-password-reset', '/forget-password/email-otp', '/email-otp/reset-password'],
-  hooks: { after: requireAuthEmailEnqueue },
+  hooks: { before: enforceDisplayName, after: requireAuthEmailEnqueue },
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
   basePath: '/api/auth',

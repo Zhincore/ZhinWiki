@@ -12,6 +12,7 @@
   "validation_required": "{label} est requis",
   "validation_emailrequired": "L'e-mail est requis",
   "validation_emailinvalid": "Entrez une adresse e-mail valide",
+  "validation_maxlength": "{label} doit contenir au maximum {max} caractères",
   "nav_account": "Compte",
   "nav_sites": "Sites",
   "nav_overview": "Aperçu",

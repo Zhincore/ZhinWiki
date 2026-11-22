@@ -12,6 +12,7 @@
   "validation_required": "{label} درکار ہے۔",
   "validation_emailrequired": "ای میل درکار ہے۔",
   "validation_emailinvalid": "ایک درست ای میل ایڈریس درج کریں۔",
+  "validation_maxlength": "{label} زیادہ سے زیادہ {max} حروف کا ہو سکتا ہے",
   "nav_account": "اکاؤنٹ",
   "nav_sites": "سائٹس",
   "nav_overview": "جائزہ",

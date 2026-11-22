@@ -12,6 +12,7 @@
   "validation_required": "{label} مطلوب",
   "validation_emailrequired": "البريد الإلكتروني مطلوب",
   "validation_emailinvalid": "أدخل بريدًا إلكترونيًا صالحًا",
+  "validation_maxlength": "يجب ألا يزيد {label} عن {max} حرفًا",
   "nav_account": "الحساب",
   "nav_sites": "المواقع",
   "nav_overview": "نظرة عامة",

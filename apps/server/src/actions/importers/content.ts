@@ -6,9 +6,6 @@ import { createHash } from 'node:crypto';
  * `@/…` imports (node builtins are fine) — so unit tests run without a database.
  */
 
-/** Hard cap so an accidental import of a huge source can't fan out unbounded. */
-export const MAX_IMPORT_FILES = 500;
-
 /** Deterministic 8-hex digest of a string. Used to derive stable fallback slugs
  *  for content whose name has no Latin characters (e.g. Arabic titles), so
  *  distinct items never collapse onto one shared literal like `post`. */

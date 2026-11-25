@@ -54,6 +54,7 @@ export const env = createEnv({
     EXPORT_MAX_ACTIVE_PER_PROJECT: z.coerce.number().int().min(1).max(20).default(3),
     EXPORT_MAX_DAILY_PER_PROJECT: z.coerce.number().int().min(1).max(1000).default(20),
     EXPORT_MAX_PAGES: z.coerce.number().int().positive().default(5000),
+    IMPORT_MAX_PAGES: z.coerce.number().int().positive().default(500),
     EXPORT_MAX_SNAPSHOT_BYTES: z.coerce
       .number()
       .int()

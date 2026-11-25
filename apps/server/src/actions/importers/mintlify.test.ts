@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { MintlifyImportBody } from '@nibleaf/validators';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MAX_IMPORT_FILES } from './content';
 import type { ImportSummary } from './types';
 
 /**
@@ -37,6 +36,8 @@ const mem = vi.hoisted(() => ({
   },
 }));
 
+const env = vi.hoisted(() => ({ IMPORT_MAX_PAGES: 500 }));
+vi.mock('@/env', () => ({ env }));
 vi.mock('@nibleaf/database', () => ({
   prisma: {
     branch: { deleteMany: vi.fn(async () => ({ count: 1 })) },
@@ -144,6 +145,7 @@ const setNavigation = (navigation: unknown): void => {
 };
 
 beforeEach(() => {
+  env.IMPORT_MAX_PAGES = 500;
   vi.clearAllMocks();
   mem.reset();
 });
@@ -393,7 +395,7 @@ describe('mintlify language import', () => {
 
 describe('mintlify import cap', () => {
   it('counts created GROUP nodes against the cap, warns once, and skips the remainder', async () => {
-    const total = MAX_IMPORT_FILES + 1; // 251 groups of one page each = 502 potential nodes
+    const total = env.IMPORT_MAX_PAGES + 1; // 251 groups of one page each = 502 potential nodes
     setNavigation(Array.from({ length: total }, (_, i) => ({ group: `Group ${i}`, pages: [`page-${i}`] })));
     for (let i = 0; i < total; i++) {
       mem.repoFiles.set(`page-${i}.mdx`, `# Page ${i}`);
@@ -403,12 +405,22 @@ describe('mintlify import cap', () => {
     const groups = mem.rows.filter((row) => row.kind === 'GROUP');
     const pages = mem.rows.filter((row) => row.kind === 'PAGE');
     // Groups and leaves alternate, so half the node budget goes to each.
-    expect(groups).toHaveLength(MAX_IMPORT_FILES / 2);
-    expect(pages).toHaveLength(MAX_IMPORT_FILES / 2);
-    expect(mem.rows).toHaveLength(MAX_IMPORT_FILES);
-    expect(summary.imported).toBe(MAX_IMPORT_FILES / 2);
+    expect(groups).toHaveLength(env.IMPORT_MAX_PAGES / 2);
+    expect(pages).toHaveLength(env.IMPORT_MAX_PAGES / 2);
+    expect(mem.rows).toHaveLength(env.IMPORT_MAX_PAGES);
+    expect(summary.imported).toBe(env.IMPORT_MAX_PAGES / 2);
     expect(summary.warnings.filter((w) => w.includes('capped'))).toHaveLength(1);
     // Every remaining top-level group counts as one skipped nav entry.
-    expect(summary.skipped).toBe(total - MAX_IMPORT_FILES / 2);
+    expect(summary.skipped).toBe(total - env.IMPORT_MAX_PAGES / 2);
+  });
+
+  it('honours a custom page limit', async () => {
+    env.IMPORT_MAX_PAGES = 4;
+    setNavigation(Array.from({ length: 5 }, (_, i) => ({ group: `Group ${i}`, pages: [`page-${i}`] })));
+    for (let i = 0; i < 5; i++) mem.repoFiles.set(`page-${i}.mdx`, `# Page ${i}`);
+
+    const summary = await runImport();
+    expect(mem.rows).toHaveLength(4);
+    expect(summary.imported).toBe(2);
   });
 });

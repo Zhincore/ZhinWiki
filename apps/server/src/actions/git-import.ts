@@ -9,10 +9,11 @@ import { slugify } from '@nibleaf/shared';
 import type { GitConfig } from '@nibleaf/validators';
 import got from 'got';
 import { z } from 'zod';
+import { env } from '@/env';
 import { badRequest } from '@/errors';
 import { isPrivateIp } from '@/lib/client-ip';
 import { assertBranchInProject, getDefaultBranch } from './branches';
-import { deriveTitle, humanize, MAX_IMPORT_FILES, parseFrontmatter } from './importers/content';
+import { deriveTitle, humanize, parseFrontmatter } from './importers/content';
 import { getGitHubTextFile, listGitHubFiles } from './importers/github';
 import { ensureGroupPage, type ImportTarget, upsertLeafPage } from './importers/persistence';
 import { assertLanguageInProject, getDefaultLanguage } from './languages';
@@ -115,7 +116,7 @@ const listGitLabFiles = async (
   const files: Array<{ path: string; type: 'blob' | 'tree' }> = [];
   let page = 1;
 
-  while (files.length < MAX_IMPORT_FILES) {
+  while (files.length < env.IMPORT_MAX_PAGES) {
     const url = new URL(`${base}/api/v4/projects/${project}/repository/tree`);
     url.searchParams.set('ref', branch);
     url.searchParams.set('recursive', 'true');
@@ -161,7 +162,7 @@ const assertSafeCloneUrl = async (value: string): Promise<string> => {
 const walkMarkdownFiles = async (root: string, rel = '', found: string[] = []): Promise<string[]> => {
   const entries = await readdir(path.join(root, rel), { withFileTypes: true });
   for (const entry of entries) {
-    if (found.length >= MAX_IMPORT_FILES) {
+    if (found.length >= env.IMPORT_MAX_PAGES) {
       return found;
     }
     if (entry.name === '.git') {
@@ -264,7 +265,7 @@ export const importFromGitProvider = async (organizationId: string, projectId: s
         : await listGitLabFiles(repo, branch, basePath, safeGitLabInstance);
     mdFiles = tree
       .filter((i) => i.type === 'blob' && (i.path.endsWith('.md') || i.path.endsWith('.mdx')) && i.path.startsWith(prefix))
-      .slice(0, MAX_IMPORT_FILES)
+      .slice(0, env.IMPORT_MAX_PAGES)
       .map((file) => ({
         path: file.path,
         read: async () => {

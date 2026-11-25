@@ -34,6 +34,8 @@ const mem = vi.hoisted(() => ({
   },
 }));
 
+const env = vi.hoisted(() => ({ IMPORT_MAX_PAGES: 500 }));
+vi.mock('@/env', () => ({ env }));
 vi.mock('@nibleaf/database', () => ({ prisma: { branch: { deleteMany: vi.fn(async () => ({ count: 1 })) } } }));
 vi.mock('../branches', () => ({
   captureImportDraft: vi.fn(async () => 'snapshot'),
@@ -90,6 +92,7 @@ const runImport = (input: Partial<GitbookImportBody> = {}): Promise<ImportSummar
 const page = (slug: string) => mem.rows.find((row) => row.slug === slug);
 
 beforeEach(() => {
+  env.IMPORT_MAX_PAGES = 500;
   vi.clearAllMocks();
   mem.reset();
 });
@@ -228,4 +231,11 @@ it('refuses a space root outside the scoped listing of a truncated tree', async 
   mem.repoFiles.set('spaces/docs/.gitbook.yaml', 'root: ../shared/\n');
   mem.repoFiles.set('spaces/docs/README.md', '# Welcome\n');
   await expect(runImport({ path: 'spaces/docs' })).rejects.toMatchObject({ code: 'import:incomplete', details: { path: 'spaces/shared' } });
+});
+
+it('honours a custom page limit', async () => {
+  env.IMPORT_MAX_PAGES = 2;
+  for (let index = 0; index < 3; index++) mem.repoFiles.set(`p${index}.md`, `# Page ${index}`);
+  mem.repoFiles.set('SUMMARY.md', Array.from({ length: 3 }, (_, index) => `* [Page ${index}](p${index}.md)`).join('\n'));
+  await expect(runImport()).rejects.toMatchObject({ code: 'import:limit', details: { limit: 2 } });
 });

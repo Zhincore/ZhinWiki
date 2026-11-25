@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('@/env', () => ({ env: { IMPORT_MAX_PAGES: 500 } }));
 vi.mock('@nibleaf/database', () => ({ prisma: {} }));
 
 import { normalizeGitContentPath } from './git-import';

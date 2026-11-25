@@ -1,5 +1,6 @@
 import { expect, it, vi } from 'vitest';
 
+vi.mock('@/env', () => ({ env: { IMPORT_MAX_PAGES: 500 } }));
 vi.mock('../projects', () => ({ assertProjectInOrg: vi.fn(async () => ({ id: 'project' })) }));
 vi.mock('../branches', () => ({ getDefaultBranch: vi.fn(async () => ({ id: 'main' })) }));
 vi.mock('../languages', () => ({ listLanguages: vi.fn(async () => [{ id: 'en', code: 'en', isDefault: true }]) }));

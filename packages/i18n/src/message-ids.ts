@@ -328,7 +328,6 @@ export const MESSAGE_IDS = {
   'editor.collapse': 'editor_collapse',
   'editor.expand': 'editor_expand',
   'editor.pages': 'editor_pages',
-  'editor.backToDashboard': 'editor_backtodashboard',
   'editor.config.heading': 'editor_config_heading',
   'editor.viewOnSite': 'editor_viewonsite',
   'editor.ai.title': 'editor_ai_title',

@@ -91,12 +91,14 @@ function SidebarProvider({
     return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open)
   }, [isMobile, setOpen, setOpenMobile])
 
-  // Adds a keyboard shortcut to toggle the sidebar.
+  // Adds a keyboard shortcut to toggle the sidebar. Editable fields keep the
+  // chord for themselves (Mod+B is bold in a rich-text editor).
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
-        (event.metaKey || event.ctrlKey)
+        (event.metaKey || event.ctrlKey) &&
+        !(event.target instanceof HTMLElement && event.target.closest('input, textarea, [contenteditable="true"]'))
       ) {
         event.preventDefault()
         toggleSidebar()

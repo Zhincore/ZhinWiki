@@ -2,14 +2,14 @@ import { Button } from '@nibleaf/design-system/components/ui/button';
 import { useConfirm } from '@nibleaf/design-system/components/ui/confirm';
 import { ScrollArea } from '@nibleaf/design-system/components/ui/scroll-area';
 import { SegmentedControl, SegmentedControlItem } from '@nibleaf/design-system/components/ui/segmented-control';
+import { SidebarTrigger } from '@nibleaf/design-system/components/ui/sidebar';
 import { Tabs, TabsList, TabsTrigger } from '@nibleaf/design-system/components/ui/tabs';
 import { cn } from '@nibleaf/design-system/lib/utils';
 import { useT } from '@nibleaf/i18n/react';
 import { useDebouncer } from '@tanstack/react-pacer';
-import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
+import { createFileRoute, useBlocker } from '@tanstack/react-router';
 import {
   Check,
-  ChevronLeft,
   ChevronRight,
   Code2,
   Eye,
@@ -607,20 +607,17 @@ function EditorPage() {
   );
 
   return (
-    <div className="flex h-screen flex-col">
-      {/* Top bar — workspace controls (Mintlify-style): back + branch on the left,
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Top bar — workspace controls (Mintlify-style): nav toggle + branch on the left,
           configure / preview / publish on the right. No breadcrumb. */}
       <header className="flex h-14 shrink-0 items-center gap-1.5 border-border border-b bg-background px-2 sm:gap-2.5 sm:px-3">
-        <Link
-          to="/app/projects/$projectId"
-          params={{ projectId }}
-          className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          title={t('editor.backToDashboard')}
-        >
-          <ChevronLeft className="size-4 rtl:-scale-x-100" />
-          {project?.name ? <span className="hidden max-w-[200px] truncate font-medium text-foreground text-sm sm:inline">{project.name}</span> : null}
-        </Link>
-        {/* Divider only once the project name is loaded — otherwise it dangles next to the chevron. */}
+        <SidebarTrigger />
+        {project?.name ? (
+          <span className="hidden max-w-[200px] truncate font-medium text-sm sm:inline" dir="auto">
+            {project.name}
+          </span>
+        ) : null}
+        {/* Divider only once the project name is loaded — otherwise it dangles next to the toggle. */}
         {project?.name ? <span className="hidden h-5 w-px bg-border sm:block" /> : null}
         <BranchSwitcher
           projectId={projectId}

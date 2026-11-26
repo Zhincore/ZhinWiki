@@ -1200,7 +1200,7 @@
   "settings_notifications_projectnew_label": "नई परियोजनाएँ",
   "settings_notifications_projectnew_description": "जब कार्यक्षेत्र में कोई प्रोजेक्ट बनाया जाता है.",
   "settings_notifications_projectdeploy_label": "तैनाती पूरी हो गई",
-  "settings_notifications_projectdeploy_description": "जब कोई साइट प्रकाशन समाप्त कर लेती है.",
+  "settings_notifications_projectdeploy_description": "जब कोई साइट प्रकाशन समाप्त कर लेती है, मर्ज किए गए परिवर्तन अनुरोधों से होने वाले प्रकाशनों को छोड़कर.",
   "settings_notifications_projectdeployfailed_label": "परिनियोजन विफल रहा",
   "settings_notifications_projectdeployfailed_description": "जब कोई प्रकाशन चलता है तो त्रुटियाँ समाप्त हो जाती हैं।",
   "settings_notifications_memberinvited_label": "सदस्य को आमंत्रित किया गया",

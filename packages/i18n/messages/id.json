@@ -1200,7 +1200,7 @@
   "settings_notifications_projectnew_label": "Proyek baru",
   "settings_notifications_projectnew_description": "Saat proyek dibuat di ruang kerja.",
   "settings_notifications_projectdeploy_label": "Penerapan selesai",
-  "settings_notifications_projectdeploy_description": "Saat situs selesai dipublikasikan.",
+  "settings_notifications_projectdeploy_description": "Saat situs selesai dipublikasikan, kecuali publikasi dari permintaan perubahan yang digabungkan.",
   "settings_notifications_projectdeployfailed_label": "Penerapan gagal",
   "settings_notifications_projectdeployfailed_description": "Saat publikasi berjalan, terjadi kesalahan.",
   "settings_notifications_memberinvited_label": "Anggota diundang",

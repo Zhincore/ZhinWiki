@@ -1221,7 +1221,7 @@
   "settings_notifications_projectnew_label": "المشاريع الجديدة",
   "settings_notifications_projectnew_description": "عند إنشاء مشروع في مساحة العمل.",
   "settings_notifications_projectdeploy_label": "اكتمل النشر",
-  "settings_notifications_projectdeploy_description": "عند انتهاء نشر الموقع.",
+  "settings_notifications_projectdeploy_description": "عند انتهاء نشر الموقع، باستثناء عمليات النشر الناتجة عن دمج طلبات التغيير.",
   "settings_notifications_projectdeployfailed_label": "فشل النشر",
   "settings_notifications_projectdeployfailed_description": "عند حدوث خطأ في عملية النشر.",
   "settings_notifications_memberinvited_label": "تمت دعوة عضو",

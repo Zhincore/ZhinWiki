@@ -1200,7 +1200,7 @@
   "settings_notifications_projectnew_label": "نئے منصوبے",
   "settings_notifications_projectnew_description": "جب ورک اسپیس میں کوئی پروجیکٹ بنایا جاتا ہے۔",
   "settings_notifications_projectdeploy_label": "تعیناتی مکمل ہو گئی۔",
-  "settings_notifications_projectdeploy_description": "جب کوئی سائٹ اشاعت مکمل کر لیتی ہے۔",
+  "settings_notifications_projectdeploy_description": "جب کوئی سائٹ اشاعت مکمل کر لیتی ہے، سوائے ضم شدہ تبدیلی کی درخواستوں سے ہونے والی اشاعتوں کے۔",
   "settings_notifications_projectdeployfailed_label": "تعیناتی ناکام ہو گئی۔",
   "settings_notifications_projectdeployfailed_description": "جب اشاعت کی خرابیاں ختم ہوجاتی ہیں۔",
   "settings_notifications_memberinvited_label": "ممبر کو مدعو کیا گیا۔",

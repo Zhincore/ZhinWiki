@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   got: vi.fn(),
@@ -31,6 +31,11 @@ const serverWith = async (homepage: string) => {
 
 describe('HOMEPAGE server entry', () => {
   let rendered: Request[];
+
+  // The first import of the server entry transforms its whole module graph; pay that once here, not inside a 5 s test.
+  beforeAll(async () => {
+    await serverWith('');
+  }, 30_000);
 
   beforeEach(() => {
     rendered = [];

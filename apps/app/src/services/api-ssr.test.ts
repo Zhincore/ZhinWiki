@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   port: 4310,
@@ -33,6 +33,11 @@ vi.mock('@/env.server', () => ({
 }));
 
 describe('SSR RPC request context through the loopback proxy', () => {
+  // The first import of the server entry transforms its whole module graph; pay that once here, not inside a 5 s test.
+  beforeAll(async () => {
+    await Promise.all([import('./api'), import('../server')]);
+  }, 30_000);
+
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();

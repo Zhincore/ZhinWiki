@@ -1192,7 +1192,7 @@
   "settings_notifications_projectnew_label": "Новые проекты",
   "settings_notifications_projectnew_description": "Когда проект создается в рабочей области.",
   "settings_notifications_projectdeploy_label": "Развертывание завершено",
-  "settings_notifications_projectdeploy_description": "Когда сайт завершает публикацию.",
+  "settings_notifications_projectdeploy_description": "Когда сайт завершает публикацию, кроме публикаций после слияния запросов на изменение.",
   "settings_notifications_projectdeployfailed_label": "Развертывание не удалось",
   "settings_notifications_projectdeployfailed_description": "При публикации возникают ошибки.",
   "settings_notifications_memberinvited_label": "Участник приглашен",

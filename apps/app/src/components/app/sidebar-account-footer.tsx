@@ -56,7 +56,7 @@ export function SidebarAccountFooter() {
                   <SidebarMenuButton className="data-[popup-open]:bg-sidebar-accent data-[popup-open]:text-sidebar-accent-foreground" size="lg" />
                 }
               >
-                <Avatar className="size-9 rounded-lg">
+                <Avatar className="size-8 rounded-lg">
                   {visibleSession?.user?.image ? <AvatarImage alt={name} src={visibleSession.user.image} /> : null}
                   <AvatarFallback className="rounded-lg bg-gradient-to-br from-primary to-primary/60 font-semibold text-primary-foreground text-xs">
                     {initials}

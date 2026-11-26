@@ -7,6 +7,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
   useSidebar,
 } from '@nibleaf/design-system/components/ui/sidebar';
 import type { MessageKey } from '@nibleaf/i18n';
@@ -34,7 +35,7 @@ export function ProjectSidebar({ projectId }: { projectId: string }) {
   ];
 
   return (
-    <Sidebar side={direction === 'rtl' ? 'right' : 'left'} variant="inset">
+    <Sidebar collapsible="icon" side={direction === 'rtl' ? 'right' : 'left'} variant="inset">
       <SidebarHeader>
         <SiteSwitcher projectId={projectId} />
       </SidebarHeader>
@@ -61,6 +62,7 @@ export function ProjectSidebar({ projectId }: { projectId: string }) {
       </SidebarContent>
 
       <SidebarAccountFooter />
+      <SidebarRail />
     </Sidebar>
   );
 }

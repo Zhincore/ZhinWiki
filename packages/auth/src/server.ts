@@ -20,7 +20,7 @@ import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { APIError } from 'better-auth/api';
 import { admin, emailOTP, organization } from 'better-auth/plugins';
-import { prepareAccountDeletion } from './account-deletion';
+import { adminUserRemoval, prepareAccountDeletion } from './account-deletion';
 import { requireAuthEmailEnqueue, trackRequiredAuthEmail, withRequiredAuthEmailScope } from './auth-email-delivery';
 import { deliverAuthOtpEmail } from './auth-email-expiry';
 import { enforceDisplayName } from './display-name';
@@ -781,6 +781,7 @@ const authInstance = betterAuth({
       defaultRole: 'user',
       impersonationSessionDuration: 60 * 60,
     }),
+    adminUserRemoval(env.TENANCY),
     emailOTP({
       // Customer sign-in doubles as passwordless sign-up. The API gateway adds
       // an admin-origin guard so this can never create an admin account.

@@ -1,6 +1,7 @@
 import { prisma } from '@nibleaf/database';
 import type { Tenancy } from '@nibleaf/shared/rbac';
-import { APIError } from 'better-auth/api';
+import type { BetterAuthPlugin } from 'better-auth';
+import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { ACCOUNT_DELETION_ERROR, type BlockingWorkspace } from './account-deletion-errors';
 import { eraseProjectOrganization, TenantUsageDeletionPendingError } from './tenant-erasure';
 
@@ -89,3 +90,31 @@ export const prepareAccountDeletion = async (user: { id: string; name: string },
 
   await prisma.$transaction([prisma.platformEvent.deleteMany({ where: { userId } }), prisma.notification.deleteMany({ where: { userId } })]);
 };
+
+const ADMIN_REMOVE_USER_PATH = '/admin/remove-user';
+
+/**
+ * Better Auth plugin: the admin plugin's remove-user endpoint deletes the row
+ * directly and skips `beforeDelete`. This runs the same preparation first, only
+ * for a signed-in admin removing another existing user, so any other request is
+ * left to the endpoint's own authorization and validation.
+ */
+export const adminUserRemoval = (tenancy: Tenancy) =>
+  ({
+    id: 'admin-user-removal',
+    hooks: {
+      before: [
+        {
+          matcher: (context) => context.path === ADMIN_REMOVE_USER_PATH,
+          handler: createAuthMiddleware(async (context) => {
+            const session = await getSessionFromCtx(context);
+            const targetId = (context.body as { userId?: unknown } | undefined)?.userId;
+            const roles = String(session?.user.role ?? '').split(',');
+            if (!session || !roles.includes('admin') || typeof targetId !== 'string' || targetId === session.user.id) return;
+            const target = await prisma.user.findUnique({ where: { id: targetId }, select: { id: true, name: true } });
+            if (target) await prepareAccountDeletion(target, tenancy);
+          }),
+        },
+      ],
+    },
+  }) satisfies BetterAuthPlugin;

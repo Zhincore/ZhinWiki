@@ -2,6 +2,9 @@ import { createJob, getJob, QueueNames, removeJob } from '@nibleaf/bullmq';
 import { ERASE_PROJECT_STORAGE_START_DELAY_MS, eraseProjectStorageJobId } from '@nibleaf/bullmq/jobs/erasure';
 import { keys as clickHouseKeys, clickHouseWritesEnabled, deleteProjectAnalytics, deleteProjectUsage } from '@nibleaf/clickhouse';
 import { beginUsageDeletion, prisma } from '@nibleaf/database';
+import { createLogger } from '@nibleaf/logger';
+
+const log = createLogger({ module: 'tenant-erasure' });
 
 /** BullMQ ignores a new job whose id it still retains, so a retried deletion must
  * clear an exhausted failed job to queue erasure again. A waiting, delayed, or
@@ -16,6 +19,41 @@ const enqueueProjectStorageErasure = async (projectId: string) => {
 /** Outlasts a Qdrant outage (~40 minutes of exponential backoff). A failed job is
  * dropped so a retried deletion can queue the same job id again. */
 const SEARCH_DELETE_RETRY = { attempts: 10, backoff: { type: 'exponential', delay: 5000 }, removeOnFail: true } as const;
+
+/** A provider-managed custom hostname of a deleted project. */
+export interface ProviderDomain {
+  provider: string;
+  providerHostnameId: string;
+  providerData: unknown;
+}
+
+/** Removes provider-side resources of deleted domains. Rejections are logged, never fatal. */
+type ProviderDomainCleanup = (domains: ProviderDomain[]) => Promise<void>;
+
+let cleanupProviderDomains: ProviderDomainCleanup | null = null;
+
+/** Registers the provider hostname cleanup run after a project is erased. */
+export const setProviderDomainCleanup = (cleanup: ProviderDomainCleanup): void => {
+  cleanupProviderDomains = cleanup;
+};
+
+/** Domain rows cascade with the project, so provider hostnames are read first and removed after the delete commits. */
+const projectProviderDomains = async (projectId: string): Promise<ProviderDomain[]> => {
+  const domains = await prisma.domain.findMany({
+    where: { projectId, providerHostnameId: { not: null } },
+    select: { provider: true, providerHostnameId: true, providerData: true },
+  });
+  return domains.flatMap(({ providerHostnameId, ...rest }) => (providerHostnameId ? [{ ...rest, providerHostnameId }] : []));
+};
+
+const removeProviderDomains = async (projectId: string, domains: ProviderDomain[]) => {
+  if (!cleanupProviderDomains || domains.length === 0) return;
+  try {
+    await cleanupProviderDomains(domains);
+  } catch (error) {
+    log.error({ error, projectId }, 'provider domain cleanup failed after project erasure');
+  }
+};
 
 export class TenantUsageDeletionPendingError extends Error {
   constructor(readonly pendingCount: number) {
@@ -50,6 +88,7 @@ export const eraseProjectOrganization = async (organizationId: string, expectedP
   if (clickHouseWritesEnabled(clickHouseKeys().ANALYTICS_MODE) || deletion.hadStorageMarker) {
     await Promise.all([deleteProjectAnalytics(organizationId, project.id), deleteProjectUsage(organizationId, project.id)]);
   }
+  const providerDomains = await projectProviderDomains(project.id);
   await enqueueProjectStorageErasure(project.id);
   await createJob(
     QueueNames.SEARCH,
@@ -64,5 +103,6 @@ export const eraseProjectOrganization = async (organizationId: string, expectedP
     data: { status: 'deletion_pending', hasError: false },
   });
   await prisma.organization.delete({ where: { id: organizationId } });
+  await removeProviderDomains(project.id, providerDomains);
   return { organizationId, projectId: project.id };
 };

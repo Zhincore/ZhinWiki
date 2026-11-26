@@ -1,7 +1,9 @@
 import { resolve4, resolve6, resolveCname, resolveTxt } from 'node:dns/promises';
 import { request as httpsRequest } from 'node:https';
 import { connect } from 'node:tls';
+import type { ProviderDomain } from '@nibleaf/auth/tenant-erasure';
 import { prisma } from '@nibleaf/database';
+import { logger } from '@nibleaf/logger';
 import { newToken } from '@nibleaf/shared/ids';
 import type { AddDomainBody } from '@nibleaf/validators';
 import { env } from '@/env';
@@ -305,6 +307,29 @@ export const setPrimaryDomain = async (organizationId: string, projectId: string
   return prisma.domain.findUnique({ where: { id } });
 };
 
+const deleteCloudflareHostname = async (hostnameId: string, providerData: unknown) => {
+  const routeId = (providerData as { nibleafWorkerRouteId?: string } | null)?.nibleafWorkerRouteId;
+  if (routeId) await deleteCustomHostnameRoute(routeId);
+  await deleteCustomHostname(hostnameId);
+};
+
+/** Removes the Cloudflare hostnames of an erased project, logging each failure so one cannot block the rest. */
+export const removeProviderDomains = async (domains: ProviderDomain[]) => {
+  if (!cloudflareSaasEnabled()) return;
+  const targets = domains.filter(({ provider }) => provider === 'CLOUDFLARE_SAAS');
+  const results = await Promise.allSettled(
+    targets.map(({ providerHostnameId, providerData }) => deleteCloudflareHostname(providerHostnameId, providerData)),
+  );
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      logger.error(
+        { error: result.reason, hostnameId: targets[index]?.providerHostnameId },
+        'Cloudflare hostname removal failed after project deletion',
+      );
+    }
+  });
+};
+
 export const deleteDomain = async (organizationId: string, projectId: string, id: string) => {
   await assertProjectInOrg(organizationId, projectId);
   const domain = await prisma.domain.findFirst({ where: { id, projectId }, select: { id: true, provider: true, providerHostnameId: true } });
@@ -314,9 +339,7 @@ export const deleteDomain = async (organizationId: string, projectId: string, id
   if (domain.provider === 'CLOUDFLARE_SAAS' && domain.providerHostnameId) {
     try {
       const stored = await prisma.domain.findUnique({ where: { id }, select: { providerData: true } });
-      const routeId = (stored?.providerData as { nibleafWorkerRouteId?: string } | null)?.nibleafWorkerRouteId;
-      if (routeId) await deleteCustomHostnameRoute(routeId);
-      await deleteCustomHostname(domain.providerHostnameId);
+      await deleteCloudflareHostname(domain.providerHostnameId, stored?.providerData);
     } catch (error) {
       throw badRequest(`Cloudflare could not remove this hostname: ${error instanceof Error ? error.message : 'Unknown provider error.'}`, {
         id,

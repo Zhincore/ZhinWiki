@@ -33,7 +33,7 @@ on:
       image_tag:
         description: Container tag to produce
         required: true
-        default: latest
+        default: edge
         type: string
       platforms:
         description: Target platforms
@@ -91,10 +91,23 @@ jobs:
       - name: Validate inputs
         env:
           TAG: ${{ inputs.image_tag }}
+          REF: ${{ inputs.ref }}
+          PUBLISH: ${{ inputs.publish }}
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: |
           if [[ ! "$TAG" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$ ]]; then
             echo "Invalid Docker tag: $TAG"
+            exit 1
+          fi
+
+          # `latest` is only ever added for a stable release tag, never set by hand.
+          if [[ "$TAG" == latest ]]; then
+            echo "::error::The latest tag is reserved for stable release tags"
+            exit 1
+          fi
+
+          if [[ "$PUBLISH" == true && "$TAG" == v* && "$REF" != "$TAG" ]]; then
+            echo "::error::Version image tags must be built from the matching Git tag"
             exit 1
           fi
 

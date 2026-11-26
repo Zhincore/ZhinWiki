@@ -77,6 +77,9 @@ successful isolated restore is not recovery evidence.
 ## Upgrade a pinned release
 
 Use only a tag listed on the [releases page](https://github.com/Zhincore/ZhinWiki/releases).
+The image's `latest` tag always points at the newest stable release, never at a
+`main` build, and prereleases never move it. Production should still pin
+`NIBLEAF_VERSION` so upgrades stay deliberate.
 Read each intervening release note and check for
 release-specific migration or configuration changes. Create and restore-test a
 backup. Then:

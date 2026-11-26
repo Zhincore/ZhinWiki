@@ -171,7 +171,8 @@ docker compose -f docker-compose.prod.yml up -d
 ```
 
 Database migrations run automatically (the one-shot `migrate` service), and the
-image tag is **pinned** via `NIBLEAF_VERSION`. Read the
+image tag is **pinned** via `NIBLEAF_VERSION` (`latest` is only the newest stable
+release, never a `main` build; keep production pinned). Read the
 **[backup and upgrade guide](docs/self-hosting/backups-upgrades.mdx)**
 before changing it. Open **`$APP_URL/sign-up`** and create the first
 account (no demo credentials are seeded in production). With the default

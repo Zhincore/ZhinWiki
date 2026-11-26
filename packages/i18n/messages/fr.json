@@ -1200,7 +1200,7 @@
   "settings_notifications_projectnew_label": "Nouveaux projets",
   "settings_notifications_projectnew_description": "Lorsqu'un projet est créé dans l'espace de travail.",
   "settings_notifications_projectdeploy_label": "Déploiement terminé",
-  "settings_notifications_projectdeploy_description": "Lorsqu'un site termine sa publication.",
+  "settings_notifications_projectdeploy_description": "Lorsqu'un site termine sa publication, sauf pour les publications issues de demandes de modification fusionnées.",
   "settings_notifications_projectdeployfailed_label": "Le déploiement a échoué",
   "settings_notifications_projectdeployfailed_description": "Lorsqu'une publication exécute des erreurs.",
   "settings_notifications_memberinvited_label": "Membre invité",

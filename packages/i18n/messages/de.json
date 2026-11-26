@@ -1200,7 +1200,7 @@
   "settings_notifications_projectnew_label": "Neue Projekte",
   "settings_notifications_projectnew_description": "Wenn ein Projekt im Arbeitsbereich erstellt wird.",
   "settings_notifications_projectdeploy_label": "Bereitstellung abgeschlossen",
-  "settings_notifications_projectdeploy_description": "Wenn die Veröffentlichung einer Website abgeschlossen ist.",
+  "settings_notifications_projectdeploy_description": "Wenn die Veröffentlichung einer Website abgeschlossen ist, außer bei Veröffentlichungen durch zusammengeführte Änderungsanfragen.",
   "settings_notifications_projectdeployfailed_label": "Die Bereitstellung ist fehlgeschlagen",
   "settings_notifications_projectdeployfailed_description": "Wenn bei der Veröffentlichung ein Fehler auftritt.",
   "settings_notifications_memberinvited_label": "Mitglied eingeladen",

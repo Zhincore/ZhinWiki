@@ -1221,7 +1221,7 @@
   "settings_notifications_projectnew_label": "New projects",
   "settings_notifications_projectnew_description": "When a project is created in the workspace.",
   "settings_notifications_projectdeploy_label": "Deployment completed",
-  "settings_notifications_projectdeploy_description": "When a site finishes publishing.",
+  "settings_notifications_projectdeploy_description": "When a site finishes publishing, except publishes from merged change requests.",
   "settings_notifications_projectdeployfailed_label": "Deployment failed",
   "settings_notifications_projectdeployfailed_description": "When a publish run errors out.",
   "settings_notifications_memberinvited_label": "Member invited",

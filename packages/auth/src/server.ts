@@ -830,6 +830,12 @@ const authInstance = betterAuth({
           }
         },
         afterCreateOrganization: async ({ organization: org, member }) => {
+          // Same default plan as sign-up and server-side creation paths.
+          try {
+            await assignDefaultUsagePlan(prisma, org.id);
+          } catch (error) {
+            log.error({ error, organizationId: org.id }, 'default usage plan assignment failed');
+          }
           const project = await createStarterProject(org.id, member.userId).catch(() => null);
           if (project) {
             await publishStarterSite(project.id, member.userId);

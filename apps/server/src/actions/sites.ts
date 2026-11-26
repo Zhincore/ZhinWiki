@@ -994,6 +994,30 @@ export const resolveSiteSlug = async (slug: string): Promise<{ projectId: string
   return project ? { projectId: project.id, slug: project.slug } : null;
 };
 
+/** Published, public, indexable wikis served at `/<slug>` on the app origin (shared
+ *  tenancy only), so the app-origin robots.txt can list their sitemaps. Wikis on a
+ *  primary custom domain advertise their own. */
+export const indexableSlugWikis = async (): Promise<{ projectId: string; slug: string }[]> => {
+  if (env.TENANCY !== 'shared') {
+    return [];
+  }
+  const projects = await prisma.project.findMany({
+    where: {
+      accessMode: 'PUBLIC',
+      takedownAt: null,
+      deployments: { some: { status: 'READY' } },
+      domains: { none: { verified: true, isPrimary: true } },
+    },
+    select: { id: true, slug: true, config: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  return projects.flatMap(({ id, slug, config }) => {
+    const seo = config as SiteSeoConfig;
+    const indexable = seo?.visibility !== 'private' && seo?.seo?.allowIndex !== false;
+    return indexable && isWikiPathSlug(slug) ? [{ projectId: id, slug }] : [];
+  });
+};
+
 /** Wikis whose slug names an app path (created before shared tenancy or before
  *  the path existed). They stay reachable at `/sites/:id` until renamed. */
 export const reservedSlugWikis = (): Promise<{ id: string; slug: string }[]> =>

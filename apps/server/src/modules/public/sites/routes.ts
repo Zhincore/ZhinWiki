@@ -11,6 +11,12 @@ const sitesRoutes = {
     description: 'Resolve a published wiki path slug, current or previous, to its project id and current slug (shared tenancy only).',
     responses: ok,
   }),
+  sitemaps: createRouteConfig({
+    guard: passthrough,
+    tags: ['public'],
+    description: 'Published, public, indexable wikis served at /<slug> on the app origin, for the root robots.txt (shared tenancy only).',
+    responses: ok,
+  }),
   site: createRouteConfig({ guard: passthrough, tags: ['public'], description: 'Published site shell (branding + navigation).', responses: ok }),
   page: createRouteConfig({ guard: passthrough, tags: ['public'], description: 'A published page with TOC and neighbours.', responses: ok }),
   markdown: createRouteConfig({

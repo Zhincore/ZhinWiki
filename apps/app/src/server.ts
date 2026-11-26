@@ -319,6 +319,41 @@ async function resolveWikiSlug(slug: string): Promise<SlugSite | null> {
 const wikiPublicPath = (projectId: string, slug: string): string | null =>
   HOMEPAGE.mode === 'site' && HOMEPAGE.projectId === projectId ? '' : isWikiPathSlug(slug) ? `/${slug}` : null;
 
+let slugSitemapsCache: { wikis: SlugSite[]; at: number } | undefined;
+const SLUG_SITEMAPS_TTL = 60_000;
+
+/** Wikis whose sitemap the app-origin robots.txt lists: published, public and indexable
+ *  at `/<slug>`. The home wiki's robots.txt already carries its own. Empty on a failure. */
+async function resolveSlugSitemaps(): Promise<SlugSite[]> {
+  if (slugSitemapsCache && Date.now() - slugSitemapsCache.at < SLUG_SITEMAPS_TTL) {
+    return slugSitemapsCache.wikis;
+  }
+  try {
+    const response = await got(`${SELF}/api/public/sites/sitemaps`, {
+      headers: publicMachineRequestHeaders(),
+      responseType: 'json',
+      retry: { limit: 0 },
+      throwHttpErrors: false,
+      timeout: { request: 5000 },
+    });
+    const parsed = z.object({ data: z.array(z.object({ projectId: z.string(), slug: z.string() })) }).safeParse(response.body);
+    if (!(response.ok && parsed.success)) return [];
+    const wikis = parsed.data.data.filter(({ projectId, slug }) => wikiPublicPath(projectId, slug) === `/${slug}`);
+    slugSitemapsCache = { wikis, at: Date.now() };
+    return wikis;
+  } catch {
+    return [];
+  }
+}
+
+/** The app-origin robots.txt with a `Sitemap:` line per `/<slug>` wiki appended. */
+async function withSlugSitemaps(robots: Response, origin: string): Promise<Response> {
+  const wikis = await resolveSlugSitemaps();
+  if (wikis.length === 0) return robots;
+  const lines = wikis.map(({ slug }) => `Sitemap: ${origin}/${slug}/sitemap.xml`).join('\n');
+  return new Response(`${await robots.text()}${lines}\n`, { status: robots.status, headers: robots.headers });
+}
+
 // ─── Published-site metadata (privacy + primary domain) ──────────────────────
 
 /** What the edge needs to know about a published site: whether its HTML may be
@@ -755,19 +790,22 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
     const site = await resolveWikiSlug(segment);
     if (!site) return null;
     const rest = url.pathname.slice(segment.length + 1);
+    const machineFile = isGetLike && DOMAIN_SEO_FILE.test(rest);
+    // A verified primary domain wins in one hop, from a previous slug too. The
+    // machine files are never consolidated, as under /sites/:id.
+    if (request.method === 'GET' && !machineFile) {
+      const meta = await resolveSiteMeta(site.projectId);
+      if (meta?.primaryDomain && meta.primaryDomain !== bare) {
+        return Response.redirect(`https://${meta.primaryDomain}${rest || '/'}${url.search}`, 301);
+      }
+    }
     const publicPath = wikiPublicPath(site.projectId, site.slug) ?? `/sites/${site.projectId}`;
     if (isGetLike && publicPath !== `/${segment}`) {
       return redirectToPublic(`${publicPath}${rest}`);
     }
     const base = `${appOrigin()}/${site.slug}`;
-    if (isGetLike && DOMAIN_SEO_FILE.test(rest)) {
+    if (machineFile) {
       return withoutHeadBody(await serveDomainSeo(rest, site.projectId, base), request.method);
-    }
-    if (request.method === 'GET') {
-      const meta = await resolveSiteMeta(site.projectId);
-      if (meta?.primaryDomain && meta.primaryDomain !== bare) {
-        return Response.redirect(`https://${meta.primaryDomain}${rest || '/'}${url.search}`, 301);
-      }
     }
     url.pathname = `/sites/${site.projectId}${rest}`;
     const rewritten = new Request(url, routedRequest);
@@ -789,7 +827,9 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
         const origin = appOrigin();
         if (isGetLike && DOMAIN_SEO_FILE.test(url.pathname)) {
           const seo = await serveDomainSeo(url.pathname, HOMEPAGE.projectId, origin);
-          return withoutHeadBody(url.pathname === '/robots.txt' ? await withDashboardDisallows(seo) : seo, request.method);
+          if (url.pathname !== '/robots.txt') return withoutHeadBody(seo, request.method);
+          const robots = await withDashboardDisallows(seo);
+          return withoutHeadBody(WIKI_SLUG_PATHS ? await withSlugSitemaps(robots, origin) : robots, request.method);
         }
         url.pathname = `/sites/${HOMEPAGE.projectId}${url.pathname === '/' ? '' : url.pathname}`;
         const rewritten = new Request(url, routedRequest);
@@ -803,7 +843,8 @@ const handleRequestInner: RequestHandler<Register> = async (incoming, ...rest) =
       if (isGetLike) {
         const rootSeo = serveRootSeo(url.pathname);
         if (rootSeo) {
-          return withoutHeadBody(rootSeo, request.method);
+          const robots = WIKI_SLUG_PATHS && url.pathname === '/robots.txt' ? await withSlugSitemaps(rootSeo, appOrigin()) : rootSeo;
+          return withoutHeadBody(robots, request.method);
         }
         // App-origin robots/sitemap/llms for a site live under /sites/:id/*; serve
         // them from the API (they're in SKIP so they never reach the site routes).

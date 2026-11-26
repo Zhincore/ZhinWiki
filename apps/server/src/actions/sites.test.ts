@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   projectFindUnique: vi.fn(),
   projectFindFirst: vi.fn(),
+  projectFindMany: vi.fn(),
   searchPublicWikiDocuments: vi.fn(),
   trackProjectEvent: vi.fn(),
   deploymentFindFirst: vi.fn(),
@@ -15,7 +16,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@nibleaf/database', () => ({
   prisma: {
-    project: { findUnique: mocks.projectFindUnique, findFirst: mocks.projectFindFirst },
+    project: { findUnique: mocks.projectFindUnique, findFirst: mocks.projectFindFirst, findMany: mocks.projectFindMany },
     deployment: { findFirst: mocks.deploymentFindFirst, findUnique: mocks.deploymentFindUnique },
   },
 }));
@@ -39,7 +40,7 @@ vi.mock('./reader-access', () => ({ resolveViewerAccess: vi.fn(async () => ({ ki
 
 import { env } from '@/env';
 import { CROSS_WIKI_HITS_PER_WIKI, CROSS_WIKI_RESULT_LIMIT } from '@/lib/cross-wiki-search';
-import { getSitePage, getSitePageMarkdown, invalidatePublishedSiteConfig, resolveSiteSlug, searchSite } from './sites';
+import { getSitePage, getSitePageMarkdown, indexableSlugWikis, invalidatePublishedSiteConfig, resolveSiteSlug, searchSite } from './sites';
 
 const page = (over: Partial<SnapshotPage> & Pick<SnapshotPage, 'id' | 'path' | 'position'>): SnapshotPage => ({
   parentId: null,
@@ -344,6 +345,34 @@ describe('resolveSiteSlug', () => {
     await expect(resolveSiteSlug('handbook')).resolves.toEqual({ projectId: 'p1', slug: 'handbook' });
     await expect(resolveSiteSlug('guide')).resolves.toEqual({ projectId: 'p1', slug: 'handbook' });
     await expect(resolveSiteSlug('missing')).resolves.toBeNull();
+  });
+});
+
+describe('indexableSlugWikis', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.projectFindMany.mockResolvedValue([
+      { id: 'p1', slug: 'handbook', config: { visibility: 'public' } },
+      { id: 'p2', slug: 'app', config: null },
+      { id: 'p3', slug: 'secret', config: { visibility: 'private' } },
+      { id: 'p4', slug: 'hidden', config: { seo: { allowIndex: false } } },
+    ]);
+  });
+
+  it('lists nothing outside shared tenancy', async () => {
+    Object.assign(env, { TENANCY: 'independent' });
+    await expect(indexableSlugWikis()).resolves.toEqual([]);
+    expect(mocks.projectFindMany).not.toHaveBeenCalled();
+  });
+
+  it('keeps only indexable wikis whose slug is served at /<slug>', async () => {
+    Object.assign(env, { TENANCY: 'shared' });
+    await expect(indexableSlugWikis()).resolves.toEqual([{ projectId: 'p1', slug: 'handbook' }]);
+    expect(mocks.projectFindMany.mock.calls[0]?.[0].where).toMatchObject({
+      accessMode: 'PUBLIC',
+      takedownAt: null,
+      domains: { none: { verified: true, isPrimary: true } },
+    });
   });
 });
 

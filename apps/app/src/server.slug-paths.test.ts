@@ -24,8 +24,11 @@ const SLUGS: Record<string, { projectId: string; slug: string }> = {
   handbook: { projectId: 'p1', slug: 'handbook' },
   'old-handbook': { projectId: 'p1', slug: 'handbook' },
   'home-wiki': { projectId: 'home', slug: 'home-wiki' },
+  guide: { projectId: 'p3', slug: 'guide' },
+  'old-guide': { projectId: 'p3', slug: 'guide' },
 };
-const SITE_SLUGS: Record<string, string> = { p1: 'handbook', p2: 'app', home: 'home-wiki' };
+const SITE_SLUGS: Record<string, string> = { p1: 'handbook', p2: 'app', home: 'home-wiki', p3: 'guide' };
+const PRIMARY_DOMAINS: Record<string, string> = { p3: 'docs.example.com' };
 
 /** The entry for a tenancy and `HOMEPAGE`, with fresh module-level caches. */
 const loadServer = async (tenancy: 'shared' | 'independent', homepage = '') => {
@@ -46,12 +49,20 @@ beforeEach(() => {
       const site = SLUGS[target.searchParams.get('slug') ?? ''];
       return site ? upstream({ data: site }) : upstream({ data: null }, 404);
     }
+    if (target.pathname === '/api/public/sites/sitemaps') {
+      return upstream({ data: Object.entries(SITE_SLUGS).map(([projectId, slug]) => ({ projectId, slug })) });
+    }
+    if (target.pathname === '/api/public/sites/home/robots.txt') {
+      return upstream('User-agent: *\nAllow: /\nSitemap: http://localhost:4310/api/public/sites/home/sitemap.xml\n');
+    }
     const sitemap = /^\/api\/public\/sites\/([^/]+)\/sitemap\.xml$/.exec(target.pathname);
     if (sitemap) return upstream(`<loc>http://localhost:4310/sites/${sitemap[1]}/guide</loc>`);
     if (target.pathname.endsWith('/markdown')) return upstream('Not found', 404);
     const shell = /^\/api\/public\/sites\/([^/]+)$/.exec(target.pathname);
     if (shell?.[1]) {
-      return upstream({ data: { project: { config: { visibility: 'public' }, primaryDomain: null, slug: SITE_SLUGS[shell[1]] } } });
+      return upstream({
+        data: { project: { config: { visibility: 'public' }, primaryDomain: PRIMARY_DOMAINS[shell[1]] ?? null, slug: SITE_SLUGS[shell[1]] } },
+      });
     }
     throw new Error(`Unexpected URL: ${url}`);
   });
@@ -94,6 +105,20 @@ describe('wiki slug paths under shared tenancy', () => {
     expect((await get(server, '/old-handbook.md')).headers.get('location')).toBe('http://localhost:4310/handbook.md');
   });
 
+  it('301s a previous and the current slug to a primary domain in one hop, but serves its machine files', async () => {
+    const server = await loadServer('shared');
+
+    for (const path of ['/old-guide/intro?tab=cli', '/guide/intro?tab=cli']) {
+      const response = await get(server, path);
+      expect(response.status, path).toBe(301);
+      expect(response.headers.get('location'), path).toBe('https://docs.example.com/intro?tab=cli');
+    }
+    expect(rendered).toBeUndefined();
+
+    expect((await get(server, '/old-guide/sitemap.xml')).headers.get('location')).toBe('http://localhost:4310/guide/sitemap.xml');
+    expect(await (await get(server, '/guide/sitemap.xml')).text()).toBe('<loc>http://localhost:4310/guide/guide</loc>');
+  });
+
   it('keeps a wiki whose slug clashes with an app path at /sites/:id', async () => {
     const server = await loadServer('shared');
     const response = await get(server, '/sites/p2/guide');
@@ -115,6 +140,27 @@ describe('wiki slug paths under shared tenancy', () => {
 
     expect(await (await get(server, '/handbook/sitemap.xml')).text()).toBe('<loc>http://localhost:4310/handbook/guide</loc>');
     expect(await (await get(server, '/sites/p1/sitemap.xml')).text()).toBe('<loc>http://localhost:4310/handbook/guide</loc>');
+  });
+
+  it('lists the sitemap of every /<slug> wiki in the root robots.txt', async () => {
+    const server = await loadServer('shared');
+    const robots = await (await get(server, '/robots.txt')).text();
+
+    expect(robots).toBe(
+      'User-agent: *\nDisallow: /app/\nDisallow: /app$\nDisallow: /sign-in\nDisallow: /sign-up\nDisallow: /api/\n' +
+        'Sitemap: http://localhost:4310/handbook/sitemap.xml\nSitemap: http://localhost:4310/home-wiki/sitemap.xml\nSitemap: http://localhost:4310/guide/sitemap.xml\n',
+    );
+  });
+
+  it('adds the other wikis to the home wiki robots.txt, which already lists its own sitemap', async () => {
+    const server = await loadServer('shared', 'site:home');
+    const robots = await (await get(server, '/robots.txt')).text();
+
+    expect(robots).toBe(
+      'User-agent: *\nDisallow: /app/\nDisallow: /app$\nDisallow: /sign-in\nDisallow: /sign-up\nDisallow: /api/\nAllow: /\n' +
+        'Sitemap: http://localhost:4310/sitemap.xml\n' +
+        'Sitemap: http://localhost:4310/handbook/sitemap.xml\nSitemap: http://localhost:4310/guide/sitemap.xml\n',
+    );
   });
 
   it('lets another wiki slug win over a home-wiki path and moves the home wiki to the root', async () => {
@@ -143,6 +189,8 @@ describe('independent tenancy', () => {
 
     expect((await get(server, '/handbook/guide')).status).not.toBe(301);
     expect(resolvedSlugs()).toHaveLength(0);
+    expect(await (await get(server, '/robots.txt')).text()).not.toContain('Sitemap:');
+    expect(mocks.got.mock.calls.some(([url]) => String(url).includes('/sites/sitemaps'))).toBe(false);
 
     const internal = await get(server, '/sites/p1/guide');
     expect(internal.status).toBe(200);

@@ -1192,7 +1192,7 @@
   "settings_notifications_projectnew_label": "Novos projetos",
   "settings_notifications_projectnew_description": "Quando um projeto é criado no espaço de trabalho.",
   "settings_notifications_projectdeploy_label": "Implantação concluída",
-  "settings_notifications_projectdeploy_description": "Quando um site termina de ser publicado.",
+  "settings_notifications_projectdeploy_description": "Quando um site termina de ser publicado, exceto publicações de solicitações de alteração mescladas.",
   "settings_notifications_projectdeployfailed_label": "Falha na implantação",
   "settings_notifications_projectdeployfailed_description": "Quando uma publicação é executada com erros.",
   "settings_notifications_memberinvited_label": "Membro convidado",

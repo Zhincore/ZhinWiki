@@ -1192,7 +1192,7 @@
   "settings_notifications_projectnew_label": "新项目",
   "settings_notifications_projectnew_description": "当在工作区中创建项目时。",
   "settings_notifications_projectdeploy_label": "部署完成",
-  "settings_notifications_projectdeploy_description": "当网站完成发布时。",
+  "settings_notifications_projectdeploy_description": "当网站完成发布时，由合并变更请求触发的发布除外。",
   "settings_notifications_projectdeployfailed_label": "部署失败",
   "settings_notifications_projectdeployfailed_description": "当发布运行出错时。",
   "settings_notifications_memberinvited_label": "会员邀请",

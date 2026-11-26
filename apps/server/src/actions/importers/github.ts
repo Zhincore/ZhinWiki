@@ -178,7 +178,6 @@ export const getGitHubTextFile = async (owner: string, repo: string, branch: str
     }
     return Buffer.concat(chunks).toString('utf8');
   } catch (error) {
-    if (error instanceof ImportError) throw error;
     throw githubFailure(error);
   } finally {
     await reader.cancel().catch(() => undefined);

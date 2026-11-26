@@ -216,10 +216,11 @@ services:
       retries: 12
 
   # maxio — bundled S3-compatible object storage. Auto-creates the bucket
-  # (MAXIO_DEFAULT_BUCKETS) and serves it with anonymous read (MAXIO_PUBLIC_BUCKETS)
-  # so published doc assets load by their public URL. If you use R2/S3 instead,
-  # this service is simply unused. Route your STORAGE_PUBLIC_ENDPOINT host to it
-  # at your reverse proxy (or publish the commented port below for a host proxy).
+  # (MAXIO_DEFAULT_BUCKETS). The bucket stays private: uploads are served by the
+  # API at /api/public/assets/<key>, which enforces reader access and takedowns.
+  # If you use R2/S3 instead, this service is simply unused. Route your
+  # STORAGE_PUBLIC_ENDPOINT host to it at your reverse proxy (or publish the
+  # commented port below for a host proxy).
   maxio:
     image: docker.io/coollabsio/maxio:0.4.2
     restart: unless-stopped
@@ -228,7 +229,6 @@ services:
       MAXIO_SECRET_KEY: ${STORAGE_SECRET_ACCESS_KEY:?Set STORAGE_SECRET_ACCESS_KEY in .env}
       MAXIO_REGION: ${STORAGE_REGION:-auto}
       MAXIO_DEFAULT_BUCKETS: ${STORAGE_BUCKET:-nibleaf}
-      MAXIO_PUBLIC_BUCKETS: ${STORAGE_BUCKET:-nibleaf}
       MAXIO_SECURE_COOKIES: ${MAXIO_SECURE_COOKIES:-true}
     volumes:
       - nibleaf-maxio:/data

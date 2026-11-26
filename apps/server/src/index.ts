@@ -2,6 +2,7 @@ import './lib/serialize-bigint';
 
 import { type ServerType, serve } from '@hono/node-server';
 import { setContributionErasure } from '@nibleaf/auth/account-deletion';
+import { setProviderDomainCleanup } from '@nibleaf/auth/tenant-erasure';
 import { closeQueues, scheduleAnalyticsRollup } from '@nibleaf/bullmq';
 import { clickHouseHealth, closeClickHouseClients, initializeClickHouseFn } from '@nibleaf/clickhouse';
 import { setMessageBrand } from '@nibleaf/i18n/brand';
@@ -11,12 +12,14 @@ import { configureUploadCors, ensureBucket } from '@nibleaf/storage';
 import { Scalar } from '@scalar/hono-api-reference';
 import { openAPIRouteHandler } from 'hono-openapi';
 import { eraseUserContributions } from './actions/contributor-erasure';
+import { removeProviderDomains } from './actions/domains';
 import { reservedSlugWikis } from './actions/sites';
 import { env } from './env';
 import app from './routes';
 
 setMessageBrand(instanceBrand());
 setContributionErasure(eraseUserContributions);
+setProviderDomainCleanup(removeProviderDomains);
 
 // Fail fast on unhandled async/sync errors rather than running in an undefined state.
 process.on('unhandledRejection', (reason) => {

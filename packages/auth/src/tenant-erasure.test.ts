@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   markerFindUnique: vi.fn(),
   checkpointUpdateMany: vi.fn(),
   organizationDelete: vi.fn(),
+  domainFindMany: vi.fn(),
+  cleanup: vi.fn(),
 }));
 
 vi.mock('@nibleaf/bullmq', () => ({
@@ -32,10 +34,11 @@ vi.mock('@nibleaf/database', () => ({
     usageStorageMarker: { findUnique: mocks.markerFindUnique },
     usageProviderCheckpoint: { updateMany: mocks.checkpointUpdateMany },
     organization: { delete: mocks.organizationDelete },
+    domain: { findMany: mocks.domainFindMany },
   },
 }));
 
-import { eraseProjectOrganization, TenantUsageDeletionPendingError } from './tenant-erasure';
+import { eraseProjectOrganization, setProviderDomainCleanup, TenantUsageDeletionPendingError } from './tenant-erasure';
 
 describe('shared tenant privacy erasure', () => {
   beforeEach(() => {
@@ -49,6 +52,45 @@ describe('shared tenant privacy erasure', () => {
     mocks.removeJob.mockResolvedValue(true);
     mocks.checkpointUpdateMany.mockResolvedValue({ count: 0 });
     mocks.organizationDelete.mockResolvedValue({ id: 'org-a' });
+    mocks.domainFindMany.mockResolvedValue([]);
+    mocks.cleanup.mockResolvedValue(undefined);
+    setProviderDomainCleanup(mocks.cleanup);
+  });
+
+  describe('provider domains', () => {
+    const hostname = { provider: 'CLOUDFLARE_SAAS', providerHostnameId: 'cf-1', providerData: { nibleafWorkerRouteId: 'route-1' } };
+
+    it('removes provider hostnames read before the cascade, after the relational delete', async () => {
+      mocks.domainFindMany.mockResolvedValue([hostname, { provider: 'INGRESS', providerHostnameId: null, providerData: null }]);
+
+      await eraseProjectOrganization('org-a', 'project-a');
+
+      expect(mocks.domainFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { projectId: 'project-a', providerHostnameId: { not: null } } }),
+      );
+      expect(mocks.cleanup).toHaveBeenCalledWith([hostname]);
+      expect(mocks.cleanup.mock.invocationCallOrder[0]).toBeGreaterThan(mocks.organizationDelete.mock.invocationCallOrder[0] ?? 0);
+    });
+
+    it('skips cleanup when the project has no provider hostnames', async () => {
+      await eraseProjectOrganization('org-a', 'project-a');
+      expect(mocks.cleanup).not.toHaveBeenCalled();
+    });
+
+    it('does not fail the erasure when provider cleanup rejects', async () => {
+      mocks.domainFindMany.mockResolvedValue([hostname]);
+      mocks.cleanup.mockRejectedValue(new Error('cloudflare unavailable'));
+
+      await expect(eraseProjectOrganization('org-a', 'project-a')).resolves.toEqual({ organizationId: 'org-a', projectId: 'project-a' });
+    });
+
+    it('skips cleanup when the relational delete fails', async () => {
+      mocks.domainFindMany.mockResolvedValue([hostname]);
+      mocks.organizationDelete.mockRejectedValue(new Error('db down'));
+
+      await expect(eraseProjectOrganization('org-a', 'project-a')).rejects.toThrow('db down');
+      expect(mocks.cleanup).not.toHaveBeenCalled();
+    });
   });
 
   it('fails closed before ClickHouse, search, or relational deletion while usage is pending', async () => {

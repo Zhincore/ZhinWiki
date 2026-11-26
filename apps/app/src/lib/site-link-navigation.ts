@@ -72,7 +72,8 @@ export function useSiteLinkNavigation(projectId: string): string {
             frame = requestAnimationFrame(() => setAnnouncement(title));
           };
           announcementObserver = new MutationObserver(announce);
-          announcementObserver.observe(document.body, { childList: true, subtree: true });
+          // The dialog leaves the DOM when it or an ancestor is detached from its parent.
+          for (let node = focusDialog?.parentNode; node; node = node.parentNode) announcementObserver.observe(node, { childList: true });
           announce();
           return;
         }

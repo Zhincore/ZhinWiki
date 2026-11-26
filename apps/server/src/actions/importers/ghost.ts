@@ -1,11 +1,12 @@
 import { siteT } from '@nibleaf/i18n/site';
 import { slugify } from '@nibleaf/shared';
 import type { GhostImportBody } from '@nibleaf/validators';
+import { env } from '@/env';
 import { badRequest, ImportError } from '@/errors';
 import { getDefaultBranch } from '../branches';
 import { listLanguages } from '../languages';
 import { assertProjectInOrg } from '../projects';
-import { humanize, MAX_IMPORT_FILES } from './content';
+import { humanize } from './content';
 import { GhostAssetMigrator } from './ghost-assets';
 import {
   byPublishedAt,
@@ -158,9 +159,9 @@ const importCollection = async (
 
   const ordered = [...items].sort(byPublishedAt);
   for (const [position, item] of ordered.entries()) {
-    if (state.pages >= MAX_IMPORT_FILES) {
+    if (state.pages >= env.IMPORT_MAX_PAGES) {
       if (!state.capWarned) {
-        summary.warnings.push(`Import capped at ${MAX_IMPORT_FILES} pages — the remaining entries were skipped.`);
+        summary.warnings.push(`Import capped at ${env.IMPORT_MAX_PAGES} pages — the remaining entries were skipped.`);
         state.capWarned = true;
       }
       summary.skipped++;

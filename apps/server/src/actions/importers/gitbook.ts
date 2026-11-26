@@ -1,10 +1,10 @@
 import { type Prisma, prisma } from '@nibleaf/database';
 import { MAX_REDIRECT_RULES, validateRedirectGraph } from '@nibleaf/shared/redirects';
 import type { GitbookImportBody, PageConfig, ProjectConfig } from '@nibleaf/validators';
+import { env } from '@/env';
 import { badRequest, ImportError } from '@/errors';
 import { captureImportDraft, createImportReplacementBranch, promoteImportReplacementBranch } from '../branches';
 import { assertProjectInOrg } from '../projects';
-import { MAX_IMPORT_FILES } from './content';
 import { RemoteAssetMigrator } from './ghost-assets';
 import { encodeMarkdownUrl, resolveGitBookRepoPath, rewriteGitBookImages } from './gitbook-assets';
 import { GitBookImportBudget } from './gitbook-budget';
@@ -230,11 +230,11 @@ const loadNodes = async (nodes: readonly PlannedGitBookNode[], context: LoadCont
   const loaded: LoadedGitBookNode[] = [];
   for (const node of nodes) {
     // The cap bounds every CREATED node — groups included.
-    if (state.pages >= MAX_IMPORT_FILES) {
+    if (state.pages >= env.IMPORT_MAX_PAGES) {
       throw new ImportError({
         code: 'import:limit',
-        message: `GitBook import exceeds the limit of ${MAX_IMPORT_FILES} navigation entries; the draft was preserved.`,
-        details: { limit: MAX_IMPORT_FILES },
+        message: `GitBook import exceeds the limit of ${env.IMPORT_MAX_PAGES} navigation entries; the draft was preserved.`,
+        details: { limit: env.IMPORT_MAX_PAGES },
       });
     }
 

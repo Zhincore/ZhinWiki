@@ -1,12 +1,13 @@
 import { type Prisma, prisma } from '@nibleaf/database';
 import { slugify } from '@nibleaf/shared';
 import type { MintlifyImportBody, ProjectConfig } from '@nibleaf/validators';
+import { env } from '@/env';
 import { badRequest, ImportError } from '@/errors';
 import { importDocumentSchema } from '@/validators/importers';
 import { createBranch, createImportReplacementBranch, promoteImportReplacementBranch } from '../branches';
 import { createLanguage, updateLanguage } from '../languages';
 import { assertProjectInOrg } from '../projects';
-import { deriveTitle, MAX_IMPORT_FILES, parseFrontmatter, stableHash } from './content';
+import { deriveTitle, parseFrontmatter, stableHash } from './content';
 import { RemoteAssetMigrator } from './ghost-assets';
 import { getGitHubDefaultBranch, getGitHubTextFile, githubRawUrl, listGitHubFiles } from './github';
 import { resolveMintlifyConfigAsset, rewriteMintlifyAssetReferences } from './mintlify-assets';
@@ -335,7 +336,7 @@ const discoverLinkedPages = async (
   const known = navPagePaths(nodes);
   const queue = [...known];
   const additional: string[] = [];
-  for (let index = 0; index < queue.length && known.size < MAX_IMPORT_FILES; index++) {
+  for (let index = 0; index < queue.length && known.size < env.IMPORT_MAX_PAGES; index++) {
     const sourcePath = queue[index];
     if (!sourcePath) continue;
     const candidates = [`${baseDir}${sourcePath}.mdx`, `${baseDir}${sourcePath}.md`];
@@ -386,9 +387,9 @@ const importNodes = async (
   for (const [position, node] of nodes.entries()) {
     // The cap bounds every CREATED node — groups included — so a hostile or
     // enormous nav tree can't fan out unbounded GROUP rows either.
-    if (state.pages >= MAX_IMPORT_FILES) {
+    if (state.pages >= env.IMPORT_MAX_PAGES) {
       if (!state.capWarned) {
-        summary.warnings.push(`Import capped at ${MAX_IMPORT_FILES} pages — remaining navigation entries were skipped.`);
+        summary.warnings.push(`Import capped at ${env.IMPORT_MAX_PAGES} pages — remaining navigation entries were skipped.`);
         state.capWarned = true;
       }
       summary.skipped++;

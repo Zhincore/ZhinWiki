@@ -24,6 +24,10 @@ requireMatch(
   /image_tag: \$\{\{ github\.ref_name \}\}/.test(release) && /publish: true/.test(release),
   'release tags must publish the version-tagged image',
 );
+requireMatch(
+  workflow.includes('TAG" == latest') && /value=latest,enable=.*startsWith\(inputs\.image_tag, 'v'\)/.test(workflow),
+  'latest must be limited to stable release tags',
+);
 requireMatch(workflow.includes('actions/attest@v4'), 'published images need source provenance');
 requireMatch(dockerfile.includes('FROM node:22-alpine'), 'production must stay on Node 22');
 requireMatch(dockerfile.includes('org.opencontainers.image.revision=$REVISION'), 'image must carry the exact source revision');

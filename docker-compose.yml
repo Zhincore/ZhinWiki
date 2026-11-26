@@ -33,7 +33,9 @@ x-service-env: &service-env
   REDIS_HOST: dragonfly
   REDIS_PORT: "6379"
   ANALYTICS_MODE: ${ANALYTICS_MODE:-dual_write}
-  ANALYTICS_HASH_SALT: ${ANALYTICS_HASH_SALT:-local-analytics-salt-change-in-production}
+  # No default: a committed salt makes reader hashes guessable. Generate one in
+  # .env (openssl rand -hex 32); unset, the server warns and drops events.
+  ANALYTICS_HASH_SALT: ${ANALYTICS_HASH_SALT:-}
   CLICKHOUSE_URL: http://clickhouse:8123
   CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-nibleaf_analytics}
   CLICKHOUSE_READER_USERNAME: ${CLICKHOUSE_USERNAME:-nibleaf}

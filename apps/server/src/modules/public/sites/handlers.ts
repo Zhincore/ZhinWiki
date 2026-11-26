@@ -14,6 +14,7 @@ import {
   getSitePageMarkdown,
   getSiteRobots,
   getSiteSitemap,
+  indexableSlugWikis,
   recordSiteEvent,
   resolveSiteSlug,
   type SiteTextDocument,
@@ -53,6 +54,10 @@ const app = new Hono<HonoEnv>()
   .get('/resolve', ...sitesRoutes.resolve, validator('query', z.object({ slug: z.string().min(1).max(63) })), async (ctx) => {
     const site = await resolveSiteSlug(ctx.req.valid('query').slug);
     return site ? ctx.json({ data: site }, 200) : ctx.json({ data: null }, 404);
+  })
+  .get('/sitemaps', ...sitesRoutes.sitemaps, async (ctx) => {
+    for (const [name, value] of Object.entries(deliveryCacheHeaders(false, PUBLIC_CACHE))) ctx.header(name, value);
+    return ctx.json({ data: await indexableSlugWikis() }, 200);
   })
   .get('/:id', ...sitesRoutes.site, validator('query', siteQuery), async (ctx) => {
     const { lang } = ctx.req.valid('query');

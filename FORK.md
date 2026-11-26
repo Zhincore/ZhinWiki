@@ -114,7 +114,11 @@ Shared mode only (`WIKI_SLUG_PATHS`, `apps/app/src/server.ts`).
 - A valid unreserved first segment resolves via
   `GET /api/public/sites/resolve?slug=` (cached 30 s, misses too: renames and
   new wikis route within 30 s) and is served as that wiki. A previous slug 301s
-  to the current one; public `/sites/<id>/*` 301s to `/<slug>/*`.
+  to the current one; public `/sites/<id>/*` 301s to `/<slug>/*`. A verified
+  primary domain wins in one hop from either.
+- The app-origin `/robots.txt` lists `Sitemap: /<slug>/sitemap.xml` for every
+  published, public, indexable wiki (`GET /api/public/sites/sitemaps`, cached
+  60 s); the home wiki's robots.txt already carries its own.
 - Order: legal redirects → `/<slug>` → `HOMEPAGE=site` → `/sites/<id>`. The
   home wiki's slug and `/sites/<home id>` 301 to `/`.
 - Previous slugs: `project.config.previousSlugs` (newest first, max 10), set
